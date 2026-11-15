@@ -30,8 +30,12 @@ services:
     volumes:
       - ..:/work
       - appliance-data:/data
-    command: ["python3", "-m", "btkit.appliance_lab", "--data", "/data", "--http-port", "8080", "--stream-port", "8090",
-              "--advertise-host", "appliance", "--source", "none", "--thermal-path", "", "--sim-port", "8099"]
+    command: ["python3", "-m", "btkit.appliance_lab", "--data", "/data", "--http-port", "8080", "--https-port", "8443",
+              "--stream-port", "8090", "--advertise-host", "appliance", "--source", "none", "--thermal-path", "", "--no-mdns",
+              "--sim-port", "8099"]
+    networks:
+      lab:
+        aliases: ["hifi-bridge.local"]       # the device's mDNS name, so Host validation and the certificate apply as on hardware
 
   browser:
     image: btbridge-browser:dev
@@ -45,7 +49,8 @@ services:
       - ..:/work
       - appliance-data:/appliance-data:ro
     environment:
-      - BASE_URL=http://appliance:8080
+      - BASE_URL=http://hifi-bridge.local:8080
+      - HTTPS_URL=https://hifi-bridge.local:8443
       - SIM_URL=http://appliance:8099
     working_dir: /work
 
@@ -89,9 +94,13 @@ services:
     networks: [lab]
     volumes:
       - ./lms-config:/seed:ro
-      - lms-config:/config
+      # LMS state lives in the project directory on the HOST filesystem: LMS runs as a non-root user and failed with
+      # "database or disk is full" when Docker's data filesystem filled up (found 2026-11-15). Owned by LAB_UID (default 1000).
+      - ../.lab/lms-config:/config
     environment:
       - HTTP_PORT=9000
+      - PUID=${LAB_UID:-1000}
+      - PGID=${LAB_GID:-1000}
     entrypoint: ["/bin/bash","-c","mkdir -p /config/prefs && [ -f /config/prefs/server.prefs ] || cp /seed/server.prefs /config/prefs/server.prefs; exec start-container"]
     healthcheck:
       test: ["CMD-SHELL","curl -fs -X POST -d '{\"id\":1,\"method\":\"slim.request\",\"params\":[\"\",[\"serverstatus\",0,1]]}' http://localhost:9000/jsonrpc.js >/dev/null"]

@@ -7,7 +7,11 @@
  "lyrion": [],
  "pairing": [],
  "settings": [],
+ "settings-access": [],
+ "settings-lyrion": [],
+ "settings-mqtt": [],
  "setup": [],
  "system": [],
- "target": []
+ "target": [],
+ "trust": []
 }

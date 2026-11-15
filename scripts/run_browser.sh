@@ -11,7 +11,7 @@ docker volume rm -f btbridge-lab_appliance-data >/dev/null 2>&1
 docker compose --profile browser up -d appliance >/dev/null
 for _ in $(seq 60); do docker compose --profile browser exec -T appliance test -f /data/setup-code.txt 2>/dev/null && break; sleep 0.5; done
 docker compose --profile browser run --rm -T browser python3 -m pytest -p no:cacheprovider -v tests/browser "$@"; rc=$?
-docker compose --profile browser logs --no-color appliance 2>/dev/null | tail -5
+docker compose --profile browser logs --no-color appliance 2>/dev/null | grep -E "ctl|error|Error|unreach" | tail -25
 docker compose --profile browser rm -sf appliance >/dev/null 2>&1
 [ -d ../reports/screenshots ] && docker run --rm -v "$PWD/../reports":/r alpine:3.20 chown -R "$(id -u):$(id -g)" /r/screenshots >/dev/null 2>&1
 exit $rc

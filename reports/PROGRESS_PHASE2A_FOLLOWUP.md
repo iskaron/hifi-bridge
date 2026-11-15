@@ -52,3 +52,12 @@ Running log, newest at the bottom. Labels: UNIT, INTEGRATION, SIMULATED, REAL-HA
   env/trace/nodes/capture, verdict recording), `latency` (E2: AVRCP edge -> sound at the mic on one clock; states what is NOT included),
   pi-setup/ (PipeWire/WirePlumber/BlueZ snippets + setup script that refuses unless confirmed AND on a Raspberry Pi), 
   docs/HARDWARE_TEST_PROCEDURE.md (day plan, order, stop rules, bring-back list). +6 tests (32 total in tests/hwkit).
+- Real-browser tests reworked (5 tests, Chromium + WebKit): KEYBOARD-ONLY setup wizard (Tab/Enter/arrow keys/Space, visible focus
+  asserted on every control), skip link, error message receives focus with role=alert, accessibility-tree assertions (headings,
+  button names, navigation landmark), live updates without reload, settings overview + sections at 390 px, balanced desktop grid
+  asserted (3 cards in one row + system strip), dark mode, German, axe-core 0 violations on 15 pages. HTTPS in a real browser
+  WITHOUT exceptions: WebKit trusts the device CA after the documented Linux system-store step; Chromium (CA not in its NSS store)
+  refuses with ERR_CERT_AUTHORITY_INVALID. Firefox enterprise policies are not applied by Playwright's Firefox build (tried, dropped).
+- Disk-full consequence found: LMS (non-root) failed "database or disk is full" -> every playback command timed out (looked like a
+  regression). Lab LMS state moved to the host filesystem (.lab/lms-config, PUID/PGID = lab user); LMS works again. Root containers
+  were unaffected, which is why the other suites kept passing.
