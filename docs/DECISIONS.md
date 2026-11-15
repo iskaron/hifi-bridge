@@ -17,9 +17,29 @@
 13. Licensing intent AGPL-3.0-only; planned GitHub repository private first, not assumed present.
 14. Future Docker support by architecture, not initial implementation.
 
+## Phase-1 review decisions (owner + ChatGPT, 2026-11-15)
+
+Phase 1 is accepted as a **software-feasibility result** (simulated Bluetooth, real Docker LMS + Squeezelite). Real Bluetooth and
+Raspberry Pi integration is explicitly **not yet verified**. Evidence: `docs/FINDINGS.md`, `reports/HANDOFF_FOR_CHATGPT.md`.
+
+15. **Pause default = `drop_restart`** (our LMS item is removed at once -> silence in ~0.07 s; logical 30 s grace kept; resume starts a fresh
+    session from live audio). `keepalive_silence` stays available as a non-default option.
+16. **Start/Resume latency of ~1.6 s is accepted for now** (LMS 255 KB start threshold). **No Lyrion plugin for latency optimisation.**
+    Revisit only if hardware measurements show it is a problem for guests.
+17. **Players powered on by the bridge stay on.** The bridge never sends `power 0` / any power-off, also not after grace expiry, disconnect,
+    audio toggle or target change. (Only `power 1` on takeover of a standby target.)
+18. **ICY metadata stays off by default** until real older Squeezebox hardware has been tested for compatibility.
+19. **Top product goal unchanged:** the Bluetooth-speaker experience - guest pairs, opens any audio app, hears music through Lyrion without
+    operating Lyrion or Home Assistant.
+20. **Development host has no Bluetooth/Pi hardware** (re-confirmed): no hardware discovery, no host installs, no hardware tests there;
+    build and tests run in Docker only.
+21. **Phase-1.5 scope (this work package):** git repository + conventional commits on a `develop` branch (nothing published, no releases),
+    hardware-free preparation of the real BlueZ/PipeWire adapter, and a documented hardware validation plan (`docs/HARDWARE_VALIDATION_PLAN.md`).
+    No Buildroot, OTA or full product build yet.
+
 ## Measurement-driven / not yet verified
 
-- Startup latency, Pause/drain latency, reconnection and sample integrity (measure on actual devices).
+- Startup latency (**software: ~1.6 s, accepted #16**), Pause/drain latency (**software: 0.07 s with #15**), reconnection and sample integrity (still to be measured on actual devices).
 - End-to-end transport, stream format(s), LMS buffering, and legacy Squeezebox behavior.
 - AVRCP playback status and absolute volume cross-device reliability.
 - Pi Zero 2 W RF coexistence and resource margin.

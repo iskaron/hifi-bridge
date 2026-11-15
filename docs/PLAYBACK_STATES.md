@@ -10,9 +10,9 @@ Maintain *separate* state dimensions: `bluetooth_connection`, `bt_media_activity
 | Phone notification while radio plays | Avoid taking radio for a short beep; evaluate AVRCP + ~2 s activity filter |
 | Sustained new phone media while radio plays, override on | Start bridge-owned playback, with brief compatible buffered lead-in; don't auto-restore radio later |
 | New phone media while radio plays, override off | Do not take over; clearly show permission/target status |
-| Phone pauses | Media becomes silent promptly where possible; logical ownership grace up to 30 s; never stop unrelated source |
+| Phone pauses | (default `drop_restart`) Media becomes silent promptly (our LMS item removed at once); logical ownership grace up to 30 s; never stop unrelated source |
 | Phone resumes within grace | Restore bridge audio using tested LMS protocol; no minute-long delay caused by stale buffer |
-| Grace expires | Release only bridge-owned LMS stream |
+| Grace expires | Release only bridge-owned LMS stream; a player the bridge woke stays powered on (never power-off) |
 | Phone disconnects | Release only bridge-owned LMS stream immediately |
 | Owner disables bridge audio | Release only bridge-owned LMS stream; preserve BT pairing/connection as configured |
 | Someone switches LMS to radio | Bridge loses ownership. Late timers/disconnect MUST NOT issue generic stop against radio |
