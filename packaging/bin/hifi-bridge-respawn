@@ -1,0 +1,23 @@
+#!/bin/sh
+# Respawn wrapper for init systems WITHOUT systemd (e.g. BusyBox init: "::respawn:" alone has no back-off).
+# Restarts the command when it exits, with exponential back-off (2 s .. 60 s); resets after 5 minutes of healthy runtime.
+# Records each crash in $HIFI_DATA/faults-respawn.log. SIGTERM/SIGINT are forwarded and end the wrapper.
+# Usage: hifi-bridge-respawn <command> [args...]
+set -u
+DATA=${HIFI_DATA:-/var/lib/hifi-bridge}
+MIN=${RESPAWN_MIN_S:-2}; MAX=${RESPAWN_MAX_S:-60}; HEALTHY=${RESPAWN_HEALTHY_S:-300}
+delay=$MIN; child=0; stopping=0
+trap 'stopping=1; [ "$child" -gt 0 ] && kill -TERM "$child" 2>/dev/null' TERM INT
+while [ "$stopping" -eq 0 ]; do
+  start=$(date +%s)
+  "$@" &
+  child=$!
+  wait "$child"; rc=$?
+  [ "$stopping" -eq 1 ] && { wait "$child" 2>/dev/null; exit 0; }
+  ran=$(( $(date +%s) - start ))
+  [ "$ran" -ge "$HEALTHY" ] && delay=$MIN
+  echo "$(date -u +%FT%TZ) exit=$rc ran=${ran}s restart_in=${delay}s" >> "$DATA/faults-respawn.log" 2>/dev/null
+  echo "hifi-bridge-respawn: exited rc=$rc after ${ran}s; restarting in ${delay}s" >&2
+  sleep "$delay" & wait $! 2>/dev/null
+  delay=$(( delay * 2 )); [ "$delay" -gt "$MAX" ] && delay=$MAX
+done

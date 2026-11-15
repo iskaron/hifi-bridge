@@ -53,6 +53,7 @@ class BridgeRuntime:
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
         self.heartbeat = time.monotonic()
+        self.on_controller_event = None                  # optional hook (service: crash-recovery journal)
         self.timeline: list[tuple] = []         # (wall, event, detail) probes; no tokens
 
     # -- logging (always redacted) -------------------------------------------
@@ -100,6 +101,11 @@ class BridgeRuntime:
     def _clog(self, name, detail=""):
         self.timeline.append((time.time(), name, str(detail)))
         self.log(f"[ctl] {name} {detail}")
+        if self.on_controller_event:
+            try:
+                self.on_controller_event(name, str(detail))
+            except Exception as e:                      # journaling must never break the control path
+                self.logf(f"controller event hook error: {type(e).__name__}: {e}")
 
     def _url_for(self, sid: str) -> str:
         return self.stream.url(self.rcfg.advertise_host, self.port, sid)

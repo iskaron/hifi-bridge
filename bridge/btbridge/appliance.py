@@ -18,6 +18,7 @@ from typing import Callable
 from .mqtt import MqttBridge
 from .net.access import LocalAccess
 from .service import ApplianceService
+from .supervision import SystemdNotifier, Watchdog
 from .system import SystemMonitor
 from .webui.server import WebUI
 
@@ -79,10 +80,13 @@ def run(a, source, ready: Callable[[ApplianceService, WebUI], None] | None = Non
         svc.logs(f"first start: open the WebUI and enter the setup code from {svc.auth.code_file}")
     if ready:
         ready(svc, ui)
+    watchdog = Watchdog(svc.health, SystemdNotifier(), log=svc.logs)       # READY=1 + WATCHDOG=1 while healthy (no-op without systemd)
+    watchdog.start()
     done = threading.Event()
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, lambda *_: done.set())
     done.wait()
+    watchdog.stop()
     ui.stop(); svc.stop()
     return 0
 

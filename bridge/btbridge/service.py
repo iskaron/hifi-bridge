@@ -28,6 +28,7 @@ from .lms import discovery
 from .lms.client import LmsClient, LmsUnreachable, Observation
 from .stream.server import redact
 from .system import SystemMonitor
+from .supervision import SessionJournal
 from .webui.auth import Auth
 
 TELEMETRY_S = 300          # MQTT/system metrics every 5 min (DECISIONS #11, #36)
@@ -131,6 +132,8 @@ class ApplianceService:
         cc = Config(target_player=c["target_player"], audio_allowed=c["audio_allowed"], override_lms=c["override_lms"],
                     pause_strategy=c["pause_strategy"])
         self.runtime = BridgeRuntime(rc, cc, source=source, lms=self._lms_for(c), log=self.logs, token=self.store.secret("stream_token"))
+        self.journal = SessionJournal(data_dir)
+        self.runtime.on_controller_event = self._journal_event
         self.source = source
         self.store.on_change(self._apply)
         self._listeners: list[Callable[[str, dict], None]] = []
@@ -143,7 +146,32 @@ class ApplianceService:
         self.watch_heartbeat = time.monotonic()
 
     # ------------------------------------------------------------------ lifecycle
+    def _journal_event(self, name: str, detail: str) -> None:
+        """Keep <data>/session.json in sync with the LMS item the bridge owns (crash recovery, see supervision.py)."""
+        ctl = self.runtime.controller
+        if name == "session_start" and ctl.session is not None:
+            self.journal.record(ctl.cfg.target_player, ctl.session.url)
+        elif name in ("session_release", "session_parked", "ownership_lost", "stream_died", "restart_after_outage"):
+            self.journal.clear()                         # released by us, or no longer ours: nothing to clean up after a crash
+
+    def recover_stale_session(self) -> str:
+        """After a crash: release the URL a previous process left at LMS (URL-addressed: harmless if anything else plays now)."""
+        j = self.journal.pending()
+        if not j:
+            return "none"
+        if isinstance(self.runtime.lms, UnconfiguredLms):
+            self.journal.clear()
+            return "dropped_unconfigured"
+        try:
+            self.runtime.lms.release(j["player"], j["url"])
+        except LmsUnreachable:
+            return "pending"                             # retried by the watch loop until LMS is reachable
+        self.journal.clear()
+        self.logs("recovered: released the stream item a previous (crashed) process left at Lyrion")
+        return "released"
+
     def start(self) -> None:
+        self.recover_stale_session()
         self.runtime.start()
         if self.source is not None and hasattr(self.source, "set_alias"):
             try:
@@ -256,6 +284,8 @@ class ApplianceService:
                 if now >= next_thermal:
                     next_thermal = now + THERMAL_CHECK_S
                     self.check_thermal()
+                    if self.journal.pending() and self.runtime.controller.session is None:
+                        self.recover_stale_session()
                 if now >= next_sys:
                     next_sys = now + SYSTEM_SAMPLE_S
                     self.last_system = self.monitor.sample()

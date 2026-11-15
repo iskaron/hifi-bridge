@@ -29,3 +29,8 @@ Running log, newest at the bottom. Labels: UNIT, INTEGRATION, SIMULATED, REAL-HA
   device name separately. Error flashes are role=alert and receive focus. Balanced desktop grids.
   Tests: 10 new (real TLS with verification). Bugs found: TLS-mode switch did not reload the certificate (fixed); a silent no-op text
   replacement in my own tooling had dropped health() - caught by the tests; edits are now asserted.
+- Supervision: sd_notify (READY/STATUS/WATCHDOG/STOPPING, stdlib), watchdog pings only while health() != failed (heartbeats of control
+  loop and service watch, feeder/stream threads), crash-recovery journal (released URL-addressed on the next start; retried while LMS is
+  unreachable), systemd unit (Type=notify, WatchdogSec=30, Restart=always, hardening) verified with REAL systemd-analyze verify (rc 0,
+  exposure 2.1 OK), respawn wrapper with back-off for non-systemd inits (shellcheck clean). 9 tests incl. real unix notify socket and
+  real processes.
