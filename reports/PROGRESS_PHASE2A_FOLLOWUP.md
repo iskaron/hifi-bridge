@@ -10,3 +10,13 @@ Running log, newest at the bottom. Labels: UNIT, INTEGRATION, SIMULATED, REAL-HA
   re-checked per message. New `<base>/<id>/thermal` topic + "Overheating" binary sensor (device_class heat), published at once on every
   thermal state change by a 10 s temperature check that is independent of the 300 s telemetry (configurable 60-3600 s).
   Broker TLS always verifies (system CAs or owner CA PEM), no insecure option. UNIT 10 + INTEGRATION (real Mosquitto) 4.
+- Local CA + server certificates (openssl 3 CLI): name-constrained CA (.local/.home.arpa/.lan/.internal + private IPs), 397-day server
+  certificates, renewal (missing/expiring/names changed/CA changed), custom certificates (key match, expiry, name coverage), Host policy
+  against DNS rebinding. 21 tests incl. a real TLS handshake with hostname verification and proof that a forged certificate for a public
+  name signed with the CA key FAILS verification ("permitted subtree violation").
+- Stdlib mDNS/DNS-SD responder: probing + conflict resolution, A/PTR/SRV/TXT, legacy unicast, goodbye; joins the group per interface
+  (joining via 0.0.0.0 fails with ENODEV on networks without a default route - found in the lab). UNIT/loopback 5 tests +
+  INTEGRATION against a REAL Avahi 0.8 peer (scripts/test_mdns.sh): 7/7 PASS (resolve, browse, conflict -> hifi-bridge-2.local,
+  goodbye). Bug found: SIGTERM was not handled, so no goodbye on service stop -> fixed.
+- Environment finding: Docker on this host cannot signal containers ("unable to signal init: permission denied"); docker stop ends in
+  SIGKILL. Tests request clean stops inside the container.

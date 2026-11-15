@@ -49,6 +49,23 @@ services:
       - SIM_URL=http://appliance:8099
     working_dir: /work
 
+  # mDNS interoperability (profile "mdns", scripts/test_mdns.sh): the bridge's responder vs. a real Avahi
+  mdns-responder:
+    <<: *lab
+    profiles: ["mdns"]
+    hostname: responder
+    command: ["python3", "-m", "btbridge.net.mdns", "--hostname", "hifi-bridge", "--instance", "Hi-Fi Bridge (Lab)"]
+
+  avahi:
+    image: btbridge-avahi:dev
+    build:
+      context: .
+      dockerfile: Dockerfile.avahi
+    profiles: ["mdns"]
+    networks: [lab]
+    hostname: avahipeer
+    command: ["sh", "-c", "mkdir -p /run/dbus && dbus-daemon --system --fork && avahi-daemon --no-drop-root --no-rlimits -D && sleep infinity"]
+
   mosquitto:
     image: eclipse-mosquitto:2.0.20
     networks: [lab]
