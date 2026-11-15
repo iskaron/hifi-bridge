@@ -6,109 +6,82 @@
   ],
   "bridge_target": "player1",
   "max_player_spread_ms_at_3_frames": [
-    7.6,
-    7.7,
-    7.6
+    18.8,
+    18.5,
+    18.6
   ],
   "sync_correction_jumps_frames": {
     "player1": [
-      617,
-      441,
-      485
+      441
     ],
     "player2": [
-      573,
-      705
+      882,
+      441,
+      529
     ],
     "player3": [
-      926,
-      617,
-      441
+      837
     ]
   },
   "integrity": {
     "player1": {
       "blocks": 143,
-      "matched": 137,
-      "mismatched": 6,
+      "matched": 141,
+      "mismatched": 2,
       "jumps": [
         [
-          19,
+          75,
           0
         ],
         [
-          20,
-          617
-        ],
-        [
-          89,
-          0
-        ],
-        [
-          90,
+          76,
           441
-        ],
-        [
-          129,
-          0
-        ],
-        [
-          130,
-          485
         ]
       ]
     },
     "player2": {
       "blocks": 143,
-      "matched": 139,
-      "mismatched": 4,
+      "matched": 137,
+      "mismatched": 6,
       "jumps": [
         [
-          49,
+          8,
           0
         ],
         [
-          50,
-          573
+          9,
+          882
         ],
         [
-          129,
+          55,
           0
         ],
         [
-          130,
-          705
+          56,
+          441
+        ],
+        [
+          95,
+          0
+        ],
+        [
+          96,
+          529
         ]
       ]
     },
     "player3": {
       "blocks": 143,
-      "matched": 137,
-      "mismatched": 6,
+      "matched": 141,
+      "mismatched": 2,
       "jumps": [
         [
-          19,
+          35,
           0
         ],
         [
-          20,
-          926
-        ],
-        [
-          49,
-          0
-        ],
-        [
-          50,
-          617
-        ],
-        [
-          109,
-          0
-        ],
-        [
-          110,
-          441
+          36,
+          837
         ]
       ]
     }
@@ -119,7 +92,7 @@
   ],
   "label": "INTEGRATION real LMS sync + SIMULATED BT; virtual DACs, NOT acoustic",
   "env": {
-    "date_utc": "2026-11-15T19:55:21Z",
+    "date_utc": "2026-11-15T21:43:26Z",
     "lms": "9.1.2",
     "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
     "kernel": "7.0.0-43-generic",

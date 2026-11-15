@@ -61,3 +61,8 @@ Running log, newest at the bottom. Labels: UNIT, INTEGRATION, SIMULATED, REAL-HA
 - Disk-full consequence found: LMS (non-root) failed "database or disk is full" -> every playback command timed out (looked like a
   regression). Lab LMS state moved to the host filesystem (.lab/lms-config, PUID/PGID = lab user); LMS works again. Root containers
   were unaffected, which is why the other suites kept passing.
+- Clean-slate full run 2026-11-15T21:34Z (reports/evidence/full_run_phase2a_followup.log): unit 221, integration 54 (15:37), outage
+  lms/player exit 0, PipeWire 9+1skip / 10, hwkit 32, mDNS vs Avahi 7/7 PASS, REAL Home Assistant 7/7, browser 5/5 (axe 0 violations,
+  15 pages). Static: shellcheck rc 0, Python compile 0 errors, actionlint rc 0; systemd-analyze step FAILED in this run only because apt
+  cannot install systemd on the full Docker data filesystem (the same unit verified rc 0 earlier the same evening).
+- Work package complete; handoff written; stopped at the hardware gate.

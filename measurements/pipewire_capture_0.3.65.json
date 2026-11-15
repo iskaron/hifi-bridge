@@ -37,8 +37,8 @@
   "starts": 3
  },
  "node_vanishes": {
-  "bytes_before": 345744,
-  "bytes_total": 345744,
+  "bytes_before": 349272,
+  "bytes_total": 349272,
   "mic_frames": 0
  },
  "parec": {
@@ -94,7 +94,7 @@
   "consecutive_pairs": 218735,
   "dropped_frames": 0,
   "drops": 0,
-  "first_index": 316417,
+  "first_index": 315393,
   "foreign_frames": 0,
   "frames": 218736,
   "garbage_prefix_frames": 0,

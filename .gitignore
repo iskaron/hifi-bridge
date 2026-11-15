@@ -30,6 +30,9 @@ reports/screenshots/*.png
 !reports/screenshots/08-dashboard-desktop-dark.png
 !reports/screenshots/09-settings-desktop-light.png
 !reports/screenshots/10-dashboard-desktop-light-de.png
+!reports/screenshots/07-settings-overview-mobile-light.png
+!reports/screenshots/07-settings-access-mobile-light.png
+!reports/screenshots/11-trust-https-webkit.png
 
 # lab state on the host filesystem (independent of the Docker data filesystem)
 .lab/
