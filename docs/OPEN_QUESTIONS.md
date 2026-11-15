@@ -29,3 +29,27 @@ These questions are research tasks, not permission to change accepted requiremen
 10. **Slow-clock phones** cause rare ~40 ms silence gaps; resampling-based drift compensation is a possible phase-2 improvement.
 11. **Token in URL:** by design it passes through LMS/player logs (LMS playlist holds the URL). Rotation affects only new sessions; a running session continues.
 12. Docs inconsistency noted: ACCEPTANCE.md phase-1 item "Android phone and iPhone pair" cannot be done in phase 1 per the owner clarification -> recorded as deferred hardware validation, not a failure.
+
+---
+## Resolutions from the phase-1 review (owner + ChatGPT, 2026-11-15) - see docs/DECISIONS.md #15-#21
+
+| Item | Resolution |
+|---|---|
+| Q3 / finding 3 - pause strategy default | **Decided: `drop_restart`.** `keepalive_silence` remains an option. Still to confirm on hardware (E2 in docs/HARDWARE_VALIDATION_PLAN.md). |
+| Finding 4 - ~1.6 s start/resume | **Accepted for now; no Lyrion plugin.** Revisit only if hardware measurements/guest walk-through show a problem. |
+| Finding 6 - power state | **Decided: bridge-woken players stay on; the bridge never sends power-off.** Pinned by unit tests. |
+| Finding 9 - ICY metadata | **Decided: default off** until real older Squeezebox hardware has been tested (F2). |
+| Doc inconsistency (finding 12) | Acceptance wording for phone pairing in phase 1 is superseded by the hardware validation gate (docs/ACCEPTANCE.md). |
+
+Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volume), Q1 for real Squeezeboxes, Q5-Q7 (phase 2 topics).
+
+## New questions from the BlueZ/PipeWire preparation (2026-11-15)
+13. **PipeWire capture of a phone's A2DP audio:** node name/properties for a phone acting as A2DP *source*, and whether `pw-cat --record ... -` writes headerless PCM
+    (0.3.65 has no `--raw`). Alternative prepared: `parec` via pipewire-pulse. -> A3/A4. Fallback if neither is suitable: BlueZ `MediaEndpoint1` + in-process SBC decode.
+14. **D-Bus library for the appliance image:** jeepney (pure Python, MIT) was used for the lab-verified backend; its availability/size in a Buildroot image is unchecked.
+    The `BlueZBus` interface isolates this choice. Decide in phase 2 once the image toolchain is known.
+15. **Is `--experimental` required** for `MediaPlayer1` on the shipped BlueZ version? (A1) Without it AVRCP status/metadata may be missing and fusion must rely on transport + PCM only.
+16. **Pairing agent policy** (Just-Works, authorise only inside the 5-minute window or for paired devices): does this work with iOS and Android in practice, including service
+    authorisation on reconnect? (B1-B3)
+17. **Unknown UUIDs at connect time:** the translator treats a device without a UUID list as a phone. Real behaviour of `Connected` vs `ServicesResolved` ordering needs a real trace (A6/C).
+18. **Reconnect semantics after bluetoothd restart** are specified (release, re-register agent, re-sync) but only exercised against the fake (A7).

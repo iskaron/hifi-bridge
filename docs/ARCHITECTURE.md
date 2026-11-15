@@ -26,3 +26,19 @@ Plan explicit interfaces and modules (names provisional):
 - Immutable filesystem/OTA: real board support, rollback semantics, signature validation and power failures.
 
 The owner expects a *shipping-quality* appliance eventually, but audio feasibility is a review gate. Spend phase 1 time on real playback behavior, measurement instrumentation, emulator/dummy stream tools, and reproducible evidence, not on full OTA/UI implementation.
+
+## Phase-1 / review status of the architecture (2026-11-15)
+
+Implemented and tested (software only): `Source adapter interface -> MediaFusion -> LiveFeeder/PcmRing -> HTTP live endpoint -> LMS (JSON-RPC)`,
+with the ownership `Controller`. Layering is deliberate so a future Docker runtime or another host service can reuse the core:
+
+```
+[phone]  --A2DP/AVRCP-->  bluetoothd  <--D-Bus--  BlueZBus (JeepneyBus | fake)  -->  BluezModel (pure) -+
+   |  decoded audio                                                                                      +--> BluezAdapter --> AudioSourceAdapter callbacks
+   +--> PipeWire/WirePlumber node --> PcmCapture (PipeWireCapture | test double) ----------------------+          |
+                                                                                                                  v
+                                   BridgeRuntime: MediaFusion, Controller (state/ownership), LiveFeeder+PcmRing, StreamServer  --> LMS --> players
+```
+Boundaries: core (`btbridge/core`, `stream`, `lms`) has no hardware or D-Bus dependency; `adapters/base.py` is the only contract between "source" and
+"bridge"; the simulated source (`testkit`) and the BlueZ adapter implement the same contract. The BlueZ side is prepared but **not verified on hardware**
+(docs/BLUEZ_ADAPTER_DESIGN.md, docs/HARDWARE_VALIDATION_PLAN.md). Still design-only: WebUI, MQTT, OS/Buildroot services, OTA (phase 2).

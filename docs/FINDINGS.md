@@ -73,3 +73,12 @@ diagnostic test tone was cut off at half length (player lead not accounted for);
 * Startup (Play -> sound) ~1.6 s and Resume ~1.6 s are bounded by LMS buffering; Pause is fast with `drop_restart`.
 * Remaining ownership race: between observing the target and sending `play` during a takeover (intentional override anyway). Releases are URL-addressed.
 * Only Squeezelite 1.9.9 and LMS 9.1.2 were exercised.
+
+## Phase-1 review work package: BlueZ/PipeWire preparation (2026-11-15; labels as in docs/BLUEZ_ADAPTER_DESIGN.md)
+* Added the hardware-free layers of the real adapter (translator, bus interface, jeepney backend, PCM capture supervision, pairing agent policy, bluetoothd restart
+  recovery) and tests: UNIT (scripted events), INTEGRATION against a **fake** BlueZ on a private D-Bus daemon, and an end-to-end run fake BlueZ -> adapter -> bridge -> real LMS
+  -> real Squeezelite (bit-exact, ownership/late-event/second-phone cases). These show the *code* behaves per the BlueZ documentation as I read it; they say nothing
+  about real bluetoothd, phones, PipeWire nodes or the Pi.
+* Negative/corrective results: `pw-cat` 0.3.65 has no `--raw` (my first command line was wrong); no automated PipeWire capture test could be built in the time box;
+  jeepney local filters need sender-less rules.
+* Owner decisions of the review are pinned by unit tests (`tests/unit/test_review_decisions.py`): default `drop_restart`, ICY off, no power-off path in the LMS client or controller.

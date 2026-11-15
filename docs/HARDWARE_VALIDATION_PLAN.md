@@ -1,0 +1,103 @@
+# Hardware validation plan (deferred - NOT executed)
+
+Status: **plan only.** Nothing in this document has been run. The development host has no Bluetooth, Raspberry Pi, speakers or physical
+Squeezeboxes (owner decision, DECISIONS #20), so every item below is labelled **UNTESTED** until the owner or a person with a hardware
+rig executes it and records the result with evidence labels (`REAL-HARDWARE`, `REAL-LMS`, ...). A green software test never replaces one of
+these items.
+
+What is already covered without hardware (do not repeat there): decision logic and ownership rules (UNIT + INTEGRATION against real LMS 9.1.2 +
+Squeezelite 1.9.9), the D-Bus client and translator against a *fake* BlueZ (SIMULATED-BLUEZ), bit-exact transport, software timings.
+Evidence index: `docs/FINDINGS.md`, `reports/HANDOFF_FOR_CHATGPT.md`.
+
+## 0. Rules for the person executing this plan
+* Use a **dedicated test Raspberry Pi** and a **dedicated test player/LMS player** first. Run against the owner's production LMS only read-only at first
+  (observe), and only with explicit owner consent for the write steps (`playlist play`, `playlist deleteitem`, `power 1`, relative volume).
+* Never power-cycle, reconfigure or regroup production players. The bridge needs no such step; if a test seems to require it, stop and ask.
+* Record per test: date, hardware (board revision, Bluetooth chip, adapter/dongle, phone model + OS version + app + version), software versions
+  (`bluetoothd -v`, `pipewire --version`, `wireplumber --version`, LMS version, player firmware/Squeezelite version, bridge git commit), exact steps,
+  observed result, evidence files (traces, logs with tokens redacted, recordings), PASS / FAIL / PARTIAL.
+* Never put the stream token, Wi-Fi credentials or MAC addresses of third parties into reports.
+* Timing numbers come from a **capture rig** (microphone or line-level loopback recorded together with a timing mark). Without a rig, a value is
+  *not measured*, never "approximately X".
+
+## 1. Rig and matrix
+| Item | Minimum | Preferred |
+|---|---|---|
+| Bridge boards | Raspberry Pi 3 B+ on Ethernet (reference) | + Pi Zero 2 W (Wi-Fi only) and Pi 4 |
+| Image | any Linux with BlueZ >= 5.6x + PipeWire + WirePlumber (a stock Raspberry Pi OS Lite is fine for validation; **not** the appliance image) | the Buildroot image once it exists |
+| Phones | 1 Android (record version/vendor) and 1 iPhone (record iOS version) | 2 Android vendors + 2 iOS versions |
+| Phone apps | one music-streaming app, YouTube (audio), a messenger (notification sounds), a navigation app (voice prompts), a silent video | + a podcast app, a radio app |
+| Lyrion | owner's LMS (read-only first) or a throw-away test LMS | both |
+| Players | Squeezelite on a separate PC/Pi (REAL player) | + every real Squeezebox the owner owns, by **model and firmware** (e.g. Classic/SB3, Receiver, Boom, Touch, Radio) |
+| Capture rig | USB audio interface or phone recording at the speaker + a click/marker | line-level loopback from the player's output |
+
+## 2. Test sets
+IDs are stable so results can be cross-referenced in handoffs. "Decision" = what the result feeds.
+
+### A. BlueZ / PipeWire bring-up (finishes docs/BLUEZ_ADAPTER_DESIGN.md)
+| ID | Test | Pass criterion | Decision |
+|---|---|---|---|
+| A1 | Record `bluetoothd` and PipeWire/WirePlumber versions; start bluetoothd with/without `--experimental` | `org.bluez.MediaPlayer1` visible for a connected phone; note whether `--experimental` is required | image config |
+| A2 | Confirm the A2DP **sink** role is enabled in WirePlumber for the phone-as-source case | phone can select the bridge as speaker | image config |
+| A3 | With a phone connected and playing, dump PipeWire nodes (`pw-dump`) | identify the node name/properties for the phone's audio (expected `bluez_input.<MAC_>...`, **unverified**) | `node_name_for()` template or `pw-dump` resolver |
+| A4 | Run the capture command from `adapters/bluez/pcm.py` for that node: does `pw-cat --record ... -` write **headerless** s16 PCM? Compare with `parec_argv` | raw 44.1 kHz s16 stereo bytes, no header | which tool, flags |
+| A5 | Negotiated codec and sample rate per phone (SBC baseline; AAC if exposed) | recorded | resampling need |
+| A6 | `JeepneyBus` against the real system bus: GetManagedObjects, signals, property writes, agent registration (`journalctl -u bluetooth`) | no errors; same events as the fake | D-Bus library choice for the image |
+| A7 | Restart bluetoothd while a phone is connected | adapter reports disconnect, re-registers the agent, re-syncs | robustness |
+
+### B. Pairing and connection
+| ID | Test | Pass criterion |
+|---|---|---|
+| B1 | Open the pairing window (adapter `Pairable`/`Discoverable`), pair Android and iPhone with Just-Works, no PIN | works within the window; window closes at 5 min (`Pairable=false`) |
+| B2 | Pair attempt after the window closed | rejected by the agent |
+| B3 | Reconnect of a paired phone without opening the window | connects, no LMS audio started by connecting alone |
+| B4 | Second phone connects while the first is connected (and while it plays) | second is disconnected; first keeps playing; never evicted |
+| B5 | Remove a paired device; pair again | clean |
+| B6 | Phone walks out of range / BT off / phone reboot | disconnect detected; bridge stream released immediately |
+| B7 | Devices that are not phones (headset, keyboard) connect | ignored, no stream |
+
+### C. Media state traces (answers OPEN_QUESTIONS #2; feeds `core/fusion.py`)
+Record `MediaPlayer1.Status`, `MediaTransport1.State` and PCM activity (`busctl monitor org.bluez` or `dbus-monitor --system` + timestamps) for each phone x app:
+play, pause, resume, track change, seek, app switch, screen lock, silent intro/quiet passage, notification beep (messenger), ringtone, navigation prompt,
+silent video, phone call, play with no AVRCP player present. Then: which signals separate *music* from *notifications*? Is the ~2 s filter sufficient?
+Do any apps leave the transport `active` while paused? Decide fusion rules from the data, add them as new recorded-trace unit tests (replace the
+hand-written traces in `tests/unit/test_bluez_adapter.py` by real recordings, labelled REAL-HARDWARE traces).
+
+### D. Volume (answers OPEN_QUESTIONS #4)
+Does each phone send `MediaTransport1.Volume`? On connect? Scale (0-127)? What if absolute volume is unsupported? Measure the resulting LMS volume steps on a
+sync group of real players; verify no loudness jump (ceiling 85, max step 10 are provisional) and relative room levels are preserved.
+
+### E. Audio integrity, timing, resources (measure with the capture rig)
+| ID | Test | Record |
+|---|---|---|
+| E1 | Play a known test track (sine sweep / click track) from each phone for 30 min through the bridge to a real player | dropouts, clicks, discontinuities (cross-correlate recording vs reference); BT SBC loss is expected - report it, do not hide it |
+| E2 | Play -> first sound, Pause -> silence, Resume -> sound (>= 10 runs each, per phone/player/board/format WAV and FLAC) | median/min/max with the rig; compare with the **software** numbers (1.55 s / 0.07 s / 1.55 s) and the owner's acceptance of ~1.6 s (DECISIONS #16) |
+| E3 | Drift/soak: 4 h continuous playback per board | feeder silence-inserts/drops, underruns, memory growth |
+| E4 | CPU, RSS, temperature, throttling per board while streaming WAV and FLAC | numbers; the x86 figures in FINDINGS.md are **not** transferable |
+| E5 | Pi Zero 2 W: Wi-Fi + Bluetooth coexistence on a busy 2.4 GHz band with the ~1.4 Mbit/s stream | stutters, BT dropouts, stream underruns; decide if Zero 2 W is a supported target |
+| E6 | Ethernet vs Wi-Fi on the Pi 3 B+ | as E5 |
+
+### F. Lyrion and players (answers OPEN_QUESTIONS #1, #9)
+| ID | Test | Record |
+|---|---|---|
+| F1 | Real Squeezelite on separate hardware (different version from 1.9.9 if possible) | live stream plays; sample rate; sync |
+| F2 | **Each real Squeezebox model/firmware:** WAV live stream; FLAC; pause; startup time; wake-from-standby (`power 1`); behaviour with the ICY option **on and off** | per model PASS/FAIL; decide the ICY default (DECISIONS #18 keeps it off until then) and whether a transcoding rule is needed |
+| F3 | Sync group with mixed real players, target = master and member | sync offset (rig), regroup never performed |
+| F4 | Ownership races on the owner's real LMS (with consent): switch to a real radio station then late BT events; two bridges on one player; LMS restart; player offline | zero LMS commands after ownership loss; radio never touched |
+| F5 | LMS server version differences (record version) | compatibility of `playlist play <url>` / `playlist deleteitem <url>` |
+
+### G. Guest walk-through (the top product goal, DECISIONS #19)
+A person who has never seen the system: finds the Bluetooth name, pairs, connects, opens their usual audio app, presses Play, hears music from the
+selected Lyrion players; pauses; leaves. No Lyrion, no Home Assistant, no app. Record every point of confusion and the time from "Play" to sound.
+
+## 3. What each result feeds
+* A3/A4 -> final PipeWire capture command and node resolution (`pcm.py`); A6 -> D-Bus library for the image.
+* C -> `fusion` rules and the notification filter duration.
+* D -> `VolumePolicy` parameters.
+* E2 -> confirm or revisit DECISIONS #15/#16 (pause strategy, ~1.6 s start latency, plugin question).
+* E3-E6 -> supported boards and resource budget.
+* F2 -> ICY default, FLAC/PCM format rules, list of verified players (never claim compatibility beyond it).
+
+## 4. Not testable without hardware (summary)
+Real Bluetooth radio and phone behaviour (AVRCP, absolute volume, codecs), BlueZ/PipeWire/WirePlumber on a Pi, acoustic latency, speaker timing, Wi-Fi/BT
+coexistence, Raspberry Pi CPU/RAM/thermal figures, real Squeezebox compatibility, power-failure and boot behaviour.

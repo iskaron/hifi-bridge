@@ -17,6 +17,12 @@ Phase 1 is a **hardware-free Docker software integration spike**, not a physical
 - [ ] Design an executable simulated test harness for missing hardware as far as possible, with clear mock/real demarcation.
 - [ ] Handoff report to ChatGPT and stop before phase 2.
 
+## Hardware validation gate (after phase 1, before/within phase 2; owner-run)
+
+Everything marked deferred in phase 1 is specified in `docs/HARDWARE_VALIDATION_PLAN.md` (test sets A-G with IDs and pass criteria): BlueZ/PipeWire bring-up,
+pairing, AVRCP/notification traces, volume, capture-rig timing, soak/resource figures per Pi board, real Squeezeboxes by model/firmware, guest walk-through.
+None of it has been executed; no compatibility may be claimed before it is.
+
 ## Phase 2 — product (after approval)
 
 - [ ] Full reproducible Buildroot images for each **actually verified** target; no false compatibility badges.
