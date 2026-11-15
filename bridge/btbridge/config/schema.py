@@ -100,6 +100,7 @@ SETTINGS: dict[str, Setting] = {s.key: s for s in [
     Setting("lms_host", str, "", check=_host, group="lyrion", restart=True),
     Setting("lms_port", int, 9000, min=1, max=65535, group="lyrion", restart=True),
     Setting("target_player", str, "", check=_player, group="lyrion"),
+    Setting("target_label", str, "", check=lambda v: " ".join(v.split())[:80], group="lyrion"),
     Setting("language", str, "auto", choices=("auto", "de", "en"), group="ui"),
     Setting("theme", str, "auto", choices=("auto", "light", "dark"), group="ui"),
     Setting("mqtt_enabled", bool, False, group="mqtt", restart=True),

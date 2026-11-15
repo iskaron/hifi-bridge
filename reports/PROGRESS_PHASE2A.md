@@ -24,3 +24,9 @@ Running log, newest entries at the bottom. Evidence labels as in docs/ACCEPTANCE
   UNIT 8 + INTEGRATION 4 against REAL Eclipse Mosquitto 2.0.20 (auth listener, retained, last will on abrupt loss via TCP proxy,
   reconnect, end-to-end with real LMS/Squeezelite incl. "MQTT test button never touches a foreign source"). 2/2 mutants killed.
   NOT verified: import into a real Home Assistant instance.
+- WebUI (stdlib server, server-rendered + progressive JS): setup wizard (setup code -> password -> Bluetooth name -> Lyrion discovery/manual ->
+  player/group -> test sound), login/logout, status dashboard, pairing page (window, paired phones, labels, removal), settings
+  (Lyrion, target, playback, Bluetooth, MQTT, appearance, password, stream token), diagnostics (test sound, LMS check, states, faults,
+  logs, redacted bundle download), system page. DE/EN (263 keys, completeness tests), light/dark/auto, "Hi-Fi & elegant" CSS, own logo
+  (not the Bluetooth trademark). Security: CSRF + Origin check, SameSite=Strict HttpOnly cookies, strict CSP, body limit, no open redirect.
+  16 HTTP-level unit tests; 5/5 security mutants killed.
