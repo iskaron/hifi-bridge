@@ -345,3 +345,32 @@ def test_source_bluez_without_a_reachable_bus_fails_cleanly(capsys):
     from btbridge.__main__ import main
     rc = main(["--player", "02:00:00:00:00:01", "--source", "bluez", "--dbus", "unix:path=/nonexistent/bus.sock"])
     assert rc == 2 and "cannot start the BlueZ adapter" in capsys.readouterr().err
+
+
+# ---- device management (WebUI pairing page) ---------------------------------------------------------------------------
+def test_paired_devices_listing_remove_and_alias():
+    a, bus, rec, pcm = adapter()
+    bus.add_device(1, connected=True); bus.add_device(2, paired=True); bus.add_device(3, paired=False)
+    bus.changed(dev_path(2), IF_DEVICE, Alias="Annas iPhone")
+    devs = a.paired_devices()
+    assert [d["address"] for d in devs] == [addr(1), addr(2)] or [d["address"] for d in devs] == [addr(2), addr(1)]
+    assert {d["address"]: d["connected"] for d in devs} == {addr(1): True, addr(2): False}
+    assert any(d["name"] == "Annas iPhone" for d in devs)
+    assert a.remove_device(addr(2)) is True and bus.calls[-1] == (ADAPTER, "org.bluez.Adapter1", "RemoveDevice")
+    assert a.remove_device("00:00:00:00:00:00") is False
+    a.set_alias("Wohnzimmer")
+    assert bus.props[-1] == (ADAPTER, "org.bluez.Adapter1", "Alias", "Wohnzimmer")
+
+
+def test_pairing_inside_the_window_marks_the_phone_trusted():
+    a, bus, rec, pcm = adapter(); a.set_pairable(True)
+    bus.agent[2]("RequestAuthorization", dev_path(5), ())
+    assert (dev_path(5), "org.bluez.Device1", "Trusted", True) in bus.props
+
+
+def test_simulated_source_offers_the_same_device_management():
+    from btkit.sim_a2dp import SimulatedA2dpSource
+    sim = SimulatedA2dpSource(); rec = Recorder(); sim.attach(rec); sim.connect()
+    assert sim.paired_devices() == [{"address": "sim-phone-1", "name": "Simulated phone", "trusted": True, "connected": True}]
+    assert sim.remove_device("sim-phone-1") and ("disconnect", "sim-phone-1") in rec.events and sim.paired_devices() == []
+    sim.set_alias("x"); assert sim.alias == "x"

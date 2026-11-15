@@ -75,6 +75,42 @@ class LmsClient:
             title=(loop[0].get("title") if loop else None),
         )
 
+    def players(self) -> list[dict]:
+        """All players known to LMS (read-only): id, name, model, connected, power."""
+        r = self._rpc("", "players", 0, 200)
+        out = []
+        for p in r.get("players_loop") or []:
+            if not int(p.get("isplayer", 1)):
+                continue
+            out.append({"id": str(p.get("playerid", "")), "name": str(p.get("name", "")), "model": str(p.get("modelname") or p.get("model", "")),
+                        "connected": bool(int(p.get("connected", 0))), "power": bool(int(p.get("power", 0)))})
+        return out
+
+    def sync_groups(self) -> list[dict]:
+        """Existing sync groups (read-only; the bridge never creates or changes groups): [{members: [id..], names: [..]}]."""
+        r = self._rpc("", "syncgroups", "?")
+        out = []
+        for g in r.get("syncgroups_loop") or []:
+            ids = [x for x in str(g.get("sync_members", "")).split(",") if x]
+            names = [x for x in str(g.get("sync_member_names", "")).split(",") if x]
+            if ids:
+                out.append({"members": ids, "names": names})
+        return out
+
+    def targets(self) -> list[dict]:
+        """Selectable targets for the setup wizard: every player, plus each existing sync group as ONE target addressed via
+        its first member (LMS plays to the whole group when any member is addressed - verified in the lab, phase 1)."""
+        players = self.players()
+        by_id = {p["id"]: p for p in players}
+        out = []
+        for g in self.sync_groups():
+            names = [by_id.get(m, {}).get("name") or n for m, n in zip(g["members"], g["names"] + [""] * len(g["members"]))]
+            out.append({"id": g["members"][0], "kind": "group", "name": " + ".join(n for n in names if n), "members": g["members"],
+                        "connected": any(by_id.get(m, {}).get("connected") for m in g["members"])})
+        for p in players:
+            out.append({"id": p["id"], "kind": "player", "name": p["name"], "model": p["model"], "connected": p["connected"]})
+        return out
+
     # -- state-changing (audited) -------------------------------------------
     def _audit(self, *what):
         self.commands_sent.append(what)

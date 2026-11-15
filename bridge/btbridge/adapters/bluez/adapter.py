@@ -97,6 +97,30 @@ class BluezAdapter:
             if str(props.get("Address", "")).upper() == device_id.upper() and props.get("Connected"):
                 self.bus.call(path, "org.bluez.Device1", "Disconnect")
 
+    # ---- device management (DeviceManagement) ---------------------------------------------------------------
+    def paired_devices(self) -> list[dict]:
+        m = self.model
+        if m is None:
+            return []
+        with self._lock:
+            return sorted(({"address": str(p.get("Address", "")).upper(), "name": str(p.get("Alias") or p.get("Name") or ""),
+                            "connected": bool(p.get("Connected")), "trusted": bool(p.get("Trusted"))}
+                           for p in m.devices.values() if p.get("Paired")), key=lambda d: d["name"].lower())
+
+    def remove_device(self, address: str) -> bool:
+        """``Adapter1.RemoveDevice(path)``: BlueZ disconnects and forgets the device."""
+        m = self.model
+        if m is None:
+            return False
+        path = next((p for p, props in m.devices.items() if str(props.get("Address", "")).upper() == address.upper()), None)
+        if path is None:
+            return False
+        self.bus.call(self.adapter_path, IF_ADAPTER, "RemoveDevice", "o", (path,))
+        return True
+
+    def set_alias(self, name: str) -> None:
+        self.bus.set_property(self.adapter_path, IF_ADAPTER, "Alias", "s", name)
+
     # ---- internals -----------------------------------------------------------------------------------------
     def _on_event(self, ev) -> None:
         with self._lock:
@@ -124,12 +148,20 @@ class BluezAdapter:
             self.log(f"adapter property error: {e}")
             raise
 
+    def _trust(self, device_path: str) -> None:
+        try:
+            self.bus.set_property(device_path, "org.bluez.Device1", "Trusted", "b", True)
+        except BusError as e:
+            self.log(f"could not mark device trusted: {e}")
+
     def _agent(self, method: str, device_path: str, args: tuple) -> None:
         """BlueZ Agent1 (capability NoInputNoOutput = 'Just Works'): authorise only while the pairing window is open
         or for an already known/connected device."""
         known = self.model is not None and device_path in self.model.devices and self.model.devices[device_path].get("Paired")
         if method in ("RequestAuthorization", "AuthorizeService", "RequestConfirmation"):
             if self.pairable or known:
+                if method in ("RequestAuthorization", "RequestConfirmation") and self.pairable:
+                    self._trust(device_path)                 # newly paired phones may reconnect later without the window
                 return
             raise Rejected(f"{method} outside the pairing window")
         raise Rejected(method)

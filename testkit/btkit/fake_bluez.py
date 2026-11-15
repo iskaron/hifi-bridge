@@ -194,6 +194,15 @@ class FakeBluez:
             elif iface == "org.bluez.Device1" and member == "Disconnect":
                 self.conn.send_message(new_method_return(msg))
                 self.set_props(path, "org.bluez.Device1", Connected=False)
+            elif iface == "org.bluez.Adapter1" and member == "RemoveDevice":
+                dev = body[0]
+                if dev not in self.objects:
+                    self.conn.send_message(new_error(msg, "org.bluez.Error.DoesNotExist", "s", ("no such device",)))
+                    return
+                self.conn.send_message(new_method_return(msg))
+                if self.objects[dev].get("org.bluez.Device1", {}).get("Connected", ("b", False))[1]:
+                    self.set_props(dev, "org.bluez.Device1", Connected=False)
+                self.remove_object(dev)
             elif iface == "org.bluez.AgentManager1" and member == "RegisterAgent":
                 self.agent = (f[HeaderFields.sender], body[0])
                 self.conn.send_message(new_method_return(msg))

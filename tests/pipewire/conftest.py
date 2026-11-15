@@ -49,7 +49,13 @@ def pactl(*args, attempts=20):
             return r.stdout.strip()
         last = r.stderr.strip()
         time.sleep(0.25)
-    raise RuntimeError(f"pactl {' '.join(args)} failed: {last}")
+    log = ""
+    try:                                   # diagnose the rare pipewire-pulse disappearance seen once on 1.4.2 (docs/PIPEWIRE_CAPTURE.md)
+        log = subprocess.run(["bash", "-c", "pgrep -a pipewire; tail -20 /tmp/pw-logs/pipewire-pulse.log"], capture_output=True,
+                             text=True, timeout=5).stdout
+    except Exception:
+        pass
+    raise RuntimeError(f"pactl {' '.join(args)} failed: {last}\n--- pipewire processes / pipewire-pulse log ---\n{log}")
 
 
 def load_source(name, fifo):

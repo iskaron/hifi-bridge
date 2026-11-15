@@ -148,3 +148,15 @@ def test_adapter_property_errors_surface_as_bus_error(rig):
     from btbridge.adapters.bluez import BusError
     with pytest.raises(BusError):
         rig.ad.set_pairable(True)
+
+
+def test_remove_device_and_alias_over_dbus(rig):
+    rig.ad.start()
+    d1 = rig.fb.add_device(1, connected=True)
+    assert wait(lambda: ("connect", "AA:BB:CC:DD:EE:01") in rig.rec.events)
+    assert [d["address"] for d in rig.ad.paired_devices()] == ["AA:BB:CC:DD:EE:01"]
+    assert rig.ad.remove_device("AA:BB:CC:DD:EE:01")
+    assert wait(lambda: d1 not in rig.fb.objects) and wait(lambda: ("disconnect", "AA:BB:CC:DD:EE:01") in rig.rec.events)
+    assert wait(lambda: rig.ad.paired_devices() == [])
+    rig.ad.set_alias("Wohnzimmer Hi-Fi")
+    assert props_of(rig.fb, ADAPTER, "org.bluez.Adapter1")["Alias"] == "Wohnzimmer Hi-Fi"

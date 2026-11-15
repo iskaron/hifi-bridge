@@ -35,8 +35,17 @@ def test_decision_16_bridge_never_issues_power_off():
         assert all("power" not in c[0] or c[0] == "power_on" for c in r.lms.commands), ending
 
 
+POWER_OFF = __import__("re").compile(r"_(?:rpc|timed)\([^)]*[\"']power[\"']\s*,\s*(?:0|[\"']0[\"']|False)")
+
+
 def test_decision_16_lms_client_has_no_power_off_path():
-    """Static guard: the only power command the client can build is 'power 1'."""
+    """Static guard: no JSON-RPC call in the client sends 'power 0'; the only power method is power_on (reading the power state is fine)."""
     src = inspect.getsource(lms_client)
-    assert '"power", 0' not in src and "power_off" not in src and "'power', 0" not in src
+    assert not POWER_OFF.search(src) and "power_off" not in src
     assert [n for n in dir(lms_client.LmsClient) if "power" in n] == ["power_on"]
+
+
+def test_power_off_guard_itself_detects_a_power_off_call():
+    for bad in ('self._timed(player, "power", 0)', "self._rpc(p, 'power', '0')", 'self._rpc(p, "power",False)'):
+        assert POWER_OFF.search(bad), bad
+    assert not POWER_OFF.search('bool(int(p.get("power", 0)))') and not POWER_OFF.search('self._timed(player, "power", 1)')

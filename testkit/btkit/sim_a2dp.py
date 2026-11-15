@@ -56,6 +56,25 @@ class SimulatedA2dpSource:
     def set_pairable(self, enabled: bool):
         self.pairable = enabled
 
+    # --- device management (SIMULATED; same interface as the BlueZ adapter) ------
+    def paired_devices(self):
+        devs = getattr(self, "_paired", None)
+        if devs is None:
+            devs = self._paired = {self.device: {"address": self.device, "name": "Simulated phone", "trusted": True}}
+        return [dict(d, connected=(a == self.device and self.connected)) for a, d in sorted(devs.items())]
+
+    def remove_device(self, address: str) -> bool:
+        self.paired_devices()
+        if address not in self._paired:
+            return False
+        if address == self.device and self.connected:
+            self.disconnect()
+        del self._paired[address]
+        return True
+
+    def set_alias(self, name: str):
+        self.alias = name
+
     def disconnect_device(self, device_id: str):
         if device_id == self.device:
             self.disconnect()
