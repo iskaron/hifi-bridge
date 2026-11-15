@@ -1,0 +1,25 @@
+{
+  "runs": 3,
+  "pause_to_last_audible_output_s": [
+    0.06770563125610352,
+    0.06744027137756348,
+    0.04277944564819336
+  ],
+  "resume_to_first_output_s": [
+    1.5224003791809082,
+    1.5726661682128906,
+    1.5484867095947266
+  ],
+  "median_pause_s": 0.06744027137756348,
+  "median_resume_s": 1.5484867095947266,
+  "method": "virtual DAC (paced pipe from Squeezelite -o -) arrival time vs simulated phone event time; same host clock",
+  "label": "INTEGRATION real LMS + SIMULATED BT; NOT acoustic",
+  "env": {
+    "date_utc": "2026-11-15T14:32:29Z",
+    "lms": "9.1.2",
+    "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
+    "kernel": "7.0.0-43-generic",
+    "python": "3.11.2",
+    "note": "all timings are software/virtual-DAC measurements inside Docker; NOT acoustic, NOT hardware"
+  }
+}

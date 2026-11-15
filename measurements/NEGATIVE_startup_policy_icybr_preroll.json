@@ -1,0 +1,66 @@
+{
+  "table": {
+    "baseline_default_threshold": {
+      "play_to_first_output_s": [
+        1.6076626777648926,
+        1.4938650131225586,
+        1.5910327434539795
+      ],
+      "median_s": 1.5910327434539795,
+      "underruns_by_hiccup_s": {
+        "0.15": 0,
+        "0.4": 0,
+        "0.9": 0
+      }
+    },
+    "icy_br_128": {
+      "play_to_first_output_s": [
+        1.5868353843688965,
+        1.586742639541626,
+        1.586195945739746
+      ],
+      "median_s": 1.586742639541626,
+      "underruns_by_hiccup_s": {
+        "0.15": 0,
+        "0.4": 0,
+        "0.9": 0
+      }
+    },
+    "icy_br_128_preroll_400ms": {
+      "play_to_first_output_s": [
+        1.5905721187591553,
+        1.5763685703277588,
+        1.5885350704193115
+      ],
+      "median_s": 1.5885350704193115,
+      "underruns_by_hiccup_s": {
+        "0.15": 0,
+        "0.4": 0,
+        "0.9": 0
+      }
+    },
+    "icy_br_128_preroll_800ms": {
+      "play_to_first_output_s": [
+        1.6390018463134766,
+        1.5507616996765137,
+        1.618790626525879
+      ],
+      "median_s": 1.618790626525879,
+      "underruns_by_hiccup_s": {
+        "0.15": 0,
+        "0.4": 0,
+        "0.9": 0
+      }
+    }
+  },
+  "method": "3 starts per policy; hiccup = stream writer paused (test hook) while phone plays; underrun = Squeezelite STMo in its log",
+  "label": "INTEGRATION real LMS + SIMULATED BT; NOT acoustic",
+  "env": {
+    "date_utc": "2026-11-15T13:44:28Z",
+    "lms": "9.1.2",
+    "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
+    "kernel": "7.0.0-43-generic",
+    "python": "3.11.2",
+    "note": "all timings are software/virtual-DAC measurements inside Docker; NOT acoustic, NOT hardware"
+  }
+}
