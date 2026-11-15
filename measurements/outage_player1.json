@@ -28,15 +28,15 @@
     49.5
   ],
   "audible_fraction_during_outage": 0.0,
-  "first_audio_after_target_back_s": 0.5660457611083984,
-  "age_of_first_recovered_frame_s": 1.5383944511413574,
+  "first_audio_after_target_back_s": 0.5389485359191895,
+  "age_of_first_recovered_frame_s": 1.545799970626831,
   "audio_never_stopped_during_outage": false,
   "bridge_commands": [
     "play"
   ],
   "label": "INTEGRATION real LMS/player container outage + SIMULATED BT",
   "env": {
-    "date_utc": "2026-11-15T14:48:13Z",
+    "date_utc": "2026-11-15T17:29:02Z",
     "lms": "9.1.2",
     "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
     "kernel": "7.0.0-43-generic",

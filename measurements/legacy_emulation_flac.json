@@ -1,15 +1,15 @@
 {
-  "startup_s": 1.8951988220214844,
+  "startup_s": 1.9126198291778564,
   "integrity": {
-    "blocks": 81,
-    "matched": 81,
+    "blocks": 80,
+    "matched": 80,
     "mismatched": 0,
     "jumps": []
   },
   "note": "Squeezelite -c pcm,mp3 capability emulation only; real Squeezebox hardware UNVERIFIED",
   "label": "INTEGRATION real LMS + SIMULATED BT + EMULATED legacy capabilities",
   "env": {
-    "date_utc": "2026-11-15T14:38:01Z",
+    "date_utc": "2026-11-15T17:18:12Z",
     "lms": "9.1.2",
     "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
     "kernel": "7.0.0-43-generic",
