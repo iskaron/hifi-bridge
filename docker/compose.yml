@@ -1,0 +1,74 @@
+# Hardware-free lab: real Lyrion Media Server + headless Squeezelite players.
+# The network is `internal`: containers cannot reach the host LAN or internet.
+name: btbridge-lab
+
+x-lab: &lab
+  image: btbridge-lab:dev
+  build:
+    context: .
+    dockerfile: Dockerfile.lab
+  volumes:
+    - ..:/work
+    - captures:/captures
+  networks: [lab]
+
+x-player: &player
+  <<: *lab
+  depends_on:
+    lms:
+      condition: service_healthy
+
+services:
+  lms:
+    image: lmscommunity/lyrionmusicserver:stable
+    networks: [lab]
+    volumes:
+      - ./lms-config:/seed:ro
+      - lms-config:/config
+    environment:
+      - HTTP_PORT=9000
+    entrypoint: ["/bin/bash","-c","mkdir -p /config/prefs && [ -f /config/prefs/server.prefs ] || cp /seed/server.prefs /config/prefs/server.prefs; exec start-container"]
+    healthcheck:
+      test: ["CMD-SHELL","curl -fs -X POST -d '{\"id\":1,\"method\":\"slim.request\",\"params\":[\"\",[\"serverstatus\",0,1]]}' http://localhost:9000/jsonrpc.js >/dev/null"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+      start_period: 10s
+
+  # Software Squeezelite players. `-o -` writes the decoded PCM to stdout, where
+  # btkit.pcm_tap timestamps and records it (software stand-in for a speaker).
+  player1: &p
+    <<: *player
+    hostname: player1
+    command: ["python3","-m","btkit.run_player","--name","lab-player1","--mac","02:00:00:00:00:01","--server","lms:3483","--capture","/captures/player1"]
+  player2:
+    <<: *player
+    hostname: player2
+    command: ["python3","-m","btkit.run_player","--name","lab-player2","--mac","02:00:00:00:00:02","--server","lms:3483","--capture","/captures/player2"]
+  player3:
+    <<: *player
+    hostname: player3
+    command: ["python3","-m","btkit.run_player","--name","lab-player3","--mac","02:00:00:00:00:03","--server","lms:3483","--capture","/captures/player3"]
+  # Emulated *legacy* capability: reports only PCM+MP3 (like a Squeezebox 1),
+  # so LMS must pick a compatible format / transcode. Capability negotiation
+  # emulation only - NOT a real Squeezebox.
+  legacy1:
+    <<: *player
+    hostname: legacy1
+    command: ["python3","-m","btkit.run_player","--name","lab-legacy-pcm-mp3","--mac","02:00:00:00:00:10","--server","lms:3483","--capture","/captures/legacy1","--codecs","pcm,mp3"]
+
+  # Test runner / bridge host. Started on demand (`run`), shares the lab network.
+  runner:
+    <<: *lab
+    hostname: runner
+    profiles: ["tools"]
+    working_dir: /work
+    command: ["sleep","infinity"]
+
+networks:
+  lab:
+    internal: true
+
+volumes:
+  lms-config:
+  captures:
