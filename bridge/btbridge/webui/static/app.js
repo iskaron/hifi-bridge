@@ -12,6 +12,10 @@
   }
   function text(id, value) { var el = document.getElementById(id); if (el && el.textContent !== value) el.textContent = value; }
 
+  // an error message after a redirect receives focus, so screen readers read it and keyboard users start from there
+  var err = document.querySelector(".flash[data-focus]");
+  if (err) { try { err.focus(); } catch (e) { /* ignore */ } }
+
   document.addEventListener("submit", function (ev) {
     var f = ev.target, msg = f.getAttribute("data-confirm");
     if (msg && !window.confirm(msg)) ev.preventDefault();

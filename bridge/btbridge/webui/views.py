@@ -34,10 +34,23 @@ def csrf(req) -> str:
     return f'<input type="hidden" name="csrf" value="{esc(req.session["csrf"])}">' if req.session else ""
 
 
-def flash_html(req) -> str:
+def flash_parts(req) -> tuple[str, bool] | None:
     if not req.flash:
+        return None
+    raw = urllib.parse.unquote(req.flash)
+    if raw[:2] in ("e:", "i:"):
+        return raw[2:], raw[:2] == "e:"
+    return raw, False
+
+
+def flash_html(req) -> str:
+    f = flash_parts(req)
+    if not f:
         return ""
-    return f'<div class="flash" role="status">{esc(urllib.parse.unquote(req.flash))}</div>'
+    msg, err = f
+    if err:   # errors are announced at once and receive focus (app.js), so keyboard and screen-reader users notice them
+        return f'<div class="flash error" role="alert" tabindex="-1" data-focus="1">{esc(msg)}</div>'
+    return f'<div class="flash" role="status">{esc(msg)}</div>'
 
 
 def live_strings(req) -> str:
@@ -57,20 +70,20 @@ def page(ui, req, title: str, body: str, active: str | None = None, live: bool =
     r = _srv().Response(status, f"""<!doctype html>
 <html lang="{req.t.lang}" data-theme="{esc(theme)}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark"><title>{esc(title)} · {esc(svc.store.get("device_name"))}</title>
+<meta name="color-scheme" content="light dark"><title>{esc(title)} · {esc(svc.store.get("device_name"))} – {esc(PRODUCT_NAME)}</title>
 <link rel="icon" href="/static/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="/static/app.css">
 <script src="/static/app.js" defer></script></head>
 <body{' data-live="1"' if live else ''}>
 <a class="skip" href="#main">{esc(t("a11y.skip"))}</a>
 <header class="top"><a class="brand" href="/"><img src="/static/logo.svg" alt="" width="34" height="34">
-<span><strong>{esc(svc.store.get("device_name"))}</strong><small>{esc(t("brand.tagline"))}</small></span></a>{nav}</header>
+<span><strong>{esc(PRODUCT_NAME)}</strong><small><span class="sr">{esc(t("brand.device"))}: </span>{esc(svc.store.get("device_name"))}</small></span></a>{nav}</header>
 {flash_html(req)}
 <main id="main">{body}</main>
-<footer class="foot"><span>{esc(PRODUCT_NAME)} {esc(__version__)}</span></footer>
+<footer class="foot"><span>{esc(PRODUCT_NAME)} {esc(__version__)} · {esc(t("brand.tagline"))}</span></footer>
 <script type="application/json" id="i18n">{live_strings(req)}</script>
 </body></html>""")
     if req.flash:
-        r.cookie("bab_flash", "", ui.secure, max_age=0)
+        r.cookie("bab_flash", "", req.secure, max_age=0)
     return r
 
 
@@ -184,14 +197,14 @@ def setup_post(req):
         return _srv().redirect("/login")
     f = req.form
     if f.get("password", "") != f.get("confirm", ""):
-        return _srv().redirect("/setup", t("error.password_mismatch"), ui.secure)
+        return _srv().redirect("/setup", t("error.password_mismatch"), req.secure, error=True)
     try:
         sid, _ = ui.svc.auth.complete_setup(req.client, f.get("code", ""), f.get("password", ""))
     except AuthError as e:
-        return _srv().redirect("/setup", err_text(req, e), ui.secure)
+        return _srv().redirect("/setup", err_text(req, e), req.secure, error=True)
     if req.cookies.get("bab_lang") in ("de", "en"):
         ui.svc.store.update({"language": req.cookies["bab_lang"]})
-    return _srv().redirect("/setup/bluetooth", t("flash.account_created"), ui.secure).cookie(_srv().COOKIE, sid, ui.secure)
+    return _srv().redirect("/setup/bluetooth", t("flash.account_created"), req.secure).cookie(_srv().COOKIE, sid, req.secure)
 
 
 @public
@@ -201,7 +214,7 @@ def lang_post(req):
     path = urllib.parse.urlsplit(to).path or "/"
     r = _srv().redirect(path if path.startswith("/") else "/")
     if lang in ("de", "en"):
-        r.cookie(_srv().LANG_COOKIE, lang, req.ui.secure, max_age=365 * 86400)
+        r.cookie(_srv().LANG_COOKIE, lang, req.secure, max_age=365 * 86400)
         if req.session:
             req.ui.svc.store.update({"language": lang})
     return r
@@ -220,7 +233,7 @@ def setup_bluetooth_post(req):
     try:
         req.ui.svc.store.update({"device_name": req.form.get("device_name", "")})
     except SettingError as e:
-        return _srv().redirect("/setup/bluetooth", err_text(req, e), req.ui.secure)
+        return _srv().redirect("/setup/bluetooth", err_text(req, e), req.secure, error=True)
     return _srv().redirect("/setup/lyrion")
 
 
@@ -246,14 +259,15 @@ def setup_lyrion_post(req):
     try:
         v = validate({"lms_host": req.form.get("lms_host", ""), "lms_port": req.form.get("lms_port", "9000")})
     except SettingError as e:
-        return _srv().redirect("/setup/lyrion", err_text(req, e), req.ui.secure)
+        return _srv().redirect("/setup/lyrion", err_text(req, e), req.secure, error=True)
     if not v["lms_host"]:
-        return _srv().redirect("/setup/lyrion", t("error.setting", field=t("field.lms_host"), reason=t("error.invalid_host")), req.ui.secure)
+        return _srv().redirect("/setup/lyrion", t("error.setting", field=t("field.lms_host"), reason=t("error.invalid_host")), req.secure,
+                               error=True)
     chk = svc.check_server(v["lms_host"], v["lms_port"])
     if not chk["reachable"]:
-        return _srv().redirect("/setup/lyrion", t("wizard.lyrion.unreachable", server=f'{v["lms_host"]}:{v["lms_port"]}'), req.ui.secure)
+        return _srv().redirect("/setup/lyrion", t("wizard.lyrion.unreachable", server=f'{v["lms_host"]}:{v["lms_port"]}'), req.secure, error=True)
     svc.store.update(v)
-    return _srv().redirect("/setup/target", t("wizard.lyrion.connected", version=chk["version"]), req.ui.secure)
+    return _srv().redirect("/setup/target", t("wizard.lyrion.connected", version=chk["version"]), req.secure)
 
 
 def target_choices(req, selected: str, action: str) -> str:
@@ -285,7 +299,7 @@ def setup_target_post(req):
     try:
         req.ui.svc.store.update(_with_label(req, {"target_player": req.form.get("target_player", "")}))
     except SettingError as e:
-        return _srv().redirect("/setup/target", err_text(req, e), req.ui.secure)
+        return _srv().redirect("/setup/target", err_text(req, e), req.secure, error=True)
     return _srv().redirect("/setup/finish")
 
 
@@ -304,7 +318,7 @@ def setup_finish_get(req):
 
 def setup_finish_post(req):
     req.ui.svc.store.update({"setup_complete": True})
-    return _srv().redirect("/", req.t("flash.setup_done"), req.ui.secure)
+    return _srv().redirect("/", req.t("flash.setup_done"), req.secure)
 
 
 # ============================================================== login / logout
@@ -328,13 +342,13 @@ def login_post(req):
     try:
         sid, _ = ui.svc.auth.login(req.client, req.form.get("password", ""))
     except AuthError as e:
-        return _srv().redirect("/login", err_text(req, e), ui.secure)
-    return _srv().redirect("/").cookie(_srv().COOKIE, sid, ui.secure)
+        return _srv().redirect("/login", err_text(req, e), req.secure, error=True)
+    return _srv().redirect("/").cookie(_srv().COOKIE, sid, req.secure)
 
 
 def logout_post(req):
     req.ui.svc.auth.sessions.destroy(req.sid)
-    return _srv().redirect("/login", req.t("flash.logged_out"), req.ui.secure).cookie(_srv().COOKIE, "", req.ui.secure, max_age=0)
+    return _srv().redirect("/login", req.t("flash.logged_out"), req.secure).cookie(_srv().COOKIE, "", req.secure, max_age=0)
 
 
 # ============================================================== dashboard
@@ -352,13 +366,13 @@ def dashboard(req):
     sysd = st["system"] or {}
     body = f"""{headline_card(req, st)}
 {f'<section class="card warn" role="alert"><h2>{esc(t("dash.attention"))}</h2><ul>{degraded}</ul></section>' if degraded else ''}
-<div class="grid">
+<div class="grid three">
 <section class="card"><h2>{esc(t("dash.pairing"))}</h2>{pairing}</section>
 <section class="card"><h2>{esc(t("dash.audio"))}</h2>{toggle_form(req, "/audio", t("audio.allowed") if allowed else t("audio.blocked"),
         "off" if allowed else "on", allowed, f'<p class="help">{esc(t("audio.help"))}</p>')}</section>
 <section class="card"><h2>{esc(t("dash.test"))}</h2><form method="post" action="/diagnostics/test">{csrf(req)}<input type="hidden" name="back" value="/">
 <button>{esc(t("action.test_sound"))}</button></form><p class="help">{esc(t("diag.test.help"))}</p></section>
-<section class="card small"><h2>{esc(t("dash.system"))}</h2><dl class="metrics">
+<section class="card wide system-strip"><h2>{esc(t("dash.system"))}</h2><dl class="metrics strip">
 <div><dt>{esc(t("sys.cpu"))}</dt><dd>{esc(fmt(sysd.get("cpu_percent"), "%"))}</dd></div>
 <div><dt>{esc(t("sys.temp"))}</dt><dd>{esc(fmt(sysd.get("temperature_c"), " °C"))}</dd></div>
 <div><dt>{esc(t("sys.memory"))}</dt><dd>{esc(fmt((sysd.get("memory") or {}).get("used_percent"), "%"))}</dd></div></dl>
@@ -372,18 +386,18 @@ def fmt(v, unit="") -> str:
 
 def pairing_open(req):
     req.ui.svc.open_pairing()
-    return _srv().redirect(safe_back(req, "/"), req.t("flash.pairing_opened"), req.ui.secure)
+    return _srv().redirect(safe_back(req, "/"), req.t("flash.pairing_opened"), req.secure)
 
 
 def pairing_close(req):
     req.ui.svc.close_pairing()
-    return _srv().redirect(safe_back(req, "/"), req.t("flash.pairing_closed"), req.ui.secure)
+    return _srv().redirect(safe_back(req, "/"), req.t("flash.pairing_closed"), req.secure)
 
 
 def audio_post(req):
     on = req.form.get("value") == "on"
     req.ui.svc.set_audio_allowed(on)
-    return _srv().redirect(safe_back(req, "/"), req.t("flash.audio_on" if on else "flash.audio_off"), req.ui.secure)
+    return _srv().redirect(safe_back(req, "/"), req.t("flash.audio_on" if on else "flash.audio_off"), req.secure)
 
 
 def safe_back(req, default: str) -> str:
@@ -408,7 +422,7 @@ def pairing_page(req):
                        f'id="live-pairing">{esc(t("pairing.open_for", name=st["name"], seconds=st["pairing_remaining_s"]))}</p>')
            if st["pairing_open"] else toggle_form(req, "/pairing/open", t("pairing.open"), "on", False,
                                                   f'<input type="hidden" name="back" value="/pairing"><p class="help">{esc(t("pairing.help", name=st["name"]))}</p>'))
-    body = f"""<h1>{esc(t("nav.pairing"))}</h1><div class="grid">
+    body = f"""<h1>{esc(t("nav.pairing"))}</h1><div class="grid two">
 <section class="card"><h2>{esc(t("pairing.window"))}</h2>{win}<p class="help">{esc(t("pairing.guest_hint", name=st["name"]))}</p></section>
 <section class="card wide"><h2>{esc(t("pairing.devices"))}</h2>{f'<ul class="devices">{rows}</ul>' if rows else f'<p class="muted">{esc(t("pairing.no_devices"))}</p>'}
 <p class="help">{esc(t("pairing.one_source"))}</p></section></div>"""
@@ -417,129 +431,329 @@ def pairing_page(req):
 
 def device_remove(req):
     ok = req.ui.svc.remove_device(req.form.get("address", ""))
-    return _srv().redirect("/pairing", req.t("flash.device_removed" if ok else "flash.device_not_found"), req.ui.secure)
+    return _srv().redirect("/pairing", req.t("flash.device_removed" if ok else "flash.device_not_found"), req.secure, error=not ok)
 
 
 def device_label(req):
     try:
         req.ui.svc.set_device_label(req.form.get("address", ""), req.form.get("label", ""))
     except SettingError as e:
-        return _srv().redirect("/pairing", err_text(req, e), req.ui.secure)
-    return _srv().redirect("/pairing", req.t("flash.saved"), req.ui.secure)
+        return _srv().redirect("/pairing", err_text(req, e), req.secure, error=True)
+    return _srv().redirect("/pairing", req.t("flash.saved"), req.secure)
 
 
-# ============================================================== settings
-def field(req, key, value, kind="text", **attrs) -> str:
+# ============================================================== settings (overview + one page per section)
+def field(req, key, value, kind="text", help_key: str | None = None, **attrs) -> str:
     t = req.t
     extra = " ".join(f'{k.replace("_", "-")}="{esc(v)}"' for k, v in attrs.items())
+    desc = f' aria-describedby="help-{key}"' if help_key else ""
+    helptext = f'<span class="help" id="help-{key}">{esc(t(help_key))}</span>' if help_key else ""
     if kind == "checkbox":
-        return (f'<label class="check"><input type="checkbox" name="{key}" value="on"{" checked" if value else ""} {extra}>'
-                f'<span>{esc(t("field." + key))}</span></label>')
-    return f'<label>{esc(t("field." + key))}<input type="{kind}" name="{key}" value="{esc(value)}" {extra}></label>'
+        return (f'<label class="check"><input type="checkbox" name="{key}" value="on"{" checked" if value else ""}{desc} {extra}>'
+                f'<span>{esc(t("field." + key))}</span></label>{helptext}')
+    if kind == "textarea":
+        return (f'<label>{esc(t("field." + key))}<textarea name="{key}" rows="5" spellcheck="false"{desc} {extra}>{esc(value)}</textarea>'
+                f'</label>{helptext}')
+    return f'<label>{esc(t("field." + key))}<input type="{kind}" name="{key}" value="{esc(value)}"{desc} {extra}></label>{helptext}'
 
 
-def select(req, key, value, choices) -> str:
+def select(req, key, value, choices, help_key: str | None = None) -> str:
     t = req.t
+    desc = f' aria-describedby="help-{key}"' if help_key else ""
     opts = "".join(f'<option value="{c}"{" selected" if c == value else ""}>{esc(t("choice." + key + "." + c))}</option>' for c in choices)
-    return f'<label>{esc(t("field." + key))}<select name="{key}">{opts}</select></label>'
+    helptext = f'<span class="help" id="help-{key}">{esc(t(help_key))}</span>' if help_key else ""
+    return f'<label>{esc(t("field." + key))}<select name="{key}"{desc}>{opts}</select></label>{helptext}'
+
+
+SECTIONS = ("lyrion", "playback", "bluetooth", "access", "mqtt", "appearance", "security")
+
+
+def section_summary(req, name: str) -> str:
+    t, c, svc = req.t, req.ui.svc.store.all(), req.ui.svc
+    if name == "lyrion":
+        return f'{c["lms_host"] or t("state.not_configured")} · {c["target_label"] or c["target_player"] or "–"}'
+    if name == "playback":
+        return f'{t("choice.pause_strategy." + c["pause_strategy"])} · {c["stream_format"].upper()}'
+    if name == "bluetooth":
+        return f'{c["device_name"]} · {t("summary.pairing_minutes", minutes=c["pairing_seconds"] // 60)}'
+    if name == "access":
+        acc = svc.access
+        return f'{acc.main_name() if acc else c["local_hostname"] + ".local"} · {t("choice.tls_mode." + c["tls_mode"])}'
+    if name == "mqtt":
+        if not c["mqtt_enabled"]:
+            return t("mqtt.disabled")
+        n = sum(1 for k in ("mqtt_allow_pairing", "mqtt_allow_audio", "mqtt_allow_test") if c[k])
+        return f'{c["mqtt_host"]} · ' + (t("summary.read_only") if n == 0 else t("summary.controls", n=n))
+    if name == "appearance":
+        return f'{t("choice.language." + c["language"])} · {t("choice.theme." + c["theme"])}'
+    return t("summary.security")
 
 
 def settings_page(req):
-    t, s = req.t, req.ui.svc.store
-    c = s.all()
-    group = lambda name, action, inner, note="": (f'<section class="card"><h2>{esc(t("settings." + name))}</h2>'
-                                                  f'<form method="post" action="{action}" class="stack">{csrf(req)}{inner}'
-                                                  f'{f"<p class=help>{esc(note)}</p>" if note else ""}<button>{esc(t("action.save"))}</button></form></section>')
-    body = f"""<h1>{esc(t("nav.settings"))}</h1><div class="grid">
-{group("lyrion", "/settings/lyrion", field(req, "lms_host", c["lms_host"], spellcheck="false", autocapitalize="off") +
-       field(req, "lms_port", c["lms_port"], inputmode="numeric"), t("settings.lyrion.help"))}
-<section class="card"><h2>{esc(t("settings.target"))}</h2>{target_choices(req, c["target_player"], "/settings/target")}</section>
-{group("playback", "/settings/playback", field(req, "override_lms", c["override_lms"], "checkbox") +
-       select(req, "pause_strategy", c["pause_strategy"], ("drop_restart", "keepalive_silence")) +
-       select(req, "stream_format", c["stream_format"], ("wav", "flac")) + field(req, "icy_metadata", c["icy_metadata"], "checkbox"),
-       t("settings.playback.help"))}
-{group("bluetooth", "/settings/bluetooth", field(req, "device_name", c["device_name"], maxlength="32") +
-       field(req, "pairing_seconds", c["pairing_seconds"], "number", min="60", max="1800", step="30"))}
-{group("mqtt", "/settings/mqtt", field(req, "mqtt_enabled", c["mqtt_enabled"], "checkbox") + field(req, "mqtt_host", c["mqtt_host"], spellcheck="false") +
-       field(req, "mqtt_port", c["mqtt_port"], inputmode="numeric") + field(req, "mqtt_username", c["mqtt_username"], autocomplete="off") +
-       f'<label>{esc(t("field.mqtt_password"))}<input type="password" name="mqtt_password" autocomplete="new-password" placeholder="{esc(t("settings.mqtt.password_keep") if s.secret("mqtt_password") else "")}"></label>' +
-       field(req, "mqtt_tls", c["mqtt_tls"], "checkbox") + field(req, "mqtt_base_topic", c["mqtt_base_topic"]) +
-       field(req, "mqtt_discovery_prefix", c["mqtt_discovery_prefix"]), t("settings.mqtt.help"))}
-{group("appearance", "/settings/appearance", select(req, "language", c["language"], ("auto", "de", "en")) +
-       select(req, "theme", c["theme"], ("auto", "light", "dark")))}
-<section class="card"><h2>{esc(t("settings.security"))}</h2><form method="post" action="/settings/password" class="stack">{csrf(req)}
-<input type="text" name="username" value="owner" autocomplete="username" hidden>
-<label>{esc(t("field.password"))}<input type="password" name="old" autocomplete="current-password" required></label>
-<label>{esc(t("field.new_password"))}<input type="password" name="new" autocomplete="new-password" minlength="10" required></label>
-<label>{esc(t("field.confirm_password"))}<input type="password" name="confirm" autocomplete="new-password" minlength="10" required></label>
-<button>{esc(t("settings.change_password"))}</button></form>
-<h3>{esc(t("settings.token.title"))}</h3><form method="post" action="/settings/token" class="stack" data-confirm="{esc(t("settings.token.confirm"))}">{csrf(req)}
-<p class="help">{esc(t("settings.token.help"))}</p><button class="danger">{esc(t("settings.token.rotate"))}</button></form></section>
-</div>"""
+    t = req.t
+    items = "".join(f"""<li><a class="setting-link" href="/settings/{n}"><span><strong>{esc(t("settings." + n))}</strong>
+<small>{esc(section_summary(req, n))}</small></span><span aria-hidden="true" class="chev">›</span></a></li>""" for n in SECTIONS)
+    body = f"""<h1>{esc(t("nav.settings"))}</h1><nav aria-label="{esc(t("nav.settings"))}"><ul class="settings-list">{items}</ul></nav>"""
     return page(req.ui, req, t("nav.settings"), body, active="/settings")
 
 
-def _save(req, keys: tuple[str, ...], checkboxes: tuple[str, ...] = ()):
+def section_page(req, name: str, inner: str):
+    t = req.t
+    body = (f'<p class="back"><a href="/settings">‹ {esc(t("nav.settings"))}</a></p><h1>{esc(t("settings." + name))}</h1>'
+            f'<div class="stack-cards">{inner}</div>')
+    return page(req.ui, req, t("settings." + name), body, active="/settings")
+
+
+def form_card(req, title_key: str, action: str, inner: str, note_key: str | None = None, button_key: str = "action.save",
+              danger: bool = False, confirm_key: str | None = None) -> str:
+    t = req.t
+    conf = f' data-confirm="{esc(t(confirm_key))}"' if confirm_key else ""
+    note = f'<p class="help">{esc(t(note_key))}</p>' if note_key else ""
+    return (f'<section class="card"><h2>{esc(t(title_key))}</h2><form method="post" action="{action}" class="stack"{conf}>{csrf(req)}'
+            f'{inner}{note}<button{" class=danger" if danger else ""}>{esc(t(button_key))}</button></form></section>')
+
+
+def settings_lyrion_get(req):
+    c = req.ui.svc.store.all()
+    inner = (form_card(req, "settings.lyrion_server", "/settings/lyrion",
+                       field(req, "lms_host", c["lms_host"], spellcheck="false", autocapitalize="off") +
+                       field(req, "lms_port", c["lms_port"], inputmode="numeric"), "settings.lyrion.help") +
+             f'<section class="card"><h2>{esc(req.t("settings.target"))}</h2>{target_choices(req, c["target_player"], "/settings/target")}</section>')
+    return section_page(req, "lyrion", inner)
+
+
+def settings_playback_get(req):
+    c = req.ui.svc.store.all()
+    return section_page(req, "playback", form_card(req, "settings.playback", "/settings/playback",
+                        field(req, "override_lms", c["override_lms"], "checkbox", help_key="help.override_lms") +
+                        select(req, "pause_strategy", c["pause_strategy"], ("drop_restart", "keepalive_silence"), "help.pause_strategy") +
+                        select(req, "stream_format", c["stream_format"], ("wav", "flac")) +
+                        field(req, "icy_metadata", c["icy_metadata"], "checkbox", help_key="settings.playback.help")))
+
+
+def settings_bluetooth_get(req):
+    c = req.ui.svc.store.all()
+    return section_page(req, "bluetooth", form_card(req, "settings.bluetooth", "/settings/bluetooth",
+                        field(req, "device_name", c["device_name"], maxlength="32", help_key="help.device_name") +
+                        field(req, "pairing_seconds", c["pairing_seconds"], "number", min="60", max="1800", step="30")))
+
+
+def settings_mqtt_get(req):
+    c, s = req.ui.svc.store.all(), req.ui.svc.store
+    pw_hint = req.t("settings.mqtt.password_keep") if s.secret("mqtt_password") else ""
+    conn = (field(req, "mqtt_enabled", c["mqtt_enabled"], "checkbox") + field(req, "mqtt_host", c["mqtt_host"], spellcheck="false") +
+            field(req, "mqtt_port", c["mqtt_port"], inputmode="numeric") + field(req, "mqtt_username", c["mqtt_username"], autocomplete="off") +
+            f'<label>{esc(req.t("field.mqtt_password"))}<input type="password" name="mqtt_password" autocomplete="new-password" '
+            f'placeholder="{esc(pw_hint)}"></label>' +
+            field(req, "mqtt_tls", c["mqtt_tls"], "checkbox") + field(req, "mqtt_ca_pem", c["mqtt_ca_pem"], "textarea", help_key="help.mqtt_ca_pem") +
+            field(req, "mqtt_base_topic", c["mqtt_base_topic"]) + field(req, "mqtt_discovery_prefix", c["mqtt_discovery_prefix"]) +
+            field(req, "mqtt_telemetry_s", c["mqtt_telemetry_s"], "number", min="60", max="3600", step="60"))
+    controls = (f'<fieldset><legend>{esc(req.t("settings.mqtt.controls"))}</legend>' +
+                field(req, "mqtt_allow_pairing", c["mqtt_allow_pairing"], "checkbox") +
+                field(req, "mqtt_allow_audio", c["mqtt_allow_audio"], "checkbox") +
+                field(req, "mqtt_allow_test", c["mqtt_allow_test"], "checkbox") + "</fieldset>")
+    inner = (form_card(req, "settings.mqtt.connection", "/settings/mqtt", conn, "settings.mqtt.help") +
+             form_card(req, "settings.mqtt.controls", "/settings/mqtt/controls", controls, "settings.mqtt.controls_help"))
+    return section_page(req, "mqtt", inner)
+
+
+def settings_appearance_get(req):
+    c = req.ui.svc.store.all()
+    return section_page(req, "appearance", form_card(req, "settings.appearance", "/settings/appearance",
+                        select(req, "language", c["language"], ("auto", "de", "en")) + select(req, "theme", c["theme"], ("auto", "light", "dark"))))
+
+
+def settings_security_get(req):
+    t = req.t
+    pw = (f'<input type="text" name="username" value="owner" autocomplete="username" hidden>'
+          f'<label>{esc(t("field.password"))}<input type="password" name="old" autocomplete="current-password" required></label>'
+          f'<label>{esc(t("field.new_password"))}<input type="password" name="new" autocomplete="new-password" minlength="10" required></label>'
+          f'<label>{esc(t("field.confirm_password"))}<input type="password" name="confirm" autocomplete="new-password" minlength="10" required></label>')
+    inner = (form_card(req, "settings.change_password", "/settings/password", pw, button_key="settings.change_password") +
+             form_card(req, "settings.token.title", "/settings/token", "", "settings.token.help", "settings.token.rotate", danger=True,
+                       confirm_key="settings.token.confirm"))
+    return section_page(req, "security", inner)
+
+
+def settings_access_get(req):
+    t, svc, c = req.t, req.ui.svc, req.ui.svc.store.all()
+    acc = svc.access
+    info = acc.info() if acc else {}
+    srv, ca = info.get("server"), info.get("ca")
+    status = "".join(f"<div><dt>{esc(t(k))}</dt><dd>{v}</dd></div>" for k, v in (
+        ("access.name", esc(info.get("main_name", c["local_hostname"] + ".local"))),
+        ("access.https", esc(t("access.on_port", port=info.get("https_port"))) if info.get("tls_available") else esc(t("access.off"))),
+        ("access.cert_until", esc((srv or {}).get("not_after", "–")[:10])),
+        ("access.ca_fp", f'<code class="fp">{esc((ca or {}).get("sha256", "–"))}</code>')))
+    err = f'<p class="error" role="alert">{esc(t("access.error", error=info["error"]))}</p>' if info.get("error") else ""
+    names = (field(req, "local_hostname", c["local_hostname"], help_key="help.local_hostname", spellcheck="false", autocapitalize="off") +
+             field(req, "mdns_enabled", c["mdns_enabled"], "checkbox") +
+             field(req, "extra_hostnames", c["extra_hostnames"], help_key="help.extra_hostnames", spellcheck="false", autocapitalize="off"))
+    tls = (select(req, "tls_mode", c["tls_mode"], ("local_ca", "custom", "proxy"), "help.tls_mode") +
+           field(req, "trusted_proxies", c["trusted_proxies"], help_key="help.trusted_proxies", spellcheck="false") +
+           field(req, "https_only", c["https_only"], "checkbox", help_key="help.https_only"))
+    custom = (field(req, "custom_cert_pem", "", "textarea") + field(req, "custom_key_pem", "", "textarea", help_key="help.custom_key_pem"))
+    inner = (f'<section class="card"><h2>{esc(t("access.status"))}</h2><dl class="facts stacked">{status}</dl>{err}'
+             f'<p><a class="button" href="/trust">{esc(t("access.trust_link"))}</a></p>'
+             f'<form method="post" action="/settings/access/renew">{csrf(req)}<button>{esc(t("access.renew"))}</button></form></section>' +
+             form_card(req, "access.names", "/settings/access/names", names) +
+             form_card(req, "access.tls", "/settings/access/tls", tls) +
+             form_card(req, "access.custom", "/settings/access/custom", custom, "access.custom_help", "access.custom_install"))
+    return section_page(req, "access", inner)
+
+
+def _save(req, keys: tuple[str, ...], checkboxes: tuple[str, ...] = (), back: str = "/settings"):
     changes = {k: req.form.get(k, "") for k in keys if k in req.form}
     for k in checkboxes:
         changes[k] = req.form.get(k) == "on"
     try:
         req.ui.svc.store.update(changes)
     except SettingError as e:
-        return _srv().redirect("/settings", err_text(req, e), req.ui.secure)
-    return _srv().redirect("/settings", req.t("flash.saved"), req.ui.secure)
+        return _srv().redirect(back, err_text(req, e), req.secure, error=True)
+    return _srv().redirect(back, req.t("flash.saved"), req.secure)
 
 
 def settings_lyrion(req):
-    return _save(req, ("lms_host", "lms_port"))
+    return _save(req, ("lms_host", "lms_port"), back="/settings/lyrion")
 
 
 def settings_target(req):
     try:
         req.ui.svc.store.update(_with_label(req, {"target_player": req.form.get("target_player", "")}))
     except SettingError as e:
-        return _srv().redirect("/settings", err_text(req, e), req.ui.secure)
-    return _srv().redirect("/settings", req.t("flash.saved"), req.ui.secure)
+        return _srv().redirect("/settings/lyrion", err_text(req, e), req.secure, error=True)
+    return _srv().redirect("/settings/lyrion", req.t("flash.saved"), req.secure)
 
 
 def settings_playback(req):
-    return _save(req, ("pause_strategy", "stream_format"), ("override_lms", "icy_metadata"))
+    return _save(req, ("pause_strategy", "stream_format"), ("override_lms", "icy_metadata"), back="/settings/playback")
 
 
 def settings_bluetooth(req):
-    return _save(req, ("device_name", "pairing_seconds"))
+    return _save(req, ("device_name", "pairing_seconds"), back="/settings/bluetooth")
 
 
 def settings_mqtt(req):
     pw = req.form.get("mqtt_password", "")
     if pw:
         req.ui.svc.store.set_secret("mqtt_password", pw)
-    return _save(req, ("mqtt_host", "mqtt_port", "mqtt_username", "mqtt_base_topic", "mqtt_discovery_prefix"), ("mqtt_enabled", "mqtt_tls"))
+    return _save(req, ("mqtt_host", "mqtt_port", "mqtt_username", "mqtt_base_topic", "mqtt_discovery_prefix", "mqtt_telemetry_s",
+                       "mqtt_ca_pem"), ("mqtt_enabled", "mqtt_tls"), back="/settings/mqtt")
+
+
+def settings_mqtt_controls(req):
+    return _save(req, (), ("mqtt_allow_pairing", "mqtt_allow_audio", "mqtt_allow_test"), back="/settings/mqtt")
 
 
 def settings_appearance(req):
-    r = _save(req, ("language", "theme"))
+    r = _save(req, ("language", "theme"), back="/settings/appearance")
     lang = req.form.get("language")
     if lang in ("de", "en"):
-        r.cookie(_srv().LANG_COOKIE, lang, req.ui.secure, max_age=365 * 86400)
+        r.cookie(_srv().LANG_COOKIE, lang, req.secure, max_age=365 * 86400)
     return r
+
+
+def settings_access_names(req):
+    return _save(req, ("local_hostname", "extra_hostnames"), ("mdns_enabled",), back="/settings/access")
+
+
+def settings_access_tls(req):
+    want_https_only = req.form.get("https_only") == "on"
+    if want_https_only and not req.ui.svc.store.get("https_only") and not req.secure:
+        # lock-out protection: HTTPS-only can only be switched on from a working HTTPS session (proves the certificate is trusted)
+        return _srv().redirect("/settings/access", req.t("error.https_only_needs_https"), req.secure, error=True)
+    r = _save(req, ("tls_mode", "trusted_proxies"), ("https_only",), back="/settings/access")
+    if req.ui.svc.access is not None:
+        req.ui.svc.access.ensure_certificates()
+        req.ui.ensure_https()
+    return r
+
+
+def settings_access_custom(req):
+    from ..net.certs import CertError
+    acc = req.ui.svc.access
+    if acc is None:
+        return _srv().redirect("/settings/access", req.t("error.generic"), req.secure, error=True)
+    try:
+        acc.install_custom(req.form.get("custom_cert_pem", ""), req.form.get("custom_key_pem", ""))
+    except CertError as e:
+        return _srv().redirect("/settings/access", req.t("error.cert." + str(e).split(":")[0]), req.secure, error=True)
+    return _srv().redirect("/settings/access", req.t("flash.cert_installed"), req.secure)
+
+
+def settings_access_renew(req):
+    acc = req.ui.svc.access
+    if acc is not None and acc.mode == "local_ca":
+        acc.certs.issue_server(acc.cert_names())
+        acc._load_ctx()
+    return _srv().redirect("/settings/access", req.t("flash.cert_renewed"), req.secure)
 
 
 def settings_password(req):
     f = req.form
     if f.get("new") != f.get("confirm"):
-        return _srv().redirect("/settings", req.t("error.password_mismatch"), req.ui.secure)
+        return _srv().redirect("/settings/security", req.t("error.password_mismatch"), req.secure, error=True)
     try:
         req.ui.svc.auth.change_password(f.get("old", ""), f.get("new", ""))
     except AuthError as e:
-        return _srv().redirect("/settings", err_text(req, e), req.ui.secure)
+        return _srv().redirect("/settings/security", err_text(req, e), req.secure, error=True)
     sid, _ = req.ui.svc.auth.sessions.create()                 # all old sessions are gone; keep this browser logged in
-    return _srv().redirect("/settings", req.t("flash.password_changed"), req.ui.secure).cookie(_srv().COOKIE, sid, req.ui.secure)
+    return _srv().redirect("/settings/security", req.t("flash.password_changed"), req.secure).cookie(_srv().COOKIE, sid, req.secure)
 
 
 def settings_token(req):
     req.ui.svc.rotate_stream_token()
-    return _srv().redirect("/settings", req.t("flash.token_rotated"), req.ui.secure)
+    return _srv().redirect("/settings/security", req.t("flash.token_rotated"), req.secure)
+
+
+# ============================================================== trust (public) + health
+@public
+def trust_page(req):
+    t, acc = req.t, req.ui.svc.access
+    info = acc.info() if acc else {}
+    ca = info.get("ca") or {}
+    https = (f"https://{info.get('main_name')}:{info.get('https_port')}/" if info.get("tls_available") else None)
+    steps = "".join(f'<section class="card"><h2>{esc(t("trust." + p))}</h2><ol class="steps-list">' +
+                    "".join(f"<li>{esc(t(f'trust.{p}.{i}'))}</li>" for i in range(1, 4)) + "</ol></section>"
+                    for p in ("ios", "android", "windows", "macos", "linux"))
+    body = f"""<h1>{esc(t("trust.title"))}</h1><p class="lead">{esc(t("trust.intro"))}</p>
+<section class="card"><h2>{esc(t("trust.fingerprint"))}</h2><p><code class="fp" id="ca-fp">{esc(ca.get("sha256", "–"))}</code></p>
+<p class="help">{esc(t("trust.verify"))}</p>
+<p class="actions"><a class="button primary" href="/ca.crt" download="hifi-bridge-ca.crt">{esc(t("trust.download_pem"))}</a>
+<a class="button" href="/ca.der" download="hifi-bridge-ca.cer">{esc(t("trust.download_der"))}</a></p>
+<p class="help">{esc(t("trust.scope"))}</p>
+{f'<p><a href="{esc(https)}">{esc(t("trust.open_https", url=https))}</a></p>' if https else ""}</section>
+<div class="grid two">{steps}</div>"""
+    return page(req.ui, req, t("trust.title"), body)
+
+
+@public
+def ca_pem(req):
+    acc = req.ui.svc.access
+    if acc is None or not acc.certs.ca_info():
+        return _srv().Response(404, "no local CA", "text/plain")
+    r = _srv().Response(200, acc.certs.ca_pem(), "application/x-pem-file")
+    r.headers.append(("Content-Disposition", 'attachment; filename="hifi-bridge-ca.crt"'))
+    return r
+
+
+@public
+def ca_der(req):
+    acc = req.ui.svc.access
+    if acc is None or not acc.certs.ca_info():
+        return _srv().Response(404, "no local CA", "text/plain")
+    r = _srv().Response(200, acc.certs.ca_der(), "application/x-x509-ca-cert")
+    r.headers.append(("Content-Disposition", 'attachment; filename="hifi-bridge-ca.cer"'))
+    return r
+
+
+@public
+def healthz(req):
+    """For the service supervisor/watchdog. Details only for local callers; never secrets."""
+    h = req.ui.svc.health()
+    if req.peer in ("127.0.0.1", "::1"):
+        return _srv().json_response(h, 200 if h["status"] != "failed" else 503)
+    return _srv().json_response({"status": h["status"]}, 200 if h["status"] != "failed" else 503)
 
 
 # ============================================================== diagnostics + system
@@ -550,7 +764,7 @@ def diagnostics_page(req):
     faults = "".join(f'<li>{esc(time_str(f["t"]))} · {esc(f["kind"])}: {esc(f["detail"])}</li>' for f in svc.logs.faults()[-20:])
     states = "".join(f'<div><dt>{esc(t("dim." + k))}</dt><dd>{esc(t("state." + str(v)) if v else "–")}</dd></div>'
                      for k, v in st["bridge"].items())
-    body = f"""<h1>{esc(t("nav.diagnostics"))}</h1><div class="grid">
+    body = f"""<h1>{esc(t("nav.diagnostics"))}</h1><div class="grid two">
 <section class="card"><h2>{esc(t("diag.test"))}</h2><form method="post" action="/diagnostics/test">{csrf(req)}<input type="hidden" name="back" value="/diagnostics">
 <button class="primary">{esc(t("action.test_sound"))}</button></form><p class="help">{esc(t("diag.test.help"))}</p></section>
 <section class="card"><h2>{esc(t("diag.lyrion"))}</h2><form method="post" action="/diagnostics/check">{csrf(req)}<button>{esc(t("diag.check"))}</button></form>
@@ -571,17 +785,17 @@ def time_str(ts: float) -> str:
 def diagnostics_test(req):
     r = req.ui.svc.diagnostic_test()
     msg = req.t("diag.test.started") if r == "started" else req.t("diag.test.refused", reason=req.t("refusal." + r.split(":", 1)[-1]))
-    return _srv().redirect(safe_back(req, "/diagnostics"), msg, req.ui.secure)
+    return _srv().redirect(safe_back(req, "/diagnostics"), msg, req.secure, error=r != "started")
 
 
 def diagnostics_check(req):
     svc = req.ui.svc
     host, port = svc.store.get("lms_host"), svc.store.get("lms_port")
     if not host:
-        return _srv().redirect("/diagnostics", req.t("state.not_configured"), req.ui.secure)
+        return _srv().redirect("/diagnostics", req.t("state.not_configured"), req.secure)
     r = svc.check_server(host, port)
     msg = req.t("diag.check.ok", version=r["version"]) if r["reachable"] else req.t("diag.check.fail", server=f"{host}:{port}")
-    return _srv().redirect("/diagnostics", msg, req.ui.secure)
+    return _srv().redirect("/diagnostics", msg, req.secure, error=not r["reachable"])
 
 
 def system_page(req):
@@ -591,8 +805,8 @@ def system_page(req):
     net = "".join(f'<div><dt>{esc(name)}</dt><dd>{esc(t("sys.net_value", rx=round(v.get("rx_bytes", 0) / 2**20, 1), tx=round(v.get("tx_bytes", 0) / 2**20, 1)))}'
                   f'{esc(" · " + t("sys.wifi", dbm=v["wifi_signal_dbm"])) if "wifi_signal_dbm" in v else ""}</dd></div>'
                   for name, v in (s.get("network") or {}).items())
-    body = f"""<h1>{esc(t("nav.system"))}</h1><div class="grid">
-<section class="card"><h2>{esc(t("sys.health"))}</h2><dl class="metrics big">
+    body = f"""<h1>{esc(t("nav.system"))}</h1><div class="grid two">
+<section class="card wide"><h2>{esc(t("sys.health"))}</h2><dl class="metrics big">
 <div><dt>{esc(t("sys.cpu"))}</dt><dd>{esc(fmt(s.get("cpu_percent"), "%"))}</dd></div>
 <div><dt>{esc(t("sys.temp"))}</dt><dd>{esc(fmt(s.get("temperature_c"), " °C"))}<small>{esc(t("thermal." + str(s.get("thermal_state", "unknown"))))}</small></dd></div>
 <div><dt>{esc(t("sys.load"))}</dt><dd>{esc(" / ".join(str(x) for x in s["load"]) if s.get("load") else "–")}</dd></div>
@@ -641,6 +855,13 @@ def routes(ui):
         ("GET", "/"): dashboard, ("POST", "/pairing/open"): pairing_open, ("POST", "/pairing/close"): pairing_close,
         ("POST", "/audio"): audio_post, ("GET", "/pairing"): pairing_page, ("POST", "/devices/remove"): device_remove,
         ("POST", "/devices/label"): device_label, ("GET", "/settings"): settings_page, ("POST", "/settings/lyrion"): settings_lyrion,
+        ("GET", "/settings/lyrion"): settings_lyrion_get, ("GET", "/settings/playback"): settings_playback_get,
+        ("GET", "/settings/bluetooth"): settings_bluetooth_get, ("GET", "/settings/access"): settings_access_get,
+        ("GET", "/settings/mqtt"): settings_mqtt_get, ("GET", "/settings/appearance"): settings_appearance_get,
+        ("GET", "/settings/security"): settings_security_get, ("POST", "/settings/mqtt/controls"): settings_mqtt_controls,
+        ("POST", "/settings/access/names"): settings_access_names, ("POST", "/settings/access/tls"): settings_access_tls,
+        ("POST", "/settings/access/custom"): settings_access_custom, ("POST", "/settings/access/renew"): settings_access_renew,
+        ("GET", "/trust"): trust_page, ("GET", "/ca.crt"): ca_pem, ("GET", "/ca.der"): ca_der, ("GET", "/healthz"): healthz,
         ("POST", "/settings/target"): settings_target, ("POST", "/settings/playback"): settings_playback,
         ("POST", "/settings/bluetooth"): settings_bluetooth, ("POST", "/settings/mqtt"): settings_mqtt,
         ("POST", "/settings/appearance"): settings_appearance, ("POST", "/settings/password"): settings_password,

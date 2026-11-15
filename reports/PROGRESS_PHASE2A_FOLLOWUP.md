@@ -20,3 +20,12 @@ Running log, newest at the bottom. Labels: UNIT, INTEGRATION, SIMULATED, REAL-HA
   goodbye). Bug found: SIGTERM was not handled, so no goodbye on service stop -> fixed.
 - Environment finding: Docker on this host cannot signal containers ("unable to signal init: permission denied"); docker stop ends in
   SIGKILL. Tests request clean stops inside the container.
+- LocalAccess (names, Host policy, certificates, renewal hourly + on address change, mDNS restart on rename) wired into the service and
+  the appliance entry point (--https-port, --no-mdns). WebUI: separate HTTP/HTTPS listeners, 421 for foreign Host names before any
+  processing, HTTPS-only (308) with lock-out protection (can only be enabled from an HTTPS session), bootstrap paths (/trust, /ca.crt,
+  /ca.der) stay on HTTP, X-Forwarded-* only from trusted proxies, per-request Secure cookies, /healthz (details only for localhost).
+  Settings split into an overview + 7 section pages; Secure-access page (status, names, TLS mode, proxies, own certificate, renew);
+  public trust page with fingerprint, CA download (PEM/DER) and per-platform steps (DE/EN). Header shows product "Hi-Fi Bridge" and the
+  device name separately. Error flashes are role=alert and receive focus. Balanced desktop grids.
+  Tests: 10 new (real TLS with verification). Bugs found: TLS-mode switch did not reload the certificate (fixed); a silent no-op text
+  replacement in my own tooling had dropped health() - caught by the tests; edits are now asserted.

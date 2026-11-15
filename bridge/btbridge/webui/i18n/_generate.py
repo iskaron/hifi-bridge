@@ -135,6 +135,71 @@ EC = {"unknown_setting":("unknown setting","unbekannte Einstellung"),"invalid_ch
       "invalid_labels":("invalid names","ungültige Namen"),"invalid_pem":("not a PEM certificate","kein PEM-Zertifikat"),"invalid_instance_id":("invalid id","ungültige ID"),"invalid_str":("invalid text","ungültiger Text"),"too_long":("too long","zu lang"),
       "too_small":("too small","zu klein"),"too_large":("too large","zu groß"),"invalid":("invalid value","ungültiger Wert")}
 for c,(en,de) in EC.items(): k(f"error.{c}",en,de)
+
+# ---- phase-2a follow-up: product/device naming, settings sections, secure access, trust page, help texts ----
+for key,en,de in [("brand.device","Device","Gerät"),("brand.tagline","Bluetooth audio for Lyrion","Bluetooth-Audio für Lyrion"),
+    ("settings.lyrion","Lyrion server & player","Lyrion-Server & Player"),("settings.lyrion_server","Server","Server"),
+    ("settings.access","Secure access","Sicherer Zugriff"),("settings.mqtt.connection","Broker connection","Broker-Verbindung"),
+    ("settings.mqtt.controls","Control via MQTT","Steuerung per MQTT"),
+    ("settings.mqtt.controls_help","Off by default: Home Assistant then only shows status. Each control is enabled separately; restrict access with broker ACLs.","Standardmäßig aus: Home Assistant zeigt dann nur den Status. Jede Steuerung wird einzeln freigegeben; Zugriff über Broker-ACLs beschränken."),
+    ("summary.pairing_minutes","pairing window {minutes} min","Kopplungsfenster {minutes} Min."),("summary.read_only","read-only","nur lesend"),
+    ("summary.controls","{n} control(s) enabled","{n} Steuerung(en) freigegeben"),("summary.security","Password, stream address","Passwort, Stream-Adresse"),
+    ("help.override_lms","If off, a phone never interrupts other music playing on the player.","Wenn aus, unterbricht ein Telefon nie andere Musik auf dem Player."),
+    ("help.pause_strategy","“Silence at once” stops the player within a fraction of a second when the phone pauses.","„Sofort Stille“ stoppt den Player Sekundenbruchteile nach der Pause am Telefon."),
+    ("help.device_name","The name guests see in their Bluetooth list and that this device shows in Home Assistant.","Der Name, den Gäste in ihrer Bluetooth-Liste sehen und den das Gerät in Home Assistant zeigt."),
+    ("help.mqtt_ca_pem","Only needed when the broker uses a certificate from your own CA. Verification is never switched off.","Nur nötig, wenn der Broker ein Zertifikat Ihrer eigenen CA verwendet. Die Prüfung wird nie abgeschaltet."),
+    ("help.local_hostname","Network name without “.local”, e.g. hifi-bridge → hifi-bridge.local.","Netzwerkname ohne „.local“, z. B. hifi-bridge → hifi-bridge.local."),
+    ("help.extra_hostnames","Further names that may be used to reach this device, e.g. a reverse-proxy name. Comma-separated.","Weitere Namen, unter denen das Gerät erreichbar ist, z. B. ein Reverse-Proxy-Name. Durch Komma getrennt."),
+    ("help.tls_mode","Local CA: the device issues its own certificate; install its CA once on your devices.","Lokale CA: Das Gerät stellt sein Zertifikat selbst aus; installieren Sie die CA einmal auf Ihren Geräten."),
+    ("help.trusted_proxies","Only these addresses may tell the device the original client and protocol (X-Forwarded-*).","Nur diese Adressen dürfen dem Gerät Client und Protokoll mitteilen (X-Forwarded-*)."),
+    ("help.https_only","Can only be switched on from an HTTPS connection, so you cannot lock yourself out.","Lässt sich nur über eine HTTPS-Verbindung einschalten, damit Sie sich nicht aussperren."),
+    ("help.custom_key_pem","The private key is stored only on this device (readable by the service only).","Der private Schlüssel wird nur auf diesem Gerät gespeichert (nur für den Dienst lesbar)."),
+    ("access.status","Status","Status"),("access.name","Network name","Netzwerkname"),("access.https","HTTPS","HTTPS"),
+    ("access.on_port","on port {port}","auf Port {port}"),("access.off","not active","nicht aktiv"),("access.cert_until","Certificate valid until","Zertifikat gültig bis"),
+    ("access.ca_fp","CA fingerprint (SHA-256)","CA-Fingerabdruck (SHA-256)"),("access.error","Certificate problem: {error}","Zertifikatsproblem: {error}"),
+    ("access.trust_link","Set up trust on your devices","Vertrauen auf Ihren Geräten einrichten"),("access.renew","Renew certificate now","Zertifikat jetzt erneuern"),
+    ("access.names","Names","Namen"),("access.tls","Encryption","Verschlüsselung"),("access.custom","Own certificate","Eigenes Zertifikat"),
+    ("access.custom_help","Paste certificate (with chain) and key in PEM format. Used when “Own certificate” is selected.","Zertifikat (mit Kette) und Schlüssel im PEM-Format einfügen. Wird verwendet, wenn „Eigenes Zertifikat“ gewählt ist."),
+    ("access.custom_install","Check and install","Prüfen und installieren"),
+    ("flash.cert_installed","Certificate installed.","Zertifikat installiert."),("flash.cert_renewed","Certificate renewed.","Zertifikat erneuert."),
+    ("error.https_only_needs_https","Open this page via HTTPS first – that proves your device trusts the certificate.","Öffnen Sie diese Seite zuerst über HTTPS – das zeigt, dass Ihr Gerät dem Zertifikat vertraut."),
+    ("error.cert.pem_format","Certificate or key is not in PEM format.","Zertifikat oder Schlüssel ist nicht im PEM-Format."),
+    ("error.cert.key_mismatch","The key does not belong to the certificate.","Der Schlüssel gehört nicht zum Zertifikat."),
+    ("error.cert.expired","The certificate has expired.","Das Zertifikat ist abgelaufen."),
+    ("error.cert.name_not_covered","The certificate does not cover this device’s name.","Das Zertifikat deckt den Namen dieses Geräts nicht ab."),
+    ("error.cert.openssl not available","openssl is not available on this device.","openssl ist auf diesem Gerät nicht verfügbar."),
+    ("trust.title","Trust this device","Diesem Gerät vertrauen"),
+    ("trust.intro","Your browser only shows the lock without warnings after you install this device’s own certificate authority (CA) once. It is valid only for local names (.local, .home.arpa, .lan, .internal) and private addresses – it cannot vouch for any website on the internet.","Ihr Browser zeigt das Schloss erst ohne Warnung, nachdem Sie die eigene Zertifizierungsstelle (CA) dieses Geräts einmal installiert haben. Sie gilt nur für lokale Namen (.local, .home.arpa, .lan, .internal) und private Adressen – für Websites im Internet kann sie nichts bestätigen."),
+    ("trust.fingerprint","Fingerprint","Fingerabdruck"),
+    ("trust.verify","Before trusting it, compare this fingerprint with the one shown during setup on the device (or later by the flash tool). Never accept a browser warning without this check.","Vergleichen Sie diesen Fingerabdruck vor dem Vertrauen mit dem bei der Einrichtung am Gerät angezeigten (bzw. später vom Flash-Tool). Akzeptieren Sie nie eine Browserwarnung ohne diese Prüfung."),
+    ("trust.download_pem","Download CA (.crt)","CA herunterladen (.crt)"),("trust.download_der","Download CA for Android (.cer)","CA für Android herunterladen (.cer)"),
+    ("trust.scope","The private key of this CA never leaves the device.","Der private Schlüssel dieser CA verlässt das Gerät nie."),
+    ("trust.open_https","Then open {url}","Danach {url} öffnen"),
+    ("trust.ios","iPhone / iPad","iPhone / iPad"),("trust.ios.1","Open this page in Safari and download the .crt file; allow the profile download.","Diese Seite in Safari öffnen und die .crt-Datei laden; den Profil-Download erlauben."),
+    ("trust.ios.2","Settings → General → VPN & Device Management → install the profile.","Einstellungen → Allgemein → VPN und Geräteverwaltung → Profil installieren."),
+    ("trust.ios.3","Settings → General → About → Certificate Trust Settings → enable full trust for “Hi-Fi Bridge local CA”.","Einstellungen → Allgemein → Info → Zertifikatsvertrauenseinstellungen → volles Vertrauen für „Hi-Fi Bridge local CA“ aktivieren."),
+    ("trust.android","Android","Android"),("trust.android.1","Download the .cer file.","Die .cer-Datei herunterladen."),
+    ("trust.android.2","Settings → Security → Encryption & credentials → Install a certificate → CA certificate.","Einstellungen → Sicherheit → Verschlüsselung & Anmeldedaten → Zertifikat installieren → CA-Zertifikat."),
+    ("trust.android.3","Confirm the warning only after checking the fingerprint; then reopen the HTTPS address.","Die Warnung erst nach Prüfung des Fingerabdrucks bestätigen; dann die HTTPS-Adresse neu öffnen."),
+    ("trust.windows","Windows","Windows"),("trust.windows.1","Download the .crt file and open it.","Die .crt-Datei herunterladen und öffnen."),
+    ("trust.windows.2","Install certificate → Current user → place it in “Trusted Root Certification Authorities”.","Zertifikat installieren → Aktueller Benutzer → in „Vertrauenswürdige Stammzertifizierungsstellen“ ablegen."),
+    ("trust.windows.3","Restart the browser.","Den Browser neu starten."),
+    ("trust.macos","macOS","macOS"),("trust.macos.1","Download the .crt file and open it in Keychain Access (login keychain).","Die .crt-Datei herunterladen und in der Schlüsselbundverwaltung (Anmeldung) öffnen."),
+    ("trust.macos.2","Double-click “Hi-Fi Bridge local CA” → Trust → “Always Trust”.","„Hi-Fi Bridge local CA“ doppelklicken → Vertrauen → „Immer vertrauen“."),
+    ("trust.macos.3","Close the window and confirm with your password.","Fenster schließen und mit dem Passwort bestätigen."),
+    ("trust.linux","Linux / Firefox","Linux / Firefox"),("trust.linux.1","Firefox: Settings → Privacy & Security → Certificates → View Certificates → Authorities → Import.","Firefox: Einstellungen → Datenschutz & Sicherheit → Zertifikate → Zertifikate anzeigen → Zertifizierungsstellen → Importieren."),
+    ("trust.linux.2","Tick “Trust this CA to identify websites”.","„Dieser CA vertrauen, um Websites zu identifizieren“ anhaken."),
+    ("trust.linux.3","System-wide (Debian/Ubuntu): copy to /usr/local/share/ca-certificates/ and run update-ca-certificates.","Systemweit (Debian/Ubuntu): nach /usr/local/share/ca-certificates/ kopieren und update-ca-certificates ausführen.")]: k(key,en,de)
+F2 = {"local_hostname":("Network name","Netzwerkname"),"mdns_enabled":("Announce the name in the network (mDNS)","Namen im Netzwerk bekannt geben (mDNS)"),
+      "extra_hostnames":("Further host names","Weitere Hostnamen"),"tls_mode":("Certificate","Zertifikat"),"https_only":("HTTPS only","Nur HTTPS"),
+      "trusted_proxies":("Trusted reverse proxies","Vertrauenswürdige Reverse Proxies"),"custom_cert_pem":("Certificate (PEM)","Zertifikat (PEM)"),
+      "custom_key_pem":("Private key (PEM)","Privater Schlüssel (PEM)")}
+for f,(en,de) in F2.items(): k(f"field.{f}",en,de)
+for c,(en,de) in {"tls_mode.local_ca":("Local CA of this device (recommended)","Lokale CA dieses Geräts (empfohlen)"),
+                  "tls_mode.custom":("Own certificate","Eigenes Zertifikat"),"tls_mode.proxy":("Reverse proxy terminates TLS","Reverse Proxy übernimmt TLS")}.items(): k(f"choice.{c}",en,de)
+for c,(en,de) in {"invalid_hostname":("letters, digits and hyphens only","nur Buchstaben, Ziffern und Bindestriche"),
+                  "invalid_network":("not a valid address or network","keine gültige Adresse bzw. kein gültiges Netz")}.items(): k(f"error.{c}",en,de)
+
 for lang, dct in (("en", E), ("de", D)):
     json.dump(dict(sorted(dct.items())), open(os.path.join(os.path.dirname(os.path.abspath(__file__)), f"{lang}.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 print(len(E), len(D))

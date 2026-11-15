@@ -123,6 +123,7 @@ class ApplianceService:
         self.lms_factory, self.discover, self.advertise_cfg = lms_factory, discover, advertise_host
         self.monitor = monitor or SystemMonitor(data_dir=data_dir)
         self.mqtt_factory, self.mqtt = mqtt_factory, None
+        self.access = None                              # LocalAccess (names, HTTPS, mDNS) - set by the appliance entry point
         c = self.store.all()
         rc = RuntimeConfig(lms_url=lms_url(c["lms_host"], c["lms_port"]) if c["lms_host"] else "http://127.0.0.1:9",
                            advertise_host=self._advertise(c), stream_port=stream_port, stream_format=c["stream_format"],
@@ -139,6 +140,7 @@ class ApplianceService:
         self.started_at = time.time()
         self.last_system: dict = {}
         self._thermal = {"state": "unknown", "temperature_c": None, "checked_at": None}
+        self.watch_heartbeat = time.monotonic()
 
     # ------------------------------------------------------------------ lifecycle
     def start(self) -> None:
@@ -159,6 +161,8 @@ class ApplianceService:
         self._stop.set()
         if self.mqtt:
             self.mqtt.stop()
+        if self.access is not None:
+            self.access.stop()                         # mDNS goodbye
         self.runtime.stop()
 
     # ------------------------------------------------------------------ config -> runtime
@@ -202,6 +206,8 @@ class ApplianceService:
             ctl.set_target(c["target_player"])
         if any(k.startswith("mqtt_") for k in ch):
             self._restart_mqtt()
+        if self.access is not None and {"local_hostname", "mdns_enabled", "extra_hostnames", "tls_mode", "device_name"} & set(ch):
+            self.access.reconfigure(set(ch))
         self._emit("settings_changed", {"keys": sorted(ch)})
 
     def _restart_mqtt(self) -> None:
@@ -244,6 +250,7 @@ class ApplianceService:
         next_sys = time.monotonic() + 2.0                 # second sample soon: CPU % needs two /proc/stat readings
         next_thermal = time.monotonic()
         while not self._stop.wait(0.5):
+            self.watch_heartbeat = time.monotonic()
             try:
                 now = time.monotonic()
                 if now >= next_thermal:
@@ -264,6 +271,26 @@ class ApplianceService:
                     self._emit("status_changed", st)
             except Exception as e:
                 self.logs(f"watch error: {type(e).__name__}: {e}")
+
+    # ------------------------------------------------------------------ health (supervision, /healthz)
+    HEARTBEAT_STALE_S = 5.0
+
+    def health(self) -> dict:
+        """'failed' = a vital internal loop is dead or hung -> the service supervisor must restart the process (watchdog stops pinging).
+        'degraded' = running but something outside is wrong (LMS, MQTT, thermal) -> no restart, shown in the UI."""
+        now = time.monotonic()
+        rt = self.runtime
+        threads = {t.name: t.is_alive() for t in rt._threads}
+        checks = {
+            "control_loop": bool(threads.get("controller")) and now - rt.heartbeat < self.HEARTBEAT_STALE_S,
+            "feeder": bool(threads.get("feeder")),
+            "service_watch": any(t.is_alive() for t in self._threads) and now - self.watch_heartbeat < self.HEARTBEAT_STALE_S,
+            "stream_server": rt.stream.httpd is not None,
+        }
+        st = self.status()
+        status = "failed" if not all(checks.values()) else ("degraded" if st["degraded"] else "ok")
+        return {"status": status, "checks": checks, "degraded": st["degraded"], "version": __version__,
+                "uptime_s": int(time.time() - self.started_at)}
 
     # ------------------------------------------------------------------ status
     def instance_id(self) -> str:

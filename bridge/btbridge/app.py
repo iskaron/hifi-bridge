@@ -52,6 +52,7 @@ class BridgeRuntime:
         self.source = source
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
+        self.heartbeat = time.monotonic()
         self.timeline: list[tuple] = []         # (wall, event, detail) probes; no tokens
 
     # -- logging (always redacted) -------------------------------------------
@@ -161,6 +162,7 @@ class BridgeRuntime:
 
     def _loop(self) -> None:
         while not self._stop.wait(0.1):
+            self.heartbeat = time.monotonic()           # supervision: a hung control loop (e.g. a deadlock) stops this
             try:
                 self.pairing.tick()
                 self._refresh_media()           # fusion has time-based rules (PCM timeout)

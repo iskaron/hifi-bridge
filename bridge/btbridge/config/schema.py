@@ -55,6 +55,31 @@ def _topic(v: str) -> str:
     return v
 
 
+def _label(v: str) -> str:
+    v = v.strip().lower()
+    if not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", v):
+        raise ValueError("invalid_hostname")
+    return v
+
+
+def _hostlist(v: str) -> str:
+    items = [x.strip().lower().rstrip(".") for x in re.split(r"[,\s]+", v or "") if x.strip()]
+    for x in items:
+        if not _HOST.match(x) or "." not in x:
+            raise ValueError("invalid_host")
+    return ", ".join(dict.fromkeys(items))
+
+
+def _netlist(v: str) -> str:
+    items = [x.strip() for x in re.split(r"[,\s]+", v or "") if x.strip()]
+    for x in items:
+        try:
+            ipaddress.ip_network(x, strict=False)
+        except ValueError:
+            raise ValueError("invalid_network") from None
+    return ", ".join(dict.fromkeys(items))
+
+
 def _pem_or_empty(v: str) -> str:
     v = v.strip()
     if v and not (v.startswith("-----BEGIN CERTIFICATE-----") and v.rstrip().endswith("-----END CERTIFICATE-----")):
@@ -108,6 +133,13 @@ SETTINGS: dict[str, Setting] = {s.key: s for s in [
     Setting("lms_port", int, 9000, min=1, max=65535, group="lyrion", restart=True),
     Setting("target_player", str, "", check=_player, group="lyrion"),
     Setting("target_label", str, "", check=lambda v: " ".join(v.split())[:80], group="lyrion"),
+    # local access (DECISIONS #35; docs/LOCAL_ACCESS_TLS.md)
+    Setting("local_hostname", str, "hifi-bridge", check=_label, group="access", restart=True),
+    Setting("mdns_enabled", bool, True, group="access", restart=True),
+    Setting("extra_hostnames", str, "", check=_hostlist, group="access", restart=True),
+    Setting("tls_mode", str, "local_ca", choices=("local_ca", "custom", "proxy"), group="access", restart=True),
+    Setting("https_only", bool, False, group="access"),
+    Setting("trusted_proxies", str, "", check=_netlist, group="access"),
     Setting("language", str, "auto", choices=("auto", "de", "en"), group="ui"),
     Setting("theme", str, "auto", choices=("auto", "light", "dark"), group="ui"),
     Setting("mqtt_enabled", bool, False, group="mqtt", restart=True),

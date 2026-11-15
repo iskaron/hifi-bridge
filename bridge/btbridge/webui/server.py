@@ -22,6 +22,7 @@ from .auth import AuthError
 from .i18n import Translator, pick_language
 
 MAX_BODY = 64 * 1024
+BOOTSTRAP_PATHS = ("/trust", "/ca.crt", "/ca.der", "/healthz", "/static/app.css", "/static/logo.svg", "/static/app.js")
 WIZARD_ACTIONS = ("/diagnostics/test",)     # actions offered inside the setup wizard (test sound on the last step)
 COOKIE = "bab_session"
 LANG_COOKIE = "bab_lang"
@@ -30,12 +31,23 @@ CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' 
 
 
 class Request:
-    def __init__(self, h: BaseHTTPRequestHandler, server: "WebUI"):
+    def __init__(self, h: BaseHTTPRequestHandler, server: "WebUI", tls: bool = False):
         self.h, self.ui = h, server
         u = urllib.parse.urlsplit(h.path)
-        self.path, self.query = u.path, urllib.parse.parse_qs(u.query)
+        self.path, self.query, self.raw_query = u.path, urllib.parse.parse_qs(u.query), u.query
         self.method = h.command
-        self.client = h.client_address[0]
+        self.peer = h.client_address[0]
+        self.client, self.scheme, self.host = self.peer, ("https" if tls else "http"), h.headers.get("Host", "")
+        acc = server.svc.access
+        if acc is not None and acc.is_trusted_proxy(self.peer):            # only an explicitly trusted reverse proxy may set these
+            fwd = h.headers.get("X-Forwarded-For", "")
+            if fwd:
+                self.client = fwd.split(",")[0].strip()
+            proto = h.headers.get("X-Forwarded-Proto", "").lower()
+            if proto in ("http", "https"):
+                self.scheme = proto
+            self.host = h.headers.get("X-Forwarded-Host", self.host).split(",")[0].strip()
+        self.secure = self.scheme == "https"
         c = http.cookies.SimpleCookie()
         try:
             c.load(h.headers.get("Cookie", ""))
@@ -80,11 +92,12 @@ class Response:
         return self
 
 
-def redirect(to: str, flash: str | None = None, secure: bool = False) -> Response:
+def redirect(to: str, flash: str | None = None, secure: bool = False, error: bool = False) -> Response:
+    """PRG redirect with a one-shot message. Errors are marked so the next page announces them (role=alert) and moves focus there."""
     r = Response(303)
     r.headers.append(("Location", to))
     if flash:
-        r.cookie("bab_flash", urllib.parse.quote(flash), secure, max_age=30)
+        r.cookie("bab_flash", urllib.parse.quote(("e:" if error else "i:") + flash), secure, max_age=30)
     return r
 
 
@@ -93,57 +106,87 @@ def json_response(data, status: int = 200) -> Response:
 
 
 class WebUI:
-    def __init__(self, service, host: str = "0.0.0.0", port: int = 8080, tls: tuple[str, str] | None = None, static_dir: str | None = None):
-        self.svc, self.host, self.port, self.tls = service, host, port, tls
-        self.secure = tls is not None
+    def __init__(self, service, host: str = "0.0.0.0", port: int = 8080, tls_port: int | None = None, static_dir: str | None = None):
+        self.svc, self.host, self.port, self.tls_port = service, host, port, tls_port
         self.static_dir = static_dir or views.STATIC_DIR
         self.routes: dict[tuple[str, str], Callable[[Request], Response]] = views.routes(self)
         self._httpd: ThreadingHTTPServer | None = None
+        self._httpsd: ThreadingHTTPServer | None = None
+        from ..net.hostcheck import HostPolicy
+        self._fallback_policy = HostPolicy(lambda: [])          # without LocalAccess: only IP literals and localhost
 
     # ---- lifecycle ----
-    def start(self) -> int:
+    def _server(self, port: int, tls: bool) -> ThreadingHTTPServer:
         ui = self
 
         class H(BaseHTTPRequestHandler):
-            server_version = "btbridge"
+            server_version = "hifi-bridge"
             sys_version = ""
 
             def log_message(self, fmt, *args):            # access logs would leak paths of the stream; keep quiet
                 pass
 
             def do_GET(self):
-                ui._dispatch(self)
+                ui._dispatch(self, tls)
 
             def do_POST(self):
-                ui._dispatch(self)
+                ui._dispatch(self, tls)
 
             def do_HEAD(self):
-                ui._dispatch(self)
+                ui._dispatch(self, tls)
 
-        self._httpd = ThreadingHTTPServer((self.host, self.port), H)
-        self._httpd.daemon_threads = True
-        if self.tls:
-            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-            ctx.load_cert_chain(*self.tls)
-            self._httpd.socket = ctx.wrap_socket(self._httpd.socket, server_side=True)
+        httpd = ThreadingHTTPServer((self.host, port), H)
+        httpd.daemon_threads = True
+        if tls:
+            httpd.socket = self.svc.access.ctx.wrap_socket(httpd.socket, server_side=True)   # ctx reloads on renewal
+        threading.Thread(target=httpd.serve_forever, daemon=True, name="webui-tls" if tls else "webui").start()
+        return httpd
+
+    def start(self) -> int:
+        self._httpd = self._server(self.port, False)
         self.port = self._httpd.server_address[1]
-        threading.Thread(target=self._httpd.serve_forever, daemon=True, name="webui").start()
+        self.ensure_https()
         return self.port
 
+    def ensure_https(self) -> int | None:
+        """Start the HTTPS listener once TLS is available (also after the owner switches the TLS mode at runtime)."""
+        acc = self.svc.access
+        if self._httpsd is None and self.tls_port is not None and acc is not None and acc.tls_available():
+            self._httpsd = self._server(self.tls_port, True)
+            self.tls_port = self._httpsd.server_address[1]
+            if acc.https_port != self.tls_port:
+                acc.https_port = self.tls_port
+        return self.tls_port if self._httpsd else None
+
     def stop(self) -> None:
-        if self._httpd:
-            self._httpd.shutdown()
-            self._httpd.server_close()
+        for d in (self._httpd, self._httpsd):
+            if d:
+                d.shutdown()
+                d.server_close()
 
     # ---- dispatch ----
-    def _dispatch(self, h: BaseHTTPRequestHandler) -> None:
+    def _dispatch(self, h: BaseHTTPRequestHandler, tls: bool = False) -> None:
+        req = None
         try:
-            req = Request(h, self)
-            resp = self._route(req)
+            req = Request(h, self, tls)
+            policy = self.svc.access.policy if self.svc.access is not None else self._fallback_policy
+            if not policy.allowed(req.host):              # DNS-rebinding protection: refuse foreign host names before anything else
+                resp = error_page(421, "Misdirected request: unknown host name")
+            elif self._needs_https(req):
+                resp = Response(308)
+                host = req.host.split("]")[0] + "]" if req.host.startswith("[") else req.host.split(":")[0]
+                resp.headers.append(("Location", f"https://{host}:{self.tls_port}{req.path}" + (f"?{req.raw_query}" if req.raw_query else "")))
+            else:
+                resp = self._route(req)
         except Exception as e:                                # never echo internals to the browser
             self.svc.logs(f"webui error: {type(e).__name__}: {e}")
             resp = error_page(500, "Internal error")
-        self._send(h, resp)
+        self._send(h, resp, req)
+
+    def _needs_https(self, req: Request) -> bool:
+        acc = self.svc.access
+        return (not req.secure and acc is not None and self.svc.store.get("https_only") and acc.tls_available()
+                and self._httpsd is not None and req.path not in BOOTSTRAP_PATHS)
 
     def _route(self, req: Request) -> Response:
         if req.path.startswith("/static/"):
@@ -167,7 +210,7 @@ class WebUI:
                 if not self.svc.auth.sessions.check_csrf(req.sid, token):
                     if req.path.startswith("/api/"):
                         return json_response({"error": "csrf"}, 403)
-                    return redirect("/login", req.t("flash.session_expired"), self.secure)
+                    return redirect("/login", req.t("flash.session_expired"), req.secure)
         if not public and req.session is None:
             if req.path.startswith("/api/"):
                 return json_response({"error": "unauthenticated"}, 401)
@@ -179,7 +222,7 @@ class WebUI:
             return redirect("/setup/bluetooth")                 # finish the wizard first
         return handler(req)
 
-    def _send(self, h: BaseHTTPRequestHandler, r: Response) -> None:
+    def _send(self, h: BaseHTTPRequestHandler, r: Response, req: Request | None = None) -> None:
         try:
             h.send_response(r.status)
             h.send_header("Content-Type", r.ctype)
@@ -190,7 +233,7 @@ class WebUI:
             # same-origin (not no-referrer): with no-referrer, browsers send "Origin: null" on form POSTs (found by the browser test)
             h.send_header("Referrer-Policy", "same-origin")
             h.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-            if self.secure:                                   # browsers ignore (and warn about) COOP on plain-HTTP origins
+            if req is not None and req.secure:                # browsers ignore (and warn about) COOP on plain-HTTP origins
                 h.send_header("Cross-Origin-Opener-Policy", "same-origin")
             if not any(k == "Cache-Control" for k, _ in r.headers):
                 h.send_header("Cache-Control", "no-store")

@@ -16,6 +16,7 @@ import threading
 from typing import Callable
 
 from .mqtt import MqttBridge
+from .net.access import LocalAccess
 from .service import ApplianceService
 from .system import SystemMonitor
 from .webui.server import WebUI
@@ -39,7 +40,8 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument("--data", required=True, help="persistent data directory (settings, secrets, faults)")
     ap.add_argument("--http-host", default="0.0.0.0")
     ap.add_argument("--http-port", type=int, default=8080)
-    ap.add_argument("--tls-cert"); ap.add_argument("--tls-key")
+    ap.add_argument("--https-port", type=int, default=8443, help="HTTPS listener (local CA or custom certificate); 0 = disabled")
+    ap.add_argument("--no-mdns", action="store_true", help="do not run the built-in mDNS responder (e.g. when avahi publishes the name)")
     ap.add_argument("--stream-port", type=int, default=8090)
     ap.add_argument("--advertise-host", default="auto", help="address LMS/players use to reach the stream (auto = route to the LMS)")
     ap.add_argument("--source", default="bluez", help="bluez | sim | none | module:Class")
@@ -64,11 +66,15 @@ def run(a, source, ready: Callable[[ApplianceService, WebUI], None] | None = Non
     svc = ApplianceService(a.data, source=source, stream_port=a.stream_port, advertise_host=a.advertise_host,
                            monitor=SystemMonitor(proc=a.proc_root, thermal=a.thermal_path or None, data_dir=a.data),
                            mqtt_factory=None if a.no_mqtt else MqttBridge)
+    if a.no_mdns:
+        svc.store.update({"mdns_enabled": False})
+    svc.access = LocalAccess(svc.store, a.data, svc.instance_id(), a.http_port, a.https_port or 0, log=svc.logs)
+    svc.access.start()
     svc.start()
-    tls = (a.tls_cert, a.tls_key) if a.tls_cert and a.tls_key else None
-    ui = WebUI(svc, a.http_host, a.http_port, tls=tls)
+    ui = WebUI(svc, a.http_host, a.http_port, tls_port=a.https_port or None)
     port = ui.start()
-    svc.logs(f"WebUI on {'https' if tls else 'http'}://{a.http_host}:{port}/")
+    svc.logs(f"WebUI on http://{a.http_host}:{port}/" + (f" and https://{svc.access.main_name()}:{ui.tls_port}/" if ui.tls_port and
+                                                          ui._httpsd else ""))
     if not svc.auth.has_password():
         svc.logs(f"first start: open the WebUI and enter the setup code from {svc.auth.code_file}")
     if ready:
