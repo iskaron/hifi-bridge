@@ -3,7 +3,7 @@
 # (real PipeWire 0.3.65 and 1.4.2) + hardware-kit self-tests (real SBC/AAC codecs) + real-browser UI tests (Chromium + axe-core).
 # Output is tee'd to $LOG (default reports/evidence/full_run.log). For a clean-slate run: scripts/lab_down.sh first.
 set -uo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.."  || exit 1
 LOG="${LOG:-reports/evidence/full_run.log}"
 mkdir -p reports/evidence
 scripts/lab_up.sh >/dev/null

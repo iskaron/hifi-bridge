@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034  # OUT*, LOG*, BR are read inside the eval'd check expressions
 # INTEGRATION: the bridge's stdlib mDNS responder against a REAL Avahi 0.8 peer on the isolated lab network.
 # Checks: name resolution, DNS-SD browse of _https._tcp, conflict handling (Avahi owns hifi-bridge.local -> responder takes
 # hifi-bridge-2.local), goodbye on stop. Prints PASS/FAIL per check; exit code 0 only if all pass.
 set -uo pipefail
 # NOTE: on this development host Docker cannot deliver signals to containers ("unable to signal init: permission denied"), so
 # `docker stop` ends in SIGKILL. Clean stops are therefore requested INSIDE the container (pkill -TERM), as a service manager would.
-cd "$(dirname "$0")/../docker"
+cd "$(dirname "$0")/../docker"  || exit 1
 C="docker compose --profile mdns"
 fail=0
 check() { if eval "$2"; then echo "PASS $1"; else echo "FAIL $1"; fail=1; fi; }

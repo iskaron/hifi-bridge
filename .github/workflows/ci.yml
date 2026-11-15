@@ -1,0 +1,90 @@
+# CI for every existing and new test suite (DECISIONS #39). Each job calls the SAME Docker scripts that run locally
+# (scripts/run_*.sh); nothing is installed on the runner besides Docker. Prepared only: the repository is not published yet,
+# so this workflow has never run on GitHub (validated locally with actionlint).
+name: ci
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/run_static.sh
+
+  unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: (cd docker && docker compose build -q)
+      - run: scripts/run_unit.sh -q
+
+  integration:
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/run_integration.sh -q
+      - run: scripts/test_outage.sh lms
+      - run: scripts/test_outage.sh player1
+      - if: always()
+        run: scripts/lab_down.sh
+
+  pipewire:
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/run_pipewire.sh -q
+
+  hwkit:
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/run_hwkit.sh -q
+
+  mdns:
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: (cd docker && docker compose build -q)
+      - run: scripts/test_mdns.sh
+
+  homeassistant:
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/run_homeassistant.sh -q
+
+  browser:
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/run_browser.sh -q
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: reports/screenshots/

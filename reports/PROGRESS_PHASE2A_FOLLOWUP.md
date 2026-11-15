@@ -34,3 +34,16 @@ Running log, newest at the bottom. Labels: UNIT, INTEGRATION, SIMULATED, REAL-HA
   unreachable), systemd unit (Type=notify, WatchdogSec=30, Restart=always, hardening) verified with REAL systemd-analyze verify (rc 0,
   exposure 2.1 OK), respawn wrapper with back-off for non-systemd inits (shellcheck clean). 9 tests incl. real unix notify socket and
   real processes.
+- REAL Home Assistant 2026.11.1 (pinned; digest sha256:6785d1ec...) + REAL Mosquitto (authenticated listener): onboarding and the MQTT
+  config flow fully via REST; 7/7 tests PASS (scripts/run_homeassistant.sh): read-only default (14 entities, exact types, no switch/button),
+  one device with model "Hi-Fi Bridge", units/device classes, availability on clean stop AND via last will (HA shows "unavailable"),
+  automatic reconnect, HA restart restores entities and retained states, enabling one control swaps the read-only sensor for a switch
+  and removes the stale entity (and back), HA switch/button really drive pairing/playback/test tone, a non-enabled command published by
+  another client is ignored, periodic telemetry reaches HA, over-temperature visible in HA 0.5 s after the file change with telemetry
+  set to 3600 s (bound: 10 s check interval). No MQTT warnings in the HA log. Test-isolation lessons: retained discovery of earlier lab
+  instances leaks into HA (fresh broker per run; entities matched by device identifier).
+- CI: .github/workflows/ci.yml (9 jobs calling the same Docker scripts; never run on GitHub - repo unpublished), validated with actionlint
+  1.7.7 (rc 0). scripts/run_static.sh: shellcheck (findings fixed), Python compile check, systemd-analyze verify, actionlint.
+- ENVIRONMENT BLOCKER found: Docker's data filesystem (/dockerfs/daemon-data, 196 GB) is 100 % full. apt inside new containers fails
+  (first visible as "invalid signature" because downloads are truncated). Existing images keep working. Deleting my own dangling
+  images was denied by the permission system; owner notified. Not worked around.
