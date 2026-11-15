@@ -1,0 +1,4 @@
+# Analysis/test image for the hardware validation kit: lab image + FFmpeg (real SBC and AAC encoders/decoders for codec robustness tests).
+FROM btbridge-lab:dev
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+ENV PYTHONPATH=/work/bridge:/work/testkit:/work/hwkit

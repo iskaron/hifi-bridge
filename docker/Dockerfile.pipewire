@@ -10,5 +10,5 @@ RUN apt-get update \
  && (apt-get install -y --no-install-recommends dbus-daemon || true) \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /work
-ENV PYTHONPATH=/work/bridge:/work/testkit XDG_RUNTIME_DIR=/run/pw
+ENV PYTHONPATH=/work/bridge:/work/testkit:/work/hwkit XDG_RUNTIME_DIR=/run/pw
 ENTRYPOINT ["/usr/bin/tini", "--"]

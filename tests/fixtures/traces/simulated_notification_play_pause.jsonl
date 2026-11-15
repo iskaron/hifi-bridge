@@ -1,0 +1,21 @@
+{"anonymized": true, "format": 1, "label": "SIMULATED-BLUEZ", "mono": 445275.782954, "t": 1794769333.262913, "type": "Header"}
+{"mono": 445275.785624, "objects": {"/org/bluez/hci0": {"org.bluez.Adapter1": {"Address": "02:00:00:00:00:01", "Discoverable": false, "DiscoverableTimeout": 180, "Pairable": true, "PairableTimeout": 0, "Powered": true}}}, "t": 1794769333.265584, "type": "Snapshot"}
+{"interfaces": {"org.bluez.Device1": {"Address": "02:00:00:00:00:02", "Alias": "phone1", "Connected": false, "Paired": true, "UUIDs": ["0000110a-0000-1000-8000-00805f9b34fb"]}}, "mono": 445275.786785, "path": "/org/bluez/hci0/dev_02_00_00_00_00_02", "t": 1794769333.266742, "type": "InterfacesAdded"}
+{"interfaces": {"org.bluez.MediaPlayer1": {"Device": "/org/bluez/hci0/dev_02_00_00_00_00_02", "Status": "paused"}}, "mono": 445275.786964, "path": "/org/bluez/hci0/dev_02_00_00_00_00_02/player0", "t": 1794769333.266934, "type": "InterfacesAdded"}
+{"interfaces": {"org.bluez.MediaTransport1": {"Device": "/org/bluez/hci0/dev_02_00_00_00_00_02", "State": "idle", "Volume": 70}}, "mono": 445275.787083, "path": "/org/bluez/hci0/dev_02_00_00_00_00_02/fd0", "t": 1794769333.267053, "type": "InterfacesAdded"}
+{"changed": {"Connected": true}, "interface": "org.bluez.Device1", "invalidated": [], "mono": 445275.787178, "path": "/org/bluez/hci0/dev_02_00_00_00_00_02", "t": 1794769333.267148, "type": "PropertiesChanged"}
+{"mono": 445276.086486, "t": 1794769333.566442, "text": "notification beep", "type": "Marker"}
+{"mono": 445276.086622, "t": 1794769333.566593, "text": "expect:no-media", "type": "Marker"}
+{"changed": {"State": "active"}, "interface": "org.bluez.MediaTransport1", "invalidated": [], "mono": 445276.087281, "path": "/org/bluez/hci0/dev_02_00_00_00_00_02/fd0", "t": 1794769333.567247, "type": "PropertiesChanged"}
+{"changed": {"State": "idle"}, "interface": "org.bluez.MediaTransport1", "invalidated": [], "mono": 445276.887768, "path": "/org/bluez/hci0/dev_02_00_00_00_00_02/fd0", "t": 1794769334.367724, "type": "PropertiesChanged"}
+{"mono": 445277.18743, "t": 1794769334.667382, "text": "spotify play", "type": "Marker"}
+{"mono": 445277.187629, "t": 1794769334.6676, "text": "expect:media", "type": "Marker"}
+{"changed": {"State": "active"}, "interface": "org.bluez.MediaTransport1", "invalidated": [], "mono": 445277.188685, "path": "/org/bluez/hci0/dev_02_00_00_00_00_02/fd0", "t": 1794769334.66865, "type": "PropertiesChanged"}
+{"changed": {"Status": "playing"}, "interface": "org.bluez.MediaPlayer1", "invalidated": [], "mono": 445277.188878, "path": "/org/bluez/hci0/dev_02_00_00_00_00_02/player0", "t": 1794769334.668846, "type": "PropertiesChanged"}
+{"mono": 445280.188325, "t": 1794769337.668275, "text": "pause", "type": "Marker"}
+{"mono": 445280.188468, "t": 1794769337.668438, "text": "expect:no-media", "type": "Marker"}
+{"changed": {"Status": "paused"}, "interface": "org.bluez.MediaPlayer1", "invalidated": [], "mono": 445280.189229, "path": "/org/bluez/hci0/dev_02_00_00_00_00_02/player0", "t": 1794769337.669195, "type": "PropertiesChanged"}
+{"interfaces": {"org.bluez.Device1": {"Address": "02:00:00:00:00:03", "Alias": "phone2", "Connected": false, "Paired": true, "UUIDs": ["0000110a-0000-1000-8000-00805f9b34fb"]}}, "mono": 445283.190359, "path": "/org/bluez/hci0/dev_02_00_00_00_00_03", "t": 1794769340.670311, "type": "InterfacesAdded"}
+{"changed": {"Connected": true}, "interface": "org.bluez.Device1", "invalidated": [], "mono": 445283.190603, "path": "/org/bluez/hci0/dev_02_00_00_00_00_03", "t": 1794769340.670573, "type": "PropertiesChanged"}
+{"changed": {"Connected": false}, "interface": "org.bluez.Device1", "invalidated": [], "mono": 445283.490777, "path": "/org/bluez/hci0/dev_02_00_00_00_00_02", "t": 1794769340.970724, "type": "PropertiesChanged"}
+{"events": 20, "mono": 445284.090641, "t": 1794769341.570593, "type": "End"}

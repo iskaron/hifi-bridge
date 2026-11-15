@@ -1,5 +1,7 @@
 # Hardware validation plan (deferred - NOT executed)
 
+Tooling for executing this plan: `hwkit/` (runbook `hwkit/README.md`). Test IDs below are mirrored in `hwkit/hwkit/catalog.json`.
+
 Status: **plan only.** Nothing in this document has been run. The development host has no Bluetooth, Raspberry Pi, speakers or physical
 Squeezeboxes (owner decision, DECISIONS #20), so every item below is labelled **UNTESTED** until the owner or a person with a hardware
 rig executes it and records the result with evidence labels (`REAL-HARDWARE`, `REAL-LMS`, ...). A green software test never replaces one of
@@ -57,15 +59,18 @@ IDs are stable so results can be cross-referenced in handoffs. "Decision" = what
 | B7 | Devices that are not phones (headset, keyboard) connect | ignored, no stream |
 
 ### C. Media state traces (answers OPEN_QUESTIONS #2; feeds `core/fusion.py`)
-Record `MediaPlayer1.Status`, `MediaTransport1.State` and PCM activity (`busctl monitor org.bluez` or `dbus-monitor --system` + timestamps) for each phone x app:
-play, pause, resume, track change, seek, app switch, screen lock, silent intro/quiet passage, notification beep (messenger), ringtone, navigation prompt,
-silent video, phone call, play with no AVRCP player present. Then: which signals separate *music* from *notifications*? Is the ~2 s filter sufficient?
-Do any apps leave the transport `active` while paused? Decide fusion rules from the data, add them as new recorded-trace unit tests (replace the
-hand-written traces in `tests/unit/test_bluez_adapter.py` by real recordings, labelled REAL-HARDWARE traces).
+| ID | Test | Pass criterion |
+|---|---|---|
+| C1 | Android: record traces (`python3 -m hwkit trace`) for play, pause, resume, track change, seek, app switch, screen lock, quiet passage (`bab_quiet_passage`), messenger notification, ringtone, navigation prompt, silent video, phone call, phone without AVRCP player | trace files + markers `expect:media` / `expect:no-media`; `hwkit replay` reports every expectation |
+| C2 | iPhone: the same scenarios as C1 | as C1 |
+| C3 | Decide the fusion rules from C1/C2: which signals separate music from notifications? Is the 2 s filter enough? Do apps leave the transport `active` while paused? | decision recorded; real traces added as regression fixtures (`tests/fixtures/traces/`, label REAL-HARDWARE) |
 
 ### D. Volume (answers OPEN_QUESTIONS #4)
-Does each phone send `MediaTransport1.Volume`? On connect? Scale (0-127)? What if absolute volume is unsupported? Measure the resulting LMS volume steps on a
-sync group of real players; verify no loudness jump (ceiling 85, max step 10 are provisional) and relative room levels are preserved.
+| ID | Test | Pass criterion |
+|---|---|---|
+| D1 | Android: is `MediaTransport1.Volume` sent on connect and on slider changes? Scale 0-127? What happens without absolute volume? | trace + LMS volume log; no loudness jump |
+| D2 | iPhone: as D1 | as D1 |
+| D3 | Sync group of real players: relative room levels preserved; ceiling 85 and max step 10 (provisional) sensible | measured steps per slider move |
 
 ### E. Audio integrity, timing, resources (measure with the capture rig)
 | ID | Test | Record |
@@ -86,14 +91,15 @@ sync group of real players; verify no loudness jump (ceiling 85, max step 10 are
 | F4 | Ownership races on the owner's real LMS (with consent): switch to a real radio station then late BT events; two bridges on one player; LMS restart; player offline | zero LMS commands after ownership loss; radio never touched |
 | F5 | LMS server version differences (record version) | compatibility of `playlist play <url>` / `playlist deleteitem <url>` |
 
-### G. Guest walk-through (the top product goal, DECISIONS #19)
-A person who has never seen the system: finds the Bluetooth name, pairs, connects, opens their usual audio app, presses Play, hears music from the
-selected Lyrion players; pauses; leaves. No Lyrion, no Home Assistant, no app. Record every point of confusion and the time from "Play" to sound.
+### G. Guest walk-through (the top product goal, DECISIONS #19/#24)
+| ID | Test | Pass criterion |
+|---|---|---|
+| G1 | A person who has never seen the system finds the Bluetooth name, pairs, connects, opens their usual audio app, presses Play, hears music from the selected Lyrion players, pauses, leaves. No Lyrion, no Home Assistant, no app. | no help needed; every point of confusion recorded; time from "Play" to sound |
 
 ## 3. What each result feeds
 * A3/A4 -> final PipeWire capture command and node resolution (`pcm.py`); A6 -> D-Bus library for the image.
-* C -> `fusion` rules and the notification filter duration.
-* D -> `VolumePolicy` parameters.
+* C1-C3 -> `fusion` rules and the notification filter duration.
+* D1-D3 -> `VolumePolicy` parameters.
 * E2 -> confirm or revisit DECISIONS #15/#16 (pause strategy, ~1.6 s start latency, plugin question).
 * E3-E6 -> supported boards and resource budget.
 * F2 -> ICY default, FLAC/PCM format rules, list of verified players (never claim compatibility beyond it).

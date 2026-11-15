@@ -1,0 +1,230 @@
+{
+ "format": 1,
+ "source": "docs/HARDWARE_VALIDATION_PLAN.md",
+ "tests": [
+  {
+   "id": "A1",
+   "set": "A",
+   "title": "Record `bluetoothd` and PipeWire/WirePlumber versions; start bluetoothd with/without `--ex",
+   "detail": "Record `bluetoothd` and PipeWire/WirePlumber versions; start bluetoothd with/without `--experimental`",
+   "criterion": "`org.bluez.MediaPlayer1` visible for a connected phone; note whether `--experimental` is required | image config"
+  },
+  {
+   "id": "A2",
+   "set": "A",
+   "title": "Confirm the A2DP **sink** role is enabled in WirePlumber for the phone-as-source case",
+   "detail": "Confirm the A2DP **sink** role is enabled in WirePlumber for the phone-as-source case",
+   "criterion": "phone can select the bridge as speaker | image config"
+  },
+  {
+   "id": "A3",
+   "set": "A",
+   "title": "With a phone connected and playing, dump PipeWire nodes (`pw-dump`)",
+   "detail": "With a phone connected and playing, dump PipeWire nodes (`pw-dump`)",
+   "criterion": "identify the node name/properties for the phone's audio (expected `bluez_input.<MAC_>...`, **unverified**) | `node_name_for()` template or `pw-dump` resolver"
+  },
+  {
+   "id": "A4",
+   "set": "A",
+   "title": "Run the capture command from `adapters/bluez/pcm.py` for that node",
+   "detail": "Run the capture command from `adapters/bluez/pcm.py` for that node: does `pw-cat --record ... -` write **headerless** s16 PCM? Compare with `parec_argv`",
+   "criterion": "raw 44.1 kHz s16 stereo bytes, no header | which tool, flags"
+  },
+  {
+   "id": "A5",
+   "set": "A",
+   "title": "Negotiated codec and sample rate per phone (SBC baseline; AAC if exposed)",
+   "detail": "Negotiated codec and sample rate per phone (SBC baseline; AAC if exposed)",
+   "criterion": "recorded | resampling need"
+  },
+  {
+   "id": "A6",
+   "set": "A",
+   "title": "`JeepneyBus` against the real system bus",
+   "detail": "`JeepneyBus` against the real system bus: GetManagedObjects, signals, property writes, agent registration (`journalctl -u bluetooth`)",
+   "criterion": "no errors; same events as the fake | D-Bus library choice for the image"
+  },
+  {
+   "id": "A7",
+   "set": "A",
+   "title": "Restart bluetoothd while a phone is connected",
+   "detail": "Restart bluetoothd while a phone is connected",
+   "criterion": "adapter reports disconnect, re-registers the agent, re-syncs | robustness"
+  },
+  {
+   "id": "B1",
+   "set": "B",
+   "title": "Open the pairing window (adapter `Pairable`/`Discoverable`), pair Android and iPhone with",
+   "detail": "Open the pairing window (adapter `Pairable`/`Discoverable`), pair Android and iPhone with Just-Works, no PIN",
+   "criterion": "works within the window; window closes at 5 min (`Pairable=false`)"
+  },
+  {
+   "id": "B2",
+   "set": "B",
+   "title": "Pair attempt after the window closed",
+   "detail": "Pair attempt after the window closed",
+   "criterion": "rejected by the agent"
+  },
+  {
+   "id": "B3",
+   "set": "B",
+   "title": "Reconnect of a paired phone without opening the window",
+   "detail": "Reconnect of a paired phone without opening the window",
+   "criterion": "connects, no LMS audio started by connecting alone"
+  },
+  {
+   "id": "B4",
+   "set": "B",
+   "title": "Second phone connects while the first is connected (and while it plays)",
+   "detail": "Second phone connects while the first is connected (and while it plays)",
+   "criterion": "second is disconnected; first keeps playing; never evicted"
+  },
+  {
+   "id": "B5",
+   "set": "B",
+   "title": "Remove a paired device; pair again",
+   "detail": "Remove a paired device; pair again",
+   "criterion": "clean"
+  },
+  {
+   "id": "B6",
+   "set": "B",
+   "title": "Phone walks out of range / BT off / phone reboot",
+   "detail": "Phone walks out of range / BT off / phone reboot",
+   "criterion": "disconnect detected; bridge stream released immediately"
+  },
+  {
+   "id": "B7",
+   "set": "B",
+   "title": "Devices that are not phones (headset, keyboard) connect",
+   "detail": "Devices that are not phones (headset, keyboard) connect",
+   "criterion": "ignored, no stream"
+  },
+  {
+   "id": "C1",
+   "set": "C",
+   "title": "Android",
+   "detail": "Android: record traces (`python3 -m hwkit trace`) for play, pause, resume, track change, seek, app switch, screen lock, quiet passage (`bab_quiet_passage`), messenger notification, ringtone, navigation prompt, silent video, phone call, phone without AVRCP player",
+   "criterion": "trace files + markers `expect:media` / `expect:no-media`; `hwkit replay` reports every expectation"
+  },
+  {
+   "id": "C2",
+   "set": "C",
+   "title": "iPhone: the same scenarios as C1",
+   "detail": "iPhone: the same scenarios as C1",
+   "criterion": "as C1"
+  },
+  {
+   "id": "C3",
+   "set": "C",
+   "title": "Decide the fusion rules from C1/C2",
+   "detail": "Decide the fusion rules from C1/C2: which signals separate music from notifications? Is the 2 s filter enough? Do apps leave the transport `active` while paused?",
+   "criterion": "decision recorded; real traces added as regression fixtures (`tests/fixtures/traces/`, label REAL-HARDWARE)"
+  },
+  {
+   "id": "D1",
+   "set": "D",
+   "title": "Android",
+   "detail": "Android: is `MediaTransport1.Volume` sent on connect and on slider changes? Scale 0-127? What happens without absolute volume?",
+   "criterion": "trace + LMS volume log; no loudness jump"
+  },
+  {
+   "id": "D2",
+   "set": "D",
+   "title": "iPhone: as D1",
+   "detail": "iPhone: as D1",
+   "criterion": "as D1"
+  },
+  {
+   "id": "D3",
+   "set": "D",
+   "title": "Sync group of real players",
+   "detail": "Sync group of real players: relative room levels preserved; ceiling 85 and max step 10 (provisional) sensible",
+   "criterion": "measured steps per slider move"
+  },
+  {
+   "id": "E1",
+   "set": "E",
+   "title": "Play a known test track (sine sweep / click track) from each phone for 30 min through the",
+   "detail": "Play a known test track (sine sweep / click track) from each phone for 30 min through the bridge to a real player",
+   "criterion": "dropouts, clicks, discontinuities (cross-correlate recording vs reference); BT SBC loss is expected - report it, do not hide it"
+  },
+  {
+   "id": "E2",
+   "set": "E",
+   "title": "Play -> first sound, Pause -> silence, Resume -> sound (>= 10 runs each, per phone/player/",
+   "detail": "Play -> first sound, Pause -> silence, Resume -> sound (>= 10 runs each, per phone/player/board/format WAV and FLAC)",
+   "criterion": "median/min/max with the rig; compare with the **software** numbers (1.55 s / 0.07 s / 1.55 s) and the owner's acceptance of ~1.6 s (DECISIONS #16)"
+  },
+  {
+   "id": "E3",
+   "set": "E",
+   "title": "Drift/soak: 4 h continuous playback per board",
+   "detail": "Drift/soak: 4 h continuous playback per board",
+   "criterion": "feeder silence-inserts/drops, underruns, memory growth"
+  },
+  {
+   "id": "E4",
+   "set": "E",
+   "title": "CPU, RSS, temperature, throttling per board while streaming WAV and FLAC",
+   "detail": "CPU, RSS, temperature, throttling per board while streaming WAV and FLAC",
+   "criterion": "numbers; the x86 figures in FINDINGS.md are **not** transferable"
+  },
+  {
+   "id": "E5",
+   "set": "E",
+   "title": "Pi Zero 2 W",
+   "detail": "Pi Zero 2 W: Wi-Fi + Bluetooth coexistence on a busy 2.4 GHz band with the ~1.4 Mbit/s stream",
+   "criterion": "stutters, BT dropouts, stream underruns; decide if Zero 2 W is a supported target"
+  },
+  {
+   "id": "E6",
+   "set": "E",
+   "title": "Ethernet vs Wi-Fi on the Pi 3 B+",
+   "detail": "Ethernet vs Wi-Fi on the Pi 3 B+",
+   "criterion": "as E5"
+  },
+  {
+   "id": "F1",
+   "set": "F",
+   "title": "Real Squeezelite on separate hardware (different version from 1.9.9 if possible)",
+   "detail": "Real Squeezelite on separate hardware (different version from 1.9.9 if possible)",
+   "criterion": "live stream plays; sample rate; sync"
+  },
+  {
+   "id": "F2",
+   "set": "F",
+   "title": "**Each real Squeezebox model/firmware",
+   "detail": "**Each real Squeezebox model/firmware:** WAV live stream; FLAC; pause; startup time; wake-from-standby (`power 1`); behaviour with the ICY option **on and off**",
+   "criterion": "per model PASS/FAIL; decide the ICY default (DECISIONS #18 keeps it off until then) and whether a transcoding rule is needed"
+  },
+  {
+   "id": "F3",
+   "set": "F",
+   "title": "Sync group with mixed real players, target = master and member",
+   "detail": "Sync group with mixed real players, target = master and member",
+   "criterion": "sync offset (rig), regroup never performed"
+  },
+  {
+   "id": "F4",
+   "set": "F",
+   "title": "Ownership races on the owner's real LMS (with consent)",
+   "detail": "Ownership races on the owner's real LMS (with consent): switch to a real radio station then late BT events; two bridges on one player; LMS restart; player offline",
+   "criterion": "zero LMS commands after ownership loss; radio never touched"
+  },
+  {
+   "id": "F5",
+   "set": "F",
+   "title": "LMS server version differences (record version)",
+   "detail": "LMS server version differences (record version)",
+   "criterion": "compatibility of `playlist play <url>` / `playlist deleteitem <url>`"
+  },
+  {
+   "id": "G1",
+   "set": "G",
+   "title": "A person who has never seen the system finds the Bluetooth name, pairs, connects, opens th",
+   "detail": "A person who has never seen the system finds the Bluetooth name, pairs, connects, opens their usual audio app, presses Play, hears music from the selected Lyrion players, pauses, leaves. No Lyrion, no Home Assistant, no app.",
+   "criterion": "no help needed; every point of confusion recorded; time from \"Play\" to sound"
+  }
+ ]
+}
