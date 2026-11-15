@@ -66,6 +66,28 @@ Raspberry Pi integration is explicitly **not yet verified**. Evidence: `docs/FIN
 32. **Target selection** offers every player and each *existing* sync group (addressed via its first member); the bridge never changes groups.
 33. **Hardware validation** is executed with `hwkit/`; results must be labelled REAL-HARDWARE and are rejected otherwise.
 
+## Phase-2a review decisions (owner + ChatGPT, 2026-11-15) - follow-up package
+
+34. **Provisional product name: "Hi-Fi Bridge".** "Bluetooth" may be used descriptively in the UI (e.g. "Bluetooth pairing"); never the
+    official Bluetooth logo. Trademark and qualification questions must be settled before any public release. The owner-chosen *device name*
+    (Bluetooth name, e.g. "Living room") is shown separately from the product name.
+35. **Local access & HTTPS (hardware-independent foundations):** stable mDNS name (e.g. `hifi-bridge.local`), local certificate management,
+    own certificates and optional reverse proxies, certificate renewal, documented trust setup, DNS-rebinding protection via Host validation.
+    No public domain or cloud. mDNS alone creates no trust - a traceable security/setup concept is required; **no silent TLS exceptions**.
+36. **MQTT default is read-only.** Discovery for status, diagnostic and system entities. Control functions (pairing window, test tone, bridge
+    playback) are **separately and explicitly** enabled and **off by default**. Broker auth/TLS/ACL respected. System telemetry ~every 5 min.
+    A critical CPU temperature is published at once as a warning, **independent of the telemetry cycle**; local over-temperature checks run
+    often enough.
+37. **A reproducible Docker test with a real Home Assistant + Mosquitto** is required (discovery and entity types, device mapping, units,
+    availability, reconnect, restart, removal of stale entities, default-disabled commands, separately enabled commands, telemetry, immediate
+    over-temperature warning). No integration may be claimed before it actually ran.
+38. **WebUI:** design approved; improve long mobile settings pages, balanced desktop card layouts, clear product-vs-device naming, keyboard and
+    screen-reader accessibility as far as software-testable. DE/EN, responsive, light/dark stay.
+39. **Prepare:** robust service supervision and restart strategy, CI for all tests, hardware kit completed as far as possible without hardware,
+    documented hardware test procedure, consistent result labels (UNIT, INTEGRATION, SIMULATED, REAL-HARDWARE).
+40. **Boundaries unchanged:** no productive Buildroot, OTA or flash tool (concepts only); no push, tag, publication or history rewrite;
+    local commits on `develop` as `Oliver Meyer <olm@cativa.net>`; never present simulated results as hardware validation.
+
 ## Measurement-driven / not yet verified
 
 - Startup latency (**software: ~1.6 s, accepted #16**), Pause/drain latency (**software: 0.07 s with #15**), reconnection and sample integrity (still to be measured on actual devices).
