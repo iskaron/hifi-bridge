@@ -271,7 +271,7 @@ def target_choices(req, selected: str, action: str) -> str:
         rows.append(f"""<label class="choice radio"><input type="radio" name="target_player" value="{esc(x["id"])}"
 {" checked" if x["id"] == selected else ""} required><span><strong>{esc(x["name"])}</strong><small>{esc(kind)} · {esc(state)}</small></span></label>""")
     return f"""<form method="post" action="{action}" class="stack">{csrf(req)}<fieldset><legend>{esc(t("wizard.target.legend"))}</legend>
-{"".join(rows)}</fieldset><p class="help">{esc(t("wizard.target.help"))}</p><button class="primary">{esc(t("wizard.next") if action.startswith("/setup") else t("action.save"))}</button></form>"""
+{"".join(rows)}</fieldset><p class="help">{esc(t("wizard.target.help"))}</p><button{' class="primary"' if action.startswith("/setup") else ""}>{esc(t("wizard.next") if action.startswith("/setup") else t("action.save"))}</button></form>"""
 
 
 def setup_target_get(req):
@@ -473,7 +473,7 @@ def settings_page(req):
 <label>{esc(t("field.new_password"))}<input type="password" name="new" autocomplete="new-password" minlength="10" required></label>
 <label>{esc(t("field.confirm_password"))}<input type="password" name="confirm" autocomplete="new-password" minlength="10" required></label>
 <button>{esc(t("settings.change_password"))}</button></form>
-<form method="post" action="/settings/token" class="stack" data-confirm="{esc(t("settings.token.confirm"))}">{csrf(req)}
+<h3>{esc(t("settings.token.title"))}</h3><form method="post" action="/settings/token" class="stack" data-confirm="{esc(t("settings.token.confirm"))}">{csrf(req)}
 <p class="help">{esc(t("settings.token.help"))}</p><button class="danger">{esc(t("settings.token.rotate"))}</button></form></section>
 </div>"""
     return page(req.ui, req, t("nav.settings"), body, active="/settings")

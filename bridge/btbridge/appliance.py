@@ -13,6 +13,7 @@ import importlib
 import signal
 import sys
 import threading
+from typing import Callable
 
 from .mqtt import MqttBridge
 from .service import ApplianceService
@@ -33,7 +34,7 @@ def build_source(spec: str, dbus: str):
     return getattr(importlib.import_module(mod), cls)()
 
 
-def main(argv=None) -> int:
+def parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="btbridge.appliance")
     ap.add_argument("--data", required=True, help="persistent data directory (settings, secrets, faults)")
     ap.add_argument("--http-host", default="0.0.0.0")
@@ -46,12 +47,20 @@ def main(argv=None) -> int:
     ap.add_argument("--proc-root", default="/proc")
     ap.add_argument("--thermal-path", default="/sys/class/thermal/thermal_zone0/temp", help='"" disables temperature reading')
     ap.add_argument("--no-mqtt", action="store_true")
-    a = ap.parse_args(argv)
+    return ap
+
+
+def main(argv=None) -> int:
+    a = parser().parse_args(argv)
     try:
         source = build_source(a.source, a.dbus)
     except Exception as e:                                       # BusError, missing jeepney, ...
         print(f"cannot start source {a.source!r}: {e}", file=sys.stderr)
         return 2
+    return run(a, source)
+
+
+def run(a, source, ready: Callable[[ApplianceService, WebUI], None] | None = None) -> int:
     svc = ApplianceService(a.data, source=source, stream_port=a.stream_port, advertise_host=a.advertise_host,
                            monitor=SystemMonitor(proc=a.proc_root, thermal=a.thermal_path or None, data_dir=a.data),
                            mqtt_factory=None if a.no_mqtt else MqttBridge)
@@ -62,6 +71,8 @@ def main(argv=None) -> int:
     svc.logs(f"WebUI on {'https' if tls else 'http'}://{a.http_host}:{port}/")
     if not svc.auth.has_password():
         svc.logs(f"first start: open the WebUI and enter the setup code from {svc.auth.code_file}")
+    if ready:
+        ready(svc, ui)
     done = threading.Event()
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, lambda *_: done.set())

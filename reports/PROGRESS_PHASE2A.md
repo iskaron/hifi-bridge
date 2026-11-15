@@ -30,3 +30,12 @@ Running log, newest entries at the bottom. Evidence labels as in docs/ACCEPTANCE
   logs, redacted bundle download), system page. DE/EN (263 keys, completeness tests), light/dark/auto, "Hi-Fi & elegant" CSS, own logo
   (not the Bluetooth trademark). Security: CSRF + Origin check, SameSite=Strict HttpOnly cookies, strict CSP, body limit, no open redirect.
   16 HTTP-level unit tests; 5/5 security mutants killed.
+- WebUI e2e against REAL LMS (test_12): wizard with real UDP discovery, real players + an existing sync group as targets, test sound measured
+  at the real Squeezelite output, owner actions never touch foreign music. Found a real bug: wizard's test-sound button was blocked by the
+  wizard guard (fixed + regression test).
+- REAL BROWSER tests (Chromium/Playwright 1.49.1 in Docker, tests/browser): full owner journey at 390 px and 1280 px, light/dark, DE switch,
+  live updates without reload, pairing countdown, no horizontal overflow, no console/CSP errors, axe-core WCAG audit: 0 violations on 11 pages.
+  Found 3 real bugs invisible to HTTP tests: (1) every form POST rejected because Referrer-Policy no-referrer makes Chromium send
+  "Origin: null" -> fixed (same-origin policy + Sec-Fetch-Site rule, tests); (2) CSP violation on plain-text error pages; (3) COOP header
+  console error on HTTP. While fixing (1) I briefly broke indentation so the CSRF check became unreachable - caught by the unit tests before
+  any commit. Visual review of screenshots led to: wrapping nav on phones, non-stretched cards, consistent buttons, early CPU sample.

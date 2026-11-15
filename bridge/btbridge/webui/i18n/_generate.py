@@ -87,7 +87,8 @@ for key,en,de in [("settings.lyrion","Lyrion server","Lyrion-Server"),("settings
     ("settings.mqtt.password_keep","unchanged","unverändert"),("settings.appearance","Appearance","Darstellung"),("settings.security","Security","Sicherheit"),
     ("settings.change_password","Change password","Passwort ändern"),("settings.token.rotate","Renew stream address","Stream-Adresse erneuern"),
     ("settings.token.help","Creates a new secret stream address. A running playback continues; new ones use the new address.","Erzeugt eine neue geheime Stream-Adresse. Laufende Wiedergabe läuft weiter, neue verwenden die neue Adresse."),
-    ("settings.token.confirm","Renew the stream address now?","Stream-Adresse jetzt erneuern?")]: k(key,en,de)
+    ("settings.token.confirm","Renew the stream address now?","Stream-Adresse jetzt erneuern?"),
+    ("settings.token.title","Stream address","Stream-Adresse")]: k(key,en,de)
 # diagnostics
 for key,en,de in [("diag.test","Test sound","Testton"),("diag.test.help","Plays a short tone on the selected player. Refused – without interrupting anything – if the player is busy.","Spielt einen kurzen Ton auf dem gewählten Player. Wird abgelehnt – ohne etwas zu unterbrechen –, wenn der Player belegt ist."),
     ("diag.test.started","Test sound started.","Testton gestartet."),("diag.test.refused","Test sound refused: {reason}","Testton abgelehnt: {reason}"),

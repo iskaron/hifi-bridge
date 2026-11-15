@@ -188,6 +188,7 @@
  "settings.token.confirm": "Stream-Adresse jetzt erneuern?",
  "settings.token.help": "Erzeugt eine neue geheime Stream-Adresse. Laufende Wiedergabe läuft weiter, neue verwenden die neue Adresse.",
  "settings.token.rotate": "Stream-Adresse erneuern",
+ "settings.token.title": "Stream-Adresse",
  "state.allowed": "Erlaubt",
  "state.audio_disabled": "Bridge-Wiedergabe aus",
  "state.blocked": "Gesperrt",

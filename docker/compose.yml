@@ -19,6 +19,36 @@ x-player: &player
       condition: service_healthy
 
 services:
+  # Real appliance (service + WebUI) with the SIMULATED phone (lab control on :8099). Profile "browser" (scripts/run_browser.sh).
+  appliance:
+    <<: *lab
+    profiles: ["browser"]
+    hostname: appliance
+    depends_on:
+      lms:
+        condition: service_healthy
+    volumes:
+      - ..:/work
+      - appliance-data:/data
+    command: ["python3", "-m", "btkit.appliance_lab", "--data", "/data", "--http-port", "8080", "--stream-port", "8090",
+              "--advertise-host", "appliance", "--source", "none", "--thermal-path", "", "--sim-port", "8099"]
+
+  browser:
+    image: btbridge-browser:dev
+    build:
+      context: .
+      dockerfile: Dockerfile.browser
+    profiles: ["browser"]
+    networks: [lab]
+    ipc: host
+    volumes:
+      - ..:/work
+      - appliance-data:/appliance-data:ro
+    environment:
+      - BASE_URL=http://appliance:8080
+      - SIM_URL=http://appliance:8099
+    working_dir: /work
+
   mosquitto:
     image: eclipse-mosquitto:2.0.20
     networks: [lab]
@@ -79,3 +109,4 @@ networks:
 volumes:
   lms-config:
   captures:
+  appliance-data:

@@ -96,7 +96,8 @@ def test_fresh_device_sends_everyone_to_setup_with_strict_headers(ui):
     csp = r.getheader("Content-Security-Policy")
     assert "script-src 'self'" in csp and "unsafe-inline" not in csp and "frame-ancestors 'none'" in csp
     assert r.getheader("X-Content-Type-Options") == "nosniff" and r.getheader("X-Frame-Options") == "DENY"
-    assert r.getheader("Cache-Control") == "no-store" and r.getheader("Referrer-Policy") == "no-referrer"
+    assert r.getheader("Cache-Control") == "no-store" and r.getheader("Referrer-Policy") == "same-origin"
+    assert r.getheader("Cross-Origin-Opener-Policy") is None                         # only sent over TLS
     assert ui.c.get("/api/status").status == 401
 
 
@@ -120,6 +121,12 @@ def test_state_changes_need_csrf_and_same_origin(ui):
     assert r.status == 403 and ui.svc.store.get("device_name") == "Hi-Fi Bridge"
     r = ui.c.post("/setup/bluetooth", {"device_name": "Fine"}, headers={"Origin": f"http://127.0.0.1:{ui.port}"})
     assert r.status == 303 and ui.svc.store.get("device_name") == "Fine"
+    # 'Origin: null' (privacy contexts): accepted only when the browser itself says same-origin
+    assert ui.c.post("/setup/bluetooth", {"device_name": "Null1"}, headers={"Origin": "null", "Sec-Fetch-Site": "cross-site"}).status == 403
+    assert ui.c.post("/setup/bluetooth", {"device_name": "Null2"}, headers={"Origin": "null"}).status == 403
+    r = ui.c.post("/setup/bluetooth", {"device_name": "Null3"}, headers={"Origin": "null", "Sec-Fetch-Site": "same-origin"})
+    assert r.status == 303 and ui.svc.store.get("device_name") == "Null3"
+    assert ui.c.post("/login", {"password": "x"}, csrf=False, headers={"Sec-Fetch-Site": "cross-site"}).status == 403   # login CSRF
     ui.c.cookies["bab_session"] = "forged"
     assert ui.c.get("/api/status").status == 401
 
@@ -155,6 +162,14 @@ def test_body_size_limit(ui):
 
 
 # ---------------------------------------------------------------- wizard + pages
+def test_test_sound_button_works_inside_the_wizard(ui):
+    setup_account(ui)
+    ui.c.post("/setup/lyrion", {"lms_host": "10.0.0.5", "lms_port": "9000"}); ui.c.post("/setup/target", {"target_player": P1})
+    r = ui.c.post("/diagnostics/test", {"back": "/setup/finish"})
+    assert r.getheader("Location") == "/setup/finish"                          # not bounced to the wizard start (regression)
+    assert ui.c.get("/diagnostics").getheader("Location") == "/setup/bluetooth"  # other pages stay locked until the wizard is done
+
+
 def test_full_wizard_configures_the_bridge(ui):
     setup_account(ui)
     assert "Living room" in ui.c.get("/setup/lyrion").body                       # discovered server offered

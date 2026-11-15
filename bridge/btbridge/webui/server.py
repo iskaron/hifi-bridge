@@ -22,6 +22,7 @@ from .auth import AuthError
 from .i18n import Translator, pick_language
 
 MAX_BODY = 64 * 1024
+WIZARD_ACTIONS = ("/diagnostics/test",)     # actions offered inside the setup wizard (test sound on the last step)
 COOKIE = "bab_session"
 LANG_COOKIE = "bab_lang"
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; "
@@ -141,7 +142,7 @@ class WebUI:
             resp = self._route(req)
         except Exception as e:                                # never echo internals to the browser
             self.svc.logs(f"webui error: {type(e).__name__}: {e}")
-            resp = Response(500, "<!doctype html><title>Error</title><p>Internal error.</p>")
+            resp = error_page(500, "Internal error")
         self._send(h, resp)
 
     def _route(self, req: Request) -> Response:
@@ -151,18 +152,16 @@ class WebUI:
         handler = self.routes.get((method, req.path))
         if handler is None:
             if any(p == req.path for (_, p) in self.routes):
-                return Response(405, "Method not allowed", "text/plain; charset=utf-8")
+                return error_page(405, "Method not allowed")
             return Response(404, views.not_found(self, req))
         public = getattr(handler, "public", False)
         if method == "POST":
-            origin = req.h.headers.get("Origin")
-            host = req.h.headers.get("Host", "")
-            if origin and urllib.parse.urlsplit(origin).netloc != host:
-                return Response(403, "Cross-origin request refused", "text/plain; charset=utf-8")
+            if not same_origin(req.h.headers):
+                return error_page(403, "Cross-origin request refused")
             try:
                 req.read_form()
             except (ValueError, json.JSONDecodeError):
-                return Response(400, "Bad request", "text/plain; charset=utf-8")
+                return error_page(400, "Bad request")
             if not public:
                 token = req.form.get("csrf") or req.h.headers.get("X-CSRF-Token")
                 if not self.svc.auth.sessions.check_csrf(req.sid, token):
@@ -176,7 +175,7 @@ class WebUI:
                 return redirect("/setup")
             return redirect("/login")
         if req.session is not None and not public and not self.svc.store.get("setup_complete") \
-                and not req.path.startswith(("/setup", "/api/", "/logout")):
+                and not req.path.startswith(("/setup", "/api/", "/logout")) and req.path not in WIZARD_ACTIONS:
             return redirect("/setup/bluetooth")                 # finish the wizard first
         return handler(req)
 
@@ -188,9 +187,11 @@ class WebUI:
             h.send_header("Content-Security-Policy", CSP)
             h.send_header("X-Content-Type-Options", "nosniff")
             h.send_header("X-Frame-Options", "DENY")
-            h.send_header("Referrer-Policy", "no-referrer")
+            # same-origin (not no-referrer): with no-referrer, browsers send "Origin: null" on form POSTs (found by the browser test)
+            h.send_header("Referrer-Policy", "same-origin")
             h.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-            h.send_header("Cross-Origin-Opener-Policy", "same-origin")
+            if self.secure:                                   # browsers ignore (and warn about) COOP on plain-HTTP origins
+                h.send_header("Cross-Origin-Opener-Policy", "same-origin")
             if not any(k == "Cache-Control" for k, _ in r.headers):
                 h.send_header("Cache-Control", "no-store")
             for k, v in r.headers:
@@ -200,6 +201,22 @@ class WebUI:
                 h.wfile.write(r.body)
         except (BrokenPipeError, ConnectionResetError):
             pass
+
+
+def same_origin(headers) -> bool:
+    """CSRF defence in depth for POSTs (the CSRF token is the primary control for authenticated actions):
+    a real Origin must match Host; "Origin: null" is accepted only if the browser's Sec-Fetch-Site says same-origin;
+    clients sending neither header (non-browsers) are left to the token check."""
+    origin, host, site = headers.get("Origin"), headers.get("Host", ""), headers.get("Sec-Fetch-Site")
+    if origin and origin != "null":
+        return urllib.parse.urlsplit(origin).netloc == host
+    if site is not None:
+        return site in ("same-origin", "none")
+    return origin is None
+
+
+def error_page(status: int, text: str) -> Response:
+    return Response(status, f'<!doctype html><html lang="en"><meta charset="utf-8"><title>{status}</title><p>{html.escape(text)}</p></html>')
 
 
 def esc(s) -> str:

@@ -188,6 +188,7 @@
  "settings.token.confirm": "Renew the stream address now?",
  "settings.token.help": "Creates a new secret stream address. A running playback continues; new ones use the new address.",
  "settings.token.rotate": "Renew stream address",
+ "settings.token.title": "Stream address",
  "state.allowed": "Allowed",
  "state.audio_disabled": "Bridge audio off",
  "state.blocked": "Blocked",

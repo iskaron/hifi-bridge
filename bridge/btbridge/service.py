@@ -222,7 +222,7 @@ class ApplianceService:
                 self.logs(f"event listener error: {type(e).__name__}: {e}")
 
     def _watch(self) -> None:
-        next_sys = time.monotonic() + THERMAL_POLL_S
+        next_sys = time.monotonic() + 2.0                 # second sample soon: CPU % needs two /proc/stat readings
         last_thermal = self.last_system.get("thermal_state")
         while not self._stop.wait(0.5):
             try:
