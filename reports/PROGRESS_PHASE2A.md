@@ -18,3 +18,9 @@ Running log, newest entries at the bottom. Evidence labels as in docs/ACCEPTANCE
 - Auth module (setup code, PBKDF2, sessions, CSRF, rate limit; 13 unit tests). LMS read-only player/sync-group listing. Device management
   (paired list/remove/alias/trust) on BlueZ adapter + simulator, D-Bus tested against the fake BlueZ.
 - Static power-off guard was a substring check -> false positive on reading the power state; replaced by a call-pattern guard with its own test.
+- ApplianceService (composition; in-place reconfiguration of LMS server/target/format/token without dropping the phone;
+  UnconfiguredLms guard; status headline; diagnostics bundle without secrets), SystemMonitor (procfs/sysfs, injectable paths), 13 unit tests.
+- MQTT: stdlib 3.1.1 client (LWT, retain, keepalive, reconnect backoff, TLS, auth) + HA discovery bridge (14 entities, commands pairing/audio/test).
+  UNIT 8 + INTEGRATION 4 against REAL Eclipse Mosquitto 2.0.20 (auth listener, retained, last will on abrupt loss via TCP proxy,
+  reconnect, end-to-end with real LMS/Squeezelite incl. "MQTT test button never touches a foreign source"). 2/2 mutants killed.
+  NOT verified: import into a real Home Assistant instance.

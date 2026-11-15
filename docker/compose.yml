@@ -19,6 +19,13 @@ x-player: &player
       condition: service_healthy
 
 services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0.20
+    networks: [lab]
+    volumes:
+      - ./mosquitto:/mosquitto/config:ro
+    entrypoint: ["/bin/sh", "/mosquitto/config/start.sh"]
+
   lms:
     image: lmscommunity/lyrionmusicserver:stable
     networks: [lab]
