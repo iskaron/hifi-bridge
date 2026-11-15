@@ -1,0 +1,287 @@
+{
+ "format": 1,
+ "procedures": {
+  "A1": {
+   "steps": [
+    "Note the versions printed by 'python3 -m hwkit env'.",
+    "Connect a phone and play music.",
+    "Check whether MediaPlayer1 objects appear in the trace with and without bluetoothd --experimental (restart bluetoothd in between)."
+   ],
+   "auto": [
+    "env",
+    "trace"
+   ]
+  },
+  "A2": {
+   "steps": [
+    "Open the phone's Bluetooth settings and connect to the Pi.",
+    "Start any music app and select the Pi as output.",
+    "Mark whether the phone offers the Pi as a speaker."
+   ],
+   "auto": [
+    "trace"
+   ]
+  },
+  "A3": {
+   "steps": [
+    "Connect the phone and start music.",
+    "The kit saves 'pw-dump' and 'pactl list short sources' snapshots.",
+    "Note the node name and media.class of the phone's audio source."
+   ],
+   "auto": [
+    "nodes"
+   ]
+  },
+  "A4": {
+   "steps": [
+    "Play the track bab_startstop_2min on the phone.",
+    "The kit records 60 s with the bridge's default command (parec, no fallback).",
+    "Run 'hwkit analyze' on the result: decoded blocks, no header, no foreign data."
+   ],
+   "auto": [
+    "capture"
+   ]
+  },
+  "A5": {
+   "steps": [
+    "Connect each phone and play music.",
+    "Read the negotiated codec and sample rate (pw-dump / pactl list sources long)."
+   ],
+   "auto": [
+    "nodes"
+   ]
+  },
+  "A6": {
+   "steps": [
+    "Start the trace, connect the phone, play, pause, disconnect.",
+    "Compare the recorded events with the fake-BlueZ expectations (hwkit replay)."
+   ],
+   "auto": [
+    "trace"
+   ]
+  },
+  "A7": {
+   "steps": [
+    "Connect the phone and play.",
+    "Restart bluetoothd ('sudo systemctl restart bluetooth').",
+    "Observe: the bridge releases, re-registers the agent, re-syncs; the phone can reconnect."
+   ],
+   "auto": [
+    "trace"
+   ]
+  },
+  "B1": {
+   "steps": [
+    "Open the pairing window in the WebUI.",
+    "Pair the phone with Just-Works (no PIN); check the window closes after 5 minutes.",
+    "Repeat with the second phone (Android and iPhone)."
+   ],
+   "auto": [
+    "trace"
+   ]
+  },
+  "B2": {
+   "steps": [
+    "Make sure the pairing window is closed.",
+    "Try to pair a new phone; it must be refused."
+   ],
+   "auto": [
+    "trace"
+   ]
+  },
+  "B3": {
+   "steps": [
+    "Switch Bluetooth off and on at a paired phone (window closed).",
+    "It must reconnect; LMS must not start playing by the connection alone."
+   ],
+   "auto": [
+    "trace"
+   ]
+  },
+  "B4": {
+   "steps": [
+    "Connect phone 1 and play.",
+    "Connect phone 2; it must be refused, phone 1 keeps playing."
+   ],
+   "auto": [
+    "trace"
+   ]
+  },
+  "B5": {
+   "steps": [
+    "Remove a paired phone in the WebUI.",
+    "Pair it again inside a new pairing window."
+   ],
+   "auto": [
+    "trace"
+   ]
+  },
+  "B6": {
+   "steps": [
+    "While playing: walk out of range / switch Bluetooth off / reboot the phone.",
+    "The bridge's stream at LMS must be released at once."
+   ],
+   "auto": [
+    "trace"
+   ]
+  },
+  "B7": {
+   "steps": [
+    "Connect a non-phone device (headset, keyboard).",
+    "No stream may start."
+   ],
+   "auto": [
+    "trace"
+   ]
+  },
+  "C1": {
+   "steps": [
+    "Android: start the trace; for each scenario type a marker, perform it, then type 'expect:media' or 'expect:no-media'.",
+    "Scenarios: play, pause, resume, track change, seek, app switch, screen lock, quiet passage track, messenger notification, ringtone, navigation prompt, silent video, call.",
+    "Afterwards: 'hwkit replay' must report all expectations."
+   ],
+   "auto": [
+    "trace"
+   ]
+  },
+  "C2": {
+   "steps": [
+    "iPhone: same scenarios as C1."
+   ],
+   "auto": [
+    "trace"
+   ]
+  },
+  "C3": {
+   "steps": [
+    "Compare C1/C2 replays; write down which signals separate music from notifications and whether 2 s is enough.",
+    "Copy the traces to tests/fixtures/traces/ (anonymised by default)."
+   ],
+   "auto": []
+  },
+  "D1": {
+   "steps": [
+    "Android: start the trace, move the phone volume slider in small and big steps.",
+    "Note whether MediaTransport1.Volume events arrive and how the LMS volume follows."
+   ],
+   "auto": [
+    "trace"
+   ]
+  },
+  "D2": {
+   "steps": [
+    "iPhone: as D1."
+   ],
+   "auto": [
+    "trace"
+   ]
+  },
+  "D3": {
+   "steps": [
+    "Target a sync group of real players; repeat D1; note per-room levels."
+   ],
+   "auto": [
+    "trace"
+   ]
+  },
+  "E1": {
+   "steps": [
+    "Play bab_continuity_30min on the phone.",
+    "The kit records the phone PCM for 30 minutes; analyse drops, repeats, gaps."
+   ],
+   "auto": [
+    "capture_long"
+   ]
+  },
+  "E2": {
+   "steps": [
+    "Place a USB microphone at the speaker; give its PipeWire source with --mic.",
+    "Start the trace and capture; press Play/Pause/Play on the phone 10 times with bab_startstop_2min.",
+    "Run 'hwkit latency' on trace + capture."
+   ],
+   "auto": [
+    "trace",
+    "capture_mic"
+   ]
+  },
+  "E3": {
+   "steps": [
+    "Leave bab_continuity_30min playing on repeat for 4 hours; capture the last 30 minutes."
+   ],
+   "auto": [
+    "capture_long"
+   ]
+  },
+  "E4": {
+   "steps": [
+    "While streaming WAV and FLAC: record CPU, RSS, temperature ('hwkit env' + 'top -b -n 60 -d 5')."
+   ],
+   "auto": [
+    "env"
+   ]
+  },
+  "E5": {
+   "steps": [
+    "Pi Zero 2 W on Wi-Fi only: repeat E1 for 30 minutes on a busy 2.4 GHz band."
+   ],
+   "auto": [
+    "capture_long"
+   ]
+  },
+  "E6": {
+   "steps": [
+    "Pi 3 B+: repeat E1 once on Ethernet, once on Wi-Fi."
+   ],
+   "auto": [
+    "capture_long"
+   ]
+  },
+  "F1": {
+   "steps": [
+    "Use a real Squeezelite on separate hardware as target; repeat the play/pause/resume steps."
+   ],
+   "auto": [
+    "trace"
+   ]
+  },
+  "F2": {
+   "steps": [
+    "For each real Squeezebox model/firmware: WAV, FLAC, pause, start time, wake from standby, ICY off and on.",
+    "Write model and firmware into the device field."
+   ],
+   "auto": [
+    "trace"
+   ]
+  },
+  "F3": {
+   "steps": [
+    "Target a sync group of mixed real players; measure the sync offset with the microphone."
+   ],
+   "auto": [
+    "capture_mic"
+   ]
+  },
+  "F4": {
+   "steps": [
+    "With the owner's consent on the production LMS: switch to a real radio station, then pause/disconnect the phone.",
+    "The radio must keep playing; the bridge sends no further commands."
+   ],
+   "auto": [
+    "trace"
+   ]
+  },
+  "F5": {
+   "steps": [
+    "Note the LMS server version; repeat F4's basic play/release check."
+   ],
+   "auto": []
+  },
+  "G1": {
+   "steps": [
+    "Give a guest the device name only. Observe without helping: pair, connect, open their app, press Play, pause, leave.",
+    "Write down every point of confusion and the time from Play to sound."
+   ],
+   "auto": []
+  }
+ }
+}

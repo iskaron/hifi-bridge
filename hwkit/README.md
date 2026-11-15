@@ -8,6 +8,9 @@ and real SBC/AAC codecs (see "Kit self-tests").
 first, and touch the production LMS only read-only, unless the owner explicitly agrees (plan §0). Results are always labelled
 `REAL-HARDWARE`, and the results tool refuses anything else for executed tests.
 
+Day plan, order, stop rules and what to bring back: `docs/HARDWARE_TEST_PROCEDURE.md`. Test Pi setup: `pi-setup/` (configuration from
+the lab findings + `setup_test_pi.sh`, which refuses to run unless `--i-am-on-the-test-pi` is given AND the board is a Raspberry Pi).
+
 ## 1. Prepare (on the development machine, Docker only)
 ```bash
 scripts/hwkit_bundle.sh          # -> dist/hwkit-bundle-<rev>.tar.gz and dist/hwkit-tracks/*.wav|*.m4a
@@ -28,6 +31,9 @@ Configure PipeWire before testing (findings in `docs/PIPEWIRE_CAPTURE.md`):
 
 | Step | Command | Plan IDs |
 |---|---|---|
+| Check the Pi before testing | `python3 -m hwkit preflight` (read-only; every FAIL prints its fix) | all |
+| Guided session (recommended) | `python3 -m hwkit guide results.json --address <phone MAC> [--mic <source>] [--only B1,B4]` | all |
+| E2 timing | `python3 -m hwkit latency traces/e2.jsonl cap/e2-run1` (AVRCP event -> sound at the mic, on the Pi's clock) | E2 |
 | Start a results file | `python3 -m hwkit results new results.json --board "Pi 3 B+ rev 1.3" --operator NAME --phone "Pixel 8 / Android 15" --player "Squeezelite 2.0 on PC"` | all |
 | Record the environment | `python3 -m hwkit env -o env.json` | A1 |
 | Record a D-Bus trace with markers | `python3 -m hwkit trace -o traces/android-spotify.jsonl`, then type markers as you act on the phone (`spotify play`, `expect:media`, `messenger beep`, `expect:no-media`, ...); Ctrl-D ends | A6, B*, C1/C2, D1/D2 |

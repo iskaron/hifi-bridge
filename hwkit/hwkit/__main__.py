@@ -78,6 +78,29 @@ def _cmd_results(a):
         print(R.report(a.file))
 
 
+def _cmd_preflight(a):
+    from .preflight import checks, report
+    text, rc = report(checks())
+    print(text)
+    sys.exit(rc)
+
+
+def _cmd_latency(a):
+    from . import analyze as A
+    from .latency import measure
+    from .trace import load
+    meta = json.load(open(os.path.join(a.capture, "capture.json")))
+    rec = meta["recordings"]["mic"]
+    x, rate = A.read_wav(os.path.join(a.capture, rec["file"]))
+    print(json.dumps(measure(load(a.trace), A.find_blocks(x, rate), rec["first_sample_wall"]), indent=1))
+
+
+def _cmd_guide(a):
+    from .guide import Actions, run
+    act = Actions(a.address, a.mic, input, print)
+    print(json.dumps(run(a.results, only=a.only.split(",") if a.only else None, actions=act), indent=1))
+
+
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(prog="hwkit", description="Hi-Fi Bridge hardware validation kit")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -96,6 +119,11 @@ def main(argv=None) -> None:
     p.add_argument("--board"); p.add_argument("--operator"); p.add_argument("--phone", action="append"); p.add_argument("--player", action="append")
     p.add_argument("--id"); p.add_argument("--status"); p.add_argument("--observations", default=""); p.add_argument("--evidence", action="append")
     p.add_argument("--device", action="append"); p.add_argument("--measurements"); p.set_defaults(f=_cmd_results)
+    p = sub.add_parser("preflight", help="read-only check of tools and configuration on the test Pi"); p.set_defaults(f=_cmd_preflight)
+    p = sub.add_parser("latency", help="E2: AVRCP events (trace) vs. sound at the microphone (capture dir)")
+    p.add_argument("trace"); p.add_argument("capture"); p.set_defaults(f=_cmd_latency)
+    p = sub.add_parser("guide", help="guided session through the catalogue (records results)")
+    p.add_argument("results"); p.add_argument("--address"); p.add_argument("--mic"); p.add_argument("--only"); p.set_defaults(f=_cmd_guide)
     a = ap.parse_args(argv)
     a.f(a)
 

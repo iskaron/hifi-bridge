@@ -47,3 +47,8 @@ Running log, newest at the bottom. Labels: UNIT, INTEGRATION, SIMULATED, REAL-HA
 - ENVIRONMENT BLOCKER found: Docker's data filesystem (/dockerfs/daemon-data, 196 GB) is 100 % full. apt inside new containers fails
   (first visible as "invalid signature" because downloads are truncated). Existing images keep working. Deleting my own dangling
   images was denied by the permission system; owner notified. Not worked around.
+- hwkit completed as far as possible without hardware: `preflight` (read-only checks incl. the PipeWire allowed-rates and WirePlumber
+  logind findings, each with a fix), `guide` (step-by-step session through all 32 catalogue tests with procedures, automatic
+  env/trace/nodes/capture, verdict recording), `latency` (E2: AVRCP edge -> sound at the mic on one clock; states what is NOT included),
+  pi-setup/ (PipeWire/WirePlumber/BlueZ snippets + setup script that refuses unless confirmed AND on a Raspberry Pi), 
+  docs/HARDWARE_TEST_PROCEDURE.md (day plan, order, stop rules, bring-back list). +6 tests (32 total in tests/hwkit).
