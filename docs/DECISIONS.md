@@ -37,6 +37,18 @@ Raspberry Pi integration is explicitly **not yet verified**. Evidence: `docs/FIN
     hardware-free preparation of the real BlueZ/PipeWire adapter, and a documented hardware validation plan (`docs/HARDWARE_VALIDATION_PLAN.md`).
     No Buildroot, OTA or full product build yet.
 
+## Phase-1.5 review decisions (owner + ChatGPT, 2026-11-15)
+
+22. **Repository-local git identity: `Oliver Meyer <olm@cativa.net>`.** Checked on 2026-11-15: all 10 existing commits already carry exactly this
+    author and committer (they used the same global identity), so no history rewrite was necessary. Re-check before any publication.
+23. **`jeepney` is provisionally approved** as the D-Bus library. Buildroot compatibility, dependencies and resource use are still to be checked;
+    the `BlueZBus` abstraction stays.
+24. **Audio and playback rules unchanged** (#1-#21). Top goal re-confirmed: for a guest the device behaves like a Bluetooth speaker - connect,
+    press Play, hear music; no Lyrion or Home Assistant knowledge needed.
+25. **Phase 2a scope (this work package):** hardware validation kit, renewed PipeWire capture investigation in Docker, persistent configuration,
+    pairing management, authenticated WebUI with setup wizard (DE/EN, responsive, light/dark, "Hi-Fi & elegant"), diagnostics, system monitoring,
+    MQTT with Home Assistant discovery. **Not** in scope: productive Buildroot/A/B OTA implementation, the complete flash tool.
+
 ## Measurement-driven / not yet verified
 
 - Startup latency (**software: ~1.6 s, accepted #16**), Pause/drain latency (**software: 0.07 s with #15**), reconnection and sample integrity (still to be measured on actual devices).
