@@ -76,6 +76,11 @@ class SystemMonitor:
                     pass
         return out
 
+    def temperature(self) -> tuple[float | None, str]:
+        """Cheap single-file read for the fast over-temperature check (DECISIONS #36)."""
+        t = self._temp()
+        return t, self.thermal_state(t)
+
     def thermal_state(self, temp: float | None) -> str:
         if temp is None:
             return "unknown"

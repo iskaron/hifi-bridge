@@ -6,7 +6,7 @@ import mimetypes
 import os
 import urllib.parse
 
-from .. import __version__
+from .. import PRODUCT_NAME, __version__
 from ..config import SettingError
 from .auth import AuthError
 
@@ -66,7 +66,7 @@ def page(ui, req, title: str, body: str, active: str | None = None, live: bool =
 <span><strong>{esc(svc.store.get("device_name"))}</strong><small>{esc(t("brand.tagline"))}</small></span></a>{nav}</header>
 {flash_html(req)}
 <main id="main">{body}</main>
-<footer class="foot"><span>Bluetooth Audio Bridge {esc(__version__)}</span></footer>
+<footer class="foot"><span>{esc(PRODUCT_NAME)} {esc(__version__)}</span></footer>
 <script type="application/json" id="i18n">{live_strings(req)}</script>
 </body></html>""")
     if req.flash:

@@ -73,7 +73,12 @@ F = {"setup_code":("Setup code","Einrichtungscode"),"new_password":("New passwor
      "language":("Language","Sprache"),"theme":("Appearance","Darstellung"),"mqtt_enabled":("Enable MQTT","MQTT aktivieren"),"mqtt_host":("Broker address","Broker-Adresse"),
      "mqtt_port":("Broker port","Broker-Port"),"mqtt_username":("User name","Benutzername"),"mqtt_password":("Password","Passwort"),"mqtt_tls":("Use TLS","TLS verwenden"),
      "mqtt_base_topic":("Base topic","Basis-Topic"),"mqtt_discovery_prefix":("Home Assistant discovery prefix","Home-Assistant-Discovery-Präfix"),
-     "device_labels":("Phone names","Telefonnamen"),"setup_complete":("Setup complete","Einrichtung abgeschlossen"),"instance_id":("Instance id","Instanz-ID")}
+     "device_labels":("Phone names","Telefonnamen"),
+     "mqtt_allow_pairing":("Allow opening the pairing window via MQTT","Kopplungsfenster per MQTT öffnen erlauben"),
+     "mqtt_allow_audio":("Allow switching bridge playback via MQTT","Bridge-Wiedergabe per MQTT schalten erlauben"),
+     "mqtt_allow_test":("Allow the test tone via MQTT","Testton per MQTT erlauben"),
+     "mqtt_telemetry_s":("Telemetry interval (seconds)","Telemetrie-Intervall (Sekunden)"),
+     "mqtt_ca_pem":("Broker CA certificate (PEM, optional)","CA-Zertifikat des Brokers (PEM, optional)"),"setup_complete":("Setup complete","Einrichtung abgeschlossen"),"instance_id":("Instance id","Instanz-ID")}
 for f,(en,de) in F.items(): k(f"field.{f}",en,de)
 C = {"pause_strategy.drop_restart":("Silence at once (recommended)","Sofort Stille (empfohlen)"),"pause_strategy.keepalive_silence":("Keep the stream open","Stream offen halten"),
      "stream_format.wav":("WAV / PCM (recommended)","WAV / PCM (empfohlen)"),"stream_format.flac":("FLAC","FLAC"),"language.auto":("Browser language","Browsersprache"),
@@ -127,7 +132,7 @@ for key,en,de in [("flash.session_expired","Please log in again.","Bitte erneut 
 EC = {"unknown_setting":("unknown setting","unbekannte Einstellung"),"invalid_choice":("invalid choice","ungültige Auswahl"),"invalid_host":("not a valid host name or IP address","kein gültiger Hostname bzw. keine gültige IP-Adresse"),
       "invalid_name":("1 to 32 characters","1 bis 32 Zeichen"),"invalid_int":("a whole number is needed","eine ganze Zahl ist nötig"),"invalid_bool":("invalid value","ungültiger Wert"),
       "invalid_player":("invalid player","ungültiger Player"),"invalid_topic":("letters, digits, _ - / only","nur Buchstaben, Ziffern, _ - /"),"invalid_address":("invalid Bluetooth address","ungültige Bluetooth-Adresse"),
-      "invalid_labels":("invalid names","ungültige Namen"),"invalid_instance_id":("invalid id","ungültige ID"),"invalid_str":("invalid text","ungültiger Text"),"too_long":("too long","zu lang"),
+      "invalid_labels":("invalid names","ungültige Namen"),"invalid_pem":("not a PEM certificate","kein PEM-Zertifikat"),"invalid_instance_id":("invalid id","ungültige ID"),"invalid_str":("invalid text","ungültiger Text"),"too_long":("too long","zu lang"),
       "too_small":("too small","zu klein"),"too_large":("too large","zu groß"),"invalid":("invalid value","ungültiger Wert")}
 for c,(en,de) in EC.items(): k(f"error.{c}",en,de)
 for lang, dct in (("en", E), ("de", D)):

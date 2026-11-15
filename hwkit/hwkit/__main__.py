@@ -79,7 +79,7 @@ def _cmd_results(a):
 
 
 def main(argv=None) -> None:
-    ap = argparse.ArgumentParser(prog="hwkit", description="Bluetooth Audio Bridge hardware validation kit")
+    ap = argparse.ArgumentParser(prog="hwkit", description="Hi-Fi Bridge hardware validation kit")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("env", help="record versions of the device under test"); p.add_argument("-o", "--output", default="env.json"); p.set_defaults(f=_cmd_env)
     p = sub.add_parser("trace", help="record BlueZ D-Bus events + operator markers")

@@ -146,14 +146,30 @@ def test_token_rotation_and_no_secret_in_status_logs_or_diagnostics(svc):
         assert secret and secret not in blob
 
 
-def test_thermal_critical_is_a_fault_and_an_event(svc, tmp_path):
+def test_thermal_critical_is_a_fault_and_an_immediate_event(svc, tmp_path):
     events = []
-    svc.on_event(lambda k, d: events.append(k))
+    svc.on_event(lambda k, d: events.append((k, d)))
+    svc.check_thermal(); assert svc.thermal()["state"] == "ok"
     (tmp_path / "temp").write_text("83500")
-    svc.last_system = svc.monitor.sample()
-    assert svc.last_system["thermal_state"] == "critical"
-    svc.logs.fault("thermal", "critical: 83.5 C")
+    svc.check_thermal()
+    assert ("thermal", svc.thermal()) in events and svc.thermal()["state"] == "critical"
     assert svc.logs.faults()[-1]["kind"] == "thermal" and "thermal_critical" in svc.status()["degraded"]
+    n = len(events); svc.check_thermal(); assert len(events) == n                     # no repeated events without a change
+    (tmp_path / "temp").write_text("50000"); svc.check_thermal()
+    assert events[-1][1]["state"] == "ok" and "thermal_critical" not in svc.status()["degraded"]
+
+
+def test_the_watch_loop_checks_temperature_far_more_often_than_telemetry(svc, tmp_path):
+    from btbridge import service as S
+    assert S.THERMAL_CHECK_S <= 10 < S.TELEMETRY_S
+    events = []
+    svc.on_event(lambda k, d: events.append(k) if k == "thermal" else None)
+    (tmp_path / "temp").write_text("84000")
+    import time as _t
+    t0 = _t.time()
+    while "thermal" not in events and _t.time() - t0 < S.THERMAL_CHECK_S + 3:
+        _t.sleep(0.1)
+    assert "thermal" in events, "the running service must notice over-temperature within one check interval"
 
 
 def test_discovery_check_and_targets_are_read_only(svc):

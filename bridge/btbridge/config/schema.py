@@ -55,6 +55,13 @@ def _topic(v: str) -> str:
     return v
 
 
+def _pem_or_empty(v: str) -> str:
+    v = v.strip()
+    if v and not (v.startswith("-----BEGIN CERTIFICATE-----") and v.rstrip().endswith("-----END CERTIFICATE-----")):
+        raise ValueError("invalid_pem")
+    return v + "\n" if v else ""
+
+
 def _instance_id(v: str) -> str:
     v = v.strip().lower()
     if v and not re.fullmatch(r"[a-z0-9]{6,16}", v):
@@ -110,6 +117,12 @@ SETTINGS: dict[str, Setting] = {s.key: s for s in [
     Setting("mqtt_tls", bool, False, group="mqtt", restart=True),
     Setting("mqtt_base_topic", str, "btbridge", check=_topic, group="mqtt", restart=True),
     Setting("mqtt_discovery_prefix", str, "homeassistant", check=_topic, group="mqtt", restart=True),
+    # MQTT is READ-ONLY by default (DECISIONS #36): every control function is enabled separately and explicitly
+    Setting("mqtt_allow_pairing", bool, False, group="mqtt", restart=True),
+    Setting("mqtt_allow_audio", bool, False, group="mqtt", restart=True),
+    Setting("mqtt_allow_test", bool, False, group="mqtt", restart=True),
+    Setting("mqtt_telemetry_s", int, 300, min=60, max=3600, group="mqtt", restart=True),
+    Setting("mqtt_ca_pem", str, "", check=_pem_or_empty, group="mqtt", restart=True),
     Setting("device_labels", dict, {}, check=_labels, group="bluetooth"),
     Setting("setup_complete", bool, False, group="system"),
     Setting("instance_id", str, "", check=_instance_id, group="system"),
@@ -139,7 +152,7 @@ def coerce(s: Setting, value: Any) -> Any:
             if not isinstance(value, (str, int, float)):
                 raise ValueError("invalid_str")
             v = str(value)
-            if len(v) > 256:
+            if len(v) > (16384 if s.key.endswith("_pem") else 256):
                 raise ValueError("too_long")
         else:
             v = value

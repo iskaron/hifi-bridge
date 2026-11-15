@@ -120,7 +120,8 @@ def test_appliance_end_to_end_ha_discovery_state_and_commands(lab, radio, tmp_pa
     svc = ApplianceService(str(tmp_path / "data"), source=sim, stream_port=8093, advertise_host=my_ip(), mqtt_factory=MqttBridge,
                            echo=None, auth_iterations=1000)
     svc.store.update({"lms_host": "lms", "lms_port": 9000, "target_player": PLAYERS["player1"], "mqtt_enabled": True, "mqtt_host": BROKER,
-                      "mqtt_port": 1883, "device_name": "Lab Bridge"})
+                      "mqtt_port": 1883, "device_name": "Lab Bridge", "mqtt_allow_pairing": True, "mqtt_allow_audio": True,
+                      "mqtt_allow_test": True})
     iid = svc.instance_id()
     sub = Sub(["homeassistant/#", f"btbridge/{iid}/#"])
     svc.start()

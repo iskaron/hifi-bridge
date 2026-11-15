@@ -131,7 +131,7 @@ class StreamServer:
             h.send_header("Content-Range", f"bytes {start_byte}-4294967294/4294967295")
         h.send_header("Content-Type", CONTENT_TYPES[fmt])
         h.send_header("Cache-Control", "no-cache, no-store")
-        h.send_header("icy-name", "Bluetooth Audio Bridge")
+        h.send_header("icy-name", "Hi-Fi Bridge")
         if want_icy:
             h.send_header("icy-metaint", str(METAINT))
         h.end_headers()

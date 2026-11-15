@@ -30,8 +30,9 @@ from .stream.server import redact
 from .system import SystemMonitor
 from .webui.auth import Auth
 
-TELEMETRY_S = 300          # MQTT/system metrics every 5 min (DECISIONS #11)
-THERMAL_POLL_S = 30        # internal temperature polling (PRODUCT_SPEC)
+TELEMETRY_S = 300          # MQTT/system metrics every 5 min (DECISIONS #11, #36)
+SYSTEM_SAMPLE_S = 30       # full system sample for the UI
+THERMAL_CHECK_S = 10       # fast, independent over-temperature check (DECISIONS #36): a warning never waits for telemetry
 
 
 class UnconfiguredLms:
@@ -137,6 +138,7 @@ class ApplianceService:
         self._last_key = None
         self.started_at = time.time()
         self.last_system: dict = {}
+        self._thermal = {"state": "unknown", "temperature_c": None, "checked_at": None}
 
     # ------------------------------------------------------------------ lifecycle
     def start(self) -> None:
@@ -221,11 +223,37 @@ class ApplianceService:
             except Exception as e:
                 self.logs(f"event listener error: {type(e).__name__}: {e}")
 
+    def thermal(self) -> dict:
+        return dict(self._thermal)
+
+    def check_thermal(self) -> None:
+        """Read the temperature now; on a state change log a fault (warning/critical) and emit 'thermal' at once."""
+        temp, state = self.monitor.temperature()
+        prev = self._thermal["state"]
+        self._thermal = {"state": state, "temperature_c": temp, "checked_at": time.time()}
+        if self.last_system:
+            self.last_system["temperature_c"], self.last_system["thermal_state"] = temp, state
+        if state != prev:
+            if state in ("warning", "critical"):
+                self.logs.fault("thermal", f"{state}: {temp} C")
+            elif prev in ("warning", "critical"):
+                self.logs(f"thermal state back to {state} ({temp} C)")
+            self._emit("thermal", self.thermal())
+
     def _watch(self) -> None:
         next_sys = time.monotonic() + 2.0                 # second sample soon: CPU % needs two /proc/stat readings
-        last_thermal = self.last_system.get("thermal_state")
+        next_thermal = time.monotonic()
         while not self._stop.wait(0.5):
             try:
+                now = time.monotonic()
+                if now >= next_thermal:
+                    next_thermal = now + THERMAL_CHECK_S
+                    self.check_thermal()
+                if now >= next_sys:
+                    next_sys = now + SYSTEM_SAMPLE_S
+                    self.last_system = self.monitor.sample()
+                    self.last_system.update(temperature_c=self._thermal["temperature_c"] if self._thermal["checked_at"] else
+                                            self.last_system.get("temperature_c"))
                 st = self.status()
                 key = (st["headline"], st["bridge"]["bluetooth_connection"], st["bridge"]["bt_media_activity"],
                        st["bridge"]["target_ownership"], st["bridge"]["lyrion_reachability"], st["bluetooth"]["pairing_open"],
@@ -234,15 +262,6 @@ class ApplianceService:
                 if key != self._last_key:
                     self._last_key = key
                     self._emit("status_changed", st)
-                if time.monotonic() >= next_sys:
-                    next_sys = time.monotonic() + THERMAL_POLL_S
-                    self.last_system = self.monitor.sample()
-                    ts = self.last_system.get("thermal_state")
-                    if ts != last_thermal:
-                        last_thermal = ts
-                        if ts in ("warning", "critical"):
-                            self.logs.fault("thermal", f"{ts}: {self.last_system.get('temperature_c')} C")
-                        self._emit("thermal", self.last_system)
             except Exception as e:
                 self.logs(f"watch error: {type(e).__name__}: {e}")
 
@@ -275,8 +294,8 @@ class ApplianceService:
             degraded.append("not_configured")
         elif b["lyrion_reachability"] == "unreachable":
             degraded.append("lyrion_unreachable")
-        if self.last_system.get("thermal_state") in ("warning", "critical"):
-            degraded.append("thermal_" + self.last_system["thermal_state"])
+        if self._thermal["state"] in ("warning", "critical"):
+            degraded.append("thermal_" + self._thermal["state"])
         if self.mqtt and not self.mqtt.state().get("connected"):
             degraded.append("mqtt_disconnected")
         headline = self._headline(b, degraded)
