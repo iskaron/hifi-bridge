@@ -82,3 +82,16 @@ diagnostic test tone was cut off at half length (player lead not accounted for);
 * Negative/corrective results: `pw-cat` 0.3.65 has no `--raw` (my first command line was wrong); no automated PipeWire capture test could be built in the time box;
   jeepney local filters need sender-less rules.
 * Owner decisions of the review are pinned by unit tests (`tests/unit/test_review_decisions.py`): default `drop_restart`, ICY off, no power-off path in the LMS client or controller.
+
+## Phase 2a (2026-11-15): what the tests found
+* **PipeWire** (INTEGRATION, real 0.3.65 + 1.4.2): a missing capture target silently records the default source (privacy defect, fixed); `pw-cat -`
+  is a Sun-AU stream on 1.4; 48 kHz-only graph breaks bit-exactness; WirePlumber 0.4 quits without logind. Details: docs/PIPEWIRE_CAPTURE.md.
+* **Hardware kit** self-tests: MAC addresses inside BlueZ object paths were not anonymised (regex word boundary after `dev_`), replay clock origin
+  wrong, a partial first block counted as a repeat. The indexed test track survives real SBC (328k/229k), AAC (256k/128k) and a 48 kHz path.
+* **WebUI** in a real browser: all form POSTs were rejected because `Referrer-Policy: no-referrer` makes Chromium send `Origin: null`;
+  wizard test-sound button blocked by the wizard guard (found by the LMS e2e test); CSP violation on text error pages; COOP warning on HTTP.
+  During the fix the CSRF check was briefly made unreachable by an indentation slip - caught by the unit tests before any commit.
+* **Static power-off guard** (review decision #17) was a substring check that fired on *reading* the power state; replaced by a call-pattern
+  guard that has its own test.
+* **Phase-1 harness:** `run_all.sh` recorded the exit code of `grep`, not of the outage scenario (the scenario's own "exit code: 0" lines in the
+  phase-1 log remain valid evidence); fixed with PIPESTATUS.

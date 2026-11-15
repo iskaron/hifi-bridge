@@ -49,6 +49,23 @@ Raspberry Pi integration is explicitly **not yet verified**. Evidence: `docs/FIN
     pairing management, authenticated WebUI with setup wizard (DE/EN, responsive, light/dark, "Hi-Fi & elegant"), diagnostics, system monitoring,
     MQTT with Home Assistant discovery. **Not** in scope: productive Buildroot/A/B OTA implementation, the complete flash tool.
 
+## Phase-2a implementation decisions (reversible engineering choices, not product changes; 2026-11-15)
+
+26. **Runtime stays stdlib-only** (own small HTTP server for the WebUI, own MQTT 3.1.1 client); `jeepney` is the only optional runtime
+    package. Reason: smallest Buildroot footprint, no dependency drift. The MQTT client is verified against real Mosquitto.
+27. **WebUI = server-rendered pages + progressive JavaScript.** Every action works without JS; JS adds live status and the pairing countdown.
+    Strict CSP without inline script. German/English dictionaries with completeness tests.
+28. **Owner auth:** single owner account; random per-device setup code -> owner password (PBKDF2); in-memory sessions; CSRF token +
+    origin checks. No default or shared credentials (PRODUCT_SPEC). Details: docs/SECURITY.md.
+29. **Settings apply in place** (LMS server, target, format, token) - the runtime is never rebuilt, so a connected phone stays connected.
+    Before a server AND a target are configured the bridge cannot send any LMS command.
+30. **Default PCM capture = `parec --raw` with `node.dont-fallback`/`node.dont-reconnect`** (privacy: never capture another source),
+    PipeWire graph must allow 44.1 kHz (docs/PIPEWIRE_CAPTURE.md).
+31. **MQTT/HA:** topics `<base>/<id>/{availability,state,system,cmd/...}`, retained discovery for 14 entities; commands limited to pairing,
+    bridge audio and the test tone. Telemetry every 5 min + at once on thermal state changes.
+32. **Target selection** offers every player and each *existing* sync group (addressed via its first member); the bridge never changes groups.
+33. **Hardware validation** is executed with `hwkit/`; results must be labelled REAL-HARDWARE and are rejected otherwise.
+
 ## Measurement-driven / not yet verified
 
 - Startup latency (**software: ~1.6 s, accepted #16**), Pause/drain latency (**software: 0.07 s with #15**), reconnection and sample integrity (still to be measured on actual devices).

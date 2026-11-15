@@ -36,6 +36,19 @@ None of it has been executed; no compatibility may be claimed before it is.
 - [ ] Automated test suite/CI, documentation, security review; license compliance and third-party notices.
 - [ ] Platform flash utility (Windows/macOS/Linux), recovery and upgrade directions, tested installers or clearly marked gaps.
 
+## Phase 2a status (2026-11-15; software only - see reports/HANDOFF_FOR_CHATGPT.md)
+
+| Phase-2 item | 2a status |
+|---|---|
+| Secure onboarding, one-time credentials | **Software done:** per-device setup code, no default passwords (UNIT/HTTP/BROWSER). Flash-tool delivery of the code: 2b. |
+| Responsive WebUI DE/EN, Hi-Fi/elegant, light/dark | **Done, software-verified:** real Chromium at 390/1280 px, light/dark, DE/EN, axe-core 0 violations. Real phone browsers: not tested. |
+| One-click 5-min pairing, remembered devices, live status, test audio refuses occupied source | **Done in software** (simulated phone + fake BlueZ + real LMS). Real BlueZ pairing: hardware gate. |
+| MQTT/HA discovery, 5-min telemetry, immediate state/thermal events | **Done, real Mosquitto.** Import into a real Home Assistant: not tested. |
+| Ownership/volume across phones and rooms | Ownership: verified against real LMS. Phone volume: hardware gate. |
+| Buildroot images, OTA, flash tool, network fallback, Wi-Fi/hotspot, mDNS | **Not started** (2b, explicitly out of scope). |
+| Resource budgets, RF coexistence, boot | Hardware gate (`hwkit/`, plan E/A). |
+| Automated tests/CI, docs, security review, licences | Docker suites + `scripts/run_all.sh`; docs/SECURITY.md (self-review, no pentest); docs/THIRD_PARTY.md. CI service wiring not done. |
+
 ## Reporting convention
 
 Each result labeled `REAL-HARDWARE`, `REAL-LMS`, `INTEGRATION`, `SIMULATED`, `UNIT`, `STATIC-ONLY` or `UNTESTED`. A green simulated test does **not** imply physical compatibility. If no access to real devices, do all independent work and flag the hardware gate to owner.

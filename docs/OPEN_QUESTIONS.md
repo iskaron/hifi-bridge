@@ -53,3 +53,19 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
     authorisation on reconnect? (B1-B3)
 17. **Unknown UUIDs at connect time:** the translator treats a device without a UUID list as a phone. Real behaviour of `Connected` vs `ServicesResolved` ordering needs a real trace (A6/C).
 18. **Reconnect semantics after bluetoothd restart** are specified (release, re-register agent, re-sync) but only exercised against the fake (A7).
+
+## New questions from phase 2a (2026-11-15)
+19. **Product name and trademarks:** may the product/UI use the word "Bluetooth" (Bluetooth SIG trademark rules)? The UI shows "Bluetooth Audio Bridge"
+    and the tagline "Bluetooth to Lyrion"; the logo deliberately avoids the Bluetooth mark. **Owner/legal decision.**
+20. **HTTPS for the WebUI:** TLS works with a supplied certificate; how the appliance gets one (self-signed + fingerprint shown by the flash tool,
+    local CA, or plain HTTP on trusted LANs) is a phase-2b decision.
+21. **PBKDF2 cost on a Pi Zero 2 W:** 200k iterations take ~0.1 s on x86; must be measured on the board (login latency vs. brute-force cost).
+22. **MQTT command trust:** commands (pairing, bridge audio, test tone) are accepted from anyone allowed by the broker's ACL. Acceptable, or should
+    MQTT control be read-only by default? Current choice: commands on (they cannot touch foreign music), documented.
+23. **Real Home Assistant import** of the discovery payloads is not tested (only the documented schema keys and a real broker). A Docker HA test is
+    possible later if wanted.
+24. **WirePlumber without systemd-logind** (likely in a Buildroot image): 0.4 needs `with-logind = false` or it quits; 0.5 needs
+    `monitor.bluez.seat-monitoring = disabled`. Which init system/session setup does phase 2b use?
+25. **pipewire-pulse in the image:** `parec` (default, verified on 0.3.65 and 1.4.2) needs pipewire-pulse; without it, `pw-cat --raw` (PipeWire >= 1.x) is the alternative.
+26. A rare (1 in ~10 runs) disappearance of pipewire-pulse 1.4.2 during module unload was seen once in the lab; not reproduced in 4 further runs.
+    The capture supervisor retries, but a process supervisor must restart pipewire-pulse on the device.

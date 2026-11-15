@@ -42,3 +42,22 @@ with the ownership `Controller`. Layering is deliberate so a future Docker runti
 Boundaries: core (`btbridge/core`, `stream`, `lms`) has no hardware or D-Bus dependency; `adapters/base.py` is the only contract between "source" and
 "bridge"; the simulated source (`testkit`) and the BlueZ adapter implement the same contract. The BlueZ side is prepared but **not verified on hardware**
 (docs/BLUEZ_ADAPTER_DESIGN.md, docs/HARDWARE_VALIDATION_PLAN.md). Still design-only: WebUI, MQTT, OS/Buildroot services, OTA (phase 2).
+
+## Phase-2a module map (2026-11-15)
+
+```
+btbridge/
+  core/ stream/ lms/          phase-1 bridge: ownership controller, live feeder/ring, HTTP stream, LMS JSON-RPC (+ read-only targets)
+  adapters/bluez/             BlueZ/PipeWire adapter (hardware-free prepared): model, jeepney bus, PCM capture (parec, no fallback), device management
+  config/                     settings schema + atomic store + 0600 secrets
+  system/                     procfs/sysfs monitor (injectable paths)
+  service.py                  ApplianceService: composes runtime + config + auth + monitor + MQTT; in-place reconfiguration; status headline
+  webui/                      stdlib HTTP server, auth (setup code, PBKDF2, sessions, CSRF), views, i18n (de/en), static (CSS/JS/logo)
+  mqtt/                       stdlib MQTT 3.1.1 client + Home Assistant discovery bridge
+  appliance.py                entry point (service + WebUI)
+hwkit/                        hardware validation kit (runs on the Pi; analysis in Docker)
+testkit/                      lab-only: simulated phone, fake BlueZ, PipeWire harness, appliance_lab (simulated phone + control API)
+```
+Data flow for owner actions: WebUI/MQTT -> ApplianceService -> ConfigStore (validated, persisted) -> listener applies to Controller/runtime.
+The WebUI and MQTT never talk to the Controller or LMS directly. Still open for phase 2b: OS integration (service supervision, Wi-Fi/hotspot,
+mDNS, TLS provisioning), Buildroot image, OTA, flash tool.

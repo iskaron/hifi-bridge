@@ -1,58 +1,64 @@
 # Bluetooth Audio Bridge
 
-A Bluetooth A2DP sink that publishes the phone's audio as a live stream to **one** Lyrion (LMS) player or existing sync group. To a guest it is an ordinary
-Bluetooth speaker: pair, connect, press Play.
+A Bluetooth A2DP sink that publishes a phone's audio as a live stream to **one** Lyrion (LMS) player or existing sync group. To a guest it
+is an ordinary Bluetooth speaker: pair, connect, press Play. The owner configures it in a mobile-first WebUI (German/English).
 
-**Status: Phase 1 `audio-spike` accepted as a software-only feasibility result (owner review 2026-11-15); phase-1.5 work package: BlueZ/PipeWire adapter prepared without hardware.** There is **no** Bluetooth/Pi/audio hardware on the development host. Everything runs in Docker with a
-**simulated** phone (A2DP/AVRCP) feeding the real pipeline, a **real Lyrion Media Server 9.1.2** and **real Squeezelite 1.9.9** players. This is *software
-integration verified*; the real BlueZ/PipeWire adapter exists but is **not verified on any hardware**. Not proof of real phones, real radios, real Squeezeboxes, speaker timing or Pi boot (all *deferred hardware validation*).
-Read `reports/HANDOFF_FOR_CHATGPT.md` for results and `docs/FINDINGS.md` for evidence.
+**Status: Phase 2a (software product layers) on top of the accepted phase-1 feasibility result.** The development machine has **no** Bluetooth,
+Raspberry Pi or audio hardware (owner decision). Everything runs in Docker:
+* **Real:** Lyrion 9.1.2, Squeezelite 1.9.9, Mosquitto 2.0.20, PipeWire 0.3.65/1.4.2 tools, FFmpeg codecs, and a Chromium browser.
+* **Simulated:** the phone and BlueZ.
+
+**Nothing has been verified on real Bluetooth, phones, Squeezebox hardware or a Pi.** The plan and the kit for that are in `docs/HARDWARE_VALIDATION_PLAN.md`
+and `hwkit/`. Current results: `reports/HANDOFF_FOR_CHATGPT.md`.
 
 ## Layout
 ```
-bridge/btbridge/   core library (stdlib only): core/ (state machine, ring, fusion, volume, pairing), stream/ (HTTP live endpoint, feeder), lms/ (JSON-RPC client, discovery), adapters/ (interface + `bluez/` adapter: hardware-free prepared, NOT hardware-verified)
-testkit/btkit/     lab-only tools (numpy): simulated A2DP source, deterministic test signal, PCM tap ("virtual DAC"), analyzers, scenarios, demo
-tests/unit/        UNIT tests (fake clock, fake LMS, scripted BlueZ events)   tests/integration/  real LMS + Squeezelite, simulated Bluetooth; fake-BlueZ D-Bus tests (test_08/09)
-docker/            Dockerfile.lab + compose.yml (isolated `internal` network: no LAN/internet)
-scripts/           run/measure scripts      measurements/  JSON evidence      reports/  handoff + full run log
+bridge/btbridge/   product code, Python stdlib only (+ optional jeepney):
+                   core/ stream/ lms/  audio bridge (ownership rules, live stream, LMS control)
+                   adapters/bluez/     BlueZ/PipeWire adapter (prepared, NOT hardware-verified)
+                   config/ system/ service.py webui/ mqtt/ appliance.py   (phase 2a)
+hwkit/             hardware validation kit (record on the Pi, analyse in Docker) - runbook hwkit/README.md
+testkit/           lab-only tools: simulated phone, fake BlueZ, PipeWire harness, appliance_lab
+tests/             unit/ integration/ pipewire/ hwkit/ browser/ fixtures/
+docker/            lab images + compose (isolated `internal` network)
+docs/              spec, decisions, findings, security, third-party, PipeWire, BlueZ design, hardware plan
+reports/           handoff, progress log, evidence logs, curated screenshots
 ```
 
 ## Requirements
-Docker + Docker Compose only (tested: Docker 29.1.3, Compose 2.40.3, x86-64). Nothing is installed on the host; first run pulls `lmscommunity/lyrionmusicserver:stable`
-(~230 MB) and `debian:bookworm-slim`. The lab network is `internal` (containers cannot reach the host LAN or internet).
+Docker + Docker Compose only (tested: Docker 29.1.3, Compose 2.40.3, x86-64). Nothing is installed on the host.
 
-## Run
+## Run the tests (all in Docker)
 ```bash
-scripts/lab_up.sh                 # build image, start LMS + player1..3 + legacy1 (PCM/MP3-only capability emulation)
-scripts/run_unit.sh               # 88 unit tests, seconds
-scripts/run_integration.sh        # 47 integration tests incl. fake-BlueZ D-Bus; ~16 min (use -k <name> or -m "not slow" to select)
-scripts/test_outage.sh lms        # host-orchestrated: stop/start the LMS container while the simulated phone plays
-scripts/test_outage.sh player1    # same for the player container
-scripts/run_all.sh                # everything; log in $LOG (default reports/evidence/full_run.log); latest: reports/evidence/full_run_phase1_5.log
-scripts/demo.sh                   # manual walkthrough with the simulated phone (HTTP control on demo:8099)
-scripts/lab_down.sh               # delete containers/volumes
+scripts/lab_up.sh             # lab: LMS, 4 Squeezelite players, Mosquitto
+scripts/run_unit.sh           # unit tests (seconds)
+scripts/run_integration.sh    # real LMS/Squeezelite/Mosquitto + fake-BlueZ D-Bus + WebUI end-to-end (~17 min)
+scripts/test_outage.sh lms    # LMS outage scenario (also: player1)
+scripts/run_pipewire.sh       # capture command lines against real PipeWire 0.3.65 and 1.4.2
+scripts/run_hwkit.sh          # kit self-tests incl. real SBC/AAC codecs
+scripts/run_browser.sh        # real Chromium: owner journey, light/dark, phone/desktop, axe-core audit -> reports/screenshots/
+scripts/run_all.sh            # everything; LOG=... selects the log file
+scripts/lab_down.sh
 ```
-Measurement outputs land in `measurements/*.json` (each stamped with LMS/Squeezelite versions and a "NOT acoustic" note).
 
-## Manual tests (lab)
-After `scripts/demo.sh`: `docker compose -f docker/compose.yml run --rm -T runner curl -s http://demo:8099/<cmd>` with `connect`, `play`, `pause`, `notify`, `volume?v=100`,
-`diag`, `disconnect`, `status`. Observe LMS with `docker compose -f docker/compose.yml run --rm -T runner python3 -c "..."` (see `btkit.lms_rpc`). To play "someone else's music"
-on player1 use JSON-RPC `playlist play <url>`; the bridge must then go passive and never stop it.
+## Try the appliance in the lab
+```bash
+scripts/lab_up.sh && cd docker && docker compose --profile browser up -d appliance
+docker compose exec appliance cat /data/setup-code.txt         # one-time setup code
+docker compose run --rm -T runner curl -s http://appliance:8099/connect   # simulated phone: connect | play | pause | disconnect
+```
+The WebUI listens on `appliance:8080` inside the isolated lab network. To view it in a desktop browser, publish the port temporarily, for example
+by adding `ports: ["127.0.0.1:8080:8080"]` to the `appliance` service. On a target device: `python3 -m btbridge.appliance --data <dir> --source bluez`
+(untested on hardware).
 
 ## Design in one paragraph
-Phone PCM -> `LiveFeeder` (keeps the timeline real-time: silence fill, bounded drop) -> bounded `PcmRing` -> HTTP `/s/<token>/<session>.wav|flac` -> LMS `playlist play`.
-`Controller` implements the separate state dimensions, the 2 s takeover filter (only when a foreign source plays), 30 s pause grace, immediate disconnect release,
-session-id ownership and the invariant "only `play` our URL / `deleteitem` our URL". See `docs/ARCHITECTURE.md`, `docs/PLAYBACK_STATES.md`, `docs/FINDINGS.md`.
-
-## Failure evidence / negative results
-`docs/FINDINGS.md` lists bugs the tests caught and the experiments that did not work (`icy-br`/pre-roll startup tuning:
-`measurements/NEGATIVE_startup_policy_icybr_preroll.json`).
+Phone PCM goes through `LiveFeeder` (real-time silence fill, bounded drop) into a bounded `PcmRing`, then out over HTTP as `/s/<token>/<session>.wav|flac`,
+and LMS plays it via `playlist play`. The `Controller` keeps separate state dimensions and handles the 2 s takeover filter, the 30 s pause grace,
+immediate release on disconnect, and session-id ownership. It only ever plays its own URL and removes its own URL, and never powers players off.
+`ApplianceService` adds persistent settings (applied in place), owner auth, monitoring and MQTT. The WebUI and MQTT only talk to the service. See
+`docs/ARCHITECTURE.md`, `docs/DECISIONS.md` and `docs/SECURITY.md`.
 
 ## Git
-Local repository, branches `main` (phase-1 baseline) and `develop` (work), Conventional Commits. Nothing is published; no remote, tags or releases.
+Local repository, development branch `develop`, Conventional Commits, repository-local identity per DECISIONS #22. No remote, tags or releases; nothing is published.
 
-## Real hardware
-Not available on the development host. The BlueZ/PipeWire side is documented in `docs/BLUEZ_ADAPTER_DESIGN.md`; what has to be tested on a Raspberry Pi with Android,
-iPhone and real Squeezeboxes is in `docs/HARDWARE_VALIDATION_PLAN.md` (none of it executed). `python -m btbridge --source bluez` only works on a device with a system bus.
-
-License intent: AGPL-3.0-only (not yet added; no publication).
+License intent: AGPL-3.0-only. The licence file has not been added yet; third-party components are listed in `docs/THIRD_PARTY.md`.

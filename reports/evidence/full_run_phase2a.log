@@ -1,0 +1,46 @@
+### date: 2026-11-15T19:47:14Z
+Docker version 29.1.3, build 29.1.3-0ubuntu4.1
+11c3213
+### UNIT
+........................................................................ [ 42%]
+........................................................................ [ 84%]
+...........................                                              [100%]
+171 passed in 29.96s
+### INTEGRATION
+ btbridge-lab:dev  Built
+ btbridge-lab:dev  Built
+ btbridge-lab:dev  Built
+ btbridge-lab:dev  Built
+ Container btbridge-lab-mosquitto-1  Running
+ Container btbridge-lab-lms-1  Running
+ Container btbridge-lab-player2-1  Recreate
+ Container btbridge-lab-player3-1  Recreate
+ Container btbridge-lab-legacy1-1  Recreate
+ Container btbridge-lab-player1-1  Recreate
+ Container btbridge-lab-legacy1-1  Recreated
+ Container btbridge-lab-player2-1  Recreated
+ Container btbridge-lab-player1-1  Recreated
+ Container btbridge-lab-player3-1  Recreated
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player1-1  Starting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player2-1  Starting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player3-1  Starting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-legacy1-1  Starting
+ Container btbridge-lab-player1-1  Started
+ Container btbridge-lab-legacy1-1  Started
+ Container btbridge-lab-player3-1  Started
+ Container btbridge-lab-player2-1  Started
+============================= test session starts ==============================
+platform linux -- Python 3.11.2, pytest-7.2.1, pluggy-1.0.0+repack
+rootdir: /work, configfile: pytest.ini
+collected 54 items
+
+tests/integration/test_01_pipeline.py ..                                 [  3%]
+tests/integration/test_02_ownership.py .
