@@ -1,87 +1,59 @@
-# HANDOFF_FOR_CHATGPT — Phase 1 `audio-spike`
+# HANDOFF_FOR_CHATGPT — Phase-1 review follow-up (work package "phase 1.5")
+
+Previous handoff (phase 1 `audio-spike`, unchanged): `reports/HANDOFF_PHASE1_AUDIO_SPIKE.md`.
 
 ## 1. Status and requested review
-- **Phase:** 1 (audio feasibility). **Date:** 2026-11-15. **Status: COMPLETE as a hardware-free software-feasibility spike** (software integration verified; all radio/phone/hardware proof is *deferred hardware validation*, not failed).
-- **Summary:** A simulated A2DP/AVRCP phone drives the real bridge pipeline into a **real Lyrion 9.1.2** and **real Squeezelite 1.9.9** players (single player, 3-player sync group, PCM+MP3-capability emulation); audio arrives **bit-exact**, ownership rules hold against a real LMS, and no LMS plugin is needed.
-- **Decisions requested from the owner/ChatGPT** (details in `docs/OPEN_QUESTIONS.md`):
-  1. Approve Phase 1 and the gate to hardware validation (BlueZ adapter, phones, Pi) / Phase 2?
-  2. Pause default = `drop_restart` (silence in 0.07 s) vs `keepalive_silence` (1.6 s, no LMS traffic during pauses)?
-  3. Accept ~1.6 s Play→sound / Resume→sound (LMS 255 KB start threshold) or later authorise an LMS-plugin investigation?
-  4. Leave a woken standby player powered on after release (current behaviour)?
-  5. ICY metadata default off (legacy hardware unverified) — OK?
+- **Phase:** phase-1 review work package (not phase 2). **Date:** 2026-11-15. **Status: COMPLETE** for the requested package; the hardware gate is **open**.
+- **Summary:** Review decisions are recorded in the spec/decision docs and pinned by unit tests; a local git repository with a `develop` branch exists; all existing tests plus new ones pass in a clean-slate run; the real BlueZ/PipeWire adapter is prepared and tested **without hardware** (it is *not* verified on any real Bluetooth stack, phone or Pi); the required hardware tests are documented in `docs/HARDWARE_VALIDATION_PLAN.md`. Buildroot, WebUI, MQTT, OTA and the full product build were not started.
+- **Decisions requested now:** (1) accept the recommendation in §7; (2) tell me the **agreed repository-local git identity** — it is not written anywhere in the repo, so I set the repo-local identity to the same name/e-mail as the existing global git config (commits carry that author plus a `Co-Authored-By: Claude Sonnet 5.5` trailer); easy to rewrite before anything is published; (3) confirm that `jeepney` (pure Python, MIT) may be the provisional D-Bus library (isolated behind an interface).
 
 ## 2. Guest experience outcome
-- **Real guest path (phone pairs, connects, plays): NOT TESTED — no hardware, by owner decision.**
-- **Simulated path, INTEGRATION (real LMS + Squeezelite):** simulated phone connects (LMS untouched) → Play → LMS plays the bridge stream → audio at the player ~1.55 s later (WAV) / ~1.9 s (FLAC); Pause silences in ~0.07 s; resume ~1.55 s; disconnect releases immediately; notification beeps never interrupt other LMS music; sustained media overrides after 2 s and never restores the old track.
-- Limits: all timings are software (virtual-DAC) times, not acoustic.
+- **Real guest path (pair, connect, Play on a real phone): still NOT TESTED — no hardware by owner decision.** Nothing in this package changes that.
+- What now exists hardware-free: the adapter code path a real phone would use (connect → transport/AVRCP/volume/metadata → PCM → bridge → real LMS → real Squeezelite) runs end to end against a **fake** `org.bluez` service; bit-exact audio, pause/resume/disconnect, radio takeover with later events not touching the radio, and refusal of a second phone all pass. Timing numbers are unchanged software numbers (virtual DAC, not acoustic).
 
 ## 3. Implementation / architecture
-- **Modules** (`bridge/btbridge`, stdlib only, ~1.4k lines): `core/controller.py` (state dimensions, ownership, filter, grace, outage recovery, diagnostic), `core/{ring,fusion,volume,pairing,clock}.py`, `stream/{server,feeder,encoders}.py` (token+session URL, Range/410, optional ICY, WAV/FLAC), `lms/{client,discovery}.py`, `adapters/{base,bluez(stub)}.py`, `app.py`, `__main__.py`.
-- **Lab/test code** (`testkit/btkit`, numpy; ~2.1k lines incl. tests): simulated A2DP source, index-addressable test signal, paced "virtual DAC" PCM tap, analyzers, outage scenario, demo. `docker/` lab (internal network, LMS + player1..3 + legacy1).
-- **Key design decisions:** (a) the bridge only ever issues `playlist play <our url>`, `playlist deleteitem <our url>` (URL-addressed: verified no-op against a foreign source), `power 1` on takeover and relative `mixer volume` while owning — no generic stop/pause/clear; (b) per-session random id in the URL, stale sessions answer 410; (c) real-time silence-fill is mandatory (stalls cost ~5.5 s per LMS/Squeezelite re-buffer); (d) `drop_restart` pause strategy; (e) WAV PCM baseline, FLAC optional; (f) real BlueZ adapter only designed (`docs/BLUEZ_ADAPTER_DESIGN.md`, STATIC-ONLY).
-- **Not done / deferred:** real BlueZ/PipeWire adapter, Buildroot, WebUI, MQTT, OTA (out of phase-1 scope); Docker deployment (not required).
-- **Third-party:** Debian bookworm packages in lab image (`squeezelite` GPL, `flac`, `python3-numpy`, `pytest`, `tini`), `lmscommunity/lyrionmusicserver:stable` (LMS 9.1.2, GPL-2.0). Bridge itself has no third-party Python deps (+ runtime `flac` binary for FLAC option only).
-- **Git:** `/home/olm/bluetooth-audio-bridge` is **not a git repository**; no git operations were run. No `add/commit/push/tag`. Host untouched except files in this directory; Docker-only builds/tests; no hardware probing.
-- **Files created/changed:** see `README.md` layout; docs added: `docs/FINDINGS.md`, `docs/BLUEZ_ADAPTER_DESIGN.md`, appended `docs/OPEN_QUESTIONS.md`; `README.md` rewritten; `reports/evidence/full_run.log`; `measurements/*.json`.
+**Owner decisions recorded** (`docs/DECISIONS.md` #15–#21; `PRODUCT_SPEC.md`, `PLAYBACK_STATES.md`, `OPEN_QUESTIONS.md`, `ARCHITECTURE.md`, `ACCEPTANCE.md` updated): `drop_restart` default; ~1.6 s start accepted, no plugin; bridge-woken players stay on, never power-off; ICY off by default; Bluetooth-speaker experience stays the top goal; no hardware work on the dev host. Pinned by `tests/unit/test_review_decisions.py` (defaults, no power-off after grace/disconnect/audio-off/target-change, static guard that the LMS client has no power-off path). Behaviour did not need to change: the code already matched the decisions.
+
+**Git:** `git init` done (was not a repo). Branches `main` (4 baseline commits importing the phase-1 state) and **`develop`** (checked out; 6 further Conventional Commits). Repo-local identity set (see §1). **Nothing published**: no remote, tag, release or push. Working tree clean after the last commit.
+
+**BlueZ/PipeWire preparation** (`bridge/btbridge/adapters/bluez/`, ~1.5k lines incl. tests/fakes; code map in `docs/BLUEZ_ADAPTER_DESIGN.md`):
+- `bus.py` interface + events; `model.py` pure translator (one active source, second phone refused with `Device1.Disconnect`, non-phone UUIDs ignored, replay of early objects, volume clamp, AVRCP status mapping, metadata dedupe, bluetoothd vanish); `adapter.py` (pairing window → `Pairable/Discoverable`, pairing agent NoInputNoOutput that authorises only inside the window or for paired devices and never does PIN/passkey, PCM capture lifecycle, bluetoothd-restart recovery); `jeepney_bus.py` (real D-Bus client, optional dependency); `pcm.py` (supervised capture subprocess, `pw-cat` and `parec` command lines); `factory.py` + `python -m btbridge --source bluez` (exits with code 2 and a clear message if no bus/jeepney — never pretends).
+- Test doubles: `testkit/btkit/fake_bluez.py` (minimal `org.bluez` service on a **private** dbus-daemon in Docker — not bluetoothd), scripted bus in `tests/unit/fakes_bluez.py`. Traces are **hand-written from BlueZ documentation, not recorded** from a phone.
+- Lab image gained `dbus` and `python3-jeepney` only (Docker; host untouched).
+
+**Files changed/added (high level):** `docs/{DECISIONS,PRODUCT_SPEC,PLAYBACK_STATES,OPEN_QUESTIONS,ARCHITECTURE,ACCEPTANCE,BLUEZ_ADAPTER_DESIGN,FINDINGS}.md`, new `docs/HARDWARE_VALIDATION_PLAN.md`, `README.md`, `bridge/btbridge/adapters/bluez/*` (replaces the old stub `bluez.py`), `bridge/btbridge/__main__.py`, `testkit/btkit/fake_bluez.py`, `tests/unit/{test_review_decisions,test_bluez_adapter,fakes_bluez}.py`, `tests/integration/test_08_bluez_dbus.py`, `test_09_bluez_adapter_e2e.py`, `docker/Dockerfile.lab`, `scripts/{run_unit,run_all}.sh`, `pytest.ini`, `.gitignore`, refreshed `measurements/*.json`, `reports/evidence/full_run_phase1_5.log`.
+**Third-party additions:** `python3-jeepney` 0.8.0 (MIT) and `dbus` — lab image only; the bridge core stays stdlib-only; jeepney is an optional runtime dependency of the BlueZ backend (Buildroot availability unchecked).
 
 ## 4. Tests and environment
-Environment: Docker 29.1.3 / Compose 2.40.3, Ubuntu 26.04 x86-64 host (4 CPU); lab image Debian 12, Python 3.11.2; **LMS 9.1.2**; **Squeezelite v1.9.9-1414**; isolated `internal` network.
-
-Clean-slate full run (`scripts/run_all.sh`, log `reports/evidence/full_run.log`, started 2026-11-15T14:29Z):
+Docker 29.1.3 / Compose 2.40.3 on an x86-64 Ubuntu host; lab image Debian 12, Python 3.11.2, LMS 9.1.2, Squeezelite 1.9.9-1414, jeepney 0.8.0, `internal` Docker network. Clean-slate run (`LOG=reports/evidence/full_run_phase1_5.log scripts/run_all.sh` after `scripts/lab_down.sh`, started 2026-11-15T17:09Z):
 ```
-UNIT          55 passed in 2.16s                       [UNIT/SIMULATED]
-INTEGRATION   36 passed in 886.70s (0:14:46)           [INTEGRATION: real LMS + Squeezelite, SIMULATED Bluetooth]
-OUTAGE lms    scenario exit code: 0                    [INTEGRATION, container stop/start]
+UNIT          88 passed in 3.32s                      [UNIT/SIMULATED; was 55]
+INTEGRATION   47 passed in 963.61s (0:16:03)          [36 phase-1 + 8 fake-BlueZ D-Bus + 3 adapter end-to-end with real LMS/Squeezelite; was 36]
+OUTAGE lms    scenario exit code: 0
 OUTAGE player scenario exit code: 0
 exit codes: unit=0 integration=0 outage_lms=0 outage_player=0
 ```
-Reproduce: `scripts/lab_up.sh && scripts/run_unit.sh && scripts/run_integration.sh && scripts/test_outage.sh lms && scripts/test_outage.sh player1`.
+New tests: 4 review-decision pins; 29 BlueZ-layer unit tests (translator, adapter, agent policy, bluetoothd restart, capture supervision with real child processes, `--source bluez` negative path); 8 integration tests of the D-Bus client vs fake BlueZ (agent replies over the bus, pairing properties, signals, snapshot at startup, second phone refused, non-phone ignored, bluetoothd restart, error surfacing); 3 end-to-end tests (bit-exact play/pause/resume/disconnect; radio takeover then late D-Bus events → zero LMS commands and radio untouched; second phone refused while the first plays).
+Mutation sanity: 5 deliberate mutants of the translator (no second-source refusal, no UUID filter, forward all devices, no volume clamp, wrong seek mapping) all killed by unit tests; disabling PCM start fails the end-to-end test; removing the second-source rule is caught by the D-Bus test (the bridge-side refusal also covers it in the end-to-end test — defence in depth, not a gap).
+Labels: UNIT/SIMULATED, INTEGRATION (real LMS + Squeezelite, simulated BlueZ/phone/PCM), SIMULATED-BLUEZ. **Nothing here is REAL-HARDWARE.**
 
-Coverage by acceptance item (label):
-| Item | Result |
-|---|---|
-| Synthetic live stream → real LMS → Squeezelite | PASS, INTEGRATION; bit-exact WAV 85/86, FLAC 80/81 blocks (1 = stop tail) |
-| Android + iPhone pairing/streaming | **UNTESTED** (deferred hardware) |
-| Play/Pause/Resume/Disconnect | PASS INTEGRATION (simulated phone); speaker timing **NOT MEASURED** |
-| Ownership races (radio switch then late BT events; 2 bridges; stale session) | PASS UNIT + INTEGRATION; zero LMS commands after ownership loss |
-| One-source policy, notification filter, idle target, override off, audio toggle, target change | PASS UNIT + INTEGRATION |
-| LMS / player outage | PASS INTEGRATION (real container stop/start) |
-| Sync group | PASS INTEGRATION (3 players; target master and slave) |
-| Legacy Squeezebox | capability *emulation* only (pcm+mp3) PASS; **real hardware UNTESTED** |
-| Pairing window | UNIT (expiry/notify) + wiring INTEGRATION; real pairing UNTESTED |
-| Volume / metadata | policy UNIT; LMS-side effect INTEGRATION; real phone AVRCP **UNTESTED** |
-| Diagnostic test refuses busy target | PASS UNIT + INTEGRATION |
-| Token never in logs/status | PASS (test), rotation tested |
-| Test-suite quality | mutation check: 8/8 deliberate ownership-invariant mutants killed by unit tests |
-
-## 5. Timing and quality measurements (virtual-DAC, x86 Docker; **NOT acoustic, NOT hardware**; raw JSON in `measurements/`)
-| Metric | Result |
-|---|---|
-| Play → first player PCM (WAV), idle target | median 1.55 s (n=5; probes: BT PCM +0.010 s, LMS cmd +0.002…0.011 s, player connects +0.09 s) |
-| same, FLAC | median 1.89 s (n=5) |
-| Takeover of a playing radio after Play | LMS command at 2.03 s (the 2 s filter) |
-| Pause → last audible output | `drop_restart` 0.06–0.08 s; `keepalive_silence` 1.6 s (3 runs each) |
-| Resume → first output | 1.54–1.59 s both |
-| Grace release (keepalive) | 30.1 s after Pause |
-| Stall of 4 s at source | no fill: 1 underrun, audio back 5.1–5.3 s; silence keepalive: 0 underruns, 1.3–1.4 s |
-| Delivery hiccup tolerance | 0.9 s, 1.5 s: 0 underruns; 2.5 s: 1 underrun |
-| Sync group offset | 4–20 ms between runs (stable within a run) + Squeezelite corrective skips 441–837 frames early |
-| Clock drift ±3000 ppm (exaggerated) | slow: 7×~40 ms silence/100 s; fast: ~470 tiny drops; 0 underruns. ±300 ppm: no correction needed |
-| CPU / RAM (dev host, relative only) | bridge ≈2.4–2.7 % of one core; `flac` 0.4 %; RSS flat; ring 1.06 MB fixed |
-| LMS outage 20 s | BT stayed connected; player kept playing live stream (99.99 % audible); LMS re-attached |
-| Player outage 15 s | silent during, audio back 0.5 s after return, first frame ~1.5 s old (not stale) |
-Acoustic latency, real speaker timing, Wi-Fi/BT coexistence, Pi CPU: **NOT MEASURED — hardware unavailable.** Method caveats (unclocked Squeezelite stdout → paced virtual DAC, shared host clock) in `docs/FINDINGS.md`.
+## 5. Timing and quality measurements
+Re-measured in the same run (virtual DAC, x86 Docker, **not acoustic, not Pi**; raw JSON `measurements/`): Play→sound WAV median 1.58 s (n=5), FLAC 1.91 s; Pause→silence `drop_restart` 0.03–0.07 s (n=3; phase-1 run 0.06–0.08 s), `keepalive_silence` 1.61–1.65 s; resume 1.48–1.59 s; takeover command at 2.03 s; grace release 30.1 s. Consistent with phase 1. Acoustic latency, real-phone timing, Pi CPU/RAM, Wi-Fi/BT coexistence: **NOT MEASURED — hardware unavailable.** BlueZ/PipeWire adds no measured numbers.
 
 ## 6. Risks, defects, unverified claims
-- **High (unverified):** real-phone AVRCP/transport behaviour (notification vs media), absolute volume, codec/PCM delivery from BlueZ/PipeWire — the whole BT front end is simulated.
-- **Medium:** startup/resume ≈1.6 s floor from LMS's 255 KB threshold (`icy-br` hint and pre-roll tried — no effect, removed; evidence `measurements/NEGATIVE_startup_policy_icybr_preroll.json`). Only a plugin/handler or LMS setting beyond standard could change it.
-- **Medium:** real legacy Squeezebox and other firmware/players (only Squeezelite 1.9.9 exercised); sync correction behaviour on hardware.
-- **Low/known:** slow-clock phones → rare ~40 ms silence gaps; residual race window observe→`play` during an intentional takeover (LMS has no CAS); a user pressing Stop in LMS is treated as manual change (not resurrected); woken player left powered on.
-- **Bugs found during development, all fixed with regression tests:** feeder drop logic not converging; volume policy replaying a capped jump (small phone volume-down raised LMS volume); diagnostic tone cut short by player lead; unclocked stdout invalidating first timings. A flaky-looking first outage metric was a measurement-design error, corrected (documented in findings).
-- Honesty notes: integration "radio" is a second synthetic stream played via real LMS, not a real station; tests share one process for bridge + simulator.
+- **High (unverified):** the whole real Bluetooth side — real `bluetoothd` behaviour, phone AVRCP/transport semantics (notification vs music), absolute volume, codec/sample rate, PipeWire node for a phone-as-A2DP-source. The fake BlueZ is written by me from documentation; passing against it proves client code, not compatibility.
+- **High (found, unresolved):** **no PipeWire capture test exists.** A headless PipeWire + WirePlumber starts in Docker, but I could not create/link a null sink for an automated capture test within the time box. The `pw-cat` command line is unverified; my first draft used `--raw`, which PipeWire 0.3.65 does not have (checked with `--help`, fixed); whether `pw-cat --record … -` writes headerless PCM is open. `parec` is prepared as an alternative; fallback is BlueZ `MediaEndpoint1` + in-process SBC decode. This is the first thing to settle on hardware (plan A3/A4) and could cost rework in `pcm.py`.
+- **Medium:** jeepney availability/size in a Buildroot image unchecked; D-Bus choice is isolated behind `BlueZBus`. Treating a device without known UUIDs as a phone is an assumption. Pairing-agent policy (Just-Works, window-only) untested with iOS/Android. `--experimental` requirement for `MediaPlayer1` unknown.
+- **Medium (from phase 1, unchanged):** startup ~1.6 s accepted but not hardware-validated; only Squeezelite 1.9.9 and LMS 9.1.2 exercised; no real Squeezebox; ICY unverified on legacy hardware.
+- **Low:** git identity assumption (§1); `.pytest_cache` in the project root is root-owned (created by the container) and gitignored; the integration suite now takes ~16 min.
+- Honesty notes: tests share one process for bridge and simulators; "radio" is a second synthetic stream; the 5 mutation checks are targeted, not full mutation testing.
 
-## 7. Next best actions (no phase 2 started)
-1. Owner decisions in §1. 2. Hardware validation sprint: implement `BluezAdapter` per `docs/BLUEZ_ADAPTER_DESIGN.md`; record AVRCP/transport traces from Android + iPhone; tune `fusion`; measure with a real capture rig; test Pi 3B+/Zero 2 W. 3. Test a real Squeezebox/other players and an owner's real LMS (read-only first). 4. Optional improvements: resampling drift compensation; CI wiring of `run_unit.sh` + `run_integration -m "not slow"`. 5. Then Phase 2 only on explicit approval.
+## 7. Next best actions and recommendation (nothing started)
+**Recommendation for the next major order — two tracks, in this order:**
+1. **Owner-run hardware validation sprint first (small, decisive):** on one Pi 3 B+ (Ethernet) with Raspberry Pi OS Lite, one Android, one iPhone and a Squeezelite/Squeezebox, run test sets A–C (BlueZ/PipeWire bring-up, pairing, trace recording) and E2 from `docs/HARDWARE_VALIDATION_PLAN.md`. To make that cheap I propose a **Docker-built "validation kit"** as a short work package (D-Bus/PipeWire trace recorder, capture-rig analysers, runbook script) so no one writes ad-hoc scripts on the Pi. Outcomes decide: capture command (`pcm.py`), `fusion` rules, volume policy, whether Zero 2 W is supported.
+2. **Then Phase 2 `build-product`, split:** **2a** hardware-agnostic product layers that are fully Docker-testable (persistent config, pairing management and windows, authenticated mobile-first WebUI in DE/EN, diagnostics/test-audio, MQTT/HA discovery, logging) can start in parallel with the sprint; **2b** Buildroot images, A/B OTA, flasher and board support only after the sprint fixes the supported boards and the audio stack (otherwise images get built for a stack that is unverified).
+Rejected alternative: starting full Phase 2 immediately — it would bury the open audio-stack risk (§6) under appliance work.
+Smaller optional items: resampling drift compensation; CI wiring (`run_unit.sh` + `-m "not slow"`); retry of the PipeWire headless capture test in a more complete container if the owner wants more pre-hardware assurance.
 
 ## 8. Operator handoff (copy/paste for ChatGPT)
-> Phase 1 (hardware-free `audio-spike`) of Bluetooth Audio Bridge is complete as a software-integration result, run entirely in Docker: a *simulated* A2DP/AVRCP phone → bridge (Python, stdlib) → real Lyrion 9.1.2 → real Squeezelite 1.9.9 (single, 3-player sync group, PCM+MP3-capability emulation). Clean-slate run: 55 unit + 36 integration tests + 2 outage scenarios all pass; audio is bit-exact end to end; no LMS plugin needed. The bridge only issues `playlist play <own url>` and URL-addressed `deleteitem` (safe against foreign sources), and ownership/notification/grace/disconnect/two-bridge/outage rules were verified against a real LMS; 8/8 mutation checks caught. Software timings (virtual DAC, not acoustic): Play→sound ≈1.55 s (WAV)/1.9 s (FLAC), Pause→silence 0.07 s with `drop_restart` (1.6 s with keepalive), resume ≈1.55 s; startup is bounded by LMS's 255 KB start threshold (tuning attempts failed, documented). NOT verified: real Bluetooth, Android/iPhone AVRCP/volume, real Squeezebox, speaker timing, Pi/Zero 2 W resources — all deferred hardware validation. Please review `reports/HANDOFF_FOR_CHATGPT.md`, `docs/FINDINGS.md`, `docs/OPEN_QUESTIONS.md` and decide: approve phase 1/gate, pause strategy default, acceptance of ~1.6 s startup, player power-off policy, ICY default. Repo is not under git; nothing was committed or published.
+> Review follow-up for Bluetooth Audio Bridge is complete (not phase 2). Your decisions (drop_restart default; ~1.6 s start accepted, no plugin; bridge-woken players stay on, never power-off; ICY off by default; Bluetooth-speaker UX stays the top goal; no hardware work on the dev machine) are in docs/DECISIONS.md #15–#21 and the spec/open-questions/architecture docs, and are pinned by unit tests. A local git repo exists (branches `main` baseline, `develop` work, Conventional Commits, nothing published; the repo-local identity was copied from the existing global git config because the agreed one is not documented — please confirm). The real BlueZ/PipeWire adapter is prepared *without hardware*: pure event translator, pairing agent, jeepney D-Bus backend, supervised PCM capture, bluetoothd-restart recovery; verified only with scripted events and a **fake** BlueZ on a private D-Bus in Docker, including an end-to-end run into real LMS 9.1.2 + Squeezelite 1.9.9. Clean-slate run: 88 unit + 47 integration tests + both outage scenarios pass. **Not verified:** real Bluetooth/phones/Pi/PipeWire nodes, real Squeezeboxes, acoustic timing; no PipeWire capture test exists and the `pw-cat` command line is unverified (flag `--raw` does not exist in 0.3.65). Hardware tests (sets A–G) are specified in docs/HARDWARE_VALIDATION_PLAN.md, none executed. Recommendation: owner-run hardware validation sprint (with a Docker-built validation kit) first, then Phase 2 split into hardware-agnostic product software (2a, can start in parallel) and Buildroot/OTA (2b, after the sprint). Please read reports/HANDOFF_FOR_CHATGPT.md, docs/HARDWARE_VALIDATION_PLAN.md and docs/BLUEZ_ADAPTER_DESIGN.md.
