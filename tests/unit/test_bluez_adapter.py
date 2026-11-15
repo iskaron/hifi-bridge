@@ -240,9 +240,44 @@ def test_node_name_and_argv_shape():
     assert node_name_for("aa:bb:cc:dd:ee:01") == "bluez_input.AA_BB_CC_DD_EE_01"
     argv = record_argv("node1")
     assert argv[:4] == ["pw-cat", "--record", "--target", "node1"] and argv[-1] == "-" and "44100" in argv and "s16" in argv
-    assert "--raw" not in argv                                       # not a pw-cat 0.3.65 option (checked with --help)
+    assert "--raw" in argv and "--raw" not in record_argv("node1", raw=False)      # --raw exists only in PipeWire >= 1.x
+    assert "node.dont-fallback = true" in argv[argv.index("-P") + 1]
     from btbridge.adapters.bluez.pcm import parec_argv
-    assert parec_argv("n")[0] == "parec" and "--raw" in parec_argv("n") and "--format=s16le" in parec_argv("n")
+    p = parec_argv("n")
+    assert p[0] == "parec" and "--raw" in p and "--format=s16le" in p and "--device=n" in p
+    assert "--property=node.dont-fallback=true" in p and "--property=node.dont-reconnect=true" in p
+
+
+def test_default_capture_command_is_parec_with_no_fallback():
+    cap = PipeWireCapture()
+    argv = cap.argv_for("AA:BB:CC:DD:EE:01")
+    assert argv[0] == "parec" and "--device=bluez_input.AA_BB_CC_DD_EE_01" in argv
+
+
+def test_source_present_parses_pactl_output():
+    from btbridge.adapters.bluez.pcm import source_present
+    class R:
+        stdout = "32\tauto_null.monitor\tPipeWire\tfloat32le 2ch 48000Hz\tSUSPENDED\n40\tbluez_input.AA_BB\tPipeWire\ts16le 2ch 44100Hz\tIDLE\n"
+    assert source_present("bluez_input.AA_BB", run=lambda *a, **k: R()) is True
+    assert source_present("bluez_input.AA", run=lambda *a, **k: R()) is False
+    def boom(*a, **k):
+        raise OSError("no pactl")
+    assert source_present("x", run=boom) is False
+
+
+def test_capture_watchdog_restarts_a_silent_child():
+    cap = PipeWireCapture(_child("import time; time.sleep(60)"), retry_s=0.05, stall_s=0.3)
+    cap.start("AA:BB:CC:DD:EE:01", lambda b: None); time.sleep(1.5); cap.stop()
+    assert cap.starts >= 2
+
+
+def test_capture_presence_check_gates_starts():
+    present = {"v": False}
+    cap = PipeWireCapture(_child("import time; time.sleep(60)"), retry_s=0.05, present=lambda a: present["v"])
+    cap.start("AA:BB:CC:DD:EE:01", lambda b: None); time.sleep(0.4)
+    assert cap.starts == 0
+    present["v"] = True; time.sleep(0.4); cap.stop()
+    assert cap.starts == 1
 
 
 def test_capture_delivers_chunk_aligned_pcm_from_child():

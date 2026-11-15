@@ -1,14 +1,19 @@
 """PCM capture of the phone's decoded A2DP audio (PipeWire side).  Delivery contract of ``on_pcm``:
 44.1 kHz / s16le / stereo, roughly real time.
 
-``PipeWireCapture`` supervises a ``pw-record``-style subprocess that writes raw PCM to stdout.  What is
-verified without hardware: process supervision, chunking, retry while the node does not exist yet, clean stop
-(UNIT with fake child processes; INTEGRATION against a real PipeWire daemon in Docker where available).
-UNVERIFIED: that a BlueZ-created node for a phone exists under the name template below and delivers audio
-(docs/HARDWARE_VALIDATION_PLAN.md).
+``PipeWireCapture`` supervises a capture subprocess that writes raw PCM to stdout.
+
+Verified hardware-free (INTEGRATION against REAL PipeWire 0.3.65 and 1.4.2 tools in Docker, source node SIMULATED with
+``module-pipe-source``; docs/PIPEWIRE_CAPTURE.md):
+  * ``parec --raw`` (pipewire-pulse) is headerless and bit-exact on both versions when the graph allows 44.1 kHz;
+  * ``pw-cat --record ... -`` WITHOUT ``--raw`` is not raw PCM on 1.4 (Sun-AU header), and 0.3.65 has no ``--raw`` at all;
+  * a capture target is only a *hint*: if the node is missing, both tools silently record the DEFAULT source (e.g. a microphone).
+    The bridge therefore always sets ``node.dont-fallback`` / ``node.dont-reconnect`` and supervises with a no-data watchdog.
+UNVERIFIED: the real BlueZ node name/properties for a phone and its behaviour on suspend (docs/HARDWARE_VALIDATION_PLAN.md A3/A4).
 """
 from __future__ import annotations
 
+import select
 import subprocess
 import threading
 import time
@@ -29,27 +34,40 @@ def node_name_for(address: str, template: str = "bluez_input.{mac_}") -> str:
     return template.format(mac=address.upper(), mac_=address.upper().replace(":", "_"))
 
 
-def record_argv(target: str, extra: tuple[str, ...] = (), tool: str = "pw-cat") -> list[str]:
-    """``pw-cat`` command line recording ``target`` as 44.1 kHz s16 stereo to stdout (``-``).
-
-    Checked: ``pw-cat --help`` of PipeWire 0.3.65 (Debian bookworm) has these options and *no* ``--raw`` flag.
-    UNVERIFIED: that ``-`` as output file writes *headerless* PCM in that version (it may go through libsndfile) and that the
-    capture-from-node linking works for a BlueZ node.  A headless PipeWire test in Docker could not link a null sink within the
-    time box (docs/FINDINGS.md), so this is the first item of the hardware/PipeWire validation plan.  ``parec_argv`` is the alternative
-    (documented raw output, needs pipewire-pulse)."""
-    return [tool, "--record", "--target", target, "--rate", str(RATE), "--channels", str(CHANNELS), "--format", "s16", *extra, "-"]
+NO_FALLBACK = ("node.dont-fallback=true", "node.dont-reconnect=true")     # never capture another source by accident
 
 
 def parec_argv(target: str) -> list[str]:
-    """PulseAudio-compatible capture (PipeWire's pipewire-pulse): ``parec`` writes raw PCM to stdout.  UNVERIFIED on target."""
-    return ["parec", f"--device={target}", "--format=s16le", f"--rate={RATE}", f"--channels={CHANNELS}", "--raw", "--latency-msec=20"]
+    """Default capture command: ``parec`` via pipewire-pulse. Headerless, bit-exact, fails fast for a missing node (lab-verified)."""
+    return ["parec", f"--device={target}", *(f"--property={p}" for p in NO_FALLBACK), "--format=s16le", f"--rate={RATE}",
+            f"--channels={CHANNELS}", "--raw", "--latency-msec=20"]
+
+
+def record_argv(target: str, raw: bool = True, tool: str = "pw-cat") -> list[str]:
+    """Alternative: native ``pw-cat``. ``raw=True`` needs PipeWire >= 1.x (0.3.65 has no ``--raw``; without it, ``-`` is not raw PCM).
+    On 0.3.65 a missing target with dont-fallback leaves pw-cat running without data -> the supervisor's watchdog restarts it."""
+    props = "{ " + " ".join(p.replace("=", " = ") for p in NO_FALLBACK) + " }"
+    return [tool, "--record", "--target", target, "-P", props, "--rate", str(RATE), "--channels", str(CHANNELS), "--format", "s16",
+            *(["--raw"] if raw else []), "-"]
+
+
+def source_present(node: str, run=subprocess.run) -> bool:
+    """True if PipeWire currently has an audio source with this node name (``pactl list short sources``)."""
+    try:
+        out = run(["pactl", "list", "short", "sources"], capture_output=True, text=True, timeout=3).stdout
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return any(len(cols) > 1 and cols[1] == node for cols in (line.split("\t") for line in out.splitlines()))
 
 
 class PipeWireCapture:
     def __init__(self, argv_for: Callable[[str], list[str]] | None = None, popen=subprocess.Popen,
-                 retry_s: float = 0.5, log: Callable[[str], None] = lambda m: None):
-        self.argv_for = argv_for or (lambda addr: record_argv(node_name_for(addr)))
-        self.popen, self.retry_s, self.log = popen, retry_s, log
+                 retry_s: float = 0.5, log: Callable[[str], None] = lambda m: None, stall_s: float = 3.0,
+                 present: Callable[[str], bool] | None = None):
+        """``argv_for(address)`` builds the command; ``present(address)`` (optional) is checked before every start;
+        ``stall_s``: restart the child if it delivers no data for that long (missing link, suspended node)."""
+        self.argv_for = argv_for or (lambda addr: parec_argv(node_name_for(addr)))
+        self.popen, self.retry_s, self.log, self.stall_s, self.present = popen, retry_s, log, stall_s, present
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._proc = None
@@ -77,6 +95,10 @@ class PipeWireCapture:
     def _run(self, address: str, on_pcm, stop: threading.Event) -> None:
         argv = self.argv_for(address)
         while not stop.is_set():
+            if self.present is not None and not self.present(address):
+                if stop.wait(self.retry_s):
+                    return
+                continue
             try:
                 proc = self.popen(argv, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, bufsize=0)
             except OSError as e:
@@ -87,11 +109,18 @@ class PipeWireCapture:
             self._proc = proc
             self.starts += 1
             try:
-                buf = b""
+                buf, last_data = b"", time.monotonic()
                 while not stop.is_set():
+                    ready, _, _ = select.select([proc.stdout], [], [], 0.2)
+                    if not ready:
+                        if time.monotonic() - last_data > self.stall_s:
+                            self.log("capture stalled: restarting")
+                            break
+                        continue
                     data = proc.stdout.read(CHUNK_BYTES - len(buf))
                     if not data:
                         break                              # child exited (node missing / PipeWire restarted): retry
+                    last_data = time.monotonic()
                     buf += data
                     if len(buf) >= CHUNK_BYTES:
                         on_pcm(buf)

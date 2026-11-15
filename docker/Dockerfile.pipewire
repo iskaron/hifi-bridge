@@ -1,0 +1,14 @@
+# Disposable PipeWire test image: a real PipeWire daemon + WirePlumber + pipewire-pulse WITHOUT any audio hardware.
+# Used to verify the bridge's capture command lines (pw-cat / parec) against real PipeWire tools.
+# BASE selects the PipeWire generation: debian:bookworm-slim (0.3.65) or debian:trixie-slim (1.x).
+ARG BASE=debian:bookworm-slim
+FROM ${BASE}
+ENV DEBIAN_FRONTEND=noninteractive PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      pipewire pipewire-bin pipewire-pulse wireplumber pulseaudio-utils dbus dbus-bin python3 python3-numpy python3-pytest procps tini \
+ && (apt-get install -y --no-install-recommends dbus-daemon || true) \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /work
+ENV PYTHONPATH=/work/bridge:/work/testkit XDG_RUNTIME_DIR=/run/pw
+ENTRYPOINT ["/usr/bin/tini", "--"]

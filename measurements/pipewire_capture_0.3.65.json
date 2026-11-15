@@ -1,0 +1,141 @@
+{
+ "_version": "0.3.65",
+ "no_fallback_parec": {
+  "argv": [
+   "parec",
+   "--device=bluez_input.00_00_00_00_00_00",
+   "--property=node.dont-fallback=true",
+   "--property=node.dont-reconnect=true",
+   "--format=s16le",
+   "--rate=44100",
+   "--channels=2",
+   "--raw",
+   "--latency-msec=20"
+  ],
+  "bytes": 0,
+  "mic_frames": 0,
+  "starts": 15
+ },
+ "no_fallback_pw-cat": {
+  "argv": [
+   "pw-cat",
+   "--record",
+   "--target",
+   "bluez_input.00_00_00_00_00_00",
+   "-P",
+   "{ node.dont-fallback = true node.dont-reconnect = true }",
+   "--rate",
+   "44100",
+   "--channels",
+   "2",
+   "--format",
+   "s16",
+   "-"
+  ],
+  "bytes": 0,
+  "mic_frames": 0,
+  "starts": 3
+ },
+ "node_vanishes": {
+  "bytes_before": 345744,
+  "bytes_total": 345744,
+  "mic_frames": 0
+ },
+ "parec": {
+  "argv": [
+   "parec",
+   "--device=bluez_input.AA_BB_CC_DD_EE_01",
+   "--property=node.dont-fallback=true",
+   "--property=node.dont-reconnect=true",
+   "--format=s16le",
+   "--rate=44100",
+   "--channels=2",
+   "--raw",
+   "--latency-msec=20"
+  ],
+  "bit_exact": true,
+  "bytes": 878472,
+  "consecutive_pairs": 219617,
+  "dropped_frames": 0,
+  "drops": 0,
+  "first_index": 21505,
+  "foreign_frames": 0,
+  "frames": 219618,
+  "garbage_prefix_frames": 0,
+  "header": null,
+  "headerless": true,
+  "inserted_silence_frames": 0,
+  "inserted_silence_runs": 0,
+  "label": "INTEGRATION real PipeWire tools + SIMULATED source node (module-pipe-source); not BlueZ",
+  "leading_silence_frames": 0,
+  "offset": 0,
+  "payload_frames": 219618,
+  "repeats": 0,
+  "trailing_silence_frames": 0
+ },
+ "pw_cat_no_raw": {
+  "argv": [
+   "pw-cat",
+   "--record",
+   "--target",
+   "bluez_input.AA_BB_CC_DD_EE_01",
+   "-P",
+   "{ node.dont-fallback = true node.dont-reconnect = true }",
+   "--rate",
+   "44100",
+   "--channels",
+   "2",
+   "--format",
+   "s16",
+   "-"
+  ],
+  "bit_exact": true,
+  "bytes": 878472,
+  "consecutive_pairs": 219617,
+  "dropped_frames": 0,
+  "drops": 0,
+  "first_index": 315905,
+  "foreign_frames": 0,
+  "frames": 219618,
+  "garbage_prefix_frames": 0,
+  "header": null,
+  "headerless": true,
+  "inserted_silence_frames": 0,
+  "inserted_silence_runs": 0,
+  "label": "INTEGRATION real PipeWire tools + SIMULATED source node (module-pipe-source); not BlueZ",
+  "leading_silence_frames": 0,
+  "offset": 0,
+  "payload_frames": 219618,
+  "repeats": 0,
+  "trailing_silence_frames": 0
+ },
+ "risk_fallback_parec": {
+  "argv": [
+   "parec",
+   "--device=bluez_input.00_00_00_00_00_00",
+   "--format=s16le",
+   "--rate=44100",
+   "--channels=2",
+   "--raw"
+  ],
+  "bytes": 194040,
+  "mic_frames": 48510
+ },
+ "risk_fallback_pw-cat": {
+  "argv": [
+   "pw-cat",
+   "--record",
+   "--target",
+   "bluez_input.00_00_00_00_00_00",
+   "--rate",
+   "44100",
+   "--channels",
+   "2",
+   "--format",
+   "s16",
+   "-"
+  ],
+  "bytes": 522144,
+  "mic_frames": 130536
+ }
+}
