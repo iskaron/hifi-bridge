@@ -34,13 +34,14 @@ class RuntimeConfig:
 
 
 class BridgeRuntime:
-    def __init__(self, rcfg: RuntimeConfig, ccfg: Config, source=None, clock=None, lms=None, log=print):
+    def __init__(self, rcfg: RuntimeConfig, ccfg: Config, source=None, clock=None, lms=None, log=print, token: str | None = None):
         self.rcfg, self.ccfg = rcfg, ccfg
         self.clock = clock or SystemClock()
         self.logf = log
         self.ring = PcmRing(int(rcfg.ring_seconds * RATE))
         self.feeder = LiveFeeder(self.ring)
-        self.token = secrets.token_urlsafe(24)
+        self.token = token or secrets.token_urlsafe(24)
+        self._old_tokens: list[str] = []        # still redacted from logs after a rotation
         self.stream = StreamServer(self.ring, self.feeder, self.token, rcfg.stream_format, rcfg.lead_in_ms,
                                    rcfg.icy_metadata, log=lambda m: self.log(m))
         self.lms = lms or LmsClient(rcfg.lms_url)
@@ -55,7 +56,45 @@ class BridgeRuntime:
 
     # -- logging (always redacted) -------------------------------------------
     def log(self, msg: str) -> None:
-        self.logf(redact(str(msg)).replace(self.token, "***"))
+        m = redact(str(msg))
+        for t in (self.token, *self._old_tokens):
+            m = m.replace(t, "***")
+        self.logf(m)
+
+    # -- in-place reconfiguration (owner settings; never rebuilds the runtime, so a connected phone stays connected) --
+    def set_lms(self, lms) -> None:
+        """Switch to another LMS server: release OUR stream on the old server (URL-addressed, as always), then continue on the new one."""
+        c = self.controller
+        with c.lock:
+            c._release("server_change")
+            c.lms = self.lms = lms
+            c.reachability, c.lost_at, c.stale_urls = "unknown", None, []
+            c.ownership = "none"
+            if c._wanted():
+                c._maybe_takeover(fresh=True)
+
+    def reconfigure_stream(self, fmt: str | None = None, icy: bool | None = None) -> None:
+        """Format/ICY apply to new sessions; a running session of ours is restarted with the new format."""
+        c = self.controller
+        with c.lock:
+            changed = (fmt is not None and fmt != self.stream.fmt) or (icy is not None and icy != self.stream.icy)
+            if not changed:
+                return
+            owned = c.session is not None and c.ownership == "owned"
+            if owned:
+                c._release("stream_reconfigure")
+            if fmt is not None:
+                self.stream.fmt = self.rcfg.stream_format = fmt
+            if icy is not None:
+                self.stream.icy = self.rcfg.icy_metadata = icy
+            if owned and c._wanted():
+                c._maybe_takeover(fresh=True)
+
+    def rotate_token(self, new_token: str) -> None:
+        """New stream URLs use the new token; the running session continues (docs/OPEN_QUESTIONS.md #11)."""
+        self._old_tokens.append(self.token)
+        self.token = new_token
+        self.stream.rotate_token(new_token)
 
     def _clog(self, name, detail=""):
         self.timeline.append((time.time(), name, str(detail)))
@@ -129,9 +168,9 @@ class BridgeRuntime:
             except Exception as e:              # never let the control loop die
                 self.log(f"[ctl] tick error: {type(e).__name__}: {e}")
 
-    def stop(self) -> None:
+    def stop(self, stop_source: bool = True) -> None:
         self._stop.set()
-        if self.source:
+        if self.source and stop_source:
             self.source.stop()
         c = self.controller
         with c.lock:

@@ -55,6 +55,13 @@ def _topic(v: str) -> str:
     return v
 
 
+def _instance_id(v: str) -> str:
+    v = v.strip().lower()
+    if v and not re.fullmatch(r"[a-z0-9]{6,16}", v):
+        raise ValueError("invalid_instance_id")
+    return v
+
+
 def _labels(v: Any) -> dict:
     if not isinstance(v, dict):
         raise ValueError("invalid_labels")
@@ -104,6 +111,7 @@ SETTINGS: dict[str, Setting] = {s.key: s for s in [
     Setting("mqtt_discovery_prefix", str, "homeassistant", check=_topic, group="mqtt", restart=True),
     Setting("device_labels", dict, {}, check=_labels, group="bluetooth"),
     Setting("setup_complete", bool, False, group="system"),
+    Setting("instance_id", str, "", check=_instance_id, group="system"),
 ]}
 
 
