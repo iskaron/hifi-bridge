@@ -61,3 +61,13 @@ testkit/                      lab-only: simulated phone, fake BlueZ, PipeWire ha
 Data flow for owner actions: WebUI/MQTT -> ApplianceService -> ConfigStore (validated, persisted) -> listener applies to Controller/runtime.
 The WebUI and MQTT never talk to the Controller or LMS directly. Still open for phase 2b: OS integration (service supervision, Wi-Fi/hotspot,
 mDNS, TLS provisioning), Buildroot image, OTA, flash tool.
+
+## Follow-up package additions (2026-11-15)
+```
+btbridge/net/        hostcheck (DNS rebinding), certs (local CA, renewal, custom certs), mdns (responder), access (LocalAccess: names,
+                     certificates, proxies, renewal loop), addresses
+btbridge/supervision.py   sd_notify + watchdog, crash-recovery journal
+packaging/           systemd unit (verified), respawn wrapper - preparation for phase 2b
+```
+The WebUI runs an HTTP and an HTTPS listener; `LocalAccess` decides allowed hosts and provides a reloadable TLS context. MQTT is read-only
+unless controls are enabled. Concepts: docs/LOCAL_ACCESS_TLS.md, docs/SERVICE_SUPERVISION.md.

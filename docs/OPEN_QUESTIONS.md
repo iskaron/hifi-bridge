@@ -69,3 +69,25 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 25. **pipewire-pulse in the image:** `parec` (default, verified on 0.3.65 and 1.4.2) needs pipewire-pulse; without it, `pw-cat --raw` (PipeWire >= 1.x) is the alternative.
 26. A rare (1 in ~10 runs) disappearance of pipewire-pulse 1.4.2 during module unload was seen once in the lab; not reproduced in 4 further runs.
     The capture supervisor retries, but a process supervisor must restart pipewire-pulse on the device.
+
+## Status after the phase-2a review and follow-up package (2026-11-15)
+* #19 trademark: **decided provisionally** - product name "Hi-Fi Bridge", "Bluetooth" only descriptive, no Bluetooth logo (DECISIONS #34);
+  trademark/qualification questions remain open **before any public release**.
+* #20 HTTPS: **implemented** (docs/LOCAL_ACCESS_TLS.md); fingerprint display by the flash tool remains phase 2b.
+* #22 MQTT commands: **decided** - read-only default, separately enabled controls (DECISIONS #36).
+* #23 real Home Assistant: **done** - 7/7 tests against HA 2026.11.1.
+
+## New questions (follow-up package)
+27. **Development host: Docker's data filesystem is full** (`/dockerfs/daemon-data`, 100 %). Non-root containers (LMS, and very likely the owner's
+    other services such as Postgres) fail to write; fresh `apt` inside Debian 12 images fails (truncated downloads look like "invalid signature").
+    The lab LMS was moved to the host filesystem. **Owner action needed:** free space; my request to delete my own dangling images was denied.
+28. **HSTS** for the WebUI: off for now (a broken local certificate + HSTS could lock the owner out). Enable after field experience?
+29. **openssl CLI on the appliance** is needed for certificate management (the stdlib cannot create certificates). Confirm in the Buildroot
+    package set, or switch to a small dependency later.
+30. **mDNS: own responder vs. avahi** in the image. The own responder is tested against Avahi and has no dependencies; avahi has per-interface
+    answers, IPv6 and broader field experience. Decide with the 2b init/network design (`--no-mdns` exists).
+31. **Orphaned Home Assistant entities** of earlier instances (other instance id, e.g. after a factory reset) stay retained at the broker; the
+    bridge can only clean its own topics. Offer a "remove from Home Assistant" action before reset?
+32. **Lab images on Debian 12**: currently cannot be rebuilt (see #27); consider moving lab images to Debian 13 once rebuilding is possible.
+33. **Accessibility:** automated (axe-core, keyboard-only journey, accessibility tree) is green; a manual screen-reader pass (VoiceOver/TalkBack)
+    on real phones is still needed.

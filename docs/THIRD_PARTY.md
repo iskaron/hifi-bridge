@@ -8,6 +8,7 @@
 | `parec` (pulseaudio-utils) or `pw-cat` (PipeWire) | PCM capture subprocess | LGPL-2.1+ / MIT | called as external programs; target image decision in phase 2b |
 | BlueZ, PipeWire, WirePlumber | OS services on the device | GPL-2.0+ / MIT / MIT | not bundled by this repository |
 | `flac` binary (optional) | FLAC stream encoding | GPL-2.0+ (tools) | only with `stream_format=flac` |
+| `openssl` CLI | local CA and certificates for the WebUI | Apache-2.0 (OpenSSL 3) | needed for HTTPS in `local_ca`/`custom` mode (OPEN_QUESTIONS #29) |
 
 ## Development, lab and test only (never shipped)
 | Component | Use | Licence |
@@ -21,6 +22,10 @@
 | Playwright 1.49.1 + Chromium | real-browser UI tests | Apache-2.0 / BSD-3-Clause |
 | axe-core (via axe-playwright-python 0.1.4) | automated WCAG audit | MPL-2.0 (axe-core), MIT (wrapper) |
 | Alpine 3.20 | chown helper in a script | MIT and others |
+| Home Assistant 2026.11.1 (`ghcr.io/home-assistant/home-assistant`) | real HA integration tests | Apache-2.0 |
+| Avahi 0.8 (Debian) | mDNS interoperability peer | LGPL-2.1+ |
+| ShellCheck 0.10.0, actionlint 1.7.7 | static checks | GPL-3.0 / MIT |
+| systemd (Debian 13) | `systemd-analyze verify` of the unit file | LGPL-2.1+ |
 
-The logo (`webui/static/logo.svg`) is original to this project. It deliberately does **not** use the Bluetooth® trademark logo. Whether the product
-name may contain the word "Bluetooth" is an open question (OPEN_QUESTIONS #19).
+The logo (`webui/static/logo.svg`) is original to this project. It deliberately does **not** use the Bluetooth® trademark logo. The provisional product name is
+"Hi-Fi Bridge"; "Bluetooth" is used only descriptively (DECISIONS #34); trademark questions remain open before a public release.

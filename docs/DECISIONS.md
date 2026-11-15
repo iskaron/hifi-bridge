@@ -88,6 +88,18 @@ Raspberry Pi integration is explicitly **not yet verified**. Evidence: `docs/FIN
 40. **Boundaries unchanged:** no productive Buildroot, OTA or flash tool (concepts only); no push, tag, publication or history rewrite;
     local commits on `develop` as `Oliver Meyer <olm@cativa.net>`; never present simulated results as hardware validation.
 
+## Implementation decisions of the follow-up package (reversible engineering choices; 2026-11-15)
+
+41. **Local CA per device with critical name constraints** (local names + private IPs), server certificates 397 days, renewal 30 days before
+    expiry or on name/address change; own certificate and reverse-proxy modes; certificates via the openssl CLI.
+42. **HTTP stays available for bootstrap** (/trust, CA download); **HTTPS-only can only be enabled from an HTTPS session**; no HSTS yet.
+43. **Own stdlib mDNS responder** by default (interop-tested with Avahi), `--no-mdns` for an OS-level publisher.
+44. **MQTT read-only variants** of disabled controls are binary sensors; the inactive variant is removed with an empty retained config.
+    Thermal state has its own retained topic, checked every 10 s.
+45. **Supervision:** systemd `Type=notify` + watchdog driven by internal heartbeats; crash-recovery journal; respawn wrapper for other inits.
+46. **Settings UI** = overview + one page per section; errors are `role=alert` and receive focus.
+47. **Lab LMS state on the host filesystem** (`.lab/`), independent of Docker's data filesystem.
+
 ## Measurement-driven / not yet verified
 
 - Startup latency (**software: ~1.6 s, accepted #16**), Pause/drain latency (**software: 0.07 s with #15**), reconnection and sample integrity (still to be measured on actual devices).

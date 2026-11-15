@@ -43,11 +43,13 @@ None of it has been executed; no compatibility may be claimed before it is.
 | Secure onboarding, one-time credentials | **Software done:** per-device setup code, no default passwords (UNIT/HTTP/BROWSER). Flash-tool delivery of the code: 2b. |
 | Responsive WebUI DE/EN, Hi-Fi/elegant, light/dark | **Done, software-verified:** real Chromium at 390/1280 px, light/dark, DE/EN, axe-core 0 violations. Real phone browsers: not tested. |
 | One-click 5-min pairing, remembered devices, live status, test audio refuses occupied source | **Done in software** (simulated phone + fake BlueZ + real LMS). Real BlueZ pairing: hardware gate. |
-| MQTT/HA discovery, 5-min telemetry, immediate state/thermal events | **Done, real Mosquitto.** Import into a real Home Assistant: not tested. |
+| MQTT/HA discovery, 5-min telemetry, immediate state/thermal events | **Done, real Mosquitto + REAL Home Assistant 2026.11.1** (7/7): read-only default, separately enabled controls, availability incl. last will, restarts, stale-entity removal, telemetry, over-temperature at once. |
+| Local access: stable name, HTTPS, DNS-rebinding protection | **Done (follow-up):** mDNS `hifi-bridge.local` (interop with real Avahi), local CA with name constraints, renewal, own certificates, reverse proxy, HTTPS-only with lock-out protection, Host validation; real TLS clients + WebKit/Chromium. Real phones' browsers: not tested. |
+| Service supervision | **Prepared:** sd_notify watchdog on health heartbeats, crash-recovery journal, systemd unit verified with systemd-analyze, respawn wrapper. Real systemd on the image: phase 2b. |
 | Ownership/volume across phones and rooms | Ownership: verified against real LMS. Phone volume: hardware gate. |
 | Buildroot images, OTA, flash tool, network fallback, Wi-Fi/hotspot, mDNS | **Not started** (2b, explicitly out of scope). |
 | Resource budgets, RF coexistence, boot | Hardware gate (`hwkit/`, plan E/A). |
-| Automated tests/CI, docs, security review, licences | Docker suites + `scripts/run_all.sh`; docs/SECURITY.md (self-review, no pentest); docs/THIRD_PARTY.md. CI service wiring not done. |
+| Automated tests/CI, docs, security review, licences | Docker suites + `scripts/run_all.sh` (10 suites); `.github/workflows/ci.yml` prepared and actionlint-clean (never run on GitHub: repo unpublished); docs/SECURITY.md (self-review, no pentest); docs/THIRD_PARTY.md. |
 
 ## Reporting convention
 

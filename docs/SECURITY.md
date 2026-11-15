@@ -27,14 +27,16 @@ Nothing here has been reviewed by an external security tester.
 | Diagnostics | The status, logs and diagnostics bundle never contain the stream token, password hash, session key or MQTT password. | UNIT + HTTP |
 | Stream token | Redacted in all bridge logs; rotatable; old tokens stay redacted. It does travel through LMS and players by design (OPEN_QUESTIONS #11). | UNIT + phase-1 tests |
 | Audio privacy | A missing PipeWire node never falls back to another source such as a microphone (`node.dont-fallback`/`dont-reconnect`, watchdog). | INTEGRATION, real PipeWire |
-| MQTT | Optional; username/password and TLS are supported; the password is stored as a secret. Commands are limited to pairing, bridge audio and the test tone, and the test tone refuses on a busy target. | INTEGRATION, real Mosquitto |
+| MQTT | **Read-only by default** (DECISIONS #36): pairing, playback and test tone are each enabled separately; disabled controls appear only as read-only sensors and their command topics are not subscribed (and re-checked per message). Broker TLS always verifies (system CAs or owner CA), username/password as a secret. | INTEGRATION real Mosquitto + REAL Home Assistant 2026.11.1 |
+| HTTPS | Per-device local CA, name-constrained to local names/private IPs (a forged public-name certificate fails verification), 397-day server certificates with automatic renewal, own certificates, reverse-proxy mode with explicit trusted proxies, HTTPS-only with lock-out protection; concept: docs/LOCAL_ACCESS_TLS.md | UNIT/INTEGRATION real openssl + TLS; BROWSER WebKit/Chromium |
+| DNS rebinding | Host allow-list (mDNS name, extra names, localhost, IP literals) checked before any processing -> 421 | UNIT/HTTP |
 
 ## Known gaps and decisions for later (see OPEN_QUESTIONS)
-* **HTTPS:** the WebUI supports TLS when a certificate is supplied (`--tls-cert/--tls-key`), but certificate provisioning is phase 2b. Plain HTTP on the
-  LAN means a network attacker can sniff the session cookie.
-* **MQTT command trust:** anyone allowed to publish to `<base>/<id>/cmd/#` on the broker can open the pairing window or switch bridge audio. Broker ACLs
-  are the owner's responsibility; this is documented in the UI help.
+* **HTTPS:** implemented (local CA / own certificate / proxy). Until the owner has installed the CA and enabled HTTPS-only, plain HTTP stays
+  available and a LAN attacker could sniff a session cookie used over HTTP. The CA fingerprint must be compared out of band; the flash tool
+  that will show it is phase 2b. No HSTS yet (OPEN_QUESTIONS #28).
+* **MQTT command trust:** only relevant once a control is explicitly enabled; then anyone allowed by the broker ACL can use it (documented in the UI).
 * **No account lock-out** beyond the back-off, and no audit log of owner actions beyond the RAM log.
-* **DNS rebinding:** cookies are `SameSite=Strict` and every POST is origin-checked. GET pages of an authenticated session cannot be read cross-origin
-  (same-origin policy), but no `Host` allow-list is enforced yet.
+* **CA key on the device:** root on the device can mint certificates - but only for local names/private IPs (name constraints). A new CA
+  (e.g. after a reset) must be re-installed on every client.
 * No external review or penetration test has been done.
