@@ -46,6 +46,9 @@ class FakeBus:
     def register_agent(self, path, capability, handler):
         self.agent = (path, capability, handler)
 
+    def reregister_agent(self):
+        self.agent_reregistered = getattr(self, 'agent_reregistered', 0) + 1
+
     def close(self):
         self.closed = True
 

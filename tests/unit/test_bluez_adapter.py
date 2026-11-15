@@ -240,6 +240,9 @@ def test_node_name_and_argv_shape():
     assert node_name_for("aa:bb:cc:dd:ee:01") == "bluez_input.AA_BB_CC_DD_EE_01"
     argv = record_argv("node1")
     assert argv[:4] == ["pw-cat", "--record", "--target", "node1"] and argv[-1] == "-" and "44100" in argv and "s16" in argv
+    assert "--raw" not in argv                                       # not a pw-cat 0.3.65 option (checked with --help)
+    from btbridge.adapters.bluez.pcm import parec_argv
+    assert parec_argv("n")[0] == "parec" and "--raw" in parec_argv("n") and "--format=s16le" in parec_argv("n")
 
 
 def test_capture_delivers_chunk_aligned_pcm_from_child():
@@ -287,3 +290,23 @@ def test_capture_stop_terminates_child():
     proc = cap._proc; assert proc is not None and proc.poll() is None
     cap.stop(); time.sleep(0.2)
     assert proc.poll() is not None
+
+
+# ---- bluetoothd restart ------------------------------------------------------------------------------------------
+def test_service_vanished_releases_active_phone_and_appeared_resyncs():
+    from btbridge.adapters.bluez.bus import ServiceAppeared, ServiceVanished
+    a, bus, rec, pcm = adapter()
+    bus.add_device(1, connected=True); a.set_pairable(True); rec.events.clear()
+    bus.emit(ServiceVanished()); assert rec.events == [("disconnect", addr(1))] and a.model.active is None
+    bus.objects = {dev_path(1): {IF_DEVICE: {"Address": addr(1), "Connected": True, "UUIDs": [A2DP_SOURCE_UUID]}}}
+    bus.props.clear(); bus.emit(ServiceAppeared())
+    assert bus.agent_reregistered == 1
+    assert (ADAPTER, "org.bluez.Adapter1", "Pairable", True) in bus.props          # pairing state re-applied
+    assert rec.events[-1] == ("connect", addr(1))
+
+
+# ---- operator entry point never pretends --------------------------------------------------------------------------
+def test_source_bluez_without_a_reachable_bus_fails_cleanly(capsys):
+    from btbridge.__main__ import main
+    rc = main(["--player", "02:00:00:00:00:01", "--source", "bluez", "--dbus", "unix:path=/nonexistent/bus.sock"])
+    assert rc == 2 and "cannot start the BlueZ adapter" in capsys.readouterr().err

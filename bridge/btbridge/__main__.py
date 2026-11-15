@@ -22,14 +22,24 @@ def main(argv=None) -> int:
     ap.add_argument("--pause-strategy", choices=("drop_restart", "keepalive_silence"), default="drop_restart")
     ap.add_argument("--no-override", action="store_true")
     ap.add_argument("--icy", action="store_true")
-    ap.add_argument("--source", help="module:Class implementing AudioSourceAdapter (e.g. btkit.sim_a2dp:SimulatedA2dpSource)")
+    ap.add_argument("--source", help="'bluez' (real BlueZ/PipeWire adapter - hardware-unverified, target device only) or "
+                                     "module:Class implementing AudioSourceAdapter (e.g. btkit.sim_a2dp:SimulatedA2dpSource)")
+    ap.add_argument("--dbus", default="SYSTEM", help="D-Bus to use for --source bluez (SYSTEM, or an address for tests)")
     ap.add_argument("--status-every", type=float, default=0)
     a = ap.parse_args(argv)
     rc = RuntimeConfig(lms_url=a.lms, advertise_host=a.advertise_host, stream_port=a.port, stream_format=a.format,
                        lead_in_ms=a.lead_in_ms, icy_metadata=a.icy)
     cc = Config(target_player=a.player, override_lms=not a.no_override, pause_strategy=a.pause_strategy)
     src = None
-    if a.source:
+    if a.source == "bluez":
+        from .adapters.bluez.bus import BusError
+        from .adapters.bluez.factory import create_adapter
+        try:
+            src = create_adapter(bus=a.dbus)
+        except BusError as e:
+            print(f"cannot start the BlueZ adapter: {e}", file=sys.stderr)
+            return 2
+    elif a.source:
         mod, cls = a.source.split(":")
         src = getattr(importlib.import_module(mod), cls)()
     rt = BridgeRuntime(rc, cc, source=src)

@@ -14,7 +14,7 @@ from __future__ import annotations
 import threading
 from typing import Callable
 
-from .bus import (IF_ADAPTER, IF_AGENT_MANAGER, BlueZBus, BusError, Rejected)
+from .bus import IF_ADAPTER, BlueZBus, BusError, Rejected, ServiceAppeared
 from .model import BluezModel
 from .pcm import PcmCapture
 
@@ -102,6 +102,11 @@ class BluezAdapter:
         with self._lock:
             if self.model is not None:
                 try:
+                    if isinstance(ev, ServiceAppeared):          # bluetoothd (re)started: redo agent, snapshot and pairing state
+                        self.bus.reregister_agent()
+                        self._apply_pairable(self.pairable)
+                        self.model.load(self.bus.managed_objects())
+                        return
                     self.model.handle(ev)
                 except Exception as e:                      # never kill the bus reader thread
                     self.errors.append(f"{type(e).__name__}: {e}")

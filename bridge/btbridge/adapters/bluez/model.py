@@ -18,7 +18,7 @@ from __future__ import annotations
 from typing import Callable
 
 from .bus import (A2DP_SOURCE_UUID, IF_DEVICE, IF_PLAYER, IF_TRANSPORT, BlueZBus, BusError, BusEvent,
-                  InterfacesAdded, InterfacesRemoved, PropertiesChanged)
+                  InterfacesAdded, InterfacesRemoved, PropertiesChanged, ServiceVanished)
 
 PLAYER_STATUS = {"playing": "playing", "paused": "paused", "stopped": "stopped",
                  "forward-seek": "playing", "reverse-seek": "playing"}      # 'error'/unknown -> None
@@ -61,6 +61,16 @@ class BluezModel:
                     self._apply(ev.path, iface, dict(ev.interfaces[iface]), added=True)
         elif isinstance(ev, InterfacesRemoved):
             self._removed(ev.path, ev.interfaces)
+        elif isinstance(ev, ServiceVanished):
+            self.reset()
+
+    def reset(self) -> None:
+        """bluetoothd went away: every object is gone; an active phone is released like a disconnect."""
+        active, d = self.active, self.devices.get(self.active or "", {})
+        self.devices.clear(); self.transports.clear(); self.players.clear(); self.ignored.clear()
+        self.active, self._last_track = None, None
+        if active is not None:
+            self.cb.on_disconnect(device_id(d, active))
 
     # ---- internals -------------------------------------------------------------------------------------------
     def _apply(self, path: str, iface: str, props: dict, added: bool) -> None:

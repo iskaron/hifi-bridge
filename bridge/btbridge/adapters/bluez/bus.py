@@ -44,7 +44,17 @@ class InterfacesRemoved:
     interfaces: tuple[str, ...] = ()
 
 
-BusEvent = PropertiesChanged | InterfacesAdded | InterfacesRemoved
+@dataclass(frozen=True)
+class ServiceVanished:
+    """``org.bluez`` lost its bus-name owner (bluetoothd stopped/crashed): all objects are gone."""
+
+
+@dataclass(frozen=True)
+class ServiceAppeared:
+    """``org.bluez`` (re)appeared: agent registration and object snapshot must be redone."""
+
+
+BusEvent = PropertiesChanged | InterfacesAdded | InterfacesRemoved | ServiceVanished | ServiceAppeared
 AgentHandler = Callable[[str, str, tuple], None]     # (method, device_path, args); raise Rejected to refuse
 
 
@@ -62,4 +72,5 @@ class BlueZBus(Protocol):
     def call(self, path: str, interface: str, method: str, signature: str = "", args: tuple = ()) -> Any: ...
     def set_property(self, path: str, interface: str, name: str, signature: str, value: Any) -> None: ...
     def register_agent(self, path: str, capability: str, handler: AgentHandler) -> None: ...
+    def reregister_agent(self) -> None: ...
     def close(self) -> None: ...

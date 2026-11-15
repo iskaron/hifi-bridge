@@ -30,10 +30,19 @@ def node_name_for(address: str, template: str = "bluez_input.{mac_}") -> str:
 
 
 def record_argv(target: str, extra: tuple[str, ...] = (), tool: str = "pw-cat") -> list[str]:
-    """Command line that writes raw 44.1 kHz s16 stereo from ``target`` to stdout.  ``pw-cat`` options per its man page;
-    exact flags are checked by the Docker PipeWire test and must be re-checked against the PipeWire of the target image."""
-    return [tool, "--record", "--target", target, "--rate", str(RATE), "--channels", str(CHANNELS),
-            "--format", "s16", "--raw", *extra, "-"]
+    """``pw-cat`` command line recording ``target`` as 44.1 kHz s16 stereo to stdout (``-``).
+
+    Checked: ``pw-cat --help`` of PipeWire 0.3.65 (Debian bookworm) has these options and *no* ``--raw`` flag.
+    UNVERIFIED: that ``-`` as output file writes *headerless* PCM in that version (it may go through libsndfile) and that the
+    capture-from-node linking works for a BlueZ node.  A headless PipeWire test in Docker could not link a null sink within the
+    time box (docs/FINDINGS.md), so this is the first item of the hardware/PipeWire validation plan.  ``parec_argv`` is the alternative
+    (documented raw output, needs pipewire-pulse)."""
+    return [tool, "--record", "--target", target, "--rate", str(RATE), "--channels", str(CHANNELS), "--format", "s16", *extra, "-"]
+
+
+def parec_argv(target: str) -> list[str]:
+    """PulseAudio-compatible capture (PipeWire's pipewire-pulse): ``parec`` writes raw PCM to stdout.  UNVERIFIED on target."""
+    return ["parec", f"--device={target}", "--format=s16le", f"--rate={RATE}", f"--channels={CHANNELS}", "--raw", "--latency-msec=20"]
 
 
 class PipeWireCapture:
