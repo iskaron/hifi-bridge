@@ -39,3 +39,8 @@ Running log, newest entries at the bottom. Evidence labels as in docs/ACCEPTANCE
   "Origin: null" -> fixed (same-origin policy + Sec-Fetch-Site rule, tests); (2) CSP violation on plain-text error pages; (3) COOP header
   console error on HTTP. While fixing (1) I briefly broke indentation so the CSRF check became unreachable - caught by the unit tests before
   any commit. Visual review of screenshots led to: wrapping nav on phones, non-stretched cards, consistent buttons, early CPU sample.
+- Clean-slate full run 2026-11-15T19:47Z (reports/evidence/full_run_phase2a.log): unit 171, integration 54, outage lms/player exit 0,
+  PipeWire 9+1skip / 10, hwkit 26, browser 1 - all exit codes 0. Phase-1 numbers re-measured consistent (start 1.54 s WAV / 1.90 s FLAC,
+  pause 0.03-0.05 s drop_restart, takeover 2.03 s, grace 30.06 s).
+- hwkit bundle built (dist/, git-ignored): 96 KB code + phone tracks; the delivered AAC tracks decode clean through the analyser.
+- Work package complete; handoff written. Stopped before phase 2b (Buildroot/OTA/flash tool).
