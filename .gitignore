@@ -1,0 +1,24 @@
+# Local test credentials, diagnostics, build products
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+**/secrets/**
+**/private/**
+build/
+dist/
+output/
+*.img
+*.img.xz
+*.log
+.coverage
+.pytest_cache/
+__pycache__/
+node_modules/
+# Handoff report is intentionally versionable when reviewed; redact secrets first.
+
+# Keep the reviewed phase-1 evidence log (tokens are redacted)
+!reports/evidence/*.log
+.claude/settings.local.json
