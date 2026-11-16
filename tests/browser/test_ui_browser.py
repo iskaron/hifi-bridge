@@ -162,7 +162,7 @@ def test_03_settings_overview_and_sections_on_a_phone(chromium):
     links = page.locator(".settings-list a")
     assert links.count() == 8
     no_overflow(page); axe_ok(page, "settings"); shot(page, "07-settings-overview-mobile-light")
-    for name, path in (("access", "/settings/access"), ("mqtt", "/settings/mqtt"), ("lyrion", "/settings/lyrion")):
+    for name, path in (("access", "/settings/access"), ("mqtt", "/settings/mqtt"), ("lyrion", "/settings/lyrion"), ("logging", "/settings/logging")):
         page.goto(BASE + path)
         expect(page.get_by_role("link", name="‹ Settings")).to_be_visible()
         no_overflow(page); axe_ok(page, f"settings-{name}"); shot(page, f"07-settings-{name}-mobile-light")
@@ -170,6 +170,13 @@ def test_03_settings_overview_and_sections_on_a_phone(chromium):
     assert 'checkbox "Allow opening the pairing window via MQTT"' in mqtt_tree and "[checked]" not in mqtt_tree.split("pairing window via MQTT")[1][:20]
     for path, name in (("/pairing", "pairing"), ("/diagnostics", "diagnostics"), ("/system", "system"), ("/trust", "trust")):
         page.goto(BASE + path); no_overflow(page); axe_ok(page, name); shot(page, f"07-{name}-mobile-light")
+    page.goto(BASE + "/system")
+    expect(page.get_by_role("heading", name="Last 2 hours")).to_be_visible()      # trend card; graphs need >= 2 samples (30 s apart)
+    graphs = page.locator("figure.spark svg[role=img]").count()
+    assert graphs in (0, 3) and (graphs == 3 or page.locator(".sparks p.muted").count() == 3)
+    man = page.evaluate("async () => { const l = document.querySelector('link[rel=manifest]'); const r = await fetch(l.href); "
+                        "const m = await r.json(); const i = await fetch(m.icons[0].src); return [r.status, m.display, i.status]; }")
+    assert man == [200, "standalone", 200]
     ctx.close()
     assert not errors, errors
 
