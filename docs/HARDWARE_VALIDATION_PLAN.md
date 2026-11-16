@@ -96,6 +96,14 @@ IDs are stable so results can be cross-referenced in handoffs. "Decision" = what
 |---|---|---|
 | G1 | A person who has never seen the system finds the Bluetooth name, pairs, connects, opens their usual audio app, presses Play, hears music from the selected Lyrion players, pauses, leaves. No Lyrion, no Home Assistant, no app. | no help needed; every point of confusion recorded; time from "Play" to sound |
 
+### H. Local access and owner UI on real devices (added 2026-11-16)
+| ID | Test | Pass criterion |
+|---|---|---|
+| H1 | `hifi-bridge.local` from iPhone, Android, Windows and macOS (Avahi backend on the Pi: Secure-access page shows "avahi") | resolves on every client; record which ones need a second try |
+| H2 | Install the device CA on iPhone and Android per the trust page; open `https://hifi-bridge.local:<port>/` | lock without warning; fingerprint matches the console/`hifi-status.txt`; HTTPS-only can then be enabled |
+| H3 | Add the WebUI to the home screen (iOS "Add to Home Screen", Android "Install app") | icon and name "Hi-Fi Bridge" appear; opens standalone |
+| H4 | Manual screen-reader pass: VoiceOver (iOS) and TalkBack (Android) through setup, pairing and status | every control announced with a name; errors read out; no trap |
+
 ## 3. What each result feeds
 * A3/A4 -> final PipeWire capture command and node resolution (`pcm.py`); A6 -> D-Bus library for the image.
 * C1-C3 -> `fusion` rules and the notification filter duration.
@@ -103,6 +111,7 @@ IDs are stable so results can be cross-referenced in handoffs. "Decision" = what
 * E2 -> confirm or revisit DECISIONS #15/#16 (pause strategy, ~1.6 s start latency, plugin question).
 * E3-E6 -> supported boards and resource budget.
 * F2 -> ICY default, FLAC/PCM format rules, list of verified players (never claim compatibility beyond it).
+* H1-H4 -> mDNS backend default, trust-setup wording, accessibility fixes (OPEN_QUESTIONS #33).
 
 ## 4. Not testable without hardware (summary)
 Real Bluetooth radio and phone behaviour (AVRCP, absolute volume, codecs), BlueZ/PipeWire/WirePlumber on a Pi, acoustic latency, speaker timing, Wi-Fi/BT

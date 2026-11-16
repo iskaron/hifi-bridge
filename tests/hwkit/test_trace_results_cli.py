@@ -111,7 +111,7 @@ def test_results_lifecycle_and_rules(tmp_path):
 
 def test_catalog_matches_the_validation_plan():
     plan = open(os.path.join(ROOT, "docs/HARDWARE_VALIDATION_PLAN.md")).read()
-    ids_plan = re.findall(r"^\| ([A-G]\d) \|", plan, re.M)
+    ids_plan = re.findall(r"^\| ([A-H]\d) \|", plan, re.M)
     assert [t["id"] for t in R.catalog()] == ids_plan and len(ids_plan) == len(set(ids_plan))
 
 

@@ -282,6 +282,38 @@
     "Write down every point of confusion and the time from Play to sound."
    ],
    "auto": []
+  },
+  "H1": {
+   "steps": [
+    "Check the Secure-access page: name service 'avahi'.",
+    "On each client open http://hifi-bridge.local:<port>/ (browser) and note whether it resolves."
+   ],
+   "auto": [
+    "env"
+   ]
+  },
+  "H2": {
+   "steps": [
+    "Compare the fingerprint on the trust page with hifi-status.txt / the console.",
+    "Install the CA following the trust page (iPhone, Android).",
+    "Open the HTTPS address: lock without warning?",
+    "Enable HTTPS-only from that HTTPS session."
+   ],
+   "auto": []
+  },
+  "H3": {
+   "steps": [
+    "iPhone: Share -> Add to Home Screen. Android: menu -> Install app.",
+    "Open it from the home screen."
+   ],
+   "auto": []
+  },
+  "H4": {
+   "steps": [
+    "VoiceOver/TalkBack on; go through setup, open the pairing window, read the status.",
+    "Note every unnamed control or confusing announcement."
+   ],
+   "auto": []
   }
  }
 }

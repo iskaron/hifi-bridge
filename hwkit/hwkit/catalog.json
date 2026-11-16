@@ -225,6 +225,34 @@
    "title": "A person who has never seen the system finds the Bluetooth name, pairs, connects, opens th",
    "detail": "A person who has never seen the system finds the Bluetooth name, pairs, connects, opens their usual audio app, presses Play, hears music from the selected Lyrion players, pauses, leaves. No Lyrion, no Home Assistant, no app.",
    "criterion": "no help needed; every point of confusion recorded; time from \"Play\" to sound"
+  },
+  {
+   "id": "H1",
+   "set": "H",
+   "title": "hifi-bridge.local from iPhone, Android, Windows and macOS",
+   "detail": "hifi-bridge.local from iPhone, Android, Windows and macOS",
+   "criterion": "resolves on every client"
+  },
+  {
+   "id": "H2",
+   "set": "H",
+   "title": "Install the device CA on iPhone and Android; open the HTTPS address",
+   "detail": "Install the device CA on iPhone and Android; open the HTTPS address",
+   "criterion": "lock without warning; fingerprint matches"
+  },
+  {
+   "id": "H3",
+   "set": "H",
+   "title": "Add the WebUI to the home screen",
+   "detail": "Add the WebUI to the home screen",
+   "criterion": "icon and name appear; opens standalone"
+  },
+  {
+   "id": "H4",
+   "set": "H",
+   "title": "Manual screen-reader pass (VoiceOver, TalkBack)",
+   "detail": "Manual screen-reader pass (VoiceOver, TalkBack)",
+   "criterion": "every control announced; errors read out"
   }
  ]
 }

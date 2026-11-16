@@ -1,40 +1,40 @@
 {
   "probes": {
     "t_play_event": 0.0,
-    "t_first_bt_pcm": 0.04830002784729004,
-    "t_lms_command_sent": 0.00305938720703125,
-    "t_lms_command_returned": 0.04357290267944336,
+    "t_first_bt_pcm": 0.1850283145904541,
+    "t_lms_command_sent": 0.003300905227661133,
+    "t_lms_command_returned": 0.18007326126098633,
     "t_stream_client_connected": [
       [
-        0.044,
+        0.18,
         "range=0"
       ],
       [
-        0.246,
+        0.532,
         "range=0"
       ]
     ],
-    "t_first_lms_output": 1.9094107151031494
+    "t_first_lms_output": 2.0824697017669678
   },
   "integrity": {
-    "blocks": 82,
-    "matched": 81,
+    "blocks": 83,
+    "matched": 82,
     "mismatched": 1,
     "jumps": [
       [
-        82,
+        83,
         0
       ]
     ]
   },
   "feeder": {
-    "silence_frames": 1996,
+    "silence_frames": 7225,
     "dropped_frames": 0,
-    "pushed_frames": 444528
+    "pushed_frames": 445410
   },
   "label": "INTEGRATION real LMS + SIMULATED BT",
   "env": {
-    "date_utc": "2026-11-16T10:26:32Z",
+    "date_utc": "2026-11-16T11:57:22Z",
     "lms": "9.1.2",
     "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
     "kernel": "7.0.0-43-generic",

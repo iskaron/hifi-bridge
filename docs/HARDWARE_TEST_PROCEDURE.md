@@ -16,8 +16,9 @@
 3. Flash a stock **Raspberry Pi OS Lite** (not the appliance image) and copy the bundle to the Pi.
 4. On the Pi: `sudo sh hwkit/pi-setup/setup_test_pi.sh --i-am-on-the-test-pi`, then reboot.
 5. On the Pi: `PYTHONPATH=$PWD/bridge:$PWD/hwkit python3 -m hwkit preflight`. Fix every **FAIL** before you continue. Each check prints
-   its own fix.
-6. Start the bridge on the Pi: `python3 -m btbridge.appliance --data ~/bridge-data --source bluez`. Open `http://<pi>:8080/`, enter the setup
+   its own fix. It also shows which capture tool the bridge would use there (`pw-cat --raw` on PipeWire ≥ 1.x, otherwise `parec`).
+6. Start the bridge on the Pi: `python3 -m btbridge.appliance --data ~/bridge-data --source bluez --boot-dir /boot/firmware`
+   (Raspberry Pi OS: Avahi runs already, so the name is published through it; `hifi-status.txt` on the boot partition shows the CA fingerprint). Open `http://<pi>:8080/`, enter the setup
    code from `~/bridge-data/setup-code.txt`, and finish the wizard with the test LMS and the test player.
 7. Create the results file: `python3 -m hwkit results new results.json --board "<model rev>" --operator <name> --phone "<model / OS>" ...`,
    then `python3 -m hwkit env -o env.json`.
@@ -32,6 +33,7 @@
 | Audio quality and timing | E1 (30 min capture), E2 (10 × play/pause with mic) | First real numbers | 50 min |
 | Players | F1, F2 (each real Squeezebox) | Compatibility list, ICY decision | as needed |
 | Guest | G1 | The product goal | 15 min |
+| Owner access | H1, H2, H3 (H4 if time) | name resolution, trusted HTTPS, home-screen shortcut on real phones | 30 min |
 
 The rest (A6, A7, B5, C3, D3, E3–E6, F3–F5) goes on a second day or follows the decisions from day one.
 
