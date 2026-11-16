@@ -133,25 +133,30 @@ def wait_until_node_delivers(node: str, timeout: float = 30.0) -> float:
     return time.monotonic() - t0
 
 
+def bring_up_node(pw, attempts: int = 3) -> int:
+    """Stand-in workaround (NOT product behaviour): reload the module-pipe-source until it delivers real frames. Returns the reloads."""
+    reloads = 0
+    while True:
+        try:
+            wait_until_node_delivers(NODE, timeout=8.0)
+            return reloads
+        except RuntimeError:
+            if reloads == attempts:
+                raise
+            reloads += 1
+            pactl("unload-module", pw["module"])
+            pw["module"] = load_source(NODE, FIFO)
+
+
 @pytest.fixture(scope="session")
 def feeder(pw):
     """One continuous feeder for the whole session: the index never restarts, so a repeat/drop is always a real one.
     Stand-in workaround (NOT product behaviour): on PipeWire 0.3.65 about 1 session in 3 starts with a module-pipe-source that delivers
     only silence; reloading the module fixes it. Up to 3 reloads, each counted in the results file."""
     f = Feeder(); f.start(); time.sleep(0.5)
-    reloads, t0 = 0, time.monotonic()
-    while True:
-        try:
-            wait_until_node_delivers(NODE, timeout=8.0)
-            break
-        except RuntimeError:
-            if reloads == 3:
-                raise
-            reloads += 1
-            pactl("unload-module", pw["module"])
-            pw["module"] = load_source(NODE, FIFO)
+    t0 = time.monotonic()
+    RESULTS["_stand_in_reloads"] = bring_up_node(pw)
     RESULTS["_node_ready_after_s"] = round(time.monotonic() - t0, 2)
-    RESULTS["_stand_in_reloads"] = reloads
     yield f
     f.stop()
 

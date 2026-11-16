@@ -107,3 +107,17 @@ def test_node_disappearing_mid_capture_does_not_move_to_the_microphone(pw, feede
     RESULTS["node_vanishes"] = {"bytes_before": before, "bytes_total": len(data), "mic_frames": mic_frames(data, pw["mic_value"])}
     pw["module"] = load_source(NODE, FIFO)                    # restore for later tests
     assert before > 44100 * 4 and mic_frames(data, pw["mic_value"]) == 0
+
+
+def test_automatic_tool_choice_is_bit_exact_and_never_falls_back(pw, feeder):
+    """The tool the appliance would pick on THIS PipeWire version (choose_capture) must be bit-exact and must not capture the microphone."""
+    from btbridge.adapters.bluez.pcm import choose_capture
+    name, argv_for = choose_capture()
+    res = analyse(capture_with(argv_for(pw["node"])))
+    got = []
+    cap = PipeWireCapture(lambda a: argv_for(MISSING), retry_s=0.2, stall_s=1.0); cap.start("x", got.append); time.sleep(3.0); cap.stop()
+    data = b"".join(got)
+    RESULTS["auto_choice"] = {"tool": name, "bit_exact": res["bit_exact"], "missing_node_bytes": len(data),
+                              "missing_node_mic_frames": mic_frames(data, pw["mic_value"])}
+    assert res["bit_exact"], (name, res)
+    assert mic_frames(data, pw["mic_value"]) == 0 and len(data) == 0, name

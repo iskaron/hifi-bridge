@@ -51,6 +51,30 @@ def record_argv(target: str, raw: bool = True, tool: str = "pw-cat") -> list[str
             *(["--raw"] if raw else []), "-"]
 
 
+def choose_capture(which=None, run=subprocess.run) -> tuple[str, Callable[[str], list[str]]]:
+    """Pick the capture command available on this system (all variants keep node.dont-fallback/dont-reconnect):
+      1. ``pw-cat --raw``  - PipeWire >= 1.x (Buildroot 2026.02 ships 1.2.8 WITHOUT parec; verified bit-exact on 1.4.2 in the lab)
+      2. ``parec --raw``   - needs pipewire-pulse + pulseaudio-utils (verified bit-exact on 0.3.65 and 1.4.2)
+      3. ``pw-cat``        - PipeWire 0.3.x without --raw, where '-' is raw PCM (verified on 0.3.65); a missing node keeps it running
+                             silently, which the supervisor's no-data watchdog handles.
+    Returns (name, argv_for_node)."""
+    import shutil
+    which = which or shutil.which
+    pwcat = which("pw-cat")
+    if pwcat:
+        try:
+            helptext = run([pwcat, "--help"], capture_output=True, text=True, timeout=5).stdout
+        except (OSError, subprocess.SubprocessError):
+            helptext = ""
+        if "--raw" in helptext:
+            return "pw-cat --raw", lambda node: record_argv(node, raw=True, tool=pwcat)
+    if which("parec"):
+        return "parec", parec_argv
+    if pwcat:
+        return "pw-cat (0.3 raw)", lambda node: record_argv(node, raw=False, tool=pwcat)
+    return "none", parec_argv          # nothing installed: supervisor logs 'capture tool unavailable' and retries
+
+
 def source_present(node: str, run=subprocess.run) -> bool:
     """True if PipeWire currently has an audio source with this node name (``pactl list short sources``)."""
     try:

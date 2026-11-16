@@ -91,3 +91,8 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 32. **Lab images on Debian 12**: currently cannot be rebuilt (see #27); consider moving lab images to Debian 13 once rebuilding is possible.
 33. **Accessibility:** automated (axe-core, keyboard-only journey, accessibility tree) is green; a manual screen-reader pass (VoiceOver/TalkBack)
     on real phones is still needed.
+
+## Stabilisation package (2026-11-16)
+34. **Stuck digital silence on capture:** the no-data watchdog restarts a capture child that delivers *nothing*, but not one that delivers
+    only silence. Should the bridge restart capture after N s of digital silence while AVRCP reports "playing"? Decide from real traces
+    (hardware A3/A4, C1/C2) - a quiet passage must not trigger it (track bab_quiet_passage).

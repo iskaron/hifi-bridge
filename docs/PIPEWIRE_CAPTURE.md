@@ -38,3 +38,17 @@ The bridge's own `PipeWireCapture` supervisor ran every capture in these tests, 
 * Whether a BlueZ node delivers data while the phone is paused, and how it behaves on transport suspend/resume (gaps, timestamps).
 * The SBC/AAC decode sample rate (44.1 vs 48 kHz) of real phones, and resampling CPU cost on a Pi Zero 2 W, Pi 3 B+ and Pi 4.
 * `pipewire-pulse` availability and its resource use in the Buildroot image. Without it, `pw-cat --raw` on PipeWire ≥ 1.x is the alternative.
+
+## Stabilisation package additions (2026-11-16)
+* **Automatic tool choice** (`pcm.choose_capture`): `pw-cat --raw` when available (PipeWire >= 1.x - the Buildroot 2026.02 image has PipeWire
+  1.2.8 and **no `parec`**), else `parec`, else `pw-cat` on 0.3.x. In the lab the choice is `parec` on 0.3.65 and `pw-cat --raw` on 1.4.2;
+  both bit-exact, and neither captures the microphone when the node is missing.
+* **pipewire-pulse restart regression** (`tests/pipewire/test_zz_restart.py`): during and after the restart, with the microphone returning
+  first as the default source, the capture **never** contains microphone frames (asserted on both versions). Resume with the phone's pattern
+  is asserted on 1.4.2. On 0.3.65 the re-created stand-in sometimes hands a new stream only digital silence, so resume is recorded there but
+  not asserted.
+* **Stand-in determinism:** on 0.3.65 a fresh `module-pipe-source` delivers only silence in about 1 of 3 sessions. The harness keeps a FIFO
+  writer attached from before the module loads, and reloads the module until real frames arrive (counted as `_stand_in_reloads`).
+* **Open (hardware A3/A4):** a capture stream can deliver *digital silence* indefinitely, and the no-data watchdog does not catch that. Whether
+  a real BlueZ node can get stuck like this, and whether the bridge should restart capture after N seconds of silence while AVRCP says
+  "playing", must be decided from real traces (OPEN_QUESTIONS #34).

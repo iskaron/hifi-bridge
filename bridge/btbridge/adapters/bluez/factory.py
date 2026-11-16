@@ -11,4 +11,9 @@ from .pcm import PipeWireCapture
 
 
 def create_adapter(bus: str = "SYSTEM", adapter_path: str = ADAPTER_PATH_DEFAULT, log: Callable[[str], None] = print) -> BluezAdapter:
-    return BluezAdapter(JeepneyBus(bus=bus, log=log), PipeWireCapture(log=log), adapter_path=adapter_path, log=log)
+    from .pcm import choose_capture, node_name_for, source_present
+    name, argv_for_node = choose_capture()
+    log(f"capture tool: {name}")
+    capture = PipeWireCapture(argv_for=lambda addr: argv_for_node(node_name_for(addr)), log=log,
+                              present=lambda addr: source_present(node_name_for(addr)) if name == "parec" else True)
+    return BluezAdapter(JeepneyBus(bus=bus, log=log), capture, adapter_path=adapter_path, log=log)

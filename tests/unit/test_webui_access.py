@@ -172,3 +172,18 @@ def test_error_messages_are_alerts_that_receive_focus(ui):
 def test_header_separates_product_and_device_name(ui):
     body = ui.c.get("/").body
     assert "<strong>Hi-Fi Bridge</strong>" in body and "Wohnzimmer" in body and "<title>Status · Wohnzimmer – Hi-Fi Bridge</title>" in body
+
+
+def test_decision_48_no_hsts_in_any_mode(ui, tmp_path):
+    """HSTS is off for the local WebUI (DECISIONS #48): no Strict-Transport-Security header over HTTP, HTTPS (local CA) or an own cert."""
+    for r in (ui.c.get("/trust"), ui.c.get("/"), TlsClient(ui.tls_port, ui.ca).get("/trust"), TlsClient(ui.tls_port, ui.ca).get("/login")):
+        assert r.getheader("Strict-Transport-Security") is None
+    k, c = tmp_path / "k.pem", tmp_path / "c.pem"
+    subprocess.run(["openssl", "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-nodes", "-days", "30",
+                    "-subj", "/CN=bridge.home.arpa", "-addext", "subjectAltName=DNS:bridge.home.arpa", "-keyout", str(k), "-out", str(c)],
+                   check=True, capture_output=True)
+    ui.c.post("/settings/access/custom", {"custom_cert_pem": c.read_text(), "custom_key_pem": k.read_text()})
+    ui.c.post("/settings/access/tls", {"tls_mode": "custom", "trusted_proxies": "", "https_only": ""})
+    assert TlsClient(ui.tls_port, str(c), server_hostname="bridge.home.arpa").get("/trust").getheader("Strict-Transport-Security") is None
+    import btbridge.webui.server as S
+    assert "Strict-Transport-Security" not in open(S.__file__).read()          # static guard: no code path sets it

@@ -19,3 +19,9 @@ Labels: UNIT, INTEGRATION, SIMULATED, STATIC, REAL-HARDWARE (none here). Newest 
   6/6 bookworm runs then green (1 needed a reload), trixie 2/2 green. Product capture path unchanged; target PipeWire is 1.2.8.
 - Buildroot research (sparse clone of 2026.02.x LTS, commit 679b9ea): versions/licences of all needed packages; key finding - no
   `parec` without the full pulseaudio package, so the appliance needs `pw-cat --raw`; Python 3.14 on the image. docs/PHASE2B_PLAN.md.
+- DECISIONS #48-#50 recorded (HSTS off by default, Avahi preferred, OpenSSL allowed); spec updated. HSTS regression test: no
+  Strict-Transport-Security header over HTTP, HTTPS/local CA or own certificate, plus a static guard.
+- Capture tool chosen automatically (pw-cat --raw > parec > pw-cat 0.3); factory uses it with a presence check for parec.
+  Lab: parec on 0.3.65, pw-cat --raw on 1.4.2 - both bit-exact, no fallback (INTEGRATION).
+- New fault test: pipewire-pulse restart while capturing, microphone returns first as default -> never microphone frames (both versions);
+  resume asserted on 1.4.2, recorded (not asserted) on 0.3.65 because of the stand-in. New open question #34 (stuck digital silence).

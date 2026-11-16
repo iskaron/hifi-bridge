@@ -374,3 +374,20 @@ def test_simulated_source_offers_the_same_device_management():
     assert sim.paired_devices() == [{"address": "sim-phone-1", "name": "Simulated phone", "trusted": True, "connected": True}]
     assert sim.remove_device("sim-phone-1") and ("disconnect", "sim-phone-1") in rec.events and sim.paired_devices() == []
     sim.set_alias("x"); assert sim.alias == "x"
+
+
+def test_capture_tool_choice_prefers_pw_cat_raw_then_parec_then_old_pw_cat():
+    from btbridge.adapters.bluez.pcm import choose_capture
+
+    class R:
+        def __init__(self, out): self.stdout = out
+    def which_all(tools):
+        return lambda t: f"/usr/bin/{t}" if t in tools else None
+    name, f = choose_capture(which_all({"pw-cat", "parec"}), run=lambda *a, **k: R("  --raw   RAW mode"))
+    argv = f("bluez_input.X")
+    assert name == "pw-cat --raw" and argv[0] == "/usr/bin/pw-cat" and "--raw" in argv and "node.dont-fallback = true" in argv[argv.index("-P") + 1]
+    name, f = choose_capture(which_all({"pw-cat", "parec"}), run=lambda *a, **k: R("no raw option"))
+    assert name == "parec" and "--property=node.dont-fallback=true" in f("n")
+    name, f = choose_capture(which_all({"pw-cat"}), run=lambda *a, **k: R("no raw option"))
+    assert name == "pw-cat (0.3 raw)" and "--raw" not in f("n") and "node.dont-fallback = true" in f("n")[f("n").index("-P") + 1]
+    assert choose_capture(which_all(set()))[0] == "none"
