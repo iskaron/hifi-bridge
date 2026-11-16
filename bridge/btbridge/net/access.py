@@ -19,10 +19,12 @@ ADDRESS_CHECK_S = 60          # a new DHCP address triggers a re-issue (the cert
 class LocalAccess:
     def __init__(self, store, data_dir: str, instance_id: str, http_port: int, https_port: int, log: Callable[[str], None] = print,
                  addresses: Callable[[], list[str]] = local_ipv4, cert_manager: CertManager | None = None,
-                 mdns_factory=MdnsResponder):
+                 mdns_factory=MdnsResponder, avahi_factory=None):
         self.store, self.http_port, self.https_port, self.log, self.addresses = store, http_port, https_port, log, addresses
         self.certs = cert_manager or CertManager(data_dir, instance_id, log=log)
-        self.mdns_factory, self.mdns = mdns_factory, None
+        from .avahi import AvahiPublisher
+        self.mdns_factory, self.avahi_factory, self.mdns = mdns_factory, avahi_factory or AvahiPublisher, None
+        self.mdns_backend = "off"
         self.mdns_name: str | None = None
         self.policy = HostPolicy(self.host_names)
         self.ctx: ssl.SSLContext | None = None
@@ -100,36 +102,50 @@ class LocalAccess:
         return any(a in ipaddress.ip_network(n, strict=False) for n in nets)
 
     # ---- lifecycle ----
-    def start(self) -> None:
-        if self.store.get("mdns_enabled"):
+    def _make_mdns(self):
+        """DECISIONS #49: Avahi when reachable (auto) or required (avahi); the built-in responder only as fallback (auto) or on request."""
+        services = [("_https._tcp", self.https_port, {"path": "/"}), ("_http._tcp", self.http_port, {"path": "/"})]
+        args = (self.store.get("local_hostname"), f"Hi-Fi Bridge ({self.store.get('device_name')})", services)
+        backend = self.store.get("mdns_backend")
+        if backend in ("auto", "avahi"):
+            from .avahi import AvahiPublisher, AvahiUnavailable
+            pub = self.avahi_factory(*args, on_name=self._named, log=self.log)
             try:
-                self.mdns = self.mdns_factory(self.store.get("local_hostname"), f"Hi-Fi Bridge ({self.store.get('device_name')})",
-                                              [("_https._tcp", self.https_port, {"path": "/"}), ("_http._tcp", self.http_port, {"path": "/"})],
-                                              on_name=self._named, log=self.log)
-                self.mdns.start()
-            except OSError as e:
-                self.log(f"mdns not available: {e}")
-                self.mdns = None
+                pub.connect()
+                self.mdns_backend = "avahi"
+                return pub
+            except AvahiUnavailable as e:
+                if backend == "avahi":
+                    raise OSError(f"avahi required but not available: {e}") from e
+                self.log("mdns: no Avahi daemon reachable - using the built-in responder")
+        self.mdns_backend = "builtin"
+        return self.mdns_factory(*args, on_name=self._named, log=self.log)
+
+    def _start_mdns(self) -> None:
+        if not self.store.get("mdns_enabled"):
+            self.mdns_backend = "off"
+            return
+        try:
+            self.mdns = self._make_mdns()
+            self.mdns.start()
+        except OSError as e:
+            self.log(f"mdns not available: {e}")
+            self.mdns, self.mdns_backend = None, "unavailable"
+
+    def start(self) -> None:
+        self._start_mdns()
         self._last_addrs = set(self.addresses())
         self.ensure_certificates()
         threading.Thread(target=self._loop, daemon=True, name="local-access").start()
 
     def reconfigure(self, keys: set[str]) -> None:
         """Apply changed access settings in place."""
-        if {"local_hostname", "mdns_enabled", "device_name"} & keys:
+        if {"local_hostname", "mdns_enabled", "mdns_backend", "device_name"} & keys:
             if self.mdns:
                 self.mdns.stop()
                 self.mdns, self.mdns_name = None, None
-            if self.store.get("mdns_enabled"):
-                try:
-                    self.mdns = self.mdns_factory(self.store.get("local_hostname"), f"Hi-Fi Bridge ({self.store.get('device_name')})",
-                                                  [("_https._tcp", self.https_port, {"path": "/"}), ("_http._tcp", self.http_port, {"path": "/"})],
-                                                  on_name=self._named, log=self.log)
-                    self.mdns.start()
-                except OSError as e:
-                    self.log(f"mdns not available: {e}")
-                    self.mdns = None
-        if {"local_hostname", "mdns_enabled", "extra_hostnames", "tls_mode"} & keys:
+            self._start_mdns()
+        if {"local_hostname", "mdns_enabled", "mdns_backend", "extra_hostnames", "tls_mode"} & keys:
             self.ensure_certificates()
 
     def _named(self, fqdn: str) -> None:
@@ -165,5 +181,5 @@ class LocalAccess:
         except CertError:
             pass
         return {"mode": self.mode, "https_only": self.store.get("https_only"), "main_name": self.main_name(), "names": self.host_names(),
-                "mdns": self.mdns_name if self.mdns else None, "http_port": self.http_port, "https_port": self.https_port,
+                "mdns": self.mdns_name if self.mdns else None, "mdns_backend": self.mdns_backend, "http_port": self.http_port, "https_port": self.https_port,
                 "ca": ca, "server": srv, "error": self.cert_error, "tls_available": self.tls_available()}

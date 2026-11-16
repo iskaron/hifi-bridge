@@ -582,12 +582,14 @@ def settings_access_get(req):
     srv, ca = info.get("server"), info.get("ca")
     status = "".join(f"<div><dt>{esc(t(k))}</dt><dd>{v}</dd></div>" for k, v in (
         ("access.name", esc(info.get("main_name", c["local_hostname"] + ".local"))),
+        ("access.mdns", esc(info.get("mdns_backend", "off"))),
         ("access.https", esc(t("access.on_port", port=info.get("https_port"))) if info.get("tls_available") else esc(t("access.off"))),
         ("access.cert_until", esc((srv or {}).get("not_after", "–")[:10])),
         ("access.ca_fp", f'<code class="fp">{esc((ca or {}).get("sha256", "–"))}</code>')))
     err = f'<p class="error" role="alert">{esc(t("access.error", error=info["error"]))}</p>' if info.get("error") else ""
     names = (field(req, "local_hostname", c["local_hostname"], help_key="help.local_hostname", spellcheck="false", autocapitalize="off") +
              field(req, "mdns_enabled", c["mdns_enabled"], "checkbox") +
+             select(req, "mdns_backend", c["mdns_backend"], ("auto", "avahi", "builtin"), "help.mdns_backend") +
              field(req, "extra_hostnames", c["extra_hostnames"], help_key="help.extra_hostnames", spellcheck="false", autocapitalize="off"))
     tls = (select(req, "tls_mode", c["tls_mode"], ("local_ca", "custom", "proxy"), "help.tls_mode") +
            field(req, "trusted_proxies", c["trusted_proxies"], help_key="help.trusted_proxies", spellcheck="false") +
@@ -654,7 +656,7 @@ def settings_appearance(req):
 
 
 def settings_access_names(req):
-    return _save(req, ("local_hostname", "extra_hostnames"), ("mdns_enabled",), back="/settings/access")
+    return _save(req, ("local_hostname", "extra_hostnames", "mdns_backend"), ("mdns_enabled",), back="/settings/access")
 
 
 def settings_access_tls(req):

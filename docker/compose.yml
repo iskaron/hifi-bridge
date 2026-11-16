@@ -61,6 +61,18 @@ services:
     hostname: responder
     command: ["python3", "-m", "btbridge.net.mdns", "--hostname", "hifi-bridge", "--instance", "Hi-Fi Bridge (Lab)"]
 
+  # Avahi backend (DECISIONS #49): the bridge's publisher talks to its OWN avahi-daemon over D-Bus (as on the appliance)
+  mdns-avahi-pub:
+    image: btbridge-avahi:dev
+    profiles: ["mdns"]
+    networks: [lab]
+    hostname: avahipub
+    volumes:
+      - ..:/work:ro
+    environment:
+      - PYTHONPATH=/work/bridge
+    command: ["sh", "-c", "mkdir -p /run/dbus && dbus-daemon --system --fork && avahi-daemon --no-drop-root --no-rlimits -D && sleep 2 && exec python3 -m btbridge.net.avahi --hostname hifi-bridge --instance 'Hi-Fi Bridge (Avahi)'"]
+
   avahi:
     image: btbridge-avahi:dev
     build:

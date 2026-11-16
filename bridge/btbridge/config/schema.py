@@ -136,6 +136,8 @@ SETTINGS: dict[str, Setting] = {s.key: s for s in [
     # local access (DECISIONS #35; docs/LOCAL_ACCESS_TLS.md)
     Setting("local_hostname", str, "hifi-bridge", check=_label, group="access", restart=True),
     Setting("mdns_enabled", bool, True, group="access", restart=True),
+    # DECISIONS #49: Avahi preferred; the built-in responder only where no Avahi daemon is reachable (auto) or explicitly chosen
+    Setting("mdns_backend", str, "auto", choices=("auto", "avahi", "builtin"), group="access", restart=True),
     Setting("extra_hostnames", str, "", check=_hostlist, group="access", restart=True),
     Setting("tls_mode", str, "local_ca", choices=("local_ca", "custom", "proxy"), group="access", restart=True),
     Setting("https_only", bool, False, group="access"),

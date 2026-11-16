@@ -18,6 +18,7 @@ from .addresses import local_ipv4
 
 SERVICE, IF_SERVER, IF_GROUP = "org.freedesktop.Avahi", "org.freedesktop.Avahi.Server", "org.freedesktop.Avahi.EntryGroup"
 IF_UNSPEC, PROTO_INET = -1, 0
+PUBLISH_NO_REVERSE = 16          # the host's own reverse (PTR) record for the IP already exists -> a second one collides locally
 UNCOMMITED, REGISTERING, ESTABLISHED, COLLISION, FAILURE = range(5)
 
 
@@ -68,8 +69,15 @@ class AvahiPublisher:
     # ---- publishing ----
     def _publish(self) -> int:
         g = self.group
-        for ip in self.addresses():
-            self._call(g, IF_GROUP, "AddAddress", "iiuss", (IF_UNSPEC, PROTO_INET, 0, self.fqdn, ip))
+        system_fqdn = self._call("/", IF_SERVER, "GetHostNameFqdn")[0]
+        if system_fqdn.lower() != self.fqdn:            # the system already publishes its own host name - only add ours if different
+            for ip in self.addresses():
+                try:
+                    self._call(g, IF_GROUP, "AddAddress", "iiuss", (IF_UNSPEC, PROTO_INET, PUBLISH_NO_REVERSE, self.fqdn, ip))
+                except AvahiUnavailable as e:
+                    if "collision" in str(e).lower():
+                        return COLLISION              # another local service owns the name -> next name
+                    raise
         for stype, port, txt in self.services:
             self._call(g, IF_GROUP, "AddService", "iiussssqaay",
                        (IF_UNSPEC, PROTO_INET, 0, self.instance, stype, "", self.fqdn, port, txt_bytes(txt)))

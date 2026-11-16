@@ -154,7 +154,8 @@ for key,en,de in [("brand.device","Device","Gerät"),("brand.tagline","Bluetooth
     ("help.trusted_proxies","Only these addresses may tell the device the original client and protocol (X-Forwarded-*).","Nur diese Adressen dürfen dem Gerät Client und Protokoll mitteilen (X-Forwarded-*)."),
     ("help.https_only","Can only be switched on from an HTTPS connection, so you cannot lock yourself out.","Lässt sich nur über eine HTTPS-Verbindung einschalten, damit Sie sich nicht aussperren."),
     ("help.custom_key_pem","The private key is stored only on this device (readable by the service only).","Der private Schlüssel wird nur auf diesem Gerät gespeichert (nur für den Dienst lesbar)."),
-    ("access.status","Status","Status"),("access.name","Network name","Netzwerkname"),("access.https","HTTPS","HTTPS"),
+    ("access.status","Status","Status"),("access.mdns","Name service","Namensdienst"),
+    ("help.mdns_backend","Avahi is preferred; the built-in responder is only used where no Avahi service runs.","Avahi wird bevorzugt; der eingebaute Responder nur, wo kein Avahi-Dienst läuft."),("access.name","Network name","Netzwerkname"),("access.https","HTTPS","HTTPS"),
     ("access.on_port","on port {port}","auf Port {port}"),("access.off","not active","nicht aktiv"),("access.cert_until","Certificate valid until","Zertifikat gültig bis"),
     ("access.ca_fp","CA fingerprint (SHA-256)","CA-Fingerabdruck (SHA-256)"),("access.error","Certificate problem: {error}","Zertifikatsproblem: {error}"),
     ("access.trust_link","Set up trust on your devices","Vertrauen auf Ihren Geräten einrichten"),("access.renew","Renew certificate now","Zertifikat jetzt erneuern"),
@@ -193,10 +194,14 @@ for key,en,de in [("brand.device","Device","Gerät"),("brand.tagline","Bluetooth
 F2 = {"local_hostname":("Network name","Netzwerkname"),"mdns_enabled":("Announce the name in the network (mDNS)","Namen im Netzwerk bekannt geben (mDNS)"),
       "extra_hostnames":("Further host names","Weitere Hostnamen"),"tls_mode":("Certificate","Zertifikat"),"https_only":("HTTPS only","Nur HTTPS"),
       "trusted_proxies":("Trusted reverse proxies","Vertrauenswürdige Reverse Proxies"),"custom_cert_pem":("Certificate (PEM)","Zertifikat (PEM)"),
-      "custom_key_pem":("Private key (PEM)","Privater Schlüssel (PEM)")}
+      "custom_key_pem":("Private key (PEM)","Privater Schlüssel (PEM)"),
+      "mdns_backend":("Name service","Namensdienst")}
 for f,(en,de) in F2.items(): k(f"field.{f}",en,de)
 for c,(en,de) in {"tls_mode.local_ca":("Local CA of this device (recommended)","Lokale CA dieses Geräts (empfohlen)"),
-                  "tls_mode.custom":("Own certificate","Eigenes Zertifikat"),"tls_mode.proxy":("Reverse proxy terminates TLS","Reverse Proxy übernimmt TLS")}.items(): k(f"choice.{c}",en,de)
+                  "tls_mode.custom":("Own certificate","Eigenes Zertifikat"),
+                  "mdns_backend.auto":("Automatic (Avahi if available)","Automatisch (Avahi, falls vorhanden)"),
+                  "mdns_backend.avahi":("Avahi (system service)","Avahi (Systemdienst)"),
+                  "mdns_backend.builtin":("Built-in responder","Eingebauter Responder"),"tls_mode.proxy":("Reverse proxy terminates TLS","Reverse Proxy übernimmt TLS")}.items(): k(f"choice.{c}",en,de)
 for c,(en,de) in {"invalid_hostname":("letters, digits and hyphens only","nur Buchstaben, Ziffern und Bindestriche"),
                   "invalid_network":("not a valid address or network","keine gültige Adresse bzw. kein gültiges Netz")}.items(): k(f"error.{c}",en,de)
 

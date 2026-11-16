@@ -234,7 +234,7 @@ class ApplianceService:
             ctl.set_target(c["target_player"])
         if any(k.startswith("mqtt_") for k in ch):
             self._restart_mqtt()
-        if self.access is not None and {"local_hostname", "mdns_enabled", "extra_hostnames", "tls_mode", "device_name"} & set(ch):
+        if self.access is not None and {"local_hostname", "mdns_enabled", "mdns_backend", "extra_hostnames", "tls_mode", "device_name"} & set(ch):
             self.access.reconfigure(set(ch))
         self._emit("settings_changed", {"keys": sorted(ch)})
 
