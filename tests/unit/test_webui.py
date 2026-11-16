@@ -325,3 +325,27 @@ def test_pages_have_lang_one_h1_and_labelled_controls(ui):
     for path in ("/", "/pairing", "/settings", "/diagnostics", "/system", "/setup/lyrion", "/setup/target", "/setup/finish"):
         p = A11y(); p.feed(ui.c.get(path).body)
         assert p.html_lang in ("en", "de") and p.h1 == 1 and not p.problems, (path, p.problems)
+
+
+def test_home_screen_manifest_and_icons(ui):
+    finish_wizard(ui)
+    page = ui.c.get("/").body
+    assert 'rel="manifest" href="/manifest.webmanifest"' in page and 'rel="apple-touch-icon"' in page
+    r = Client(ui.port).get("/manifest.webmanifest")                      # public: browsers fetch it without credentials
+    m = json.loads(r.body)
+    assert r.getheader("Content-Type") == "application/manifest+json" and m["display"] == "standalone" and m["start_url"] == "/"
+    assert m["short_name"] == "Hi-Fi Bridge" and "Wohnzimmer" in m["name"]
+    for icon in m["icons"]:
+        png = Client(ui.port).get(icon["src"])
+        assert png.status == 200 and png.getheader("Content-Type") == "image/png"
+    assert any(i.get("purpose") == "maskable" for i in m["icons"])
+
+
+def test_system_page_shows_accessible_trend_graphs(ui):
+    finish_wizard(ui)
+    for i in range(10):
+        ui.svc.record_history({"sampled_at": i, "cpu_percent": 5.0 + i, "temperature_c": 45.0 + i / 2, "memory": {"used_percent": 40.0}})
+    body = ui.c.get("/system").body
+    assert body.count('class="spark-line"') == 3 and 'role="img"' in body
+    assert "CPU: min 5%, max 14%, now 14%" in body.replace(" %", "%")
+    assert ' style="' not in body                                           # CSP: no inline style attributes

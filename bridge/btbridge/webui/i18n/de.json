@@ -290,6 +290,7 @@
  "sys.network": "Netzwerk",
  "sys.storage": "Datenspeicher",
  "sys.temp": "Temperatur",
+ "sys.trend": "Letzte 2 Stunden",
  "sys.uptime": "Laufzeit",
  "sys.wifi": "WLAN {dbm} dBm",
  "target.group": "Synchronisierte Gruppe",

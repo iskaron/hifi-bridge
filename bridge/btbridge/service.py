@@ -34,6 +34,7 @@ from .webui.auth import Auth
 TELEMETRY_S = 300          # MQTT/system metrics every 5 min (DECISIONS #11, #36)
 SYSTEM_SAMPLE_S = 30       # full system sample for the UI
 THERMAL_CHECK_S = 10       # fast, independent over-temperature check (DECISIONS #36): a warning never waits for telemetry
+HISTORY_SAMPLES = 240      # 2 h of 30 s samples for the trend graphs (PRODUCT_SPEC: "CPU graphs secondary")
 
 
 class UnconfiguredLms:
@@ -144,6 +145,7 @@ class ApplianceService:
         self.last_system: dict = {}
         self._thermal = {"state": "unknown", "temperature_c": None, "checked_at": None}
         self.watch_heartbeat = time.monotonic()
+        self.history: collections.deque = collections.deque(maxlen=HISTORY_SAMPLES)    # (t, cpu %, temp C, memory %) for the trend graphs
 
     # ------------------------------------------------------------------ lifecycle
     def _journal_event(self, name: str, detail: str) -> None:
@@ -257,6 +259,9 @@ class ApplianceService:
             except Exception as e:
                 self.logs(f"event listener error: {type(e).__name__}: {e}")
 
+    def record_history(self, s: dict) -> None:
+        self.history.append((s.get("sampled_at"), s.get("cpu_percent"), s.get("temperature_c"), (s.get("memory") or {}).get("used_percent")))
+
     def thermal(self) -> dict:
         return dict(self._thermal)
 
@@ -289,6 +294,7 @@ class ApplianceService:
                 if now >= next_sys:
                     next_sys = now + SYSTEM_SAMPLE_S
                     self.last_system = self.monitor.sample()
+                    self.record_history(self.last_system)
                     self.last_system.update(temperature_c=self._thermal["temperature_c"] if self._thermal["checked_at"] else
                                             self.last_system.get("temperature_c"))
                 st = self.status()

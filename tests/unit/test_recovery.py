@@ -59,3 +59,23 @@ def test_cli_requires_confirmation_for_factory_reset(tmp_path, capsys):
 def test_recovery_is_not_reachable_from_the_webui():
     import btbridge.webui.views as V
     assert "recovery" not in open(V.__file__).read() and not any("reset" in p for (_, p) in V.routes(None))
+
+
+def test_boot_status_contains_no_secrets(tmp_path):
+    R.write_boot_status(str(tmp_path), ["Hi-Fi Bridge hifi-bridge.local", "CA fingerprint (SHA-256): AA:BB"])
+    text = (tmp_path / "hifi-status.txt").read_text()
+    assert "AA:BB" in text and "PRIVATE KEY" not in text and len(text.splitlines()) == 2
+
+
+def test_appliance_processes_a_boot_request_before_starting(tmp_path, monkeypatch):
+    import btbridge.appliance as AP
+    data, boot = tmp_path / "data", tmp_path / "boot"; data.mkdir(); boot.mkdir()
+    setup_device(data)
+    (boot / "hifi-recovery").write_text("reset-owner-password")
+    class Stop(Exception): pass
+    def stop_here(*a, **k): raise Stop()
+    monkeypatch.setattr(AP, "ApplianceService", stop_here)          # stop right after the recovery step
+    a = AP.parser().parse_args(["--data", str(data), "--boot-dir", str(boot), "--source", "none"])
+    with pytest.raises(Stop):
+        AP.run(a, None)
+    assert not (boot / "hifi-recovery").exists() and "New setup code" in (boot / "hifi-status.txt").read_text()

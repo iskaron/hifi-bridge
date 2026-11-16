@@ -107,7 +107,7 @@ R = {"bridge_session_active":("the bridge is playing","die Bridge spielt gerade"
 for r,(en,de) in R.items(): k(f"refusal.{r}",en,de)
 # system
 for key,en,de in [("sys.health","Health","Zustand"),("sys.cpu","CPU","CPU"),("sys.temp","Temperature","Temperatur"),("sys.load","Load","Last"),("sys.memory","Memory","Speicher"),
-    ("sys.storage","Storage","Datenspeicher"),("sys.uptime","Uptime","Laufzeit"),("sys.free","free","frei"),("sys.network","Network","Netzwerk"),
+    ("sys.storage","Storage","Datenspeicher"),("sys.trend","Last 2 hours","Letzte 2 Stunden"),("sys.uptime","Uptime","Laufzeit"),("sys.free","free","frei"),("sys.network","Network","Netzwerk"),
     ("sys.net_value","received {rx} MB · sent {tx} MB","empfangen {rx} MB · gesendet {tx} MB"),("sys.wifi","Wi-Fi {dbm} dBm","WLAN {dbm} dBm"),("sys.mqtt","MQTT","MQTT"),
     ("mqtt.disabled","Not enabled.","Nicht aktiviert."),("mqtt.connected","Connected to {broker}.","Mit {broker} verbunden."),("mqtt.disconnected","Not connected ({error}).","Nicht verbunden ({error}).")]: k(key,en,de)
 for s,(en,de) in {"ok":("normal","normal"),"warning":("warm","warm"),"critical":("too hot","zu heiß"),"unknown":("not available","nicht verfügbar")}.items(): k(f"thermal.{s}",en,de)

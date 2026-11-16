@@ -22,7 +22,7 @@ from .auth import AuthError
 from .i18n import Translator, pick_language
 
 MAX_BODY = 64 * 1024
-BOOTSTRAP_PATHS = ("/trust", "/ca.crt", "/ca.der", "/healthz", "/static/app.css", "/static/logo.svg", "/static/app.js")
+BOOTSTRAP_PATHS = ("/trust", "/ca.crt", "/ca.der", "/healthz", "/static/app.css", "/static/logo.svg", "/static/app.js", "/manifest.webmanifest")
 WIZARD_ACTIONS = ("/diagnostics/test",)     # actions offered inside the setup wizard (test sound on the last step)
 COOKIE = "bab_session"
 LANG_COOKIE = "bab_lang"

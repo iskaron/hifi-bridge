@@ -72,6 +72,8 @@ def page(ui, req, title: str, body: str, active: str | None = None, live: bool =
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark"><title>{esc(title)} · {esc(svc.store.get("device_name"))} – {esc(PRODUCT_NAME)}</title>
 <link rel="icon" href="/static/logo.svg" type="image/svg+xml"><link rel="stylesheet" href="/static/app.css">
+<link rel="manifest" href="/manifest.webmanifest"><link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<meta name="theme-color" content="#17171b"><meta name="apple-mobile-web-app-title" content="{esc(PRODUCT_NAME)}">
 <script src="/static/app.js" defer></script></head>
 <body{' data-live="1"' if live else ''}>
 <a class="skip" href="#main">{esc(t("a11y.skip"))}</a>
@@ -708,6 +710,35 @@ def settings_token(req):
     return _srv().redirect("/settings/security", req.t("flash.token_rotated"), req.secure)
 
 
+# ============================================================== home-screen shortcut (PRODUCT_SPEC: "WebUI shortcut")
+@public
+def manifest(req):
+    svc = req.ui.svc
+    data = {"name": f"{PRODUCT_NAME} – {svc.store.get('device_name')}", "short_name": PRODUCT_NAME, "start_url": "/", "scope": "/",
+            "display": "standalone", "background_color": "#111113", "theme_color": "#17171b", "lang": req.t.lang,
+            "description": req.t("brand.tagline"),
+            "icons": [{"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
+                      {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png"},
+                      {"src": "/static/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}]}
+    r = _srv().Response(200, json.dumps(data), "application/manifest+json")
+    r.headers.append(("Cache-Control", "no-cache"))
+    return r
+
+
+def sparkline(values: list, label: str, unit: str, width: int = 320, height: int = 56) -> str:
+    """Inline SVG trend (no JS, no inline style - CSP). Screen readers get a text summary via aria-label."""
+    pts = [v for v in values if v is not None]
+    if len(pts) < 2:
+        return f'<p class="muted">{esc(label)}: –</p>'
+    lo, hi = min(pts), max(pts)
+    span = (hi - lo) or 1.0
+    step = width / (len(values) - 1)
+    coords = " ".join(f"{i * step:.1f},{height - 4 - (v - lo) / span * (height - 8):.1f}" for i, v in enumerate(values) if v is not None)
+    summary = f"{label}: min {lo:g}{unit}, max {hi:g}{unit}, now {pts[-1]:g}{unit}"
+    return (f'<figure class="spark"><svg viewBox="0 0 {width} {height}" role="img" aria-label="{esc(summary)}" preserveAspectRatio="none">'
+            f'<polyline class="spark-line" fill="none" points="{coords}"/></svg><figcaption>{esc(summary)}</figcaption></figure>')
+
+
 # ============================================================== trust (public) + health
 @public
 def trust_page(req):
@@ -815,6 +846,10 @@ def system_page(req):
 <div><dt>{esc(t("sys.memory"))}</dt><dd>{esc(fmt(mem.get("used_percent"), "%"))}<small>{esc(fmt(mem.get("available_mb"), " MB"))} {esc(t("sys.free"))}</small></dd></div>
 <div><dt>{esc(t("sys.storage"))}</dt><dd>{esc(fmt(sto.get("used_percent"), "%"))}<small>{esc(fmt(sto.get("free_mb"), " MB"))} {esc(t("sys.free"))}</small></dd></div>
 <div><dt>{esc(t("sys.uptime"))}</dt><dd>{esc(duration(s.get("uptime_s")))}</dd></div></dl></section>
+<section class="card wide"><h2>{esc(t("sys.trend"))}</h2><div class="sparks">
+{sparkline([h[1] for h in svc.history], t("sys.cpu"), " %")}
+{sparkline([h[2] for h in svc.history], t("sys.temp"), " °C")}
+{sparkline([h[3] for h in svc.history], t("sys.memory"), " %")}</div></section>
 <section class="card"><h2>{esc(t("sys.network"))}</h2><dl class="facts">{net or "<p class=muted>–</p>"}</dl></section>
 <section class="card"><h2>{esc(t("sys.mqtt"))}</h2><p>{esc(mqtt_text(req))}</p></section></div>"""
     return page(req.ui, req, t("nav.system"), body, active="/system")
@@ -863,7 +898,7 @@ def routes(ui):
         ("GET", "/settings/security"): settings_security_get, ("POST", "/settings/mqtt/controls"): settings_mqtt_controls,
         ("POST", "/settings/access/names"): settings_access_names, ("POST", "/settings/access/tls"): settings_access_tls,
         ("POST", "/settings/access/custom"): settings_access_custom, ("POST", "/settings/access/renew"): settings_access_renew,
-        ("GET", "/trust"): trust_page, ("GET", "/ca.crt"): ca_pem, ("GET", "/ca.der"): ca_der, ("GET", "/healthz"): healthz,
+        ("GET", "/trust"): trust_page, ("GET", "/manifest.webmanifest"): manifest, ("GET", "/ca.crt"): ca_pem, ("GET", "/ca.der"): ca_der, ("GET", "/healthz"): healthz,
         ("POST", "/settings/target"): settings_target, ("POST", "/settings/playback"): settings_playback,
         ("POST", "/settings/bluetooth"): settings_bluetooth, ("POST", "/settings/mqtt"): settings_mqtt,
         ("POST", "/settings/appearance"): settings_appearance, ("POST", "/settings/password"): settings_password,

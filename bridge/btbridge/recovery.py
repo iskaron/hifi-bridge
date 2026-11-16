@@ -79,6 +79,11 @@ def boot_request(data_dir: str, boot_dir: str) -> str:
     return "unknown"
 
 
+def write_boot_status(boot_dir: str, lines: list[str]) -> None:
+    """Non-secret device status for the owner on the boot partition (e.g. the CA fingerprint for the out-of-band trust check)."""
+    _write_status(boot_dir, "".join(f"{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())} {line}\n" for line in lines))
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="btbridge.recovery", description="local recovery (console / SD card only)")
     ap.add_argument("--data", required=True)

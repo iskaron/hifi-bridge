@@ -42,7 +42,8 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument("--http-host", default="0.0.0.0")
     ap.add_argument("--http-port", type=int, default=8080)
     ap.add_argument("--https-port", type=int, default=8443, help="HTTPS listener (local CA or custom certificate); 0 = disabled")
-    ap.add_argument("--no-mdns", action="store_true", help="do not run the built-in mDNS responder (e.g. when avahi publishes the name)")
+    ap.add_argument("--no-mdns", action="store_true", help="do not announce the name via mDNS at all")
+    ap.add_argument("--boot-dir", help="boot partition (appliance): processes a 'hifi-recovery' request and writes 'hifi-status.txt'")
     ap.add_argument("--stream-port", type=int, default=8090)
     ap.add_argument("--advertise-host", default="auto", help="address LMS/players use to reach the stream (auto = route to the LMS)")
     ap.add_argument("--source", default="bluez", help="bluez | sim | none | module:Class")
@@ -64,6 +65,9 @@ def main(argv=None) -> int:
 
 
 def run(a, source, ready: Callable[[ApplianceService, WebUI], None] | None = None) -> int:
+    if getattr(a, "boot_dir", None):
+        from .recovery import boot_request
+        print(f"recovery request: {boot_request(a.data, a.boot_dir)}", flush=True)       # physical access to the SD card = authority
     svc = ApplianceService(a.data, source=source, stream_port=a.stream_port, advertise_host=a.advertise_host,
                            monitor=SystemMonitor(proc=a.proc_root, thermal=a.thermal_path or None, data_dir=a.data),
                            mqtt_factory=None if a.no_mqtt else MqttBridge)
@@ -74,6 +78,10 @@ def run(a, source, ready: Callable[[ApplianceService, WebUI], None] | None = Non
     ca = svc.access.certs.ca_info()
     if ca:                                   # out-of-band reference for the trust step (docs/LOCAL_ACCESS_TLS.md 4.2)
         svc.logs(f"local CA fingerprint (SHA-256): {ca['sha256']}")
+        if getattr(a, "boot_dir", None):
+            from .recovery import write_boot_status
+            setup = " - setup code: see setup-code.txt on the device console" if not svc.auth.has_password() else ""
+            write_boot_status(a.boot_dir, [f"Hi-Fi Bridge {svc.access.main_name()}", f"CA fingerprint (SHA-256): {ca['sha256']}{setup}"])
     svc.start()
     ui = WebUI(svc, a.http_host, a.http_port, tls_port=a.https_port or None)
     port = ui.start()
