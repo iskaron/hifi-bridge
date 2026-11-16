@@ -34,10 +34,9 @@ class MicFeeder(threading.Thread):
 
     def run(self):
         import struct
-        fd = os.open(MIC_FIFO, os.O_WRONLY); chunk = struct.pack("<hh", MIC_VALUE, MIC_VALUE) * 882; t = time.monotonic()
+        fd = writer_fd(MIC_FIFO); chunk = struct.pack("<hh", MIC_VALUE, MIC_VALUE) * 882; t = time.monotonic()
         while not self.stop_ev.is_set():
             os.write(fd, chunk); t += 0.02; time.sleep(max(0.0, t - time.monotonic()))
-        os.close(fd)
 
 
 def pactl(*args, attempts=20):
@@ -58,9 +57,21 @@ def pactl(*args, attempts=20):
     raise RuntimeError(f"pactl {' '.join(args)} failed: {last}\n--- pipewire processes / pipewire-pulse log ---\n{log}")
 
 
+WRITERS: dict[str, int] = {}
+
+
+def writer_fd(fifo: str) -> int:
+    """A writer that stays attached for the whole session, opened BEFORE the pipe source is loaded: otherwise the module can see
+    'no writer' (EOF) at start and then deliver only silence for the whole session (about 1 in 3 sessions on 0.3.65, found 2026-11-16)."""
+    if fifo not in WRITERS:
+        WRITERS[fifo] = os.open(fifo, os.O_RDWR)
+    return WRITERS[fifo]
+
+
 def load_source(name, fifo):
     if not os.path.exists(fifo):
         os.mkfifo(fifo)
+    writer_fd(fifo)
     return pactl("load-module", "module-pipe-source", f"source_name={name}", f"file={fifo}", "format=s16le", "rate=44100", "channels=2")
 
 
@@ -74,21 +85,12 @@ class Feeder:
         self._t = threading.Thread(target=self._run, daemon=True); self._t.start()
 
     def _run(self):
-        while not self._stop.is_set():          # reopen when the source node is unloaded/reloaded (node-vanish test)
-            fd = os.open(FIFO, os.O_WRONLY)
-            t = time.monotonic()
-            try:
-                while not self._stop.is_set():
-                    os.write(fd, pattern(self.next_index, 882)); self.next_index += 882
-                    t += 0.02
-                    time.sleep(max(0.0, t - time.monotonic()))
-            except BrokenPipeError:
-                pass
-            finally:
-                try:
-                    os.close(fd)
-                except OSError:
-                    pass
+        fd = writer_fd(FIFO)                    # O_RDWR writer: survives unloading/reloading the source (node-vanish test)
+        t = time.monotonic()
+        while not self._stop.is_set():
+            os.write(fd, pattern(self.next_index, 882)); self.next_index += 882
+            t += 0.02
+            time.sleep(max(0.0, t - time.monotonic()))
 
     def stop(self):
         self._stop.set()
@@ -114,10 +116,44 @@ def pw():
     mic.stop_ev.set()
 
 
+def wait_until_node_delivers(node: str, timeout: float = 30.0) -> float:
+    """Readiness of the SIMULATED node. On PipeWire 0.3.65 a fresh module-pipe-source sometimes delivers only silence for the first seconds
+    (about 1 in 3 sessions, also with the previous image - found 2026-11-16). Capture with the bridge's own supervisor until real
+    (non-zero) frames arrive, so measurements never start during that warm-up."""
+    from btbridge.adapters.bluez.pcm import PipeWireCapture, parec_argv
+    got = threading.Event()
+    cap = PipeWireCapture(lambda a: parec_argv(node), retry_s=0.2)
+    cap.start("x", lambda pcm: got.set() if pcm.strip(b"\x00") else None)
+    t0 = time.monotonic()
+    try:
+        if not got.wait(timeout):
+            raise RuntimeError(f"simulated node {node} delivered only silence for {timeout} s")
+    finally:
+        cap.stop()
+    return time.monotonic() - t0
+
+
 @pytest.fixture(scope="session")
 def feeder(pw):
-    """One continuous feeder for the whole session: the index never restarts, so a repeat/drop is always a real one."""
-    f = Feeder(); f.start(); time.sleep(0.5); yield f; f.stop()
+    """One continuous feeder for the whole session: the index never restarts, so a repeat/drop is always a real one.
+    Stand-in workaround (NOT product behaviour): on PipeWire 0.3.65 about 1 session in 3 starts with a module-pipe-source that delivers
+    only silence; reloading the module fixes it. Up to 3 reloads, each counted in the results file."""
+    f = Feeder(); f.start(); time.sleep(0.5)
+    reloads, t0 = 0, time.monotonic()
+    while True:
+        try:
+            wait_until_node_delivers(NODE, timeout=8.0)
+            break
+        except RuntimeError:
+            if reloads == 3:
+                raise
+            reloads += 1
+            pactl("unload-module", pw["module"])
+            pw["module"] = load_source(NODE, FIFO)
+    RESULTS["_node_ready_after_s"] = round(time.monotonic() - t0, 2)
+    RESULTS["_stand_in_reloads"] = reloads
+    yield f
+    f.stop()
 
 
 RESULTS: dict = {}

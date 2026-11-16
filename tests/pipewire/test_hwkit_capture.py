@@ -4,7 +4,7 @@ import os
 import threading
 import time
 
-from conftest import load_source, pactl  # noqa: F401
+from conftest import load_source, pactl, writer_fd  # noqa: F401
 
 NODE2 = "bluez_input.AA_BB_CC_DD_EE_02"
 FIFO2 = "/tmp/bt-src2.fifo"
@@ -19,14 +19,13 @@ def test_hwkit_capture_through_real_pipewire_is_clean(pw, tmp_path):
     stop = threading.Event()
 
     def feed():
-        fd = os.open(FIFO2, os.O_WRONLY); t = time.monotonic()
+        fd = writer_fd(FIFO2); t = time.monotonic()
         for k in range(0, len(pcm), 3528):
             if stop.is_set():
                 break
             os.write(fd, pcm[k:k + 3528]); t += 0.02; time.sleep(max(0.0, t - time.monotonic()))
         while not stop.is_set():                      # keep the node alive with silence after the track
             os.write(fd, b"\0" * 3528); t += 0.02; time.sleep(max(0.0, t - time.monotonic()))
-        os.close(fd)
     th = threading.Thread(target=feed, daemon=True)
     keep = __import__("subprocess").Popen(["parec", f"--device={NODE2}", "--property=node.dont-fallback=true", "--raw"],
                                           stdout=__import__("subprocess").DEVNULL)
