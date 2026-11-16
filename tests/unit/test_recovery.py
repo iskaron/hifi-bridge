@@ -122,3 +122,19 @@ def test_the_same_request_can_be_placed_again_later_and_the_journal_survives_a_f
         (boot / "hifi-recovery").write_text("factory-reset")
         assert R.boot_request(str(data), str(boot)) == "factory-reset"
     assert "recovery-journal.json" not in R.OWN_FILES
+
+
+def test_appliance_keeps_running_when_the_boot_directory_is_not_writable(tmp_path, monkeypatch, capsys):
+    import btbridge.appliance as AP
+    import btbridge.bootfiles as BF
+    data, boot = tmp_path / "data", tmp_path / "boot"; data.mkdir(); boot.mkdir()
+    def denied(*a, **k):
+        raise PermissionError(13, "Permission denied", str(boot / "hifi-status.txt"))
+    monkeypatch.setattr(BF, "run", denied)
+    class Stop(Exception): pass
+    def stop_here(*a, **k): raise Stop()
+    monkeypatch.setattr(AP, "ApplianceService", stop_here)         # reached = the boot step did not abort the start
+    a = AP.parser().parse_args(["--data", str(data), "--boot-dir", str(boot), "--source", "none"])
+    with pytest.raises(Stop):
+        AP.run(a, None)
+    assert "boot files NOT processed" in capsys.readouterr().err
