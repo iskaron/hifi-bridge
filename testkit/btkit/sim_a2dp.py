@@ -23,10 +23,11 @@ from . import signal as sig
 class SimulatedA2dpSource:
     def __init__(self, chunk_ms: int = 20, jitter_ms: float = 0.0, avrcp: bool = True,
                  suspend_delay_s: float = 0.0, seed: int = 0, start_frame: int = 0, device: str = "sim-phone-1",
-                 drift_ppm: float = 0.0):
+                 drift_ppm: float = 0.0, paired: bool = True):
         self.chunk_ms, self.jitter_ms, self.avrcp_supported = chunk_ms, jitter_ms, avrcp
         self.suspend_delay_s, self.seed, self.device = suspend_delay_s, seed, device
         self.drift_ppm = drift_ppm            # >0: phone clock runs fast (sends faster than real time)
+        self.paired = paired                  # an unpaired phone can only connect while the pairing window is open (BlueZ agent policy)
         self.cpu_s = 0.0                      # CPU seconds consumed by the simulator thread itself (to subtract from process CPU)
         self.frame = start_frame               # generator position (continues across pause/resume like a track)
         self.cb = None
@@ -81,6 +82,13 @@ class SimulatedA2dpSource:
 
     # --- phone-side controls ---------------------------------------------------
     def connect(self) -> bool:
+        if not self.paired and not self.pairable:   # models the bridge's BlueZ agent: no pairing outside the window
+            self.refused += 1
+            return False
+        if not self.paired:
+            self.paired = True
+            self._paired = getattr(self, "_paired", None) or {}
+            self._paired[self.device] = {"address": self.device, "name": "Guest phone", "trusted": True}
         ok = self.cb.on_connect(self.device)
         if ok:
             self.connected = True

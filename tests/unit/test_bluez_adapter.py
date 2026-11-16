@@ -391,3 +391,11 @@ def test_capture_tool_choice_prefers_pw_cat_raw_then_parec_then_old_pw_cat():
     name, f = choose_capture(which_all({"pw-cat"}), run=lambda *a, **k: R("no raw option"))
     assert name == "pw-cat (0.3 raw)" and "--raw" not in f("n") and "node.dont-fallback = true" in f("n")[f("n").index("-P") + 1]
     assert choose_capture(which_all(set()))[0] == "none"
+
+
+def test_simulated_unpaired_phone_needs_the_pairing_window():
+    from btkit.sim_a2dp import SimulatedA2dpSource
+    sim = SimulatedA2dpSource(paired=False); rec = Recorder(); sim.attach(rec)
+    assert sim.connect() is False and sim.refused == 1 and rec.events == []
+    sim.set_pairable(True); assert sim.connect() is True and sim.paired
+    sim.disconnect(); sim.set_pairable(False); assert sim.connect() is True             # once paired, it reconnects without the window
