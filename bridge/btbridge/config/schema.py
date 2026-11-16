@@ -142,6 +142,11 @@ SETTINGS: dict[str, Setting] = {s.key: s for s in [
     Setting("tls_mode", str, "local_ca", choices=("local_ca", "custom", "proxy"), group="access", restart=True),
     Setting("https_only", bool, False, group="access"),
     Setting("trusted_proxies", str, "", check=_netlist, group="access"),
+    # optional secure remote syslog (TLS only, RFC 5425)
+    Setting("syslog_enabled", bool, False, group="system", restart=True),
+    Setting("syslog_host", str, "", check=_host, group="system", restart=True),
+    Setting("syslog_port", int, 6514, min=1, max=65535, group="system", restart=True),
+    Setting("syslog_ca_pem", str, "", check=_pem_or_empty, group="system", restart=True),
     Setting("language", str, "auto", choices=("auto", "de", "en"), group="ui"),
     Setting("theme", str, "auto", choices=("auto", "light", "dark"), group="ui"),
     Setting("mqtt_enabled", bool, False, group="mqtt", restart=True),

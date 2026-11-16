@@ -1,0 +1,5 @@
+# Real rsyslog with TLS (RFC 5425) as the remote-syslog peer for the bridge's optional secure syslog.
+FROM debian:trixie-slim
+RUN apt-get update && apt-get install -y --no-install-recommends rsyslog rsyslog-gnutls tini && rm -rf /var/lib/apt/lists/*
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["rsyslogd", "-n", "-f", "/etc/rsyslog-lab/rsyslog.conf"]

@@ -16,6 +16,7 @@ import os
 import platform
 import secrets
 import socket
+import ssl
 import threading
 import time
 from typing import Callable
@@ -75,6 +76,7 @@ class LogBuffer:
         self.faults_path, self.faults_keep, self.echo = os.path.join(data_dir, "faults.jsonl"), faults_keep, echo
         self._lock = threading.Lock()
         self.secrets: list[str] = []
+        self.forward: Callable[[str], None] | None = None
 
     def _clean(self, msg: str) -> str:
         m = redact(str(msg))
@@ -89,6 +91,9 @@ class LogBuffer:
             self.lines.append((time.time(), m))
         if self.echo:
             self.echo(m)
+        fwd = self.forward
+        if fwd is not None:
+            fwd(m)                                     # remote syslog: already redacted, non-blocking
 
     def fault(self, kind: str, detail: str) -> None:
         self(f"FAULT {kind}: {detail}")
@@ -125,6 +130,7 @@ class ApplianceService:
         self.lms_factory, self.discover, self.advertise_cfg = lms_factory, discover, advertise_host
         self.monitor = monitor or SystemMonitor(data_dir=data_dir)
         self.mqtt_factory, self.mqtt = mqtt_factory, None
+        self.syslog = None
         self.access = None                              # LocalAccess (names, HTTPS, mDNS) - set by the appliance entry point
         c = self.store.all()
         rc = RuntimeConfig(lms_url=lms_url(c["lms_host"], c["lms_port"]) if c["lms_host"] else "http://127.0.0.1:9",
@@ -185,12 +191,16 @@ class ApplianceService:
         for t in self._threads:
             t.start()
         self._restart_mqtt()
+        self._restart_syslog()
         self.logs(f"service started (version {__version__})")
 
     def stop(self) -> None:
         self._stop.set()
         if self.mqtt:
             self.mqtt.stop()
+        if self.syslog:
+            self.logs("service stopping")
+            self.syslog.stop()
         if self.access is not None:
             self.access.stop()                         # mDNS goodbye
         self.runtime.stop()
@@ -236,9 +246,28 @@ class ApplianceService:
             ctl.set_target(c["target_player"])
         if any(k.startswith("mqtt_") for k in ch):
             self._restart_mqtt()
+        if any(k.startswith("syslog_") for k in ch) or "device_name" in ch:
+            self._restart_syslog()
         if self.access is not None and {"local_hostname", "mdns_enabled", "mdns_backend", "extra_hostnames", "tls_mode", "device_name"} & set(ch):
             self.access.reconfigure(set(ch))
         self._emit("settings_changed", {"keys": sorted(ch)})
+
+    def _restart_syslog(self) -> None:
+        if self.syslog:
+            self.logs.forward = None
+            self.syslog.stop(flush_s=0.5)
+            self.syslog = None
+        st = self.store
+        if st.get("syslog_enabled") and st.get("syslog_host"):
+            from .system.syslog import RemoteSyslog
+            try:
+                self.syslog = RemoteSyslog(st.get("syslog_host"), st.get("syslog_port"), st.get("syslog_ca_pem"),
+                                           hostname=(st.get("local_hostname") or "hifi-bridge"))
+            except ssl.SSLError as e:
+                self.logs(f"remote syslog: invalid CA certificate ({e})")
+                return
+            self.syslog.start()
+            self.logs.forward = self.syslog.emit
 
     def _restart_mqtt(self) -> None:
         if self.mqtt:

@@ -94,6 +94,21 @@ services:
     volumes:
       - ha-config:/config
 
+  # Real rsyslog (TLS) for the optional secure remote syslog (profile "syslog", scripts/test_syslog.sh)
+  syslog:
+    image: btbridge-syslog:dev
+    build:
+      context: .
+      dockerfile: Dockerfile.syslog
+    profiles: ["syslog"]
+    networks:
+      lab:
+        aliases: ["syslog.lan"]
+    volumes:
+      - ./rsyslog:/etc/rsyslog-lab:ro
+      - syslog-certs:/certs:ro
+      - syslog-out:/out
+
   mosquitto:
     image: eclipse-mosquitto:2.0.20
     networks: [lab]
@@ -160,3 +175,5 @@ volumes:
   captures:
   appliance-data:
   ha-config:
+  syslog-certs:
+  syslog-out:

@@ -467,7 +467,7 @@ def select(req, key, value, choices, help_key: str | None = None) -> str:
     return f'<label>{esc(t("field." + key))}<select name="{key}"{desc}>{opts}</select></label>{helptext}'
 
 
-SECTIONS = ("lyrion", "playback", "bluetooth", "access", "mqtt", "appearance", "security")
+SECTIONS = ("lyrion", "playback", "bluetooth", "access", "mqtt", "logging", "appearance", "security")
 
 
 def section_summary(req, name: str) -> str:
@@ -488,6 +488,8 @@ def section_summary(req, name: str) -> str:
         return f'{c["mqtt_host"]} · ' + (t("summary.read_only") if n == 0 else t("summary.controls", n=n))
     if name == "appearance":
         return f'{t("choice.language." + c["language"])} · {t("choice.theme." + c["theme"])}'
+    if name == "logging":
+        return f'{c["syslog_host"]}:{c["syslog_port"]} (TLS)' if c["syslog_enabled"] else t("summary.syslog_off")
     return t("summary.security")
 
 
@@ -557,6 +559,23 @@ def settings_mqtt_get(req):
     inner = (form_card(req, "settings.mqtt.connection", "/settings/mqtt", conn, "settings.mqtt.help") +
              form_card(req, "settings.mqtt.controls", "/settings/mqtt/controls", controls, "settings.mqtt.controls_help"))
     return section_page(req, "mqtt", inner)
+
+
+def settings_logging_get(req):
+    c, svc = req.ui.svc.store.all(), req.ui.svc
+    st = svc.syslog.state() if svc.syslog else None
+    status = (f'<p>{esc(req.t("syslog.state", sent=st["sent"], queued=st["queued"], dropped=st["dropped"]))}</p>'
+              + (f'<p class="error">{esc(st["last_error"])}</p>' if st and st["last_error"] else "")) if st else ""
+    return section_page(req, "logging", form_card(req, "settings.logging", "/settings/logging",
+                        field(req, "syslog_enabled", c["syslog_enabled"], "checkbox") +
+                        field(req, "syslog_host", c["syslog_host"], spellcheck="false", autocapitalize="off") +
+                        field(req, "syslog_port", c["syslog_port"], inputmode="numeric") +
+                        field(req, "syslog_ca_pem", c["syslog_ca_pem"], "textarea", help_key="help.syslog_ca_pem") + status,
+                        "settings.logging.help"))
+
+
+def settings_logging(req):
+    return _save(req, ("syslog_host", "syslog_port", "syslog_ca_pem"), ("syslog_enabled",), back="/settings/logging")
 
 
 def settings_appearance_get(req):
@@ -895,7 +914,8 @@ def routes(ui):
         ("GET", "/settings/lyrion"): settings_lyrion_get, ("GET", "/settings/playback"): settings_playback_get,
         ("GET", "/settings/bluetooth"): settings_bluetooth_get, ("GET", "/settings/access"): settings_access_get,
         ("GET", "/settings/mqtt"): settings_mqtt_get, ("GET", "/settings/appearance"): settings_appearance_get,
-        ("GET", "/settings/security"): settings_security_get, ("POST", "/settings/mqtt/controls"): settings_mqtt_controls,
+        ("GET", "/settings/security"): settings_security_get, ("GET", "/settings/logging"): settings_logging_get,
+        ("POST", "/settings/logging"): settings_logging, ("POST", "/settings/mqtt/controls"): settings_mqtt_controls,
         ("POST", "/settings/access/names"): settings_access_names, ("POST", "/settings/access/tls"): settings_access_tls,
         ("POST", "/settings/access/custom"): settings_access_custom, ("POST", "/settings/access/renew"): settings_access_renew,
         ("GET", "/trust"): trust_page, ("GET", "/manifest.webmanifest"): manifest, ("GET", "/ca.crt"): ca_pem, ("GET", "/ca.der"): ca_der, ("GET", "/healthz"): healthz,

@@ -154,7 +154,10 @@ for key,en,de in [("brand.device","Device","Gerät"),("brand.tagline","Bluetooth
     ("help.trusted_proxies","Only these addresses may tell the device the original client and protocol (X-Forwarded-*).","Nur diese Adressen dürfen dem Gerät Client und Protokoll mitteilen (X-Forwarded-*)."),
     ("help.https_only","Can only be switched on from an HTTPS connection, so you cannot lock yourself out.","Lässt sich nur über eine HTTPS-Verbindung einschalten, damit Sie sich nicht aussperren."),
     ("help.custom_key_pem","The private key is stored only on this device (readable by the service only).","Der private Schlüssel wird nur auf diesem Gerät gespeichert (nur für den Dienst lesbar)."),
-    ("access.status","Status","Status"),("access.mdns","Name service","Namensdienst"),
+    ("access.status","Status","Status"),("settings.logging","Log","Protokoll"),
+    ("settings.logging.help","Optional. Always encrypted (TLS, RFC 5425) with certificate verification; the log never contains passwords or the stream address.","Optional. Immer verschlüsselt (TLS, RFC 5425) mit Zertifikatsprüfung; das Protokoll enthält nie Passwörter oder die Stream-Adresse."),
+    ("help.syslog_ca_pem","Only needed when the server uses a certificate from your own CA.","Nur nötig, wenn der Server ein Zertifikat Ihrer eigenen CA verwendet."),
+    ("summary.syslog_off","Remote syslog off","Remote-Syslog aus"),("syslog.state","Sent {sent}, waiting {queued}, dropped {dropped}.","Gesendet {sent}, wartend {queued}, verworfen {dropped}."),("access.mdns","Name service","Namensdienst"),
     ("help.mdns_backend","Avahi is preferred; the built-in responder is only used where no Avahi service runs.","Avahi wird bevorzugt; der eingebaute Responder nur, wo kein Avahi-Dienst läuft."),("access.name","Network name","Netzwerkname"),("access.https","HTTPS","HTTPS"),
     ("access.on_port","on port {port}","auf Port {port}"),("access.off","not active","nicht aktiv"),("access.cert_until","Certificate valid until","Zertifikat gültig bis"),
     ("access.ca_fp","CA fingerprint (SHA-256)","CA-Fingerabdruck (SHA-256)"),("access.error","Certificate problem: {error}","Zertifikatsproblem: {error}"),
@@ -195,7 +198,9 @@ F2 = {"local_hostname":("Network name","Netzwerkname"),"mdns_enabled":("Announce
       "extra_hostnames":("Further host names","Weitere Hostnamen"),"tls_mode":("Certificate","Zertifikat"),"https_only":("HTTPS only","Nur HTTPS"),
       "trusted_proxies":("Trusted reverse proxies","Vertrauenswürdige Reverse Proxies"),"custom_cert_pem":("Certificate (PEM)","Zertifikat (PEM)"),
       "custom_key_pem":("Private key (PEM)","Privater Schlüssel (PEM)"),
-      "mdns_backend":("Name service","Namensdienst")}
+      "mdns_backend":("Name service","Namensdienst"),
+      "syslog_enabled":("Send the log to a syslog server","Protokoll an einen Syslog-Server senden"),"syslog_host":("Syslog server","Syslog-Server"),
+      "syslog_port":("Port (TLS)","Port (TLS)"),"syslog_ca_pem":("Server CA certificate (PEM, optional)","CA-Zertifikat des Servers (PEM, optional)")}
 for f,(en,de) in F2.items(): k(f"field.{f}",en,de)
 for c,(en,de) in {"tls_mode.local_ca":("Local CA of this device (recommended)","Lokale CA dieses Geräts (empfohlen)"),
                   "tls_mode.custom":("Own certificate","Eigenes Zertifikat"),

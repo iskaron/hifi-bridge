@@ -160,7 +160,7 @@ def test_03_settings_overview_and_sections_on_a_phone(chromium):
     ctx, page = new_page(chromium, errors, storage_state=STATE["storage"], **MOBILE)
     page.goto(BASE + "/settings")
     links = page.locator(".settings-list a")
-    assert links.count() == 7
+    assert links.count() == 8
     no_overflow(page); axe_ok(page, "settings"); shot(page, "07-settings-overview-mobile-light")
     for name, path in (("access", "/settings/access"), ("mqtt", "/settings/mqtt"), ("lyrion", "/settings/lyrion")):
         page.goto(BASE + path)

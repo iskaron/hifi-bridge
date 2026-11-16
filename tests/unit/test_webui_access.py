@@ -152,7 +152,7 @@ def test_healthz_reports_a_hung_control_loop(ui):
 
 def test_settings_overview_and_sections(ui):
     page = ui.c.get("/settings").body
-    for n in ("lyrion", "playback", "bluetooth", "access", "mqtt", "appearance", "security"):
+    for n in ("lyrion", "playback", "bluetooth", "access", "mqtt", "logging", "appearance", "security"):
         assert f'href="/settings/{n}"' in page
         sub = ui.c.get(f"/settings/{n}")
         assert sub.status == 200 and 'href="/settings"' in sub.body, n
