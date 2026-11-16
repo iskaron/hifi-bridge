@@ -1,0 +1,48 @@
+### date: 2026-11-16T13:10:18Z
+TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
+Images          103       21        47.41GB   28.64GB (60%)
+Containers      25        25        867.9MB   0B (0%)
+Local Volumes   129       16        3.674GB   1.146GB (31%)
+Build Cache     401       0         14.16GB   8.626GB
+
+/dev/mapper/data--2023--10-docker--202310  196G     71G  115G   39% /dockerfs
+
+btbridge-avahi:dev 123MB
+btbridge-browser:dev 2.58GB
+btbridge-hwkit:dev 630MB
+btbridge-lab:dev 386MB
+btbridge-pw:bookworm 203MB
+btbridge-pw:trixie 236MB
+btbridge-py314:dev 214MB
+btbridge-security:dev 152MB
+btbridge-static:dev 164MB
+btbridge-syslog:dev 89.2MB
+
+btbridge-lab-player3-1 Up 18 minutes
+btbridge-lab-legacy1-1 Up 18 minutes
+btbridge-lab-player2-1 Up 18 minutes
+btbridge-lab-player1-1 Up 18 minutes
+btbridge-lab-mosquitto-1 Up 21 minutes
+btbridge-lab-lms-1 Up 30 minutes (healthy)
+
+btbridge-lab_appliance-data
+btbridge-lab_captures
+btbridge-lab_ha-config
+btbridge-lab_lms-config
+btbridge-lab_syslog-certs
+btbridge-lab_syslog-out
+### own superseded images (dry run)
+project image (superseded): 743b1f5b423e  628 MB
+project image (superseded): 776d8a93de20  384 MB
+project image (superseded): bf6a7dcc77fb  235 MB
+project image (superseded): c11d5de9b913  384 MB
+project image (superseded): ceaa14a56f0d  386 MB
+project image (superseded): d1f9b540c0da  628 MB
+project image (superseded): d3d2083769e1  386 MB
+project image (superseded): d586cd8f7a38  386 MB
+project image (superseded): d9251165a4b0  384 MB
+project image (superseded): f12a20c24f33  122 MB
+duplicate tag: ghcr.io/home-assistant/home-assistant:stable (same image as the pinned 2026.11.1)
+(dry run - nothing removed; use --apply)
+16 images, 6030 MB
+lab stopped with scripts/lab_down.sh (own compose project only) at 2026-11-16T13:11:01Z

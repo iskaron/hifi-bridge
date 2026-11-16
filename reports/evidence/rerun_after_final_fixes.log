@@ -1,0 +1,16 @@
+### date: 2026-11-16T13:11:11Z commit a8fe076
+### STATIC
+### shellcheck
+### python-compile
+compiled without writing bytecode; 0 error(s)
+### systemd-unit
+→ Overall exposure level for hifi-bridge.service: 1.9 OK :-)
+### actionlint
+static exit: 0
+static rc=0
+### UNIT
+258 passed in 80.94s (0:01:20)
+### PYTHON 3.14
+258 passed in 79.54s (0:01:19)
+### SECURITY
+bandit medium/high gate: rc=0
