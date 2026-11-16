@@ -75,3 +75,9 @@ unless controls are enabled. Concepts: docs/LOCAL_ACCESS_TLS.md, docs/SERVICE_SU
 ## Stabilisation package additions (2026-11-16)
 `net/avahi.py` (Avahi backend, production default), `recovery.py` (local recovery), `system/syslog.py` (optional TLS syslog), automatic PipeWire
 capture tool choice (`adapters/bluez/pcm.choose_capture`), trend history in the service, web-app manifest. Phase 2b proposals: docs/PHASE2B_PLAN.md.
+
+## Phase-2b preparation additions (2026-11-16)
+* Device: `provisioning.py` (format `hifi-bridge-provision/1`, shared with the flash tool), `trustproof.py` (P7 HMAC proof, shared),
+  `bootfiles.py` (recovery → provisioning → CA → status, run by `hifi-bridge-boot.service`), journaled `recovery.py`, `/trust/proof`.
+* `os/br2-external`: Buildroot skeleton (docs/PHASE2B_PLAN.md, os/README.md).
+* `flashtool/hififlash`: flash tool core (docs/FLASH_TOOL.md). It depends on `btbridge.provisioning` and `btbridge.trustproof` only.

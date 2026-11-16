@@ -105,3 +105,15 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
   pulseaudio package -> automatic capture tool choice picks `pw-cat --raw`. Init system/logind remain a 2b decision (docs/PHASE2B_PLAN.md).
 * #32 lab images: **resolved** - all images rebuilt from scratch on 2026-11-16 (scripts/build_images.sh).
 * #27 Docker disk: **resolved by the owner** (102 GB free on 2026-11-16).
+
+## Added by the phase-2b preparation package (2026-11-16)
+35. **brcmfmac firmware licence:** Buildroot labels `brcmfmac_sdio-firmware-rpi` PROPRIETARY. Its LICENSE must be read before any public
+    image (G4 L-1). Without it there is no on-board Wi-Fi/Bluetooth.
+36. **Firmware/DTB updates:** the boot partition (firmware, DTB, overlays, U-Boot) is shared by both slots and not A/B. Freeze it per release
+    line, or design a two-phase update? (PHASE2B_PLAN §6)
+37. **vfat in-place overwrite:** scrubbing assumes vfat keeps the clusters on a same-length in-place write. Verify on a Pi (G2 P6-3).
+38. **Release CA:** who creates it, on which hardware token, and the rehearsal (G4 K-1). Until it exists, "official" trust cannot be built.
+39. **Factory reset and Bluetooth pairings:** should a factory reset also remove `/var/lib/bluetooth`? Today it removes only the bridge's own
+    files (G2 P8-2).
+40. **Revocation:** no CRL; a compromised key is handled by shipping a new keyring. Is that enough for v1? (UPDATE_TRUST §5)
+41. **Project LICENSE file** (AGPL-3.0-only intent) is still missing; needed for `legal-info` and any publication.

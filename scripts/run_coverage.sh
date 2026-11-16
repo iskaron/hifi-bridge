@@ -10,5 +10,9 @@ RUN="docker compose run --rm -T -e COVERAGE_FILE=/work/.lab/coverage/.coverage r
 mkdir -p ../.lab/coverage && rm -f ../.lab/coverage/.coverage*
 $RUN python3 -m coverage run -p --branch --source=/work/bridge/btbridge -m pytest -q -p no:cacheprovider tests/unit >/dev/null
 [ $WITH_INT -eq 1 ] && $RUN python3 -m coverage run -p --branch --source=/work/bridge/btbridge -m pytest -q -p no:cacheprovider tests/integration >/dev/null
+# tests/os + tests/flashtool run in btbridge-os (openssl, rauc, genimage, mtools); same /work paths, so the data files combine
+docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD/..":/work -e COVERAGE_FILE=/work/.lab/coverage/.coverage \
+  -e PYTHONPATH=/work/bridge:/work/flashtool:/work/testkit:/work/tests/unit:/work/tests/os btbridge-os:dev \
+  python3 -m coverage run -p --branch --source=/work/bridge/btbridge,/work/flashtool/hififlash -m pytest -q -p no:cacheprovider tests/os tests/flashtool >/dev/null
 $RUN sh -c "cd /work/.lab/coverage && python3 -m coverage combine -q && python3 -m coverage report --skip-empty -m" > ../reports/evidence/coverage.txt
 tail -1 ../reports/evidence/coverage.txt

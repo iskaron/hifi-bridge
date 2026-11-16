@@ -16,7 +16,7 @@ Nothing here has been reviewed by an external security tester.
 ## Controls (with tests)
 | Area | Control | Evidence |
 |---|---|---|
-| First start | A random 12-character setup code: on the appliance from the flash tool (phase 2b), in development from `setup-code.txt` (0600). Only its hash is stored, and it is deleted after use. Recovery issues a new code, but only via console or flash tool, never over the network. | UNIT `test_auth.py`, HTTP `test_webui.py` |
+| First start | A random 12-character setup code. With provisioning (flash tool or manual bootstrap file, docs/PROVISIONING.md) the owner already knows it and the device stores only its hash; otherwise the device generates one (`setup-code.txt` 0600, and in `hifi-status.txt` on the boot partition until the owner password is set). It is invalid after use. Recovery issues a new code, only via console or the boot partition, never over the network. | UNIT `test_auth.py`, `test_provisioning.py`, HTTP `test_webui.py` |
 | Passwords | PBKDF2-HMAC-SHA256 with a random salt; 200k iterations (to be re-measured on a Pi Zero 2 W); at least 10 characters plus simple-pattern checks; constant-time comparison. | UNIT |
 | Brute force | Per-client exponential back-off after 5 failures, for both login and setup code. | UNIT + HTTP |
 | Sessions | Random 256-bit id held only in server memory; 8 h idle and 30 days absolute; all sessions end on a password change. | UNIT + HTTP |
@@ -32,12 +32,18 @@ Nothing here has been reviewed by an external security tester.
 | DNS rebinding | Host allow-list (mDNS name, extra names, localhost, IP literals) checked before any processing -> 421 | UNIT/HTTP |
 | HSTS | **Off by default** (DECISIONS #48): no `Strict-Transport-Security` in any mode; static guard against accidental introduction | UNIT/TLS |
 | Remote syslog | Optional; TLS only (RFC 5425) with mandatory verification incl. host name; redacted lines; bounded non-blocking queue; a wrong CA delivers nothing | UNIT + INTEGRATION real rsyslog |
-| Recovery | Password reset / factory reset only locally (console, or a request file on the boot partition = physical access); never via WebUI/MQTT; factory reset removes only the bridge's own known files | UNIT |
+| Recovery | Password reset / factory reset only locally (console, or a request file on the boot partition = physical access); never via WebUI/MQTT; factory reset removes only the bridge's own known files; a request runs exactly once and survives power cuts (journal) | UNIT (power cut injected at every step) |
+| Provisioning secrets on FAT | strict validation without echoing values; journaled apply; in-place scrub; short-lived secrets; no hotspot without an owner-known password; evaluation of residual data in docs/PROVISIONING.md §4 | UNIT + INTEGRATION (genimage card, mtools) |
+| CA trust bootstrap | the device CA never leaves the device; the flash tool authenticates it with a one-time trust key from the card (HMAC over a nonce), then checks HTTPS against only that CA; the key ends with the setup (docs/TRUST_BOOTSTRAP.md) | INTEGRATION incl. a CA-swapping LAN attacker |
+| Public routes | exactly 11 unauthenticated method+path pairs, pinned by a test (a misplaced decorator is caught) | UNIT |
+| Boot-partition writer | only `hifi-bridge-boot.service` may write `/boot`; no network (`PrivateNetwork=yes`); systemd exposure 0.6 | STATIC |
+| Update signatures | explicit trust choice per image; public CAs only in the keyring; release key never in CI (offline re-signing); codeSigning purpose required (docs/UPDATE_TRUST.md) | real RAUC 1.13 (signatures only; no install) |
+| Flash tool | only removable non-system disks; typed confirmation; identity re-check; signed manifest; read-back verify; invalidation on failure (docs/FLASH_TOOL.md) | UNIT with simulated cards; no host disk is ever touched |
 
 ## Known gaps and decisions for later (see OPEN_QUESTIONS)
 * **HTTPS:** implemented (local CA / own certificate / proxy). Until the owner has installed the CA and enabled HTTPS-only, plain HTTP stays
-  available and a LAN attacker could sniff a session cookie used over HTTP. The CA fingerprint must be compared out of band; the flash tool
-  that will show it is phase 2b. No HSTS yet (OPEN_QUESTIONS #28).
+  available and a LAN attacker could sniff a session cookie used over HTTP. The CA must be authenticated out of band: the flash tool does it
+  automatically (docs/TRUST_BOOTSTRAP.md; GUI still to come), otherwise compare the fingerprint in `hifi-status.txt`. No HSTS (DECISIONS #48).
 * **MQTT command trust:** only relevant once a control is explicitly enabled; then anyone allowed by the broker ACL can use it (documented in the UI).
 * **No account lock-out** beyond the back-off, and no audit log of owner actions beyond the RAM log.
 * **CA key on the device:** root on the device can mint certificates - but only for local names/private IPs (name constraints). A new CA

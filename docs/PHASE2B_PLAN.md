@@ -1,81 +1,89 @@
-# Phase 2b – preparation: architecture decisions, implementation plan, acceptance criteria
+# Phase 2b – architecture, implementation plan, acceptance criteria
 
-**Status:** research and plan only. The decisions in §2 are **proposals P1–P9**, to be confirmed by the owner. **No image, OTA installer or flash tool has been built.** No hardware compatibility is
-confirmed: every board statement below is "supported by Buildroot", **not** "works for this product". The plan starts only after the hardware gate
-(`docs/HARDWARE_TEST_PROCEDURE.md`) and with the owner's explicit approval.
+**Status (2026-11-16):** the review decided P1–P9 (DECISIONS #51–#60). This package prepared everything that can be done without hardware:
+* the **br2-external skeleton** (`os/`) with three board defconfigs, update trust, card layout, U-Boot script and units;
+* the **device-side** provisioning, CA trust proof and recovery;
+* the **flash tool core**;
+* checks in Docker.
 
-## 1. Evidence base (what was actually checked)
-Source: Buildroot **2026.02.x LTS** branch, commit `679b9ea` (2026-06-16), read with a sparse clone in a disposable container on 2026-11-16.
-Versions and licences come from the package `.mk` files, option names from `Config.in`.
+**No board image has been built, nothing has been booted, no A/B update has run, and no hardware compatibility is confirmed.** Every board
+statement means "configured for", not "works". Building and booting start only after gate G1 (docs/HARDWARE_GATE_CHECKLIST.md) and the
+owner's approval.
+
+## 1. Evidence base
+Buildroot **2026.02.x LTS**, commit `679b9ea` ("Update for 2026.02.3"), fetched by `scripts/os_fetch_buildroot.sh`. Versions and licences
+below come from `make show-info` for our defconfigs (`reports/evidence/os_licenses_<board>.md`, 48 target packages per board, licence
+policy passed).
 
 | Need | Buildroot package (version) | Licence | Notes |
 |---|---|---|---|
-| Python runtime | python3 (3.14.5) | Python-2.0 | **The lab runs 3.11** - compatibility tested in Docker with 3.14 (this package, `tests` on python:3.14) |
-| D-Bus client for BlueZ/Avahi | python-jeepney (0.9.0) | MIT | lab uses 0.8 |
-| Bluetooth | bluez5_utils (5.79) | GPL-2.0+, LGPL-2.1+ | plan A1 still decides on `--experimental` |
-| Audio graph | pipewire (1.2.8), wireplumber (0.5.10) | MIT (+LGPL-2.1+ spa-alsa) | `pw-cat` only with libsndfile; **no `parec`** unless the full pulseaudio (17.0, LGPL-2.1+) package is added -> capture defaults to `pw-cat --raw` there (implemented: automatic tool choice) |
-| mDNS | avahi (0.8) with AVAHI_DAEMON + LIBAVAHI_CLIENT; dbus (1.14.10) | LGPL-2.1+ / AFL-2.1 or GPL-2.0+ | preferred production mDNS (DECISIONS #49 - review decision); controlled over D-Bus (implemented: avahi backend) |
-| TLS/certificates | libopenssl (3.6.2) + `BR2_PACKAGE_LIBOPENSSL_BIN` (openssl CLI) | Apache-2.0 | Apache-2.0 is compatible with (A)GPL-3.0 |
-| Updates | rauc (1.15.2, options DBUS/NETWORK/STREAMING/JSON) | LGPL-2.1 | alternatives: swupdate (2025.05, GPL-2.0+ and others), mender-artifact (4.2.0, Apache-2.0) |
-| Init | systemd (258.7) or busybox (1.37.0) | LGPL-2.1+ / GPL-2.0 | unit file is ready and verified (`packaging/systemd`) |
-| Wi-Fi client / hotspot | wpa_supplicant (2.11), hostapd (2.11), dnsmasq (2.92), iw (6.17) | BSD-3-Clause / GPL | hotspot needs AP mode of the on-board Wi-Fi (hardware test) |
-| Boot | rpi-firmware (VARIANT_PI for 3 B+/Zero 2 W, VARIANT_PI4), optional U-Boot | BSD-3-Clause (redistributable binaries) | `RPI_FIRMWARE_EXTRA_FILES` can place `autoboot.txt` |
+| Python runtime | python3 (3.14.5) | Python-2.0 + others | unit suite also runs on 3.14 (`scripts/run_py314.sh`) |
+| D-Bus client for BlueZ/Avahi | python-jeepney (0.9.0) | MIT | |
+| Bluetooth | bluez5_utils (5.79) + audio plugins, sbc (2.1) | GPL-2.0+, LGPL-2.1+ | PipeWire's BlueZ plugin needs bluez5_utils + sbc + glib |
+| Audio graph | pipewire (1.2.8), wireplumber (0.5.10), lua (5.4.8), libsndfile (1.2.2) | MIT, LGPL-2.1+ | **WirePlumber needs Lua ≥ 5.3**: without it Kconfig silently dropped WirePlumber (found by our check). `pw-cat` needs libsndfile. No `parec`, so capture uses `pw-cat --raw` |
+| mDNS | avahi (0.8) daemon, dbus (1.14.10) | LGPL-2.1+ / AFL-2.1 or GPL-2.0+ | DECISIONS #49/#52 |
+| TLS/certificates | libopenssl (3.6.2) + `LIBOPENSSL_BIN` | Apache-2.0 | DECISIONS #50 |
+| Updates | rauc (1.15.2, D-Bus, JSON), uboot (2026.01, `rpi_arm64`), uboot-tools (2025.10, fw_printenv) | LGPL-2.1 / GPL-2.0+ | host tools for tests: Debian RAUC 1.13, mkimage 2025.01 |
+| Init | systemd (258.7), merged /usr | LGPL-2.1+ | units verified with `systemd-analyze` |
+| Network | wpa_supplicant (2.11), hostapd (2.11), dnsmasq (2.92), iw (6.17), wireless-regdb, brcmfmac firmware | BSD-3 / GPL / ISC / **PROPRIETARY** | the firmware licence must be reviewed before any public image (G4 L-1) |
+| Card tools | util-linux 2.41.4 (sfdisk, partx), e2fsprogs 1.47.3 (resize2fs) | GPL-2.0+ and others | first-boot growth of the data partition |
+| Boot firmware | rpi-firmware (VARIANT_PI for 3 B+/Zero 2 W, VARIANT_PI4) | BSD-3-Clause per Buildroot | |
 
-Board defconfigs that exist: `raspberrypizero2w_64_defconfig` (bcm2710-rpi-zero-2-w), `raspberrypi3_64_defconfig` (bcm2710-rpi-3-b-plus) and
-`raspberrypi4_64_defconfig` (bcm2711-rpi-4-b). All three use aarch64, the Raspberry Pi kernel fork, and a 120 MB ext rootfs in the example
-configuration.
-
-## 2. Architecture proposals for phase 2b (P1–P9, to confirm)
-| # | Decision | Reason | Verify on hardware |
+## 2. Decisions after review (P1–P9)
+| # | Decision (status) | Implemented in this package | Open / gate |
 |---|---|---|---|
-| P1 | **Buildroot 2026.02.x LTS**, aarch64, one `br2-external` tree with a defconfig per board (zero2w_64, 3_64, 4_64) and a common package set | LTS security updates until 2027-02; one tree, three boards | boot on each board |
-| P2 | **Avahi daemon** publishes `hifi-bridge.local` and the services (decision of the review). The bridge controls it over D-Bus (`EntryGroup`); the built-in responder stays as the fallback for Docker or other runtimes | mature conflict handling, IPv6, per interface | resolve from iOS/Android/Windows/macOS |
-| P3 | **RAUC** for signed A/B updates (X.509-signed bundles, CMS); **U-Boot** with boot-count/rollback on all three boards | RAUC is in Buildroot, has a D-Bus API, verity bundles and streaming; U-Boot gives a uniform A/B path. The firmware's `tryboot`/`autoboot.txt` is an option where verified | power-loss tests per board (plan) |
-| P4 | **Partition layout:** `boot` (FAT, firmware + U-Boot + env), `rootfs-A`, `rootfs-B` (read-only, squashfs or ext4 verity), `data` (ext4, grows on first boot) | read-only root, settings in `data` (`/var/lib/hifi-bridge`) | measured sizes, first-boot growth |
-| P5 | **Keys:** offline release signing key (hardware token or air-gapped machine), separate development key; device keyring holds the release CA; key rotation through a signed bundle carrying the new keyring; development images never accept release bundles and vice versa | no online key on build machines | – |
-| P6 | **First setup:** the flash tool writes `hifi-provision.json` to the boot partition: setup code, hotspot SSID and **individual** WPA2/3 password, country (regulatory domain), optional Wi-Fi credentials. The device consumes it on first boot, moves secrets into `data`, and **deletes the file**. No shared factory password | DECISIONS #9, PRODUCT_SPEC networking | boot without provisioning file -> hotspot with per-device password printed by the tool |
-| P7 | **CA fingerprint out of band:** the device creates its CA on first boot and writes **only the fingerprint** to `hifi-status.txt` on the boot partition; the flash tool and the console show it. The CA private key never leaves the device. Alternative (owner decision): the flash tool generates the CA, so the fingerprint is known at flash time, but the key passes through the host | trust step of LOCAL_ACCESS_TLS.md | – |
-| P8 | **Recovery without network:** a file `hifi-recovery` on the boot partition triggers either "reset owner password" (new setup code to `hifi-status.txt`) or "factory reset" (wipe `data`). Physical access to the SD card is the authority; the logic already exists (`python -m btbridge.recovery`) | spec: recovery, no universal credentials | – |
-| P9 | **Flash/provisioning tool:** a small cross-platform desktop app. Recommendation: **Python + Qt (PySide6, LGPL)**, or Tauri/Rust. It writes the image with verification (SHA-256), writes the provisioning file, shows the setup code and CA fingerprint, and offers DE/EN. Alternative: Raspberry Pi Imager with a custom OS list plus a separate provisioning step (rejected: no per-device secrets, two tools) | per-device secrets need our own tool | Windows/macOS/Linux installers |
+| P1 | Buildroot 2026.02 LTS, one br2-external, three boards (**approved**) | `os/br2-external`; generated defconfigs; check for dropped options; licence policy | build + boot per board (G2 P1-1/P1-2) |
+| P2 | Avahi (**approved**) | in the package set; the bridge's Avahi backend exists (stabilisation package) | resolution from real clients (G1 H1) |
+| P3 | RAUC **preferred**; U-Boot boot-count **provisional**; alternatives open | `boot.cmd` (RAUC U-Boot pattern; slot B never tried while empty), `system.conf`, fw_env config | per-board feasibility, rollback, power cuts (G2 P3-1…P3-8); `tryboot` as the alternative |
+| P4 | boot + rootfs-A + rootfs-B + data (**approved structure**); file systems and sizes after measurement | MBR layout via genimage; ext4 slots (placeholder 256 MB); data grows on first boot | measure, then decide ext4 vs. squashfs/verity and sizes (G2 P4-1…P4-4) |
+| P5 | separate dev/release keys; official updates on configured self-built images; explicit trust; no release key in CI (**revised**) | explicit trust choice with no default; keyring from public CAs only; offline re-signing; `check-purpose=codesign` → docs/UPDATE_TRUST.md | create the release CA offline (G4 K-1); install tests on the device (G2 P5-*) |
+| P6 | no hotspot without an owner-known individual password; flash tool or manual bootstrap file; FAT secrets evaluated (**revised**) | format + strict validation, journaled apply, in-place scrub, status without secrets → docs/PROVISIONING.md (incl. the evaluation) | the network service consuming `network.json`; P6-1…P6-5 |
+| P7 | CA stays on the device; timing contradiction removed; usable OOB flow (**revised**) | trust key on the card + HMAC proof over a nonce + HTTPS check against only that CA → docs/TRUST_BOOTSTRAP.md | real phones (G1 H2, G2 P7-1) |
+| P8 | physical SD recovery (**approved**); exactly once, power-cut safe | journaled requests; the journal survives a factory reset; tests inject power cuts at every step | P8-1…P8-3 |
+| P9 | PySide6 provisionally; LGPL, packaging, disk detection, safe write/verify (**approved provisionally**) | core library `flashtool/hififlash` with simulated cards → docs/FLASH_TOOL.md | GUI, real block-device helper, installers (G3) |
 
 ## 3. Size and resource estimates (to be measured; not commitments)
-* **Rootfs:**
-  * kernel + modules ~30 MB;
-  * Python 3.14 (stripped, without tests) ~35–45 MB;
-  * BlueZ, PipeWire and WirePlumber ~10 MB;
-  * OpenSSL, Avahi, D-Bus and RAUC ~10 MB;
-  * bridge code < 2 MB.
-
-  Expected total **~100–150 MB per slot**. The A/B layout needs about 2 × 256 MB slots, a 256 MB boot partition and at least 256 MB data, so
-  **≥ 1 GB minimum**. 4 GB stays an optimisation target (PRODUCT_SPEC); the measured image decides.
-* **RAM** budget on a Zero 2 W (512 MB): the bridge process with an RSS of ~25–40 MB (to be measured) plus PipeWire/WirePlumber, BlueZ, Avahi and
-  RAUC. The systemd unit currently caps the bridge at 256 MB.
-* **CPU:** SBC decoding (BlueZ/PipeWire), possible 48→44.1 kHz resampling, PBKDF2 at login (OPEN_QUESTIONS #21), FLAC encoding (optional).
-  Plan E4 measures these.
+* Rootfs: kernel + modules ~30 MB, Python 3.14 (bytecode only) ~35–45 MB, BlueZ/PipeWire/WirePlumber/Lua ~12 MB,
+  OpenSSL/Avahi/D-Bus/RAUC ~10 MB, network tools ~5 MB, bridge < 2 MB. Expected **~100–150 MB per slot**.
+* Layout placeholder: boot 64 MB + 2 × 256 MB slots + data ≥ 64 MB (grows), so **≥ 1 GB minimum**. 4 GB stays an optimisation target
+  (PRODUCT_SPEC); the measured image decides.
+* RAM on a Zero 2 W (512 MB): the bridge ~25–40 MB RSS (to be measured) plus PipeWire/WirePlumber, BlueZ, Avahi and RAUC. The unit caps the
+  bridge at 256 MB.
 
 ## 4. Licence obligations (AGPL-3.0-only project)
-* All runtime components listed above are compatible with distribution next to AGPL code: Apache-2.0, MIT, LGPL-2.1+, GPL-2.0+, BSD and the
-  Python licence.
-* **The image is a collection.** We must ship the source (or a written offer) for GPL/LGPL components; Buildroot's `make legal-info` produces
-  the manifest and sources. Add that to the release process.
-* The Raspberry Pi firmware binaries are redistributable under their own licence (BSD-3-Clause per Buildroot); include the licence text.
-* The flash tool: PySide6 is LGPL-3.0, so dynamic linking with notices is fine. Tauri is MIT/Apache.
+* The image is a collection. Ship sources or a written offer for GPL/LGPL components (`make legal-info`; release step).
+* Reviewed exceptions in `os/tools/license_report.py`:
+  * the Raspberry Pi firmware;
+  * the **PROPRIETARY brcmfmac firmware (open: read its licence)**;
+  * the Bootlin toolchain runtime (glibc LGPL-2.1+, GCC runtime exception);
+  * e2fsprogs libss/libet (advertising clause);
+  * Python's bundled parts;
+  * Buildroot's skeleton files.
+* The project `LICENSE` file is still missing (owner task; `HIFI_BRIDGE_LICENSE_FILES` is empty).
+* Flash tool: PySide6/Qt LGPL-3.0 (dynamic linking, notices, replaceable); python-cryptography Apache-2.0/BSD.
 
-## 5. Implementation plan (after approval; order = dependencies)
-| Step | Content | Depends on | Acceptance criteria (verifiable) |
+## 5. Implementation plan (after G1 and approval; order = dependencies)
+| Step | Content | Done in preparation | Acceptance criteria (verifiable) |
 |---|---|---|---|
-| 1 | br2-external skeleton, three defconfigs, package selection (§1), bridge as a Buildroot package (python-hifi-bridge), systemd unit, users/permissions | hardware gate passed | `make` builds all three images reproducibly in Docker; `legal-info` complete; images boot on each board (REAL-HARDWARE) |
-| 2 | Partition layout + U-Boot + RAUC system.conf; development key pair | 1 | `rauc status` shows A/B; an update of slot B, then reboot, ends in "good"; boot-count rollback after a forced failed boot; power cut during install leaves a bootable system (10×) |
-| 3 | Provisioning (`hifi-provision.json`), hotspot with per-device password, regulatory domain, first-boot data growth | 1 | a fresh card with provisioning boots into the configured Wi-Fi or a hotspot within N s (measured); the file is deleted; no shared secret in the image (scan) |
-| 4 | Avahi integration in the image (avahi backend enabled), HTTPS on 443 with the local CA, fingerprint in `hifi-status.txt` | 1 | name resolves on iOS/Android/Windows/macOS; HTTPS lock after CA install; fingerprint matches the trust page |
-| 5 | Recovery (`hifi-recovery`), factory reset, fault log | 3 | reset with physical card access only; unauthenticated network paths cannot trigger it |
-| 6 | Signed update upload in the WebUI + optional update check (never automatic install) | 2 | an unsigned or wrongly signed bundle is rejected; a signed one is installed only after owner confirmation; rollback is selectable |
-| 7 | Flash/provisioning tool (Windows/macOS/Linux) | 3, 4 | writes and verifies the image; generates per-device secrets; shows the setup code and fingerprint; signed installers or clearly marked gaps |
-| 8 | Resource and image-size measurement, storage recommendation | 1–4 | measured numbers replace §3 estimates |
+| 1 | Real builds of the three defconfigs in Docker (`btbridge-os` is the build image), `legal-info`, image scan | skeleton, defconfigs, licence policy | reproducible build; legal-info complete; no secret in the image; boots on each board (G2 P1) |
+| 2 | Boot mechanism per board, RAUC install/rollback, power-cut tests | boot.cmd, system.conf, fw_env, trust | G2 P3-1…P3-8, P5-1…P5-4 |
+| 3 | Network service: Wi-Fi XOR hotspot from `network.json`, regulatory domain, 60 s fallback; Wi-Fi settings in the WebUI | provisioning and `network.json` | G2 P6-1, P6-2, P6-4 |
+| 4 | Avahi + HTTPS on 443 in the image; boot unit | bootfiles, trust proof | G1 H1/H2, G2 P7-1 |
+| 5 | Recovery on the device | journaled requests | G2 P8-* |
+| 6 | Signed update upload in the WebUI, showing `update-trust.json`; optional update check (never automatic) | trust json | G4 U-1, U-2 |
+| 7 | Flash tool GUI (PySide6), block-device helper with exclusive open and privilege separation, installers | core library | G3 F-1…F-6 |
+| 8 | Measure sizes and resources; storage recommendation | – | G2 P4-3/P4-4 |
 
 ## 6. Risks
-* `tryboot`/`autoboot.txt` support on the 3 B+ and Zero 2 W is not established; U-Boot boot-count is the fallback for all boards (mitigation in P3).
-* The Zero 2 W has 512 MB RAM and shared 2.4 GHz Wi-Fi/Bluetooth. It may not be a supported target if plan E5 fails.
-* The jump from Python 3.11 (lab) to 3.14 (image) must stay covered by the CI matrix.
-* PipeWire 1.2.8 differs from the tested 0.3.65/1.4.2. The capture command must be re-verified (the `pw-cat --raw` path).
-* Key handling and release signing are organisational: process plus hardware token.
+* **Boot chain per board is unproven.** U-Boot `rpi_arm64` on the Zero 2 W/3 B+/4 with RAUC boot-count is a pattern, not a result. `tryboot`
+  may only be reliable on the Pi 4. Mitigation: P3-8 keeps both open.
+* **Firmware, DTB and overlays live on the shared boot partition** and are not A/B. An update that needs new firmware or DTB is not atomic.
+  Options: freeze the firmware per release line, or a careful two-phase firmware update (decide in step 2).
+* **The Bluetooth UART:** Buildroot's example moves Bluetooth to the mini-UART (`miniuart-bt`); we do not. Whether A2DP is stable on PL011
+  on each board must be measured (P1-3).
+* **The vfat in-place overwrite assumption** for scrubbing secrets (P6-3); FTL residue is untestable without lab equipment.
+* **The Zero 2 W's 512 MB RAM** and shared 2.4 GHz radio (plan E5).
+* **PipeWire 1.2.8** differs from the tested 0.3.65/1.4.2 (the `pw-cat --raw` path must be re-verified, A3/A4).
+* **Revocation** of update keys only by shipping a new keyring (no CRL), see docs/UPDATE_TRUST.md §5.
+* **Licence of the brcmfmac firmware** is not reviewed; it blocks a public image until it is.
+* Key handling and release signing are organisational: process, hardware token, rehearsal (G4 K-1/K-2).

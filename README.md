@@ -6,8 +6,13 @@ in German and English, reached under `hifi-bridge.local` over HTTPS with the dev
 
 "Hi-Fi Bridge" is the provisional product name (DECISIONS #34). "Bluetooth" is used only descriptively, and the official Bluetooth logo is not used.
 
-**Status:** Phase 2a, the follow-up package and the software-stabilisation package (2026-11-16), on top of the accepted phase-1 feasibility
-result. Phase 2b (Buildroot image, OTA, flash tool) is **planned, not started** (`docs/PHASE2B_PLAN.md`) and waits for the hardware gate. The development machine has **no** Bluetooth,
+**Status:** Phase 2a, the follow-up, stabilisation and phase-2b preparation packages (2026-11-16), on top of the accepted phase-1 result.
+Phase 2b is **prepared, not built** (`docs/PHASE2B_PLAN.md`):
+* a Buildroot external tree (`os/`) whose configuration is checked in Docker;
+* the flash tool core (`flashtool/`), tested with simulated cards;
+* device-side provisioning, CA trust proof and recovery.
+
+**No image has been built or booted.** Next is the hardware gate (`docs/HARDWARE_GATE_CHECKLIST.md`). The development machine has **no** Bluetooth,
 Raspberry Pi or audio hardware (owner decision). Everything runs in Docker:
 * **Real:** Lyrion 9.1.2, Squeezelite 1.9.9, Mosquitto 2.0.20, Home Assistant 2026.11.1, PipeWire 0.3.65/1.4.2 tools, Avahi 0.8, rsyslog 8
   (TLS), FFmpeg codecs, Chromium and WebKit; Python 3.11 (lab) and 3.14 (Buildroot's version).
@@ -23,6 +28,8 @@ bridge/btbridge/   product code, Python stdlib only (+ optional jeepney; openssl
                    adapters/bluez/             BlueZ/PipeWire adapter (prepared, NOT hardware-verified)
                    config/ system/ service.py webui/ mqtt/ net/ supervision.py appliance.py
 hwkit/             hardware validation kit (preflight, guided session, traces, captures, analysis) + pi-setup/
+os/                Buildroot br2-external skeleton (3 boards, update trust, card layout) - configuration-checked, NOT built (os/README.md)
+flashtool/         flash/provisioning tool core (disk policy, signed manifest, write/verify, provisioning, CA trust) - no GUI yet
 packaging/         systemd unit (verified with systemd-analyze) + respawn wrapper - preparation for phase 2b
 testkit/           lab-only tools: simulated phone, fake BlueZ, PipeWire harness, appliance_lab
 tests/             unit/ integration/ pipewire/ hwkit/ browser/ homeassistant/ fixtures/
@@ -45,6 +52,7 @@ scripts/test_syslog.sh            # optional remote syslog -> REAL rsyslog over 
 scripts/run_py314.sh              # unit suite on Python 3.14
 scripts/run_security.sh           # bandit gate (no unjustified MEDIUM/HIGH finding)
 scripts/run_coverage.sh [--integration]   # line+branch coverage -> reports/evidence/coverage.txt (see docs/TEST_COVERAGE.md)
+scripts/run_os.sh                 # Buildroot defconfig + licence checks, real-RAUC trust matrix, card layout, flash tool (simulated cards)
 scripts/run_homeassistant.sh      # REAL Home Assistant 2026.11.1 + Mosquitto: discovery, availability, commands, telemetry, over-temperature
 scripts/run_browser.sh            # Chromium/WebKit: keyboard-only wizard, a11y tree, axe-core, light/dark, phone/desktop, trusted HTTPS
 scripts/run_all.sh                # everything; LOG=... selects the log file
@@ -53,9 +61,12 @@ scripts/build_images.sh [--cached]   # rebuild all project images reproducibly (
 scripts/cleanup_own_images.sh [--apply]   # owner-run: lists (dry run) / removes only superseded images of THIS project
 ```
 
-## Recovery (console or SD card only - never via WebUI/MQTT)
-`python3 -m btbridge.recovery --data <dir> reset-owner-password | factory-reset --yes`. With `--boot-dir`, the appliance also processes a
-`hifi-recovery` request file on the boot partition and writes a non-secret `hifi-status.txt` (name, CA fingerprint).
+## First setup and recovery (console or SD card only - never via WebUI/MQTT)
+* Provisioning file `hifi-provision.json` on the boot partition: flash tool or by hand (docs/PROVISIONING.md). No hotspot without an
+  owner-known individual password.
+* `python3 -m btbridge.recovery --data <dir> reset-owner-password | factory-reset --yes`.
+* `python3 -m btbridge.bootfiles --data <dir> --boot <boot partition>` (or `appliance --boot-dir`) processes `hifi-recovery` and the
+  provisioning file before start, and writes a non-secret `hifi-status.txt` (name, CA fingerprint).
 
 ## Try the appliance in the lab
 ```bash

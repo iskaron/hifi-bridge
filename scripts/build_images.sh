@@ -17,6 +17,7 @@ b static -f Dockerfile.static -t btbridge-static:dev .
 b syslog -f Dockerfile.syslog -t btbridge-syslog:dev .
 b py314 -f Dockerfile.py314 -t btbridge-py314:dev .
 b security -f Dockerfile.security -t btbridge-security:dev .
+b os -f Dockerfile.os -t btbridge-os:dev .
 {
   echo "# project images $(date -u +%FT%TZ)"
   docker images --format '{{.Repository}}:{{.Tag}} {{.ID}} {{.Size}}' | grep '^btbridge-' | sort

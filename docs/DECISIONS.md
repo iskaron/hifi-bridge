@@ -111,6 +111,46 @@ Raspberry Pi integration is explicitly **not yet verified**. Evidence: `docs/FIN
 50. **OpenSSL is allowed** for cryptography, TLS and certificate management. Check Buildroot availability, licence compatibility and dependencies;
     keep the package set small without weakening security; never replace it with own cryptography.
 
+## Review decisions on the phase-2b proposals (owner + ChatGPT, 2026-11-16)
+
+51. **P1 approved as the starting point:** Buildroot 2026.02 LTS with one shared `br2-external` tree for Pi Zero 2 W, 3 B+ and 4.
+52. **P2 approved:** Avahi publishes the name and services in the image.
+53. **P3: RAUC preferred.** U-Boot boot-count and rollback are **provisional only**. Feasibility must be shown per board; alternative boot
+    mechanisms (e.g. the firmware's `tryboot`/`autoboot.txt`) stay open.
+54. **P4 approved as the basic structure:** boot + rootfs-A + rootfs-B + data. File systems and sizes are chosen after measurement and
+    according to RAUC compatibility.
+55. **P5 revised:** development and release signing keys stay separate, **but** official signed updates must be installable on
+    correspondingly configured self-built images. The trust configuration must be explicit, secure and documented. Release keys must never
+    be present in ordinary build or PR jobs. (Implemented: docs/UPDATE_TRUST.md.)
+56. **P6 revised:** no setup hotspot without an individual password the owner knows. Provisioning via the flash tool or a documented manual
+    bootstrap file. Secrets on the FAT boot partition must be evaluated for residual data, takeover, failure cases and deletion.
+    (Implemented: docs/PROVISIONING.md.)
+57. **P7: the device CA stays exclusively on the device.** The timing contradiction (CA created at first boot vs. fingerprint shown by the
+    flash tool) must be removed and a usable, secure out-of-band trust flow defined. (Implemented: docs/TRUST_BOOTSTRAP.md.)
+58. **P8 approved:** physical SD recovery; check that a request runs exactly once and survives power loss.
+59. **P9: PySide6 provisionally approved** for the flash tool; observe LGPL duties, packaging, disk detection and safe write/verify flows.
+60. **Test coverage goal unchanged:** as complete as possible for own testable code; 90 % was an intermediate measurement, not a ceiling.
+
+## Implementation decisions of the phase-2b preparation package (reversible; 2026-11-16)
+
+61. **Update trust is a mandatory build choice** (`official` / `own` / `official+own`; no default). `post-build.sh` builds
+    `/etc/rauc/keyring.pem` from public CA certificates only and records the choice in `/etc/hifi-bridge/update-trust.json`. Release bundles
+    are produced by **re-signing** a development/CI-signed bundle offline (`rauc resign`), so building never needs the release key.
+    Signing certificates must carry the codeSigning purpose (`check-purpose=codesign`).
+62. **Provisioning slot:** the image ships `hifi-provision.json` as a fixed 4096-byte placeholder file on the FAT; the manifest records its
+    byte offset, so the flash tool writes it on the raw card without mounting a filesystem. The device scrubs it in place after use.
+63. **P7 flow = trust key + HMAC proof:** the flash tool puts a random 32-byte trust key on the card; after first boot it fetches the CA from
+    `/trust/proof` with a fresh nonce and checks `HMAC-SHA256(trust key, nonce, SHA-256(CA))`; then it verifies HTTPS against only that CA.
+    The device deletes the trust key when the owner password is set. Fallback: the fingerprint in `hifi-status.txt`.
+64. **A separate `hifi-bridge-boot.service`** is the only unit that may write `/boot` (no network, exposure 0.6). It processes recovery,
+    provisioning, creates the CA and writes the status file before the bridge starts.
+65. **MBR partition table** (the Pi 3 / Zero 2 W boot ROM cannot read GPT); the data partition is grown on first boot with `sfdisk`, the
+    file system with `x-systemd.growfs` (systemd-repart is GPT-only).
+66. **No `dtoverlay=miniuart-bt`** in the product's firmware configuration (Buildroot's example sets it): Bluetooth keeps the PL011 UART.
+    To be confirmed by the hardware gate.
+67. **One OS tooling image** (`btbridge-os`) for Buildroot configuration checks, licence reports, RAUC/genimage tests and the flash tool
+    tests. No board image is built in this package.
+
 ## Measurement-driven / not yet verified
 
 - Startup latency (**software: ~1.6 s, accepted #16**), Pause/drain latency (**software: 0.07 s with #15**), reconnection and sample integrity (still to be measured on actual devices).

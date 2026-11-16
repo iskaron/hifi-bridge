@@ -68,6 +68,16 @@ jobs:
       - run: (cd docker && docker compose build -q && docker build -q -f Dockerfile.avahi -t btbridge-avahi:dev .)
       - run: scripts/test_mdns.sh
 
+  os-and-flashtool:
+    # phase-2b preparation: Buildroot defconfig resolution + licence policy (no image build), RAUC trust matrix, card layout,
+    # flash tool core with SIMULATED cards. Never needs release keys: all keys are generated per test run.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/os_fetch_buildroot.sh
+      - run: scripts/run_os.sh
+
   security:
     runs-on: ubuntu-24.04
     timeout-minutes: 10

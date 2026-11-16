@@ -43,9 +43,11 @@ A conflict-renamed device (for example `hifi-bridge-2.local`) automatically gets
 
 ## 4. Trust setup (owner, once per client device)
 1. Open `http://hifi-bridge.local:<port>/trust`. This page is reachable over HTTP so that setup can begin.
-2. **Compare the SHA-256 fingerprint** with the fingerprint shown on the device itself. Until the flash tool exists (phase 2b), "on the device
-   itself" means the console or log output of the appliance.
-   * Over plain HTTP an attacker on the LAN could swap the download. The out-of-band comparison is what makes the trust decision sound.
+2. **Authenticate the CA out of band** (docs/TRUST_BOOTSTRAP.md):
+   * **With the flash tool:** it verifies the device's CA automatically with the one-time trust key it put on the card, and shows the
+     verified fingerprint. Compare the phone's trust page against that value.
+   * **Without it:** compare the fingerprint with `hifi-status.txt` on the boot partition (or the console).
+   * Over plain HTTP an attacker on the LAN could swap the download. The out-of-band check is what makes the trust decision sound.
    * Never accept a browser warning without this check.
 3. Install the CA. The trust page gives the steps for iOS (profile plus "full trust"), Android (CA certificate, DER file), Windows (Trusted Root
    store), macOS (Keychain, "Always Trust") and Linux/Firefox (system store or Firefox's own store).

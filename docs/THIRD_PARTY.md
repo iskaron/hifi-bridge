@@ -30,6 +30,9 @@
 | rsyslog 8 + rsyslog-gnutls (Debian 13) | TLS syslog peer for the remote-syslog test | GPL-3.0+/ASL-2.0 |
 | python:3.14-slim, pytest 8.4.2, numpy 2.3.5, jeepney 0.9.0 | Python 3.14 compatibility run | PSF / MIT / BSD-3-Clause / MIT |
 | coverage.py (Debian python3-coverage) | coverage measurement | Apache-2.0 |
+| Buildroot 2026.02.x (`679b9ea`, fetched into `.lab/`, not redistributed) | configuration checks, `show-info` licence reports | GPL-2.0+ |
+| Debian 13 OS tools in `btbridge-os`: RAUC 1.13, genimage 18, mtools 4.0.48, dosfstools 4.2, e2fsprogs 1.47.2, squashfs-tools 4.6.1, u-boot-tools 2025.01, fdisk (util-linux), OpenSSL 3.5 | image-layout, keyring and signature tests | LGPL-2.1 / GPL-2.0 / GPL-3.0+ / GPL-3.0+ / GPL-2.0 / GPL-2.0+ / GPL-2.0+ / GPL-2.0+ / Apache-2.0 |
+| python3-cryptography 43 (Debian) | flash tool: manifest signature check (also a future runtime dependency of the flash tool) | Apache-2.0 or BSD-3-Clause |
 
 The logo (`webui/static/logo.svg`) is original to this project. It deliberately does **not** use the Bluetooth® trademark logo. The provisional product name is
 "Hi-Fi Bridge"; "Bluetooth" is used only descriptively (DECISIONS #34); trademark questions remain open before a public release.

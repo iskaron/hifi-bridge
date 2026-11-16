@@ -1,6 +1,6 @@
 # Hardware test procedure (the concrete sequence for the first hardware day)
 
-**Status: prepared, NOT executed.** Everything needed is in `hwkit/` (runbook `hwkit/README.md`). The test IDs come from
+**Status: prepared, NOT executed.** This is gate **G1** of docs/HARDWARE_GATE_CHECKLIST.md. Everything needed is in `hwkit/` (runbook `hwkit/README.md`). The test IDs come from
 `docs/HARDWARE_VALIDATION_PLAN.md`. Every result entered with the kit is labelled `REAL-HARDWARE`, and the kit refuses anything else.
 
 ## 0. Bring
