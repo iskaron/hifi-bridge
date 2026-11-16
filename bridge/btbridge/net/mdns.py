@@ -315,12 +315,14 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     r = MdnsResponder(a.hostname, a.instance, [("_https._tcp", a.https_port, {"path": "/"}), ("_http._tcp", a.http_port, {"path": "/"})],
                       log=lambda m: print(m, flush=True), on_name=lambda n: print(f"mdns name: {n}", flush=True))
+    import faulthandler
     import signal
-    done = threading.Event()
-    for sig in (signal.SIGINT, signal.SIGTERM):              # service managers stop with SIGTERM: always send the goodbye
-        signal.signal(sig, lambda *_: done.set())
+
+    from ..supervision import StopSignal
+    faulthandler.register(signal.SIGUSR1, all_threads=True)   # diagnostics: `kill -USR1 <pid>` dumps every thread's stack to stderr
+    stop = StopSignal()                                      # service managers stop with SIGTERM: always send the goodbye
     r.start()
-    done.wait()
+    stop.wait()
     r.stop()
     print("mdns: goodbye sent", flush=True)
     return 0

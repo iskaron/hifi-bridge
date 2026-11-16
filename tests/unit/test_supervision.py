@@ -117,3 +117,42 @@ def test_normal_release_clears_the_journal(tmp_path):
     a.source.pause()                                                              # drop_restart: our item is released at once
     assert wait(lambda: not (tmp_path / "data" / "session.json").exists())
     a.stop()
+
+
+STOPPER = r'''
+import sys, time
+sys.path.insert(0, sys.argv[1])
+from btbridge.supervision import StopSignal
+stop = StopSignal()
+print("ready", flush=True)
+stop.wait(poll=0.05)
+print("stopped", flush=True)
+'''
+
+
+def test_stop_signal_survives_back_to_back_signals_in_real_processes():
+    """Regression (found by the mDNS lab test): a handler that called threading.Event.set() deadlocked when a second SIGTERM arrived
+    while the first handler held the Event's lock (pkill matched both tini and the process). The handler must take no lock."""
+    import os
+    import signal
+    import subprocess
+    import sys
+    bridge = os.path.join(os.path.dirname(__file__), "..", "..", "bridge")
+    for i in range(30):
+        p = subprocess.Popen([sys.executable, "-c", STOPPER, bridge], stdout=subprocess.PIPE, text=True)
+        assert p.stdout.readline().strip() == "ready"
+        for _ in range(2 + i % 4):                       # two to five signals, back to back
+            os.kill(p.pid, signal.SIGTERM)
+        try:
+            assert p.wait(timeout=5) == 0 and p.stdout.read().strip() == "stopped"
+        finally:
+            if p.poll() is None:
+                p.kill()
+                raise AssertionError(f"process hung after back-to-back SIGTERMs (iteration {i})")
+
+
+def test_stop_signal_handler_takes_no_lock():
+    import inspect
+    from btbridge.supervision import StopSignal
+    src = inspect.getsource(StopSignal._handler)
+    assert ".set(" not in src and "acquire" not in src and "with " not in src and "print" not in src

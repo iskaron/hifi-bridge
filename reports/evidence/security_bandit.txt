@@ -35,7 +35,7 @@
 [manager]	WARNING	Test in comment: see is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: appliance is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: py is not a test name or id, ignoring
-Run started:2026-11-16 13:13:59.710229
+Run started:2026-11-16 15:10:38.722415
 
 Test results:
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -200,7 +200,7 @@ Test results:
 --------------------------------------------------
 
 Code scanned:
-	Total lines of code: 5788
+	Total lines of code: 6218
 	Total lines skipped (#nosec): 0
 	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 4
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import socket
 import threading
 import time
@@ -109,3 +110,24 @@ class SessionJournal:
             return d if d.get("player") and d.get("url") else None
         except (OSError, ValueError):
             return None
+
+
+class StopSignal:
+    """Async-signal-safe stop request for SIGINT/SIGTERM.
+
+    The handler ONLY assigns a flag. It must not take any lock: a handler calling ``threading.Event.set()`` deadlocked in the lab when a
+    second SIGTERM arrived while the first handler was inside ``set()`` (the Event's lock is not re-entrant and handlers run on the main
+    thread). ``wait()`` polls the flag; ``time.sleep`` is interrupted by signals, so the reaction time is at most ``poll`` seconds."""
+
+    def __init__(self, signals: tuple = (signal.SIGINT, signal.SIGTERM)):
+        self.requested = False
+        for s in signals:
+            signal.signal(s, self._handler)
+
+    def _handler(self, signum, frame) -> None:
+        self.requested = True
+
+    def wait(self, poll: float = 0.2, also: "threading.Event | None" = None) -> None:
+        while not self.requested and not (also is not None and also.is_set()):
+            time.sleep(poll)
+

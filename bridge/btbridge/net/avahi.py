@@ -137,19 +137,17 @@ def available(bus: str = "SYSTEM") -> bool:
 
 
 def main(argv=None) -> int:
-    import signal
     ap = argparse.ArgumentParser(prog="btbridge.net.avahi", description="publish the bridge name/services via avahi (lab/testing)")
     ap.add_argument("--hostname", default="hifi-bridge"); ap.add_argument("--instance", default="Hi-Fi Bridge")
     ap.add_argument("--https-port", type=int, default=8443); ap.add_argument("--http-port", type=int, default=8080)
     a = ap.parse_args(argv)
     pub = AvahiPublisher(a.hostname, a.instance, [("_https._tcp", a.https_port, {"path": "/"}), ("_http._tcp", a.http_port, {"path": "/"})],
                          log=lambda m: print(m, flush=True), on_name=lambda n: print(f"mdns name: {n}", flush=True))
-    done = threading.Event()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        signal.signal(sig, lambda *_: done.set())
+    from ..supervision import StopSignal
+    stop = StopSignal()                                      # async-signal-safe: no lock in the handler
     print(f"avahi {pub.connect()}", flush=True)
     pub.start()
-    done.wait()
+    stop.wait()
     pub.stop()
     print("mdns: goodbye sent", flush=True)
     return 0

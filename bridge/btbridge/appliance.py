@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import argparse
 import importlib
-import signal
 import sys
 import threading
 from typing import Callable
@@ -18,7 +17,7 @@ from typing import Callable
 from .mqtt import MqttBridge
 from .net.access import LocalAccess
 from .service import ApplianceService
-from .supervision import SystemdNotifier, Watchdog
+from .supervision import StopSignal, SystemdNotifier, Watchdog
 from .system import SystemMonitor
 from .webui.server import WebUI
 
@@ -95,10 +94,9 @@ def run(a, source, ready: Callable[[ApplianceService, WebUI], None] | None = Non
     watchdog = Watchdog(svc.health, SystemdNotifier(), log=svc.logs)       # READY=1 + WATCHDOG=1 while healthy (no-op without systemd)
     watchdog.start()
     if done is None:
-        done = threading.Event()
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            signal.signal(sig, lambda *_: done.set())
-    done.wait()
+        StopSignal().wait()                                   # async-signal-safe (no lock in the handler)
+    else:
+        done.wait()
     watchdog.stop()
     ui.stop(); svc.stop()
     return 0
