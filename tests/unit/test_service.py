@@ -198,3 +198,14 @@ def test_system_monitor_reads_the_fake_tree(tmp_path):
     (tmp_path / "proc" / "stat").write_text("cpu  150 0 150 900 0 0 0 0 0 0\n")
     assert m.sample()["cpu_percent"] == 50.0
     assert SystemMonitor(proc=str(tmp_path / "nope"), thermal=None, data_dir="/nonexistent").sample()["memory"] is None
+
+
+def test_system_monitor_reports_wifi_signal_and_tolerates_garbage(tmp_path):
+    m = fake_tree(tmp_path)
+    (tmp_path / "proc" / "net" / "wireless").write_text(
+        "Inter-| sta-|   Quality        |   Discarded packets\n face | tus | link level noise |  nwid  crypt\n"
+        " wlan0: 0000   54.  -56.  -256        0      0\n broken: x\n")
+    net = m.sample()["network"]
+    assert net["wlan0"]["wifi_signal_dbm"] == -56.0 and "wifi_signal_dbm" not in net.get("broken", {})
+    (tmp_path / "bad-temp").write_text("not a number\n")
+    assert SystemMonitor(proc=str(tmp_path / "proc"), thermal=str(tmp_path / "bad-temp"), data_dir=str(tmp_path)).sample()["temperature_c"] is None
