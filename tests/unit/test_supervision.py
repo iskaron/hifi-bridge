@@ -34,7 +34,8 @@ def test_notify_protocol_on_a_real_socket(notify_socket):
     assert n.notify(ready=1, status="running")
     assert recv_all(s) == ["READY=1\nSTATUS=running"]
     assert SystemdNotifier({}).notify(ready=1) is False                      # not under systemd: no-op
-    assert SystemdNotifier({"NOTIFY_SOCKET": path, "WATCHDOG_USEC": "1000", "WATCHDOG_PID": "1"}).watchdog_s is None   # other pid
+    other = str(os.getpid() + 1)                                                 # not this process (pytest may itself be PID 1)
+    assert SystemdNotifier({"NOTIFY_SOCKET": path, "WATCHDOG_USEC": "1000", "WATCHDOG_PID": other}).watchdog_s is None
 
 
 def test_watchdog_pings_only_while_healthy(notify_socket):
