@@ -42,6 +42,8 @@ class Observation:
 
 class LmsClient:
     def __init__(self, base_url: str, timeout: float = 3.0):
+        if not base_url.lower().startswith(("http://", "https://")):     # never file:// or custom schemes (bandit B310)
+            raise ValueError("LMS URL must use http or https")
         self.endpoint = base_url.rstrip("/") + "/jsonrpc.js"
         self.timeout = timeout
         self.commands_sent: list[tuple] = []     # audit trail of state-changing commands (tests assert on it)
@@ -51,7 +53,7 @@ class LmsClient:
         body = json.dumps({"id": 1, "method": "slim.request", "params": [player, list(cmd)]}).encode()
         req = urllib.request.Request(self.endpoint, body, {"Content-Type": "application/json"})
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as r:
+            with urllib.request.urlopen(req, timeout=self.timeout) as r:  # nosec B310 - scheme restricted to http/https in __init__
                 data = json.loads(r.read())
         except (urllib.error.URLError, OSError, ValueError) as e:
             raise LmsUnreachable(str(e)) from e

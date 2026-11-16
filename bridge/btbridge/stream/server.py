@@ -77,7 +77,7 @@ class StreamServer:
         self.events.append((time.time(), name, detail))
 
     # -- http ----------------------------------------------------------------
-    def start(self, host: str = "0.0.0.0", port: int = 0) -> int:
+    def start(self, host: str = "0.0.0.0", port: int = 0) -> int:  # nosec B104 - players fetch the stream over the LAN (token-protected)
         srv = self
 
         class H(BaseHTTPRequestHandler):

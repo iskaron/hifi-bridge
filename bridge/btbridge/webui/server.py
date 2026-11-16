@@ -106,7 +106,8 @@ def json_response(data, status: int = 200) -> Response:
 
 
 class WebUI:
-    def __init__(self, service, host: str = "0.0.0.0", port: int = 8080, tls_port: int | None = None, static_dir: str | None = None):
+    def __init__(self, service, host: str = "0.0.0.0", port: int = 8080, tls_port: int | None = None,  # nosec B104 - see appliance.py
+                 static_dir: str | None = None):
         self.svc, self.host, self.port, self.tls_port = service, host, port, tls_port
         self.static_dir = static_dir or views.STATIC_DIR
         self.routes: dict[tuple[str, str], Callable[[Request], Response]] = views.routes(self)

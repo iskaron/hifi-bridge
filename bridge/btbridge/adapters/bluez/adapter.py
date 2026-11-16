@@ -69,7 +69,8 @@ class BluezAdapter:
         self.model = BluezModel(Wrapped, self.bus, self.log)
 
     def start(self) -> None:
-        assert self.model is not None, "attach() first"
+        if self.model is None:
+            raise RuntimeError("attach() first")
         with self._lock:
             self.bus.subscribe(self._on_event)              # subscribe first, snapshot second: no missed event window
             self.bus.register_agent(AGENT_PATH, "NoInputNoOutput", self._agent)

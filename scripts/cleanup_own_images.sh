@@ -5,7 +5,7 @@
 #                                            scripts/cleanup_own_images.sh --apply    (remove)
 set -uo pipefail
 APPLY=0; [ "${1:-}" = "--apply" ] && APPLY=1
-MARKERS='PYTHONPATH=/work/bridge|python3-numpy python3-pytest python3-jeepney dbus squeezelite|pipewire pipewire-bin pipewire-pulse wireplumber pulseaudio-utils|playwright==1.49.1 pytest==8.3.4|avahi-daemon avahi-utils dbus python3 procps tini|systemd python3 shellcheck'
+MARKERS='PYTHONPATH=/work/bridge|python3-numpy python3-pytest python3-jeepney dbus squeezelite|pipewire pipewire-bin pipewire-pulse wireplumber pulseaudio-utils|playwright==1.49.1 pytest==8.3.4|avahi-daemon avahi-utils dbus python3 procps tini|systemd python3 shellcheck|rsyslog rsyslog-gnutls tini|pytest==8.4.2 numpy==2.3.5|bandit==1.8.6'
 for id in $(docker images -f dangling=true -q | sort -u); do
   if docker history --no-trunc "$id" 2>/dev/null | grep -qE "$MARKERS"; then
     size=$(docker image inspect "$id" --format '{{.Size}}')

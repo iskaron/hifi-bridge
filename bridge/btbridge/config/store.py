@@ -132,12 +132,14 @@ class ConfigStore:
 
     # ---- secrets ----
     def secret(self, key: str) -> str | None:
-        assert key in SECRET_KEYS
+        if key not in SECRET_KEYS:                       # explicit check (an assert would vanish with python -O)
+            raise KeyError(key)
         with self._lock:
             return self._secrets.get(key)
 
     def set_secret(self, key: str, value: str | None) -> None:
-        assert key in SECRET_KEYS
+        if key not in SECRET_KEYS:
+            raise KeyError(key)
         with self._lock:
             if value is None:
                 self._secrets.pop(key, None)

@@ -39,7 +39,7 @@ def build_source(spec: str, dbus: str):
 def parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="btbridge.appliance")
     ap.add_argument("--data", required=True, help="persistent data directory (settings, secrets, faults)")
-    ap.add_argument("--http-host", default="0.0.0.0")
+    ap.add_argument("--http-host", default="0.0.0.0")  # nosec B104 - LAN appliance: owner UI/players must reach it; protected by Host validation, auth and the stream token
     ap.add_argument("--http-port", type=int, default=8080)
     ap.add_argument("--https-port", type=int, default=8443, help="HTTPS listener (local CA or custom certificate); 0 = disabled")
     ap.add_argument("--no-mdns", action="store_true", help="do not announce the name via mDNS at all")

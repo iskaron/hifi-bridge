@@ -20,7 +20,8 @@ scripts/lab_up.sh >/dev/null
   echo "### MDNS";          scripts/test_mdns.sh                                      ; M=$?
   echo "### SYSLOG";        scripts/test_syslog.sh -q                                 ; SY=$?
   echo "### PYTHON 3.14";   scripts/run_py314.sh                                      ; PY=$?
+  echo "### SECURITY";      scripts/run_security.sh                                   ; SEC=$?
   echo "### HOMEASSISTANT"; scripts/run_homeassistant.sh -q                           ; HA=$?
   echo "### BROWSER";       scripts/run_browser.sh -q                                 ; B=$?
-  echo "exit codes: static=$S unit=$U integration=$I outage_lms=$O1 outage_player=$O2 pipewire=$P hwkit=$H mdns=$M syslog=$SY py314=$PY homeassistant=$HA browser=$B"
+  echo "exit codes: static=$S unit=$U integration=$I outage_lms=$O1 outage_player=$O2 pipewire=$P hwkit=$H mdns=$M syslog=$SY py314=$PY security=$SEC homeassistant=$HA browser=$B"
 } 2>&1 | tee "$LOG"

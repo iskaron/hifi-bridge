@@ -1,0 +1,4 @@
+# Static security analysis of the product code (bandit). Lab/CI only.
+FROM python:3.11-slim
+RUN pip install --no-cache-dir bandit==1.8.6
+WORKDIR /w

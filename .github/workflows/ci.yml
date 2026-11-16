@@ -68,6 +68,13 @@ jobs:
       - run: (cd docker && docker compose build -q && docker build -q -f Dockerfile.avahi -t btbridge-avahi:dev .)
       - run: scripts/test_mdns.sh
 
+  security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/run_security.sh
+
   python314:
     needs: unit
     runs-on: ubuntu-24.04

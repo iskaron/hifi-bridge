@@ -95,3 +95,19 @@ def test_atomic_write_leaves_no_temp_files(tmp_path):
 def test_every_setting_default_validates():
     for k, s in SETTINGS.items():
         validate({k: s.default})
+
+
+def test_unknown_secret_names_are_rejected_even_with_python_O(tmp_path):
+    c = ConfigStore(str(tmp_path))
+    with pytest.raises(KeyError):
+        c.secret("admin_password")
+    with pytest.raises(KeyError):
+        c.set_secret("anything", "x")
+
+
+def test_lms_client_refuses_non_http_schemes():
+    from btbridge.lms.client import LmsClient
+    for bad in ("file:///etc/passwd", "ftp://lms", "lms:9000"):
+        with pytest.raises(ValueError):
+            LmsClient(bad)
+    assert LmsClient("http://lms:9000").endpoint == "http://lms:9000/jsonrpc.js"
