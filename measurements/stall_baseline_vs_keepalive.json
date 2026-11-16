@@ -2,17 +2,17 @@
   "stall_s": 4,
   "baseline_no_fill": {
     "underruns": 1,
-    "audio_returned_after_s": 5.293097496032715,
-    "audible_fraction_next_10s": 0.4706834077835083
+    "audio_returned_after_s": 5.418419122695923,
+    "audible_fraction_next_10s": 0.45816223621368407
   },
   "silence_keepalive": {
     "underruns": 0,
-    "audio_returned_after_s": 1.4059622287750244,
-    "audible_fraction_next_10s": 0.8594039678573608
+    "audio_returned_after_s": 1.3338398933410645,
+    "audible_fraction_next_10s": 0.8666285991668701
   },
   "label": "INTEGRATION real LMS + SIMULATED BT",
   "env": {
-    "date_utc": "2026-11-16T10:31:11Z",
+    "date_utc": "2026-11-16T12:02:01Z",
     "lms": "9.1.2",
     "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
     "kernel": "7.0.0-43-generic",

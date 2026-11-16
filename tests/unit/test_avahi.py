@@ -129,3 +129,20 @@ def test_system_host_name_equal_to_ours_publishes_only_services():
     assert p.start() == "hifi-bridge.local"
     members = [m for m, _ in p.conn.calls]
     assert "AddAddress" not in members and "AddService" in members
+
+
+def test_access_reconfigure_restarts_mdns_and_reissues_certificates(tmp_path):
+    acc, made = access(tmp_path, tls_mode="local_ca")
+    first = made["avahi"]
+    acc.store.v["local_hostname"] = "wohnzimmer"
+    acc.reconfigure({"local_hostname"})
+    assert not first.started and made["avahi"] is not first and made["avahi"].started
+    acc.store.v["mdns_backend"] = "builtin"; acc.reconfigure({"mdns_backend"})
+    assert acc.mdns_backend == "builtin"
+    acc.store.v["mdns_enabled"] = False; acc.reconfigure({"mdns_enabled"})
+    assert acc.mdns is None and acc.mdns_backend == "off"
+    assert acc.ensure_certificates() in (None, "missing", "names_changed") and acc.ctx is not None
+    info = acc.info()
+    assert info["mode"] == "local_ca" and info["tls_available"] and info["ca"]["sha256"]
+    assert acc.is_trusted_proxy("10.0.0.1") is False
+    acc.store.v["trusted_proxies"] = "10.0.0.0/8"; assert acc.is_trusted_proxy("10.0.0.1") and not acc.is_trusted_proxy("bogus")

@@ -1,14 +1,14 @@
 {
   "lms_current_title": "Miles Davis - Blue in Green",
   "integrity": {
-    "blocks": 74,
-    "matched": 74,
+    "blocks": 75,
+    "matched": 75,
     "mismatched": 0,
     "jumps": []
   },
   "label": "INTEGRATION real LMS + SIMULATED AVRCP metadata; real phone AVRCP metadata UNVERIFIED",
   "env": {
-    "date_utc": "2026-11-16T10:34:54Z",
+    "date_utc": "2026-11-16T12:05:36Z",
     "lms": "9.1.2",
     "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
     "kernel": "7.0.0-43-generic",

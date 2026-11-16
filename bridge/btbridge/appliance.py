@@ -64,7 +64,8 @@ def main(argv=None) -> int:
     return run(a, source)
 
 
-def run(a, source, ready: Callable[[ApplianceService, WebUI], None] | None = None) -> int:
+def run(a, source, ready: Callable[[ApplianceService, WebUI], None] | None = None, done: threading.Event | None = None) -> int:
+    """Start everything and block until SIGINT/SIGTERM (or until ``done`` is set - tests)."""
     if getattr(a, "boot_dir", None):
         from .recovery import boot_request
         print(f"recovery request: {boot_request(a.data, a.boot_dir)}", flush=True)       # physical access to the SD card = authority
@@ -93,9 +94,10 @@ def run(a, source, ready: Callable[[ApplianceService, WebUI], None] | None = Non
         ready(svc, ui)
     watchdog = Watchdog(svc.health, SystemdNotifier(), log=svc.logs)       # READY=1 + WATCHDOG=1 while healthy (no-op without systemd)
     watchdog.start()
-    done = threading.Event()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        signal.signal(sig, lambda *_: done.set())
+    if done is None:
+        done = threading.Event()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            signal.signal(sig, lambda *_: done.set())
     done.wait()
     watchdog.stop()
     ui.stop(); svc.stop()
