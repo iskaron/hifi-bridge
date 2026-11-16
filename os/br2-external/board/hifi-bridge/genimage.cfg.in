@@ -1,0 +1,48 @@
+# Hi-Fi Bridge card layout (P4: boot + rootfs-A + rootfs-B + data). Sizes are PLACEHOLDERS until measured (PHASE2B_PLAN section 3).
+# MBR because the Pi 3 / Zero 2 W boot ROM cannot read GPT. The boot file list is filled in by post-image.sh.
+image boot.vfat {
+	vfat {
+		label = "HIFIBOOT"
+		files = {
+#BOOT_FILES#
+		}
+	}
+	size = 64M
+}
+
+image data.ext4 {
+	ext4 {
+		label = "hifi-data"
+		use-mke2fs = true
+	}
+	size = 64M
+}
+
+image sdcard.img {
+	hdimage {
+		partition-table-type = "mbr"
+	}
+
+	partition boot {
+		partition-type = 0xC
+		bootable = "true"
+		image = "boot.vfat"
+	}
+
+	partition rootfs-a {
+		partition-type = 0x83
+		image = "rootfs.ext4"
+	}
+
+	# slot B: same size as A, empty on a fresh card (BOOT_B_LEFT=0 in boot.cmd until RAUC installs it)
+	partition rootfs-b {
+		partition-type = 0x83
+		size = #ROOTFS_SIZE#
+	}
+
+	# data: grows to the card size on first boot (hifi-bridge-growdata.service + x-systemd.growfs)
+	partition data {
+		partition-type = 0x83
+		image = "data.ext4"
+	}
+}

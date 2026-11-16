@@ -1,0 +1,1 @@
+source "$BR2_EXTERNAL_HIFI_BRIDGE_PATH/package/hifi-bridge/Config.in"

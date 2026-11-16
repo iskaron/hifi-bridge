@@ -1,0 +1,17 @@
+# Creates the persistent directories on the data partition before they are bind-mounted (PHASE-2B SKELETON).
+[Unit]
+Description=Hi-Fi Bridge persistent directories
+DefaultDependencies=no
+RequiresMountsFor=/data
+Before=var-lib-hifi\x2dbridge.mount var-lib-bluetooth.mount
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/mkdir -p /data/hifi-bridge /data/bluetooth /data/rauc
+ExecStart=/bin/chown 990:990 /data/hifi-bridge
+ExecStart=/bin/chmod 0700 /data/hifi-bridge /data/bluetooth
+ExecStart=/bin/touch /data/.grown
+
+[Install]
+WantedBy=local-fs.target

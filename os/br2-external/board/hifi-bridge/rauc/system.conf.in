@@ -1,0 +1,22 @@
+# RAUC system configuration (P3/P4 - PROVISIONAL, not installed on a device yet). @COMPATIBLE@ is set per board by post-build.sh.
+[system]
+compatible=@COMPATIBLE@
+bootloader=uboot
+bundle-formats=-plain
+data-directory=/data/rauc
+
+[keyring]
+path=/etc/rauc/keyring.pem
+check-crl=false
+# signing certificates must carry the codeSigning EKU (an S/MIME or TLS certificate from the same CA is refused)
+check-purpose=codesign
+
+[slot.rootfs.0]
+device=/dev/mmcblk0p2
+type=ext4
+bootname=A
+
+[slot.rootfs.1]
+device=/dev/mmcblk0p3
+type=ext4
+bootname=B

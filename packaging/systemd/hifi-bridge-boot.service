@@ -21,7 +21,25 @@ PrivateTmp=yes
 PrivateDevices=yes
 NoNewPrivileges=yes
 CapabilityBoundingSet=
+AmbientCapabilities=
+# no network at all: this step only reads/writes files on /boot and in the state directory
+PrivateNetwork=yes
 RestrictAddressFamilies=AF_UNIX
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+IPAddressDeny=any
 SystemCallFilter=@system-service
 UMask=0077
 

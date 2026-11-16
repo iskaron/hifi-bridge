@@ -1,0 +1,5 @@
+# Board: rpizero2w_64 (upstream configs/raspberrypizero2w_64_defconfig). Firmware config without 'dtoverlay=miniuart-bt' (Bluetooth keeps the PL011 UART; plan A1 verifies). Upstream post-build (HDMI getty) is replaced by ours.
+BR2_ROOTFS_POST_BUILD_SCRIPT="$(BR2_EXTERNAL_HIFI_BRIDGE_PATH)/board/hifi-bridge/post-build.sh"
+BR2_PACKAGE_RPI_FIRMWARE_CONFIG_FILE="$(BR2_EXTERNAL_HIFI_BRIDGE_PATH)/board/hifi-bridge/firmware/config_zero2w_64bit.txt"
+BR2_PACKAGE_RPI_FIRMWARE_CMDLINE_FILE="$(BR2_EXTERNAL_HIFI_BRIDGE_PATH)/board/hifi-bridge/firmware/cmdline.txt"
+BR2_PACKAGE_HIFI_BRIDGE_COMPATIBLE="hifi-bridge-rpizero2w"

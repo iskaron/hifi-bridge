@@ -1,0 +1,16 @@
+# First boot: grow the data partition (the last one) to the end of the card. MBR layout (Pi 3 boot ROM), so not systemd-repart.
+# The ext4 filesystem itself is grown by the x-systemd.growfs mount option. PHASE-2B SKELETON - not run on a device yet.
+[Unit]
+Description=Grow the Hi-Fi Bridge data partition to the card size
+DefaultDependencies=no
+After=dev-mmcblk0p4.device
+Requires=dev-mmcblk0p4.device
+Before=data.mount
+ConditionPathExists=!/data/.grown
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/hifi-bridge/growdata.sh /dev/mmcblk0 4
+
+[Install]
+WantedBy=data.mount

@@ -1,0 +1,50 @@
+config BR2_PACKAGE_HIFI_BRIDGE
+	bool "hifi-bridge"
+	depends on BR2_PACKAGE_PYTHON3
+	select BR2_PACKAGE_PYTHON3_SSL
+	select BR2_PACKAGE_PYTHON_JEEPNEY
+	help
+	  Hi-Fi Bridge appliance service (Bluetooth A2DP sink -> Lyrion).
+	  Installs the Python package to /usr/lib/hifi-bridge and the
+	  systemd units. See docs/PHASE2B_PLAN.md.
+
+if BR2_PACKAGE_HIFI_BRIDGE
+
+config BR2_PACKAGE_HIFI_BRIDGE_COMPATIBLE
+	string "RAUC compatible string"
+	help
+	  Must be identical to the official image of the same board if
+	  official update bundles shall be accepted (docs/UPDATE_TRUST.md).
+
+choice
+	prompt "Accepted update signatures (explicit)"
+	default BR2_PACKAGE_HIFI_BRIDGE_UPDATE_TRUST_UNSET
+	help
+	  Which update bundles this image accepts. There is deliberately no
+	  usable default: the post-build step fails until a choice is made.
+	  docs/UPDATE_TRUST.md explains the consequences.
+
+config BR2_PACKAGE_HIFI_BRIDGE_UPDATE_TRUST_UNSET
+	bool "not configured (the build fails)"
+
+config BR2_PACKAGE_HIFI_BRIDGE_UPDATE_TRUST_OFFICIAL
+	bool "official releases only"
+
+config BR2_PACKAGE_HIFI_BRIDGE_UPDATE_TRUST_OWN
+	bool "own update CA only"
+
+config BR2_PACKAGE_HIFI_BRIDGE_UPDATE_TRUST_OFFICIAL_AND_OWN
+	bool "official releases and own update CA"
+
+endchoice
+
+config BR2_PACKAGE_HIFI_BRIDGE_OWN_UPDATE_CA
+	string "own update CA certificate (PEM, public part only)"
+	depends on BR2_PACKAGE_HIFI_BRIDGE_UPDATE_TRUST_OWN || BR2_PACKAGE_HIFI_BRIDGE_UPDATE_TRUST_OFFICIAL_AND_OWN
+
+config BR2_PACKAGE_HIFI_BRIDGE_OFFICIAL_UPDATE_CA
+	string "official release CA certificate (PEM, public part only)"
+	default "$(BR2_EXTERNAL_HIFI_BRIDGE_PATH)/board/hifi-bridge/keys/release-ca.pem"
+	depends on BR2_PACKAGE_HIFI_BRIDGE_UPDATE_TRUST_OFFICIAL || BR2_PACKAGE_HIFI_BRIDGE_UPDATE_TRUST_OFFICIAL_AND_OWN
+
+endif

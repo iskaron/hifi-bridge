@@ -1,0 +1,11 @@
+# Hi-Fi Bridge firmware configuration = Buildroot's board/raspberrypi/config_3_64bit.txt with exactly two changes:
+#  1. kernel=u-boot.bin instead of Image (A/B slot selection, P3 - provisional);
+#  2. NO 'dtoverlay=miniuart-bt': Bluetooth keeps the full PL011 UART for A2DP (to be verified on hardware, gate item A1/E1).
+start_file=start.elf
+fixup_file=fixup.dat
+kernel=u-boot.bin
+disable_overscan=1
+gpu_mem_256=100
+gpu_mem_512=100
+gpu_mem_1024=100
+arm_64bit=1
