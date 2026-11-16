@@ -65,8 +65,38 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - run: (cd docker && docker compose build -q)
+      - run: (cd docker && docker compose build -q && docker build -q -f Dockerfile.avahi -t btbridge-avahi:dev .)
       - run: scripts/test_mdns.sh
+
+  python314:
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/run_py314.sh
+
+  syslog:
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: (cd docker && docker compose build -q)
+      - run: scripts/test_syslog.sh -q
+
+  coverage:
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - run: (cd docker && docker compose build -q)
+      - run: scripts/run_coverage.sh --integration
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: reports/evidence/coverage.txt
 
   homeassistant:
     needs: unit

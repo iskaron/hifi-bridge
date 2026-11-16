@@ -18,7 +18,9 @@ scripts/lab_up.sh >/dev/null
   echo "### PIPEWIRE";      scripts/run_pipewire.sh -q                                ; P=$?
   echo "### HWKIT";         scripts/run_hwkit.sh -q                                   ; H=$?
   echo "### MDNS";          scripts/test_mdns.sh                                      ; M=$?
+  echo "### SYSLOG";        scripts/test_syslog.sh -q                                 ; SY=$?
+  echo "### PYTHON 3.14";   scripts/run_py314.sh                                      ; PY=$?
   echo "### HOMEASSISTANT"; scripts/run_homeassistant.sh -q                           ; HA=$?
   echo "### BROWSER";       scripts/run_browser.sh -q                                 ; B=$?
-  echo "exit codes: static=$S unit=$U integration=$I outage_lms=$O1 outage_player=$O2 pipewire=$P hwkit=$H mdns=$M homeassistant=$HA browser=$B"
+  echo "exit codes: static=$S unit=$U integration=$I outage_lms=$O1 outage_player=$O2 pipewire=$P hwkit=$H mdns=$M syslog=$SY py314=$PY homeassistant=$HA browser=$B"
 } 2>&1 | tee "$LOG"

@@ -57,6 +57,13 @@ def checks(runner=run, reader=read, which=shutil.which, globber=glob.glob, home:
     nodes = runner(["pactl", "list", "short", "sources"]) or ""
     add("pipewire:running", "PASS" if nodes and "error" not in nodes.lower() else "FAIL", "pactl answers" if nodes else "no answer",
         "start pipewire, wireplumber and pipewire-pulse for the test user")
+    try:
+        from btbridge.adapters.bluez.pcm import choose_capture
+        tool, _ = choose_capture(which=which, run=lambda argv, **k: type("R", (), {"stdout": runner(argv) or ""})())
+        add("capture:tool", "PASS" if tool != "none" else "FAIL", f"bridge would use: {tool}",
+            "install pipewire-bin (pw-cat) or pulseaudio-utils (parec)")
+    except ImportError:
+        add("capture:tool", "WARN", "bridge package not on PYTHONPATH", "PYTHONPATH=$PWD/bridge:$PWD/hwkit")
     st = os.statvfs(home)
     free_gb = st.f_bavail * st.f_frsize / 2**30
     add("disk:free", "PASS" if free_gb > 2 else "WARN", f"{free_gb:.1f} GB free", "captures need ~10 MB/min per recording")

@@ -71,3 +71,7 @@ packaging/           systemd unit (verified), respawn wrapper - preparation for 
 ```
 The WebUI runs an HTTP and an HTTPS listener; `LocalAccess` decides allowed hosts and provides a reloadable TLS context. MQTT is read-only
 unless controls are enabled. Concepts: docs/LOCAL_ACCESS_TLS.md, docs/SERVICE_SUPERVISION.md.
+
+## Stabilisation package additions (2026-11-16)
+`net/avahi.py` (Avahi backend, production default), `recovery.py` (local recovery), `system/syslog.py` (optional TLS syslog), automatic PipeWire
+capture tool choice (`adapters/bluez/pcm.choose_capture`), trend history in the service, web-app manifest. Phase 2b proposals: docs/PHASE2B_PLAN.md.

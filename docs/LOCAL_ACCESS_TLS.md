@@ -14,7 +14,7 @@ real phones' browsers or real home networks.
 ## 2. Names
 | Mechanism | Implementation | Evidence |
 |---|---|---|
-| mDNS host name `<local_hostname>.local` (default `hifi-bridge`) | own stdlib responder (`net/mdns.py`): probing, conflict resolution (`-2`, `-3`, …), announcements, goodbye on SIGTERM; joins the group on every interface | real Avahi 0.8: resolve, browse `_https._tcp`, conflict, goodbye (7/7, `scripts/test_mdns.sh`) |
+| mDNS host name `<local_hostname>.local` (default `hifi-bridge`) | **Avahi preferred (DECISIONS #49):** `net/avahi.py` publishes an own entry group via the system's avahi-daemon (D-Bus; no root needed; collision -> next name; `Free` = goodbye). Built-in stdlib responder (`net/mdns.py`) only when no Avahi daemon is reachable (`mdns_backend=auto`) or explicitly chosen | real Avahi peer: built-in 7/7 and Avahi backend 6/6 (`scripts/test_mdns.sh`) |
 | DNS-SD services `_https._tcp` and `_http._tcp` | instance "Hi-Fi Bridge (<device name>)" | Avahi browse |
 | Extra names (reverse proxy, local DNS) | setting `extra_hostnames` | unit tests |
 | `--no-mdns` | when the OS publishes the name with avahi instead | – |
@@ -53,8 +53,8 @@ A conflict-renamed device (for example `hifi-bridge-2.local`) automatically gets
 5. Optional: enable **HTTPS only**. This can only be switched on **from an HTTPS session**, which proves the client trusts the certificate and
    prevents locking yourself out. After that, HTTP answers with a 308 redirect, except `/trust`, `/ca.crt`, `/ca.der` and `/healthz`.
 
-There is no HSTS yet. A broken certificate together with HSTS could lock the owner out of a LAN device that has no other way in. This is a
-deliberate, reversible choice (OPEN_QUESTIONS #28).
+**No HSTS (DECISIONS #48):** not for `hifi-bridge.local`, a captive portal or local certificates; possibly later as an option for deliberately
+configured HTTPS installations. A broken certificate together with HSTS could lock the owner out of a LAN device. Regression-tested.
 
 ## 5. DNS rebinding
 Every request is checked **before** any processing. The Host header must be one of:

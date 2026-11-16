@@ -30,6 +30,9 @@ Nothing here has been reviewed by an external security tester.
 | MQTT | **Read-only by default** (DECISIONS #36): pairing, playback and test tone are each enabled separately; disabled controls appear only as read-only sensors and their command topics are not subscribed (and re-checked per message). Broker TLS always verifies (system CAs or owner CA), username/password as a secret. | INTEGRATION real Mosquitto + REAL Home Assistant 2026.11.1 |
 | HTTPS | Per-device local CA, name-constrained to local names/private IPs (a forged public-name certificate fails verification), 397-day server certificates with automatic renewal, own certificates, reverse-proxy mode with explicit trusted proxies, HTTPS-only with lock-out protection; concept: docs/LOCAL_ACCESS_TLS.md | UNIT/INTEGRATION real openssl + TLS; BROWSER WebKit/Chromium |
 | DNS rebinding | Host allow-list (mDNS name, extra names, localhost, IP literals) checked before any processing -> 421 | UNIT/HTTP |
+| HSTS | **Off by default** (DECISIONS #48): no `Strict-Transport-Security` in any mode; static guard against accidental introduction | UNIT/TLS |
+| Remote syslog | Optional; TLS only (RFC 5425) with mandatory verification incl. host name; redacted lines; bounded non-blocking queue; a wrong CA delivers nothing | UNIT + INTEGRATION real rsyslog |
+| Recovery | Password reset / factory reset only locally (console, or a request file on the boot partition = physical access); never via WebUI/MQTT; factory reset removes only the bridge's own known files | UNIT |
 
 ## Known gaps and decisions for later (see OPEN_QUESTIONS)
 * **HTTPS:** implemented (local CA / own certificate / proxy). Until the owner has installed the CA and enabled HTTPS-only, plain HTTP stays

@@ -46,6 +46,8 @@ def test_preflight_flags_the_lab_findings_and_passes_a_good_setup(tmp_path):
                   globber=lambda pat, **kw: [p for p in conf if p.startswith(pat.split("*")[0])], home=str(tmp_path))
     assert {c["check"]: c["status"] for c in good}["pipewire:allowed-rates"] == "PASS"
     assert {c["check"]: c["status"] for c in good}["wireplumber:logind"] == "PASS"
+    cap = next(c for c in good if c["check"] == "capture:tool")
+    assert cap["status"] == "PASS" and "parec" in cap["detail"]          # fake pw-cat has no --raw in this runner -> parec
 
 
 def test_e2_latency_from_trace_events_and_microphone_blocks():

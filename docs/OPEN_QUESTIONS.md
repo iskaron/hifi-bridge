@@ -96,3 +96,12 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 34. **Stuck digital silence on capture:** the no-data watchdog restarts a capture child that delivers *nothing*, but not one that delivers
     only silence. Should the bridge restart capture after N s of digital silence while AVRCP reports "playing"? Decide from real traces
     (hardware A3/A4, C1/C2) - a quiet passage must not trigger it (track bab_quiet_passage).
+
+## Status after the stabilisation package (2026-11-16)
+* #28 HSTS: **decided** - off by default (DECISIONS #48); regression-tested.
+* #29 openssl on the appliance: **checked** - Buildroot 2026.02 libopenssl 3.6.2 (Apache-2.0) + `BR2_PACKAGE_LIBOPENSSL_BIN`; allowed (DECISIONS #50).
+* #30 mDNS: **decided** - Avahi preferred (DECISIONS #49); Avahi backend implemented and interop-tested; built-in responder as fallback.
+* #24/#25 PipeWire in the image: **researched** - Buildroot 2026.02 ships PipeWire 1.2.8 / WirePlumber 0.5.10 and **no `parec`** without the
+  pulseaudio package -> automatic capture tool choice picks `pw-cat --raw`. Init system/logind remain a 2b decision (docs/PHASE2B_PLAN.md).
+* #32 lab images: **resolved** - all images rebuilt from scratch on 2026-11-16 (scripts/build_images.sh).
+* #27 Docker disk: **resolved by the owner** (102 GB free on 2026-11-16).

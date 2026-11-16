@@ -37,3 +37,8 @@ The service runs as user `hifi-bridge` with `CAP_NET_BIND_SERVICE` only (for por
 | Respawn wrapper: back-off sequence, crash log, SIGTERM forwarded | UNIT (real `/bin/sh`) |
 | Unit file | STATIC (`systemd-analyze verify`, `systemd-analyze security`) |
 | Real systemd watchdog kill and restart on a device | **UNTESTED** (phase 2b) |
+
+## Recovery entry points (stabilisation package)
+* `python3 -m btbridge.recovery --data <dir> reset-owner-password | factory-reset --yes | boot-request --boot <dir>` - console only.
+* `python3 -m btbridge.appliance ... --boot-dir /boot` processes a `hifi-recovery` request file (physical SD access) **before** starting and writes
+  a non-secret `hifi-status.txt` (name, CA fingerprint; a new setup code after a password reset).
