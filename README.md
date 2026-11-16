@@ -6,10 +6,11 @@ in German and English, reached under `hifi-bridge.local` over HTTPS with the dev
 
 "Hi-Fi Bridge" is the provisional product name (DECISIONS #34). "Bluetooth" is used only descriptively, and the official Bluetooth logo is not used.
 
-**Status:** Phase 2a plus the follow-up package, on top of the accepted phase-1 feasibility result. The development machine has **no** Bluetooth,
+**Status:** Phase 2a, the follow-up package and the software-stabilisation package (2026-11-16), on top of the accepted phase-1 feasibility
+result. Phase 2b (Buildroot image, OTA, flash tool) is **planned, not started** (`docs/PHASE2B_PLAN.md`) and waits for the hardware gate. The development machine has **no** Bluetooth,
 Raspberry Pi or audio hardware (owner decision). Everything runs in Docker:
-* **Real:** Lyrion 9.1.2, Squeezelite 1.9.9, Mosquitto 2.0.20, Home Assistant 2026.11.1, PipeWire 0.3.65/1.4.2 tools, Avahi, FFmpeg codecs,
-  Chromium and WebKit.
+* **Real:** Lyrion 9.1.2, Squeezelite 1.9.9, Mosquitto 2.0.20, Home Assistant 2026.11.1, PipeWire 0.3.65/1.4.2 tools, Avahi 0.8, rsyslog 8
+  (TLS), FFmpeg codecs, Chromium and WebKit; Python 3.11 (lab) and 3.14 (Buildroot's version).
 * **Simulated:** the phone and BlueZ.
 
 **Nothing has been verified on real Bluetooth, phones, Squeezebox hardware or a Pi.** For that, see `docs/HARDWARE_TEST_PROCEDURE.md` and
@@ -39,12 +40,22 @@ scripts/run_integration.sh        # real LMS/Squeezelite/Mosquitto + fake-BlueZ 
 scripts/test_outage.sh lms        # outage scenario (also: player1)
 scripts/run_pipewire.sh           # capture command lines against real PipeWire 0.3.65 and 1.4.2
 scripts/run_hwkit.sh              # kit self-tests incl. real SBC/AAC codecs
-scripts/test_mdns.sh              # mDNS responder against a real Avahi
+scripts/test_mdns.sh              # mDNS: built-in responder and the Avahi backend against a real Avahi
+scripts/test_syslog.sh            # optional remote syslog -> REAL rsyslog over verified TLS
+scripts/run_py314.sh              # unit suite on Python 3.14
+scripts/run_security.sh           # bandit gate (no unjustified MEDIUM/HIGH finding)
+scripts/run_coverage.sh [--integration]   # line+branch coverage -> reports/evidence/coverage.txt (see docs/TEST_COVERAGE.md)
 scripts/run_homeassistant.sh      # REAL Home Assistant 2026.11.1 + Mosquitto: discovery, availability, commands, telemetry, over-temperature
 scripts/run_browser.sh            # Chromium/WebKit: keyboard-only wizard, a11y tree, axe-core, light/dark, phone/desktop, trusted HTTPS
 scripts/run_all.sh                # everything; LOG=... selects the log file
 scripts/lab_down.sh
+scripts/build_images.sh [--cached]   # rebuild all project images reproducibly (--pull --no-cache by default)
+scripts/cleanup_own_images.sh [--apply]   # owner-run: lists (dry run) / removes only superseded images of THIS project
 ```
+
+## Recovery (console or SD card only - never via WebUI/MQTT)
+`python3 -m btbridge.recovery --data <dir> reset-owner-password | factory-reset --yes`. With `--boot-dir`, the appliance also processes a
+`hifi-recovery` request file on the boot partition and writes a non-secret `hifi-status.txt` (name, CA fingerprint).
 
 ## Try the appliance in the lab
 ```bash

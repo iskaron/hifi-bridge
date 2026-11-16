@@ -1,0 +1,440 @@
+### date: 2026-11-16T12:21:07Z
+Docker version 29.1.3, build 29.1.3-0ubuntu4.1
+d3d7481
+### STATIC
+### shellcheck
+### python-compile
+f-string expression part cannot include a backslash (render_icons.py, line 9)
+compiled without writing bytecode; 1 error(s)
+### systemd-unit
+→ Overall exposure level for hifi-bridge.service: 1.9 OK :-)
+### actionlint
+static exit: 1
+### UNIT
+........................................................................ [ 28%]
+........................................................................ [ 56%]
+........................................................................ [ 84%]
+.........................................                                [100%]
+257 passed in 81.17s (0:01:21)
+### INTEGRATION
+ btbridge-lab:dev  Built
+ btbridge-lab:dev  Built
+ btbridge-lab:dev  Built
+ btbridge-lab:dev  Built
+ Container btbridge-lab-lms-1  Running
+ Container btbridge-lab-mosquitto-1  Running
+ Container btbridge-lab-player1-1  Recreate
+ Container btbridge-lab-legacy1-1  Recreate
+ Container btbridge-lab-player3-1  Recreate
+ Container btbridge-lab-player2-1  Recreate
+ Container btbridge-lab-player3-1  Recreated
+ Container btbridge-lab-player1-1  Recreated
+ Container btbridge-lab-player2-1  Recreated
+ Container btbridge-lab-legacy1-1  Recreated
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player2-1  Starting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-legacy1-1  Starting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player1-1  Starting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player3-1  Starting
+ Container btbridge-lab-player2-1  Started
+ Container btbridge-lab-player3-1  Started
+ Container btbridge-lab-player1-1  Started
+ Container btbridge-lab-legacy1-1  Started
+============================= test session starts ==============================
+platform linux -- Python 3.11.2, pytest-7.2.1, pluggy-1.0.0+repack
+rootdir: /work, configfile: pytest.ini
+collected 55 items
+
+tests/integration/test_01_pipeline.py ..                                 [  3%]
+tests/integration/test_02_ownership.py ..........                        [ 21%]
+tests/integration/test_03_pause_stall.py .....                           [ 30%]
+tests/integration/test_04_startup_buffering.py ..                        [ 34%]
+tests/integration/test_05_group_legacy_meta_volume.py ........           [ 49%]
+tests/integration/test_06_soak_drift_cpu.py ....                         [ 56%]
+tests/integration/test_07_diagnostic_security.py .....                   [ 65%]
+tests/integration/test_08_bluez_dbus.py .........                        [ 81%]
+tests/integration/test_09_bluez_adapter_e2e.py ...                       [ 87%]
+tests/integration/test_11_mqtt_mosquitto.py ....                         [ 94%]
+tests/integration/test_12_webui_lms_e2e.py ..                            [ 98%]
+tests/integration/test_13_guest_flow.py .                                [100%]
+
+======================== 55 passed in 968.69s (0:16:08) ========================
+### OUTAGE lms
+ Container btbridge-lab-lms-1  Running
+ Container btbridge-lab-player2-1  Running
+ Container btbridge-lab-player1-1  Running
+ Container btbridge-lab-player3-1  Running
+ Container btbridge-lab-legacy1-1  Running
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Stopping
+ Container btbridge-lab-lms-1  Stopped
+ Container btbridge-lab-lms-1  Starting
+ Container btbridge-lab-lms-1  Started
+[host] stopping lms
+[host] starting lms
++ 53.5s status ('reachable', 'owned', None)
+{
+ "kind": "lms",
+ "timeline": [
+  [
+   0.0,
+   "reachable",
+   "owned",
+   null
+  ],
+  [
+   33.5,
+   "unreachable",
+   "owned",
+   null
+  ],
+  [
+   53.5,
+   "reachable",
+   "owned",
+   null
+  ]
+ ],
+ "bt_stayed_connected": true,
+ "lms_mode_at_end": "play",
+ "lms_plays_current_bridge_session": true,
+ "outage_window_s": [
+  33.5,
+  53.5
+ ],
+ "audible_fraction_during_outage": 0.9999982655495305,
+ "first_audio_after_target_back_s": -0.005505800247192383,
+ "age_of_first_recovered_frame_s": 1.6237335205078125,
+ "audio_never_stopped_during_outage": true,
+ "bridge_commands": [
+  "play",
+  "play"
+ ],
+ "label": "INTEGRATION real LMS/player container outage + SIMULATED BT"
+}
+scenario exit code: 0
+### OUTAGE player
+ Container btbridge-lab-lms-1  Running
+ Container btbridge-lab-legacy1-1  Running
+ Container btbridge-lab-player2-1  Running
+ Container btbridge-lab-player1-1  Running
+ Container btbridge-lab-player3-1  Running
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player1-1  Stopping
+ Container btbridge-lab-player1-1  Stopped
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player1-1  Starting
+ Container btbridge-lab-player1-1  Started
+[host] stopping player1
+[host] starting player1
++ 34.5s status ('unreachable', 'owned', None)
++ 49.5s status ('reachable', 'owned', None)
+{
+ "kind": "player1",
+ "timeline": [
+  [
+   0.0,
+   "reachable",
+   "owned",
+   null
+  ],
+  [
+   34.5,
+   "unreachable",
+   "owned",
+   null
+  ],
+  [
+   49.5,
+   "reachable",
+   "owned",
+   null
+  ]
+ ],
+ "bt_stayed_connected": true,
+ "lms_mode_at_end": "play",
+ "lms_plays_current_bridge_session": true,
+ "outage_window_s": [
+  34.5,
+  49.5
+ ],
+ "audible_fraction_during_outage": 0.0,
+ "first_audio_after_target_back_s": 0.5658764839172363,
+ "age_of_first_recovered_frame_s": 1.5318377017974854,
+ "audio_never_stopped_during_outage": false,
+ "bridge_commands": [
+  "play"
+ ],
+ "label": "INTEGRATION real LMS/player container outage + SIMULATED BT"
+}
+scenario exit code: 0
+### PIPEWIRE
+### PipeWire on debian:bookworm
+============================= test session starts ==============================
+platform linux -- Python 3.11.2, pytest-7.2.1, pluggy-1.0.0+repack
+rootdir: /work, configfile: pytest.ini
+collected 12 items
+
+tests/pipewire/test_capture.py ..s.......                                [ 83%]
+tests/pipewire/test_hwkit_capture.py .                                   [ 91%]
+tests/pipewire/test_zz_restart.py .                                      [100%]
+
+=================== 11 passed, 1 skipped in 63.89s (0:01:03) ===================
+### PipeWire on debian:trixie
+============================= test session starts ==============================
+platform linux -- Python 3.13.5, pytest-8.3.5, pluggy-1.5.0
+rootdir: /work
+configfile: pytest.ini
+collected 12 items
+
+tests/pipewire/test_capture.py ..........                                [ 83%]
+tests/pipewire/test_hwkit_capture.py .                                   [ 91%]
+tests/pipewire/test_zz_restart.py .                                      [100%]
+
+======================== 12 passed in 69.62s (0:01:09) =========================
+### HWKIT
+................................                                         [100%]
+32 passed in 20.33s
+### MDNS
+responder ip: 172.17.0.8
+avahi-resolve: hifi-bridge.local	172.17.0.8
+PASS avahi resolves hifi-bridge.local to the responder
+=;eth0;IPv4;Hi-Fi\032Bridge\032\040Lab\041;Secure Web Site;local;hifi-bridge.local;172.17.0.8;8443;"path=/"
+PASS avahi browse finds the _https._tcp service on port 8443
+mdns-responder-1  | mdns name: hifi-bridge.local
+mdns-responder-1  | mdns: goodbye sent
+mdns-responder-1  | mdns: hifi-bridge.local is used by another device; trying hifi-bridge-2.local
+mdns-responder-1  | mdns name: hifi-bridge-2.local
+PASS responder detects the conflict and takes hifi-bridge-2.local
+PASS avahi resolves hifi-bridge-2.local to the responder
+PASS hifi-bridge.local still belongs to the other device
+PASS responder sends the goodbye on SIGTERM
+PASS after stop (goodbye) the name no longer resolves
+### avahi backend (production preference, DECISIONS #49): bridge publisher + its own avahi-daemon vs. the Avahi peer
+avahi-resolve: hifi-bridge.local	172.17.0.8 (publisher ip 172.17.0.8)
+PASS avahi backend: peer resolves hifi-bridge.local to the publisher
+PASS avahi backend: peer browses the _https._tcp service
+PASS avahi backend: goodbye on SIGTERM
+PASS avahi backend: after stop the name no longer resolves
+mdns-avahi-pub-1  | avahi avahi 0.8
+mdns-avahi-pub-1  | mdns (avahi): hifi-bridge.local is used by another device; trying hifi-bridge-2.local
+mdns-avahi-pub-1  | mdns name: hifi-bridge-2.local
+PASS avahi backend: conflict -> hifi-bridge-2.local
+PASS avahi backend: peer resolves hifi-bridge-2.local to the publisher
+### SYSLOG
+ btbridge-lab:dev  Built
+ btbridge-lab:dev  Built
+ btbridge-lab:dev  Built
+ btbridge-lab:dev  Built
+ Container btbridge-lab-mosquitto-1  Running
+ Container btbridge-lab-lms-1  Running
+ Container btbridge-lab-player3-1  Recreate
+ Container btbridge-lab-legacy1-1  Recreate
+ Container btbridge-lab-player2-1  Recreate
+ Container btbridge-lab-player1-1  Recreate
+ Container btbridge-lab-player2-1  Recreated
+ Container btbridge-lab-player3-1  Recreated
+ Container btbridge-lab-legacy1-1  Recreated
+ Container btbridge-lab-player1-1  Recreated
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player2-1  Starting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player1-1  Starting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player3-1  Starting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-legacy1-1  Starting
+ Container btbridge-lab-legacy1-1  Started
+ Container btbridge-lab-player1-1  Started
+ Container btbridge-lab-player2-1  Started
+ Container btbridge-lab-player3-1  Started
+certs ok
+============================= test session starts ==============================
+platform linux -- Python 3.11.2, pytest-7.2.1, pluggy-1.0.0+repack
+rootdir: /work, configfile: pytest.ini
+collected 2 items
+
+tests/syslog/test_rsyslog.py ..                                          [100%]
+
+============================== 2 passed in 4.32s ===============================
+syslog-1  | rsyslogd: GnuTLS handshake retry returned error: A TLS fatal alert has been received.  [v8.2504.0 try https://www.rsyslog.com/e/2083 ]
+syslog-1  | rsyslogd: netstream session 0x7d8010011ad0 from 172.17.0.9 will be closed due to error [v8.2504.0 try https://www.rsyslog.com/e/2083 ]
+syslog-1  | rsyslogd: GnuTLS handshake retry returned error: A TLS fatal alert has been received.  [v8.2504.0 try https://www.rsyslog.com/e/2083 ]
+syslog-1  | rsyslogd: netstream session 0x7d8014005860 from 172.17.0.9 will be closed due to error [v8.2504.0 try https://www.rsyslog.com/e/2083 ]
+syslog-1  | rsyslogd: GnuTLS handshake retry returned error: A TLS fatal alert has been received.  [v8.2504.0 try https://www.rsyslog.com/e/2083 ]
+### PYTHON 3.14
+........................................................................ [ 28%]
+........................................................................ [ 56%]
+........................................................................ [ 84%]
+.........................................                                [100%]
+257 passed in 80.27s (0:01:20)
+### SECURITY
+[manager]	WARNING	Test in comment: LAN is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: appliance is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: owner is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: UI is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: players is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: must is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: reach is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: it is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: protected is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: by is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: Host is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: validation is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: auth is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: and is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: the is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: stream is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: token is not a test name or id, ignoring
+[tester]	WARNING	nosec encountered (B104), but no failed test on line 42
+[manager]	WARNING	Test in comment: scheme is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: restricted is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: to is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: http is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: https is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: in is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: __init__ is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: players is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: fetch is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: the is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: stream is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: over is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: the is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: LAN is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: token is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: protected is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: see is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: appliance is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: py is not a test name or id, ignoring
+	Total issues (by severity):
+		Undefined: 0
+		Low: 15
+		Medium: 0
+		High: 0
+bandit medium/high gate: rc=0
+### HOMEASSISTANT
+ btbridge-lab:dev  Built
+ btbridge-lab:dev  Built
+ btbridge-lab:dev  Built
+ btbridge-lab:dev  Built
+ Container btbridge-lab-mosquitto-1  Running
+ Container btbridge-lab-lms-1  Running
+ Container btbridge-lab-player2-1  Recreate
+ Container btbridge-lab-legacy1-1  Recreate
+ Container btbridge-lab-player1-1  Recreate
+ Container btbridge-lab-player3-1  Recreate
+ Container btbridge-lab-player3-1  Recreated
+ Container btbridge-lab-legacy1-1  Recreated
+ Container btbridge-lab-player2-1  Recreated
+ Container btbridge-lab-player1-1  Recreated
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-legacy1-1  Starting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player2-1  Starting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player3-1  Starting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player1-1  Starting
+ Container btbridge-lab-legacy1-1  Started
+ Container btbridge-lab-player3-1  Started
+ Container btbridge-lab-player2-1  Started
+ Container btbridge-lab-player1-1  Started
+============================= test session starts ==============================
+platform linux -- Python 3.11.2, pytest-7.2.1, pluggy-1.0.0+repack
+rootdir: /work, configfile: pytest.ini
+collected 7 items
+
+tests/homeassistant/test_ha_mqtt.py .......                              [100%]
+
+============================== 7 passed in 44.37s ==============================
+### Home Assistant log: MQTT warnings/errors
+### BROWSER
+ btbridge-lab:dev  Built
+ btbridge-lab:dev  Built
+ btbridge-lab:dev  Built
+ btbridge-lab:dev  Built
+ Container btbridge-lab-lms-1  Running
+ Container btbridge-lab-mosquitto-1  Running
+ Container btbridge-lab-player1-1  Recreate
+ Container btbridge-lab-player2-1  Recreate
+ Container btbridge-lab-player3-1  Recreate
+ Container btbridge-lab-legacy1-1  Recreate
+ Container btbridge-lab-player2-1  Recreated
+ Container btbridge-lab-player1-1  Recreated
+ Container btbridge-lab-legacy1-1  Recreated
+ Container btbridge-lab-player3-1  Recreated
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player3-1  Starting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player2-1  Starting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player1-1  Starting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-legacy1-1  Starting
+ Container btbridge-lab-player3-1  Started
+ Container btbridge-lab-player2-1  Started
+ Container btbridge-lab-player1-1  Started
+ Container btbridge-lab-legacy1-1  Started
+ Volume btbridge-lab_appliance-data  Creating
+ Volume btbridge-lab_appliance-data  Created
+ Container btbridge-lab-lms-1  Running
+ Container btbridge-lab-appliance-1  Creating
+ Container btbridge-lab-appliance-1  Created
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-appliance-1  Starting
+ Container btbridge-lab-appliance-1  Started
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.3.4, pluggy-1.7.0
+rootdir: /work
+configfile: pytest.ini
+collected 5 items
+
+tests/browser/test_ui_browser.py .....                                   [100%]
+
+============================== 5 passed in 19.10s ==============================
+appliance-1  | [ctl] reachability unreachable
+appliance-1  | [ctl] reachability unreachable
+appliance-1  | [ctl] reachability reachable
+appliance-1  | [ctl] bt_connected 
+appliance-1  | [ctl] media_play 
+appliance-1  | [ctl] session_start FePDcU_F
+appliance-1  | [ctl] media_pause 
+appliance-1  | [ctl] session_parked FePDcU_F
+appliance-1  | [ctl] bt_disconnected 
+appliance-1  | [ctl] session_release FePDcU_F:disconnect
+exit codes: static=1 unit=0 integration=0 outage_lms=0 outage_player=0 pipewire=0 hwkit=0 mdns=0 syslog=0 py314=0 security=0 homeassistant=0 browser=0

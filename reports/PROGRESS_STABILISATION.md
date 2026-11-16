@@ -25,3 +25,19 @@ Labels: UNIT, INTEGRATION, SIMULATED, STATIC, REAL-HARDWARE (none here). Newest 
   Lab: parec on 0.3.65, pw-cat --raw on 1.4.2 - both bit-exact, no fallback (INTEGRATION).
 - New fault test: pipewire-pulse restart while capturing, microphone returns first as default -> never microphone frames (both versions);
   resume asserted on 1.4.2, recorded (not asserted) on 0.3.65 because of the stand-in. New open question #34 (stuck digital silence).
+- mDNS: Avahi backend (`net/avahi.py`, D-Bus via jeepney) as production default (`mdns_backend=auto`), built-in responder as fallback;
+  real-Avahi interop 13/13 (built-in 7 + Avahi backend 6 incl. collision -> `hifi-bridge-2.local` and goodbye). Two own bugs found and fixed
+  on the way (local name collision with the daemon's own host name; a false PASS of the test script with an empty publisher IP).
+- Local recovery (`btbridge.recovery`): owner-password reset, factory reset (only the bridge's own files), boot-partition request file,
+  non-secret `hifi-status.txt` with the CA fingerprint (out-of-band trust reference until the flash tool exists).
+- WebUI: web-app manifest + icons (home-screen shortcut), 2-hour CPU/temperature/memory trend graphs (inline SVG, CSP-clean, aria-label
+  summaries), logging settings page.
+- Optional secure remote syslog: RFC 5425 over TLS with mandatory verification; INTEGRATION with a real rsyslog 8.2504 (gnutls): delivery,
+  RFC 5424 fields, redaction, wrong CA -> nothing delivered. Found and fixed: missing TLS close_notify on stop.
+- Guest flow end to end (INTEGRATION, SIMULATED phone, real LMS): refused outside the pairing window, pairs inside, Play -> audible
+  capture at the player, Pause -> stop, leave -> released; only the bridge's own commands at LMS.
+- Python 3.14 (Buildroot's version): unit suite 250/250 after one test fix (the test assumed pytest is not PID 1).
+- Coverage (coverage.py, line+branch) measured; appliance entry point, adapter interface conformance and access reconfiguration now tested.
+- bandit 1.8.6 gate: 0 HIGH; the medium findings fixed (LMS URL scheme check; explicit checks instead of asserts) or justified inline
+  (bind on all interfaces is required for a LAN appliance).
+- Hardware plan: new test set H (name resolution, trusted HTTPS, home-screen shortcut, screen reader) incl. catalogue and guided procedures.
