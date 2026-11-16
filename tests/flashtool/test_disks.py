@@ -80,3 +80,15 @@ def test_list_disks_uses_only_the_injected_runner():
     assert len(D.list_disks("linux", runner)) == 5 and calls == [D.COMMANDS["linux"]]
     with pytest.raises(ValueError):
         D.list_disks("plan9", runner)
+
+
+def test_list_disks_for_macos_and_windows_via_the_runner():
+    lst = plistlib.dumps({"AllDisksAndPartitions": [{"DeviceIdentifier": "disk4", "Partitions": []}]})
+    info = plistlib.dumps({"TotalSize": 32 * GB, "RemovableMedia": True, "WritableMedia": True, "Internal": False})
+    calls = []
+    def mac(argv):
+        calls.append(argv)
+        return lst if argv == D.COMMANDS["darwin"] else info
+    assert [d.name for d in D.list_disks("darwin", mac)] == ["disk4"] and calls[1] == ["diskutil", "info", "-plist", "disk4"]
+    win = json.dumps({"Number": 2, "Size": 32 * GB, "BusType": "SD", "IsReadOnly": False}).encode()
+    assert D.list_disks("windows", lambda argv: win)[0].label().startswith("PhysicalDrive2 - unknown model - 32.0 GB")

@@ -110,3 +110,22 @@ def test_file_target_refuses_device_nodes_and_missing_files(tmp_path):
     os.symlink("/dev/null", tmp_path / "link")
     with pytest.raises(W.WriteError):
         W.FileTarget(str(tmp_path / "link"))                    # a symlink to a device is resolved and refused
+
+
+def test_cancel_during_verification_and_the_target_interface(tmp_path):
+    img, man, _ = image_and_manifest(tmp_path)
+    t, p = card(tmp_path)
+    cancel = threading.Event()
+    with pytest.raises(W.Cancelled, match="while verifying"):
+        W.write_card(open(img, "rb"), man, t, t.identity(), doc(), cancel=cancel,
+                     progress=lambda s, a, b: cancel.set() if s == "verify" else None)
+    t.close()
+    assert p.read_bytes()[:W.INVALIDATE_BYTES] == bytes(W.INVALIDATE_BYTES)
+    base = W.Target()
+    for call in (base.identity, lambda: base.write_at(0, b""), lambda: base.read_at(0, 1), base.flush):
+        with pytest.raises(NotImplementedError):
+            call()
+    base.close()
+    t2, _ = card(tmp_path)
+    with pytest.raises(W.WriteError, match="beyond the end"):
+        t2.write_at(t2.size - 1, b"xx")

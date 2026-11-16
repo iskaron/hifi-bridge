@@ -37,9 +37,14 @@ The gates are in order. A gate starts only when the previous one is passed **and
 - [ ] G1: guest flow end to end (an ordinary visitor pairs, presses Play, hears music).
 - [ ] H1–H3, H4 if time: `hifi-bridge.local` from four OSes, trusted HTTPS, home-screen shortcut, screen reader.
 - [ ] **New, this package:** `--boot-dir /boot/firmware` with a hand-made provisioning file. On Pi OS `/boot/firmware` belongs to root:
-  run the bridge with write access to it for this item only, or point `--boot-dir` at a copy. Check that the device applies it and
-  overwrites it (`hifi-status.txt` shows "Provisioning applied"), and run the P7 trust proof against the Pi:
-  `python3 -c "from hififlash.trust import fetch_verified_ca; …"`, run on the laptop, not on the dev machine.
+  run the bridge with write access to it for this item only, or point `--boot-dir` at a copy. Use a **fresh data directory**.
+  On the laptop (not the dev machine), from the unpacked bundle:
+  1. `PYTHONPATH=bridge:flashtool python3 -m hififlash provision --country DE --out hifi-provision.json --key-out trust.key`, then copy
+     the file into the boot directory before starting the bridge;
+  2. check that the device applies and overwrites it (`hifi-status.txt` shows "Provisioning applied");
+  3. `PYTHONPATH=bridge:flashtool python3 -m hififlash verify-device --url http://<pi>:8080 --key-file trust.key --https https://<pi>:8443`
+     must print VERIFIED, the same fingerprint as `hifi-status.txt`, and `HTTP 200`. The HTTPS check needs the Pi's IP or name in its
+     certificate.
 
 **Pass:** A1–A5, B4, C1/C2, G1 pass. Everything else is recorded, with known deviations accepted by the owner.
 

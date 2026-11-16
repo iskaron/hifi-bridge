@@ -17,6 +17,8 @@ GUI (PySide6, LGPL-3.0, planned)      - wizard, DE/EN, light/dark, "Hi-Fi & eleg
  shared with the device: btbridge.provisioning (format + validation), btbridge.trustproof (HMAC proof)
 ```
 
+Command line (test day, development; **no write command exists**): `python3 -m hififlash provision | verify-device | verify-image`.
+
 ## 2. Safe disk selection (`hififlash.disks`)
 A disk is offered only if **all** of these hold. Every refusal has a reason code that the GUI shows:
 * whole disk, removable or USB/SD/MMC transport (`not_removable`);

@@ -106,3 +106,18 @@ def test_fragmented_or_missing_mbr_is_refused(tmp_path):
     blank = tmp_path / "blank.img"; blank.write_bytes(bytes(1024))
     with pytest.raises(SlotError, match="MBR"):
         find_file(file_reader(str(blank)), P.FILE_NAME)
+
+
+def test_build_manifest_from_an_image_and_the_cli(tmp_path, capsys):
+    img = fat_image(tmp_path, 16, 64)
+    m = M.build(str(img), "hifi-bridge-rpi3", "0.3.0")
+    assert m["slot"]["size"] == P.SLOT_SIZE and m["size"] == os.path.getsize(img) and M.load(M.dumps(m)) == m
+    out = tmp_path / "m.json"
+    assert M.main(["build", "--image", str(img), "--compatible", "c", "--version", "1", "--out", str(out)]) == 0
+    assert json.loads(out.read_text())["compatible"] == "c"
+    small = tmp_path / "small"; small.mkdir()
+    img2 = fat_image(small, 16, 64)
+    sh("mcopy", "-o", "-i", f"{img2}@@{2048 * 512}", str(tmp_path / "config.txt"), f"::{P.FILE_NAME}")   # wrong slot size
+    with pytest.raises(M.ManifestError, match="slot has"):
+        M.build(str(img2), "c", "1")
+    assert M.main(["build", "--image", str(img2), "--compatible", "c", "--version", "1", "--out", str(out)]) == 1

@@ -4,48 +4,58 @@ Name                                                  Stmts   Miss Branch BrPart
 /work/bridge/btbridge/__main__.py                        50     15      8      2    64%   42-55, 59
 /work/bridge/btbridge/adapters/base.py                   20      0     16      8    78%   32->exit, 33->exit, 34->exit, 35->exit, 36->exit, 46->exit, 47->exit, 48->exit
 /work/bridge/btbridge/adapters/bluez/__init__.py          5      0      0      0   100%
-/work/bridge/btbridge/adapters/bluez/adapter.py         126      6     58      8    92%   46->48, 60->62, 67->exit, 73, 96, 105, 115, 128->127, 155-156
+/work/bridge/btbridge/adapters/bluez/adapter.py         126     12     58     11    88%   46->48, 60->62, 64->exit, 65->exit, 66->exit, 67->exit, 73, 85-86, 96, 105, 115, 128->127, 147-150, 155-156
 /work/bridge/btbridge/adapters/bluez/bus.py              41      0     24      7    89%   70->exit, 71->exit, 72->exit, 73->exit, 74->exit, 75->exit, 76->exit
 /work/bridge/btbridge/adapters/bluez/factory.py          11      0      2      1    92%   17->exit
-/work/bridge/btbridge/adapters/bluez/jeepney_bus.py     145     18     46      7    87%   28, 37->exit, 40-41, 60-61, 115->exit, 141->145, 147-148, 155-156, 161-162, 167-169, 176-177, 181-182
-/work/bridge/btbridge/adapters/bluez/model.py           137      7     80      6    94%   33-34, 64->exit, 99, 119-120, 137->136, 149-150, 168->170, 172->174
+/work/bridge/btbridge/adapters/bluez/jeepney_bus.py     145    115     46      1    16%   24-29, 33, 37->exit, 40-41, 44, 47-53, 57-65, 68-69, 72-74, 77-78, 81-82, 86-101, 104-107, 110-112, 115-116, 119-148, 151-169, 172-182
+/work/bridge/btbridge/adapters/bluez/model.py           137      7     80      9    93%   33-34, 64->exit, 72->exit, 82->exit, 99, 119-120, 137->136, 149-150, 168->170, 172->174, 175->178
 /work/bridge/btbridge/adapters/bluez/pcm.py             105      8     50      6    91%   27->exit, 28->exit, 67-68, 112-113, 121->exit, 124, 132, 137->153, 155-156
-/work/bridge/btbridge/app.py                            174      6     46      6    95%   84, 88->90, 91, 107-108, 114->exit, 156->exit, 176-177, 181->183
-/work/bridge/btbridge/appliance.py                       84      5     26      8    85%   64, 69->72, 75->77, 80->86, 82->86, 91->93, 93->95, 98-100, 108
+/work/bridge/btbridge/app.py                            174      7     46      9    93%   45->exit, 84, 86->88, 88->90, 91, 92->81, 104->exit, 107-108, 114->exit, 120->122, 147, 176-177
+/work/bridge/btbridge/appliance.py                       81      5     26      7    85%   64, 69->73, 76->78, 81->83, 88->90, 90->92, 95-97, 105
+/work/bridge/btbridge/bootfiles.py                       48     12     16      3    73%   31->34, 46, 55-64, 68
 /work/bridge/btbridge/config/__init__.py                  3      0      0      0   100%
 /work/bridge/btbridge/config/schema.py                  137      8     71      9    92%   61, 69, 86, 93, 99, 106->101, 178, 192, 195
 /work/bridge/btbridge/config/store.py                   122      9     51      1    94%   39-44, 52, 60-61
 /work/bridge/btbridge/core/clock.py                      16      2      0      0    88%   12, 25
-/work/bridge/btbridge/core/controller.py                296     18    120     11    93%   173->166, 175-176, 197, 211, 214, 229, 262-266, 285, 301->303, 349->354, 352-353, 362-365, 373->exit, 380->382
+/work/bridge/btbridge/core/controller.py                296     20    120     13    92%   173->166, 175-176, 179, 197, 202->195, 211, 214, 224, 229, 262-266, 285, 301->303, 349->354, 352-353, 362-365, 373->exit, 380->382
 /work/bridge/btbridge/core/fusion.py                     25      0      4      0   100%
 /work/bridge/btbridge/core/pairing.py                    25      0      4      0   100%
 /work/bridge/btbridge/core/ring.py                       60      7     24      1    88%   41-44, 75-77
 /work/bridge/btbridge/core/volume.py                     21      1      6      1    93%   33
-/work/bridge/btbridge/lms/client.py                      92      6     32      3    93%   58-59, 69, 86, 98->95, 128-129
-/work/bridge/btbridge/lms/discovery.py                   43      3     16      1    93%   26-27, 48
+/work/bridge/btbridge/lms/client.py                      92     51     32      0    38%   53-60, 64, 67-71, 82-89, 93-100, 105-114, 118, 121-125, 128-129, 132-133, 136-137, 140-141
+/work/bridge/btbridge/lms/discovery.py                   43     37     16      0    10%   17-28, 32-56
 /work/bridge/btbridge/mqtt/__init__.py                    3      0      0      0   100%
-/work/bridge/btbridge/mqtt/bridge.py                    126      1     36      2    98%   114->116, 185
-/work/bridge/btbridge/mqtt/client.py                    197     26     76     15    84%   32, 50->53, 65->exit, 99-100, 102->exit, 116-119, 132-133, 138-139, 150, 153, 162->168, 180, 191-192, 195->exit, 202-204, 206, 214-216, 217->195, 220-221, 225->exit, 228
+/work/bridge/btbridge/mqtt/bridge.py                    126     11     36      0    90%   108-110, 113-116, 119-120, 184-185
+/work/bridge/btbridge/mqtt/client.py                    197    146     76      5    22%   32, 44->47, 47->53, 50->53, 65->exit, 71-84, 88-90, 93-103, 106-119, 122, 127-133, 136-141, 144-157, 160-169, 172-221, 224-239
 /work/bridge/btbridge/net/access.py                     147     18     44      5    86%   71-72, 79, 84-87, 92, 161-167, 172, 181-182
 /work/bridge/btbridge/net/addresses.py                   14      2      8      0    91%   16-17
 /work/bridge/btbridge/net/avahi.py                      120     31     44      8    71%   56, 63, 67, 77-80, 90-91, 96, 116, 118->123, 120-121, 131, 136, 140-155, 159
 /work/bridge/btbridge/net/certs.py                      163      9     65      4    94%   40-41, 43, 75->73, 132-133, 142, 156, 221-222
 /work/bridge/btbridge/net/hostcheck.py                   27      1     12      1    95%   38
 /work/bridge/btbridge/net/mdns.py                       268     33    118     11    87%   125->127, 136-137, 139, 149, 156-157, 234, 239->241, 250-251, 264-266, 270, 282-286, 294->296, 305->299, 312-326, 330
-/work/bridge/btbridge/recovery.py                        80      5     34      5    91%   45->47, 49-50, 99, 107, 112
-/work/bridge/btbridge/service.py                        389     43    154     20    88%   64->exit, 66, 84->83, 96, 108-109, 171-172, 184->189, 187-188, 202-203, 225-226, 257-259, 262-270, 288-289, 302->304, 322, 337-338, 349->exit, 379->383, 381->380, 388, 392, 419, 425, 443, 446-448, 456, 469-471, 476-477, 483
-/work/bridge/btbridge/stream/encoders.py                 53      6      6      0    90%   59-60, 69-70, 78-79
-/work/bridge/btbridge/stream/feeder.py                   76      2     36      3    96%   41, 71, 80->exit
-/work/bridge/btbridge/stream/server.py                  156      7     53      6    94%   59->61, 90, 102->exit, 109-110, 124-125, 139, 161
+/work/bridge/btbridge/provisioning.py                   212     15     91     10    92%   91, 110, 117-118, 127, 149, 171-172, 175-176, 199->exit, 235, 253, 270-271, 282
+/work/bridge/btbridge/recovery.py                       137     12     50      5    91%   57-58, 65-66, 69-70, 106-107, 124, 176, 184, 189
+/work/bridge/btbridge/service.py                        389     53    154     24    86%   64->exit, 66, 84->83, 96, 108-109, 171-172, 187-188, 200, 202-203, 225-226, 257-259, 262-270, 274-275, 277-278, 288-289, 302->304, 322, 324-327, 337-338, 349->exit, 379->383, 381->380, 388, 392, 419, 425, 427, 443, 446-448, 456, 469-471, 476-477, 483
+/work/bridge/btbridge/stream/encoders.py                 53     27      6      0    44%   42-49, 52-60, 63, 66-73, 76-79
+/work/bridge/btbridge/stream/feeder.py                   76      2     36      5    94%   41, 49->51, 55->59, 71, 80->exit
+/work/bridge/btbridge/stream/server.py                  156     31     53     11    77%   59->61, 64, 68, 90, 102->exit, 109-110, 124-125, 136, 139, 157-158, 161, 164->167, 169-170, 171->152, 174-175, 181-196
 /work/bridge/btbridge/supervision.py                     84      2     28      0    98%   43-44
 /work/bridge/btbridge/system/__init__.py                  2      0      0      0   100%
-/work/bridge/btbridge/system/monitor.py                  83     11     32      3    86%   45, 54-55, 62, 70-76
+/work/bridge/btbridge/system/monitor.py                  83      2     32      3    96%   45, 62, 70->69
 /work/bridge/btbridge/system/syslog.py                   86      4     37      6    92%   40->exit, 68, 72->exit, 76, 80->exit, 85->97, 94->93, 99-100
-/work/bridge/btbridge/webui/auth.py                     160      5     59      3    96%   95, 114, 184-185, 202
+/work/bridge/btbridge/trustproof.py                      32      2     10      0    95%   51-52
+/work/bridge/btbridge/webui/auth.py                     170      4     61      4    97%   95, 114, 203, 211
 /work/bridge/btbridge/webui/i18n.py                      29      0     12      0   100%
 /work/bridge/btbridge/webui/server.py                   211     11     78      5    94%   54-55, 71-72, 85->87, 117->exit, 137, 182-184, 213, 244->exit, 246-247
-/work/bridge/btbridge/webui/views.py                    528     52    168     25    88%   43, 102, 118, 120, 148->154, 150->exit, 151-152, 199, 218->222, 221, 237-238, 266, 270, 279-280, 282, 303-304, 331, 333, 442-443, 487-488, 578, 646-647, 656, 661->663, 668, 674->676, 680, 689->692, 699, 708-712, 718, 721-722, 728-729, 786, 796, 808, 844-850, 881, 886
+/work/bridge/btbridge/webui/views.py                    542     55    172     25    88%   43, 102, 118, 120, 148->154, 150->exit, 151-152, 199, 218->222, 221, 237-238, 266, 270, 279-280, 282, 303-304, 331, 333, 442-443, 487-488, 578, 644-648, 656, 661->663, 668, 674->676, 680, 689->692, 699, 708-712, 718, 721-722, 728-729, 786, 796, 828, 864-870, 901, 906
+/work/flashtool/hififlash/__init__.py                     1      0      0      0   100%
+/work/flashtool/hififlash/disks.py                       87      5     53      7    89%   49, 57->exit, 59->exit, 73->exit, 118->exit, 135->exit, 139, 141-143
+/work/flashtool/hififlash/fatslot.py                     90      4     36      4    94%   43, 74->103, 79-80, 101
+/work/flashtool/hififlash/manifest.py                    71     24     25      1    65%   30-37, 82-96, 100
+/work/flashtool/hififlash/provision.py                   30      0     16      1    98%   48->51
+/work/flashtool/hififlash/trust.py                       16      0      4      0   100%
+/work/flashtool/hififlash/writer.py                     124      9     44      5    92%   38, 41, 44, 47, 50, 71, 101, 142, 153, 158->164
 -------------------------------------------------------------------------------------------------
-TOTAL                                                  4742    388   1784    208    90%
+TOTAL                                                  5531    829   2101    239    83%
 
 6 empty files skipped.

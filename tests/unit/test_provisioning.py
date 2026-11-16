@@ -164,3 +164,16 @@ def test_cli_check_and_placeholder(capsys, monkeypatch, tmp_path):
     assert P.main(["check"]) == 0 and "valid" in capsys.readouterr().out
     monkeypatch.setattr(sys, "stdin", io.TextIOWrapper(io.BytesIO(b'{"format":"x"}')))
     assert P.main(["check"]) == 1
+
+
+def test_bootfiles_reports_recovery_and_a_rejected_file_and_its_cli(tmp_path, capsys):
+    data, boot = dirs(tmp_path)
+    bootfiles.run(str(data), str(boot), iterations=1000, log=lambda m: None)
+    (boot / "hifi-recovery").write_text("factory-reset")
+    write(boot, json.dumps({**GOOD, "hotspot": {"ssid": "x", "psk": "short"}}).encode())
+    r = bootfiles.run(str(data), str(boot), iterations=1000, log=lambda m: None)
+    status = (boot / "hifi-status.txt").read_text()
+    assert r["recovery"] == "factory-reset" and "Recovery request processed: factory-reset" in status
+    assert "REJECTED and erased" in status and "hotspot.psk" in status and "short" not in status
+    assert bootfiles.main(["--data", str(data), "--boot", str(tmp_path / "missing")]) == 2
+    assert bootfiles.main(["--data", str(data), "--boot", str(boot)]) == 0 and "bootfiles: recovery=none" in capsys.readouterr().out

@@ -90,3 +90,35 @@ def test_a_lan_attacker_with_its_own_ca_is_detected(device, tmp_path):
             FT.fetch_verified_ca(f"http://127.0.0.1:{srv.server_port}", device.key)
     finally:
         srv.shutdown()
+
+
+def test_cli_provision_then_verify_device(device, tmp_path, capsys):
+    from hififlash.__main__ import main
+    out, keyf = tmp_path / "hifi-provision.json", tmp_path / "trust.key"
+    assert main(["provision", "--country", "DE", "--device-name", "Bad", "--out", str(out), "--key-out", str(keyf), "--lang", "de"]) == 0
+    sheet = capsys.readouterr().out
+    doc = P.parse(out.read_bytes())
+    assert len(out.read_bytes()) == P.SLOT_SIZE and doc["setup_code"] in sheet and "Einrichtungscode" in sheet
+    assert oct(keyf.stat().st_mode)[-3:] == "600" and doc["trust_key"] not in sheet
+    keyf.write_text(P.encode_trust_key(device.key))                 # the running device was provisioned with this key
+    ca_out = tmp_path / "ca.pem"
+    assert main(["verify-device", "--url", f"http://127.0.0.1:{device.ui.port}", "--key-file", str(keyf),
+                 "--https", f"https://127.0.0.1:{device.ui.tls_port}", "--ca-out", str(ca_out)]) == 0
+    text = capsys.readouterr().out
+    assert "VERIFIED" in text and "HTTP 200" in text and "BEGIN CERTIFICATE" in ca_out.read_text()
+    keyf.write_text(P.encode_trust_key(secrets.token_bytes(32)))
+    assert main(["verify-device", "--url", f"http://127.0.0.1:{device.ui.port}", "--key-file", str(keyf)]) == 1
+
+
+def test_cli_verify_image(tmp_path, capsys):
+    import hashlib
+    from hififlash.__main__ import main
+    from hififlash import manifest as M
+    img = tmp_path / "x.img"; img.write_bytes(b"\x00" * 8192)
+    man = {"format": M.FORMAT, "compatible": "c", "version": "1", "image": "x.img", "size": 8192,
+           "sha256": hashlib.sha256(img.read_bytes()).hexdigest(), "slot": {"file": P.FILE_NAME, "offset": 512, "size": P.SLOT_SIZE}}
+    mf = tmp_path / "m.json"; mf.write_bytes(M.dumps(man))
+    assert main(["verify-image", str(img), "--manifest", str(mf)]) == 0
+    img.write_bytes(b"\x01" * 8192)
+    assert main(["verify-image", str(img), "--manifest", str(mf)]) == 1
+    assert main(["verify-image", str(img), "--manifest", str(mf), "--sig", str(mf)]) == 2

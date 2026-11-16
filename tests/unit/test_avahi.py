@@ -146,3 +146,53 @@ def test_access_reconfigure_restarts_mdns_and_reissues_certificates(tmp_path):
     assert info["mode"] == "local_ca" and info["tls_available"] and info["ca"]["sha256"]
     assert acc.is_trusted_proxy("10.0.0.1") is False
     acc.store.v["trusted_proxies"] = "10.0.0.0/8"; assert acc.is_trusted_proxy("10.0.0.1") and not acc.is_trusted_proxy("bogus")
+
+
+class ErrorOn(FakeConn):
+    def __init__(self, member, text, states=(A.ESTABLISHED,), **kw):
+        super().__init__(states, **kw)
+        self.member, self.text = member, text
+
+    def send_and_get_reply(self, msg, timeout=None):
+        from jeepney import HeaderFields
+        if msg.header.fields[HeaderFields.member] == self.member:
+            self.calls.append((self.member, msg.body))
+            return Reply((self.text,), err=True)
+        return super().send_and_get_reply(msg, timeout)
+
+
+def test_a_local_address_collision_moves_to_the_next_name_and_other_errors_surface():
+    p = pub([A.ESTABLISHED])
+    calls = {"n": 0}
+
+    class OnceThenOk(ErrorOn):
+        def send_and_get_reply(self, msg, timeout=None):
+            from jeepney import HeaderFields
+            if msg.header.fields[HeaderFields.member] == "AddAddress" and calls["n"] == 0:
+                calls["n"] += 1
+                return Reply(("Local name collision",), err=True)
+            return FakeConn.send_and_get_reply(self, msg, timeout)
+    p.conn = OnceThenOk("AddAddress", "x", states=[A.ESTABLISHED, A.ESTABLISHED])
+    assert p.start() == "hifi-bridge-2.local"
+    p2 = pub([A.ESTABLISHED]); p2.conn = ErrorOn("AddAddress", "Access denied")
+    with pytest.raises(A.AvahiUnavailable, match="Access denied"):
+        p2.start()
+
+
+def test_a_group_that_never_settles_is_a_failure(monkeypatch):
+    p = pub([A.REGISTERING] * 1000, timeout=0.3)
+    with pytest.raises(A.AvahiUnavailable):
+        p.start()
+
+
+def test_stop_survives_a_failing_free_and_closes_the_connection():
+    p = pub([A.ESTABLISHED]); p.start()
+    conn = ErrorOn("Free", "gone")
+    p.conn = conn
+    p.stop()
+    assert conn.closed and p.state == "stopped" and p.conn is None
+    p.stop()                                                     # idempotent
+
+
+def test_available_is_false_without_a_bus():
+    assert A.available(bus="unix:path=/nonexistent/socket") is False
