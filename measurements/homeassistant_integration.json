@@ -1,7 +1,7 @@
 {
  "home_assistant": "2026.11.1",
  "mosquitto": "2.0.20",
- "over_temperature_visible_in_ha_s": 0.5,
+ "over_temperature_visible_in_ha_s": 0.51,
  "thermal_check_interval_s": 10,
  "telemetry_interval_in_test_s": 3600,
  "entities_read_only_default": [

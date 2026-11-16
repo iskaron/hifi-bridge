@@ -4,29 +4,29 @@
  btbridge-lab:dev  Built
  Container btbridge-lab-lms-1  Running
  Container btbridge-lab-mosquitto-1  Running
+ Container btbridge-lab-player1-1  Recreate
  Container btbridge-lab-legacy1-1  Recreate
  Container btbridge-lab-player2-1  Recreate
- Container btbridge-lab-player1-1  Recreate
  Container btbridge-lab-player3-1  Recreate
- Container btbridge-lab-legacy1-1  Recreated
- Container btbridge-lab-player3-1  Recreated
- Container btbridge-lab-player1-1  Recreated
  Container btbridge-lab-player2-1  Recreated
+ Container btbridge-lab-legacy1-1  Recreated
+ Container btbridge-lab-player1-1  Recreated
+ Container btbridge-lab-player3-1  Recreated
  Container btbridge-lab-lms-1  Waiting
  Container btbridge-lab-lms-1  Waiting
  Container btbridge-lab-lms-1  Waiting
  Container btbridge-lab-lms-1  Waiting
  Container btbridge-lab-lms-1  Healthy
- Container btbridge-lab-player2-1  Starting
- Container btbridge-lab-lms-1  Healthy
- Container btbridge-lab-player3-1  Starting
+ Container btbridge-lab-player1-1  Starting
  Container btbridge-lab-lms-1  Healthy
  Container btbridge-lab-legacy1-1  Starting
  Container btbridge-lab-lms-1  Healthy
- Container btbridge-lab-player1-1  Starting
- Container btbridge-lab-player1-1  Started
- Container btbridge-lab-player2-1  Started
+ Container btbridge-lab-player3-1  Starting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player2-1  Starting
  Container btbridge-lab-player3-1  Started
  Container btbridge-lab-legacy1-1  Started
+ Container btbridge-lab-player1-1  Started
+ Container btbridge-lab-player2-1  Started
 6 empty files skipped.
-commit adb3c1e finished 2026-11-16T15:33:00Z
+commit 0ae4d2a finished 2026-11-16T17:10:54Z

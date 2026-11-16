@@ -1,0 +1,22 @@
+### date: 2026-11-16T17:11:06Z
+TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
+Images          107       21        48.74GB   28.89GB (59%)
+Containers      25        25        883.5MB   0B (0%)
+Local Volumes   133       16        3.674GB   1.146GB (31%)
+Build Cache     407       0         15.49GB   8.626GB
+/dev/mapper/data--2023--10-docker--202310  196G     73G  114G   39% /dockerfs
+btbridge-avahi:dev 123MB
+btbridge-browser:dev 2.58GB
+btbridge-hwkit:dev 630MB
+btbridge-lab:dev 386MB
+btbridge-os:dev 522MB
+btbridge-pw:bookworm 203MB
+btbridge-pw:trixie 236MB
+btbridge-py314:dev 214MB
+btbridge-security:dev 152MB
+btbridge-static:dev 164MB
+btbridge-syslog:dev 89.2MB
+### own superseded images (dry run)
+18 images, 7069 MB
+lab containers running: 6
+lab stopped with scripts/lab_down.sh (own compose project only): 0 containers running

@@ -11,7 +11,7 @@ Name                                                  Stmts   Miss Branch BrPart
 /work/bridge/btbridge/adapters/bluez/model.py           137      7     80      6    94%   33-34, 64->exit, 99, 119-120, 137->136, 149-150, 168->170, 172->174
 /work/bridge/btbridge/adapters/bluez/pcm.py             105      8     50      6    91%   27->exit, 28->exit, 67-68, 112-113, 121->exit, 124, 132, 137->153, 155-156
 /work/bridge/btbridge/app.py                            174      6     46      4    95%   84, 88->90, 91, 107-108, 114->exit, 176-177
-/work/bridge/btbridge/appliance.py                       84      5     26      7    85%   64, 69->76, 79->81, 84->86, 91->93, 93->95, 98-100, 108
+/work/bridge/btbridge/appliance.py                       81      3     22      7    90%   63, 68->75, 78->80, 83->85, 90->92, 92->94, 97, 106
 /work/bridge/btbridge/bootfiles.py                       48      1     16      1    97%   68
 /work/bridge/btbridge/config/__init__.py                  3      0      0      0   100%
 /work/bridge/btbridge/config/schema.py                  137      8     71      9    92%   61, 69, 86, 93, 99, 106->101, 178, 192, 195
@@ -26,20 +26,20 @@ Name                                                  Stmts   Miss Branch BrPart
 /work/bridge/btbridge/lms/discovery.py                   43      3     16      1    93%   26-27, 48
 /work/bridge/btbridge/mqtt/__init__.py                    3      0      0      0   100%
 /work/bridge/btbridge/mqtt/bridge.py                    126      1     36      2    98%   114->116, 185
-/work/bridge/btbridge/mqtt/client.py                    197     26     76     15    84%   32, 50->53, 65->exit, 99-100, 102->exit, 116-119, 132-133, 138-139, 150, 153, 162->168, 180, 191-192, 195->exit, 202-204, 206, 214-216, 217->195, 220-221, 225->exit, 228
+/work/bridge/btbridge/mqtt/client.py                    197     24     76     13    85%   32, 50->53, 65->exit, 99-100, 102->exit, 116-119, 132-133, 138-139, 153, 162->168, 180, 191-192, 202-204, 206, 214-216, 217->195, 220-221, 225->exit
 /work/bridge/btbridge/net/access.py                     147     18     44      5    86%   71-72, 79, 84-87, 92, 161-167, 172, 181-182
 /work/bridge/btbridge/net/addresses.py                   14      2      8      0    91%   16-17
-/work/bridge/btbridge/net/avahi.py                      120     21     44      4    81%   63, 67, 96, 118->123, 131, 136, 140-155, 159
+/work/bridge/btbridge/net/avahi.py                      118     19     40      4    84%   63, 67, 96, 118->123, 131, 136, 140-153, 157
 /work/bridge/btbridge/net/certs.py                      163      9     65      4    94%   40-41, 43, 75->73, 132-133, 142, 156, 221-222
 /work/bridge/btbridge/net/hostcheck.py                   27      1     12      1    95%   38
-/work/bridge/btbridge/net/mdns.py                       268     33    118     11    87%   125->127, 136-137, 139, 149, 156-157, 234, 239->241, 250-251, 264-266, 270, 282-286, 294->296, 305->299, 312-326, 330
+/work/bridge/btbridge/net/mdns.py                       269     34    114     11    87%   125->127, 136-137, 139, 149, 156-157, 234, 239->241, 250-251, 264-266, 270, 282-286, 294->296, 305->299, 312-328, 332
 /work/bridge/btbridge/provisioning.py                   212     15     91     10    92%   91, 110, 117-118, 127, 149, 171-172, 175-176, 199->exit, 235, 253, 270-271, 282
 /work/bridge/btbridge/recovery.py                       137     12     50      5    91%   57-58, 65-66, 69-70, 106-107, 124, 176, 184, 189
 /work/bridge/btbridge/service.py                        389     44    154     20    88%   64->exit, 66, 84->83, 96, 108-109, 171-172, 187-188, 202-203, 225-226, 257-259, 262-270, 288-289, 302->304, 322, 337-338, 349->exit, 379->383, 381->380, 388, 392, 419, 425, 427, 443, 446-448, 456, 469-471, 476-477, 483
 /work/bridge/btbridge/stream/encoders.py                 53      6      6      0    90%   59-60, 69-70, 78-79
 /work/bridge/btbridge/stream/feeder.py                   76      2     36      3    96%   41, 71, 80->exit
 /work/bridge/btbridge/stream/server.py                  156      7     53      6    94%   59->61, 90, 102->exit, 109-110, 124-125, 139, 161
-/work/bridge/btbridge/supervision.py                     84      2     28      0    98%   43-44
+/work/bridge/btbridge/supervision.py                     95      8     32      0    91%   44-45, 123-125, 128, 131-132
 /work/bridge/btbridge/system/__init__.py                  2      0      0      0   100%
 /work/bridge/btbridge/system/monitor.py                  83      2     32      3    96%   45, 62, 70->69
 /work/bridge/btbridge/system/syslog.py                   86      4     37      6    92%   40->exit, 68, 72->exit, 76, 80->exit, 85->97, 94->93, 99-100
@@ -57,6 +57,6 @@ Name                                                  Stmts   Miss Branch BrPart
 /work/flashtool/hififlash/trust.py                       16      0      4      0   100%
 /work/flashtool/hififlash/writer.py                     124      2     44      3    97%   101, 153, 158->164
 -------------------------------------------------------------------------------------------------
-TOTAL                                                  5599    403   2124    233    91%
+TOTAL                                                  5606    404   2116    231    91%
 
 6 empty files skipped.

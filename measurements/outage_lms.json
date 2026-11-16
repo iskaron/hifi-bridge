@@ -8,13 +8,13 @@
       null
     ],
     [
-      33.5,
+      34.5,
       "unreachable",
       "owned",
       null
     ],
     [
-      53.6,
+      54.5,
       "reachable",
       "owned",
       null
@@ -24,12 +24,12 @@
   "lms_mode_at_end": "play",
   "lms_plays_current_bridge_session": true,
   "outage_window_s": [
-    33.5,
-    53.6
+    34.5,
+    54.5
   ],
-  "audible_fraction_during_outage": 0.9999950699628948,
-  "first_audio_after_target_back_s": 0.6218254566192627,
-  "age_of_first_recovered_frame_s": 1.5696382522583008,
+  "audible_fraction_during_outage": 0.9999984906567482,
+  "first_audio_after_target_back_s": 0.6274714469909668,
+  "age_of_first_recovered_frame_s": 1.5592763423919678,
   "audio_never_stopped_during_outage": true,
   "bridge_commands": [
     "play",
@@ -37,7 +37,7 @@
   ],
   "label": "INTEGRATION real LMS/player container outage + SIMULATED BT",
   "env": {
-    "date_utc": "2026-11-16T15:02:48Z",
+    "date_utc": "2026-11-16T16:39:12Z",
     "lms": "9.1.2",
     "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
     "kernel": "7.0.0-43-generic",

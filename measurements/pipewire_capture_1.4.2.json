@@ -1,5 +1,5 @@
 {
- "_node_ready_after_s": 0.05,
+ "_node_ready_after_s": 0.03,
  "_stand_in_reloads": 0,
  "_version": "1.4.2",
  "auto_choice": {
@@ -67,7 +67,7 @@
   "consecutive_pairs": 219617,
   "dropped_frames": 0,
   "drops": 0,
-  "first_index": 16101,
+  "first_index": 15077,
   "foreign_frames": 0,
   "frames": 219618,
   "garbage_prefix_frames": 0,
@@ -140,7 +140,7 @@
   "consecutive_pairs": 219617,
   "dropped_frames": 0,
   "drops": 0,
-  "first_index": 635621,
+  "first_index": 636645,
   "foreign_frames": 0,
   "frames": 219618,
   "garbage_prefix_frames": 0,
@@ -160,7 +160,7 @@
   "chunks_while_node_missing": 1,
   "mic_frames_total": 0,
   "resume_asserted": true,
-  "resumed_pattern_frames": 97476,
+  "resumed_pattern_frames": 96452,
   "starts": 17,
   "tool": "pw-cat --raw"
  },
