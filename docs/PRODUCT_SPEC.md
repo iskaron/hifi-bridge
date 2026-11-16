@@ -31,6 +31,8 @@ The Bluetooth Audio Bridge is a standalone, open-source Raspberry Pi appliance w
 
 ## Local streaming / security
 
+- Local access (DECISIONS #35, #48-#50): stable mDNS name via **Avahi** (own responder only as fallback where no Avahi daemon exists), HTTPS
+  with a per-device local CA or an own certificate (OpenSSL), **no HSTS by default**, no silent TLS exceptions; details in docs/LOCAL_ACCESS_TLS.md.
 - Local network only by default. Expose a hard-to-guess per-device stream URL with a cryptographically random access token, rotatable by owner. Some players may fetch directly; account for that routing/compatibility.
 - Token is redacted from bridge logs, exports and diagnostics. Because URL may flow through LMS and remote players, don't promise complete secrecy in third-party logs. Be explicit about risks of HTTP and offer HTTPS for WebUI/admin where practical; don't break old HTTP-only players.
 - No universal credentials. Factory setup must provide individually generated password/setup code (flash tool / supported manual bootstrap), clear onboarding, LAN/Wi-Fi/Hotspot tradeoffs, secure credential storage and no cloud dependency.

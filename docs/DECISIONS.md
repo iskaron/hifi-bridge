@@ -100,6 +100,17 @@ Raspberry Pi integration is explicitly **not yet verified**. Evidence: `docs/FIN
 46. **Settings UI** = overview + one page per section; errors are `role=alert` and receive focus.
 47. **Lab LMS state on the host filesystem** (`.lab/`), independent of Docker's data filesystem.
 
+## Review decisions for the stabilisation package (owner + ChatGPT, 2026-11-16)
+
+48. **HSTS: off by default for the local WebUI.** No automatic HSTS for `hifi-bridge.local`, a captive portal or local certificates. Possibly
+    later as an option for deliberately configured HTTPS installations. No silent TLS exceptions and no weakening of certificate checks.
+    (Regression tests: no `Strict-Transport-Security` header in any mode.)
+49. **mDNS: Avahi is the preferred production solution.** Check its Buildroot suitability and resource use. The own responder is used only where
+    it has a demonstrated technical advantage (today: runtimes without an Avahi daemon, e.g. the Docker lab or a future Docker runtime).
+    Existing functionality, discovery tests and clean goodbye stay.
+50. **OpenSSL is allowed** for cryptography, TLS and certificate management. Check Buildroot availability, licence compatibility and dependencies;
+    keep the package set small without weakening security; never replace it with own cryptography.
+
 ## Measurement-driven / not yet verified
 
 - Startup latency (**software: ~1.6 s, accepted #16**), Pause/drain latency (**software: 0.07 s with #15**), reconnection and sample integrity (still to be measured on actual devices).
