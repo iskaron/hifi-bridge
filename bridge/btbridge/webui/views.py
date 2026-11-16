@@ -800,6 +800,26 @@ def ca_der(req):
 
 
 @public
+def trust_proof(req):
+    """P7: lets the flash tool authenticate this device's CA with the one-time trust key from the provisioning file. Public on purpose:
+    the answer is useless without the trust key, and it exists only until the owner password is set."""
+    from .. import provisioning, trustproof
+    svc = req.ui.svc
+    key = svc.store.secret("trust_key")
+    acc = svc.access
+    if not key or acc is None or not acc.certs.ca_info():
+        r = _srv().json_response({"error": "not_available"}, 404)
+    else:
+        try:
+            r = _srv().json_response(trustproof.answer(provisioning.decode_trust_key(key), (req.query.get("nonce") or [""])[-1],
+                                                       acc.certs.ca_der()), 200)
+        except ValueError:
+            r = _srv().json_response({"error": "bad_nonce"}, 400)
+    r.headers.append(("Cache-Control", "no-store"))
+    return r
+
+
+@public
 def healthz(req):
     """For the service supervisor/watchdog. Details only for local callers; never secrets."""
     h = req.ui.svc.health()
@@ -918,7 +938,7 @@ def routes(ui):
         ("POST", "/settings/logging"): settings_logging, ("POST", "/settings/mqtt/controls"): settings_mqtt_controls,
         ("POST", "/settings/access/names"): settings_access_names, ("POST", "/settings/access/tls"): settings_access_tls,
         ("POST", "/settings/access/custom"): settings_access_custom, ("POST", "/settings/access/renew"): settings_access_renew,
-        ("GET", "/trust"): trust_page, ("GET", "/manifest.webmanifest"): manifest, ("GET", "/ca.crt"): ca_pem, ("GET", "/ca.der"): ca_der, ("GET", "/healthz"): healthz,
+        ("GET", "/trust"): trust_page, ("GET", "/manifest.webmanifest"): manifest, ("GET", "/ca.crt"): ca_pem, ("GET", "/ca.der"): ca_der, ("GET", "/healthz"): healthz, ("GET", "/trust/proof"): trust_proof,
         ("POST", "/settings/target"): settings_target, ("POST", "/settings/playback"): settings_playback,
         ("POST", "/settings/bluetooth"): settings_bluetooth, ("POST", "/settings/mqtt"): settings_mqtt,
         ("POST", "/settings/appearance"): settings_appearance, ("POST", "/settings/password"): settings_password,

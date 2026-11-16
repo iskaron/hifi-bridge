@@ -1,4 +1,4 @@
-"""UNIT: local recovery (password reset, factory reset, boot-partition request) - only own files, request runs at most once."""
+"""UNIT: local recovery (password reset, factory reset, boot-partition request) - only own files, request runs exactly once, power-cut safe."""
 import os
 
 import pytest
@@ -40,7 +40,7 @@ def test_boot_request_runs_once_and_reports_on_the_boot_partition(tmp_path):
     assert R.boot_request(str(data), str(boot)) == "none"
     (boot / "hifi-recovery").write_text("reset-owner-password\n")
     assert R.boot_request(str(data), str(boot)) == "reset-owner-password"
-    assert not (boot / "hifi-recovery").exists() and "New setup code:" in (boot / "hifi-status.txt").read_text()
+    assert not (boot / "hifi-recovery").exists() and "New one-time setup code:" in (boot / "hifi-status.txt").read_text()
     assert R.boot_request(str(data), str(boot)) == "none"                                     # at most once
     (boot / "hifi-recovery").write_text("rm -rf /")
     assert R.boot_request(str(data), str(boot)) == "unknown" and "ignored" in (boot / "hifi-status.txt").read_text()
@@ -70,7 +70,8 @@ def test_boot_status_contains_no_secrets(tmp_path):
 def test_appliance_processes_a_boot_request_before_starting(tmp_path, monkeypatch):
     import btbridge.appliance as AP
     data, boot = tmp_path / "data", tmp_path / "boot"; data.mkdir(); boot.mkdir()
-    setup_device(data)
+    store = ConfigStore(str(data)); auth = Auth(store, iterations=1000)
+    auth.complete_setup("c", open(auth.code_file).read(), "a good long passphrase")
     (boot / "hifi-recovery").write_text("reset-owner-password")
     class Stop(Exception): pass
     def stop_here(*a, **k): raise Stop()
@@ -78,4 +79,46 @@ def test_appliance_processes_a_boot_request_before_starting(tmp_path, monkeypatc
     a = AP.parser().parse_args(["--data", str(data), "--boot-dir", str(boot), "--source", "none"])
     with pytest.raises(Stop):
         AP.run(a, None)
-    assert not (boot / "hifi-recovery").exists() and "New setup code" in (boot / "hifi-status.txt").read_text()
+    status = (boot / "hifi-status.txt").read_text()
+    assert not (boot / "hifi-recovery").exists() and "One-time setup code:" in status and "Device CA fingerprint" in status
+
+
+
+class PowerCut(Exception):
+    pass
+
+
+def cut():
+    raise PowerCut()
+
+
+@pytest.mark.parametrize("step", ["after_running", "after_action"])
+def test_power_cut_before_done_repeats_the_action_on_the_next_boot(tmp_path, step):
+    data, boot = tmp_path / "data", tmp_path / "boot"; data.mkdir(); boot.mkdir()
+    setup_device(data)
+    (boot / "hifi-recovery").write_text("factory-reset\n")
+    with pytest.raises(PowerCut):
+        R.boot_request(str(data), str(boot), hooks={step: cut})
+    assert (boot / "hifi-recovery").exists() and R._read_journal(str(data))["state"] == "running"
+    assert R.boot_request(str(data), str(boot)) == "factory-reset"                          # repeated (idempotent) and finished
+    assert not (boot / "hifi-recovery").exists() and not (data / "settings.json").exists() and R._read_journal(str(data)) == {}
+
+
+def test_power_cut_after_done_never_repeats_a_password_reset(tmp_path):
+    data, boot = tmp_path / "data", tmp_path / "boot"; data.mkdir(); boot.mkdir()
+    setup_device(data)
+    (boot / "hifi-recovery").write_text("reset-owner-password")
+    with pytest.raises(PowerCut):
+        R.boot_request(str(data), str(boot), hooks={"after_done": cut})
+    code = (data / "setup-code.txt").read_text()
+    assert R.boot_request(str(data), str(boot)) == "already-done"
+    assert (data / "setup-code.txt").read_text() == code and not (boot / "hifi-recovery").exists()   # no second reset
+
+
+def test_the_same_request_can_be_placed_again_later_and_the_journal_survives_a_factory_reset(tmp_path):
+    data, boot = tmp_path / "data", tmp_path / "boot"; data.mkdir(); boot.mkdir()
+    setup_device(data)
+    for _ in range(2):
+        (boot / "hifi-recovery").write_text("factory-reset")
+        assert R.boot_request(str(data), str(boot)) == "factory-reset"
+    assert "recovery-journal.json" not in R.OWN_FILES

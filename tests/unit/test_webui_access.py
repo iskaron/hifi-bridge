@@ -187,3 +187,11 @@ def test_decision_48_no_hsts_in_any_mode(ui, tmp_path):
     assert TlsClient(ui.tls_port, str(c), server_hostname="bridge.home.arpa").get("/trust").getheader("Strict-Transport-Security") is None
     import btbridge.webui.server as S
     assert "Strict-Transport-Security" not in open(S.__file__).read()          # static guard: no code path sets it
+
+
+def test_exactly_the_bootstrap_endpoints_are_public():
+    """Guards against a decorator slipping to the wrong function: the set of unauthenticated routes is fixed and reviewed."""
+    import btbridge.webui.views as V
+    public = sorted(f"{m} {p}" for (m, p), fn in V.routes(None).items() if getattr(fn, "public", False))
+    assert public == ["GET /ca.crt", "GET /ca.der", "GET /healthz", "GET /login", "GET /manifest.webmanifest", "GET /setup", "GET /trust",
+                      "GET /trust/proof", "POST /lang", "POST /login", "POST /setup"], public

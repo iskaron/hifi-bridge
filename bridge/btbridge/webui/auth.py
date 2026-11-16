@@ -179,11 +179,12 @@ class Auth:
         self.limiter.ok(client)
         self.store.set_secret("admin_password_hash", hash_password(password, self.iterations))
         self.store.set_secret("setup_code_hash", None)
+        self.store.set_secret("trust_key", None)          # P7: the flash tool's one-time device-verification key ends with the setup
         try:
             os.unlink(self.code_file)
         except OSError:
             pass
-        self.log("owner password set; setup code invalidated")
+        self.log("owner password set; setup code and device trust key invalidated")
         return self.sessions.create()
 
     def login(self, client: str, password: str) -> tuple[str, str]:
@@ -202,6 +203,18 @@ class Auth:
             raise AuthError("weak_password:" + ",".join(probs))
         self.store.set_secret("admin_password_hash", hash_password(new, self.iterations))
         self.sessions.destroy_all()                        # every other session must log in again
+
+    def adopt_setup_code(self, code: str) -> None:
+        """P6 provisioning: use the owner-known code from the flash tool / bootstrap file. Its plaintext is NOT stored on the device
+        (the owner already has it); an existing generated code file is removed."""
+        if self.has_password():
+            raise AuthError("already_set_up")
+        self.store.set_secret("setup_code_hash", hash_password(normalise_code(code), self.iterations))
+        try:
+            os.unlink(self.code_file)
+        except OSError:
+            pass
+        self.log("setup code taken from the provisioning file")
 
     def reset_with_new_setup_code(self) -> str:
         """Recovery path (console/flash tool only, never via the network): forget the password, issue a new setup code."""

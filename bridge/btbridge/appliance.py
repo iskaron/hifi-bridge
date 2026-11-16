@@ -66,9 +66,10 @@ def main(argv=None) -> int:
 
 def run(a, source, ready: Callable[[ApplianceService, WebUI], None] | None = None, done: threading.Event | None = None) -> int:
     """Start everything and block until SIGINT/SIGTERM (or until ``done`` is set - tests)."""
-    if getattr(a, "boot_dir", None):
-        from .recovery import boot_request
-        print(f"recovery request: {boot_request(a.data, a.boot_dir)}", flush=True)       # physical access to the SD card = authority
+    if getattr(a, "boot_dir", None):                          # test Pi without the image's hifi-bridge-boot.service
+        from .bootfiles import run as bootfiles
+        r = bootfiles(a.data, a.boot_dir, log=lambda m: print(m, flush=True))
+        print(f"boot files: recovery={r['recovery']} provisioning={r['provisioning']['result']}", flush=True)
     svc = ApplianceService(a.data, source=source, stream_port=a.stream_port, advertise_host=a.advertise_host,
                            monitor=SystemMonitor(proc=a.proc_root, thermal=a.thermal_path or None, data_dir=a.data),
                            mqtt_factory=None if a.no_mqtt else MqttBridge)
@@ -79,10 +80,6 @@ def run(a, source, ready: Callable[[ApplianceService, WebUI], None] | None = Non
     ca = svc.access.certs.ca_info()
     if ca:                                   # out-of-band reference for the trust step (docs/LOCAL_ACCESS_TLS.md 4.2)
         svc.logs(f"local CA fingerprint (SHA-256): {ca['sha256']}")
-        if getattr(a, "boot_dir", None):
-            from .recovery import write_boot_status
-            setup = " - setup code: see setup-code.txt on the device console" if not svc.auth.has_password() else ""
-            write_boot_status(a.boot_dir, [f"Hi-Fi Bridge {svc.access.main_name()}", f"CA fingerprint (SHA-256): {ca['sha256']}{setup}"])
     svc.start()
     ui = WebUI(svc, a.http_host, a.http_port, tls_port=a.https_port or None)
     port = ui.start()

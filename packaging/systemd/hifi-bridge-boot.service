@@ -1,0 +1,29 @@
+# Processes the boot partition BEFORE the bridge starts (P6 provisioning, P8 recovery request, P7 CA + non-secret status file).
+# The only unit with write access to /boot; the main service has none.
+[Unit]
+Description=Hi-Fi Bridge boot-partition files (provisioning, recovery, status)
+RequiresMountsFor=/boot /var/lib/hifi-bridge
+Before=hifi-bridge.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/python3 -m btbridge.bootfiles --data /var/lib/hifi-bridge --boot /boot
+Environment=PYTHONPATH=/usr/lib/hifi-bridge PYTHONUNBUFFERED=1
+User=hifi-bridge
+Group=hifi-bridge
+StateDirectory=hifi-bridge
+StateDirectoryMode=0700
+ReadWritePaths=/boot
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX
+SystemCallFilter=@system-service
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
