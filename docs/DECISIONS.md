@@ -150,6 +150,8 @@ Raspberry Pi integration is explicitly **not yet verified**. Evidence: `docs/FIN
     To be confirmed by the hardware gate.
 67. **One OS tooling image** (`btbridge-os`) for Buildroot configuration checks, licence reports, RAUC/genimage tests and the flash tool
     tests. No board image is built in this package.
+68. **Signal handlers never take locks** (`supervision.StopSignal`): they set a flag that the main thread polls (≤ 0.2 s). Reason: a real
+    deadlock with back-to-back SIGTERMs (see docs/SERVICE_SUPERVISION.md).
 
 ## Measurement-driven / not yet verified
 

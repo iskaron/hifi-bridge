@@ -13,6 +13,10 @@ Status: the code (`btbridge/supervision.py`, `/healthz`) is implemented and test
 | Without systemd | `packaging/bin/hifi-bridge-respawn`: exponential back-off from 2 s to 60 s, reset after 5 min healthy, crash log | crash | restart |
 | After a crash | `<data>/session.json` journal of the LMS item the bridge owns | an item left behind at LMS | the next start sends `playlist deleteitem <that URL>` (URL-addressed, so a no-op if anything else plays; retried while LMS is unreachable) |
 
+**Stop signals are handled async-signal-safely** (`supervision.StopSignal`): the SIGTERM/SIGINT handler only sets a flag. An earlier handler
+called `threading.Event.set()` and deadlocked when two signals arrived back to back (the second handler waited for the lock the first one
+held); the process then never shut down cleanly. Found by the mDNS interop test, fixed, and covered by a test with real processes.
+
 `degraded` (LMS unreachable, MQTT down, warm CPU) does **not** trigger a restart. A restart would not fix an external problem and would cut a
 working Bluetooth connection.
 

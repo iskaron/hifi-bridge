@@ -73,5 +73,5 @@ Anything else gets **421 Misdirected Request**. Session cookies are `SameSite=St
 | CA name constraints, forged public-name certificate fails, renewal reasons, custom-certificate validation | UNIT, real openssl 3.0 |
 | Real TLS handshakes with hostname verification against the device CA; `Secure` cookies only over HTTPS; HTTPS-only redirect and lock-out protection; trusted vs. untrusted proxies; switching between local CA and own certificate | INTEGRATION (Python `ssl`, real HTTP servers) |
 | WebKit loads `https://hifi-bridge.local:8443/` **after** the CA is installed in the system store; Chromium refuses with `ERR_CERT_AUTHORITY_INVALID` | BROWSER (real WebKit/Chromium) |
-| mDNS interoperability | INTEGRATION (real Avahi) |
+| mDNS interoperability incl. goodbye: after a clean stop the name disappears from the Avahi peer within ≤ 4.5 s (measured, incl. the 3 s resolve timeout; RFC 6762 allows 1 s cache retention; without goodbye it would stay for the 120 s TTL) | INTEGRATION (real Avahi) |
 | Real phones' browsers and OS trust stores, real home routers and mDNS reflectors | **UNTESTED** (hardware plan) |
