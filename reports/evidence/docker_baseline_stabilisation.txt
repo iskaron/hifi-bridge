@@ -1,0 +1,13 @@
+# Docker baseline 2026-11-16T10:20:01Z (read-only)
+TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
+Images          82        21        53.08GB   29.06GB (54%)
+Containers      25        25        6.619GB   0B (0%)
+Local Volumes   131       20        11.12GB   1.268GB (11%)
+Build Cache     353       0         8.87GB    5.428GB
+overlay         196G   85G  102G  46% /
+sha256:f12a20c24f33da8157f9bdfeae8a99d58d42744b1dc00e3b1437b199476e4a73 btbridge-avahi:dev 123MB
+sha256:b1a22b600908eadfa5aa8ac3dc98a294c73a275d643e8dedf2ed2047260beb37 btbridge-browser:dev 2.58GB
+sha256:d1f9b540c0da187c9b384f9023cf2024ea406c005cb807edea0d12b9318ffe84 btbridge-hwkit:dev 629MB
+sha256:bf6a7dcc77fb76491a7a8128f987b2b8154b65673b3eb8a2474232fec83d1d9d btbridge-pw:trixie 236MB
+sha256:c13a233de70e55a576604b739dffa4803d72b6e0adbdfab3be08c6b69974e7e5 btbridge-pw:bookworm 203MB
+sha256:776d8a93de204e2066031ae16150f864fed1a9f343d628ab4157f2ad150e6594 btbridge-lab:dev 385MB

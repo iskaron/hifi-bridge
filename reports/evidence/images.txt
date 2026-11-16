@@ -1,0 +1,15 @@
+# project images 2026-11-16T10:23:19Z
+btbridge-avahi:dev 0936668ebff2 123MB
+btbridge-browser:dev a4b8ba12cdf9 2.58GB
+btbridge-hwkit:dev 2f6d0723a504 629MB
+btbridge-lab:dev d9251165a4b0 385MB
+btbridge-pw:bookworm 2a58eeab9320 203MB
+btbridge-pw:trixie 877560a410d6 236MB
+btbridge-static:dev 77d49f1322a3 164MB
+# base images (digests)
+debian:bookworm-slim debian@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
+debian:trixie-slim debian@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
+mcr.microsoft.com/playwright/python:v1.49.1-noble mcr.microsoft.com/playwright/python@sha256:42e251ec3238672c931be6c3565ff279690ae072c3e22058128d0412494f6866
+lmscommunity/lyrionmusicserver:stable lmscommunity/lyrionmusicserver@sha256:a8709abda8a80766274abeb44015189b7e050eb1a6372678dcb077eb8c3a1e21
+eclipse-mosquitto:2.0.20 eclipse-mosquitto@sha256:21421af7b32bf9ce508e9090c8eb13bb81f410ca778dc205506180a6f862d0eb
+ghcr.io/home-assistant/home-assistant:2026.11.1 ghcr.io/home-assistant/home-assistant@sha256:6785d1eca68747a524c156faae1b139ed415c07357386ae6fe17291986e59e82

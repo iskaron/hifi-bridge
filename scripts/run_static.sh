@@ -15,8 +15,9 @@ for p in sorted(pathlib.Path(".").glob("**/*.py")):
     except SyntaxError as e:
         print(e); bad += 1
 print(f"compiled without writing bytecode; {bad} error(s)"); sys.exit(1 if bad else 0)'
-step systemd-unit docker run --rm -v "$PWD/packaging":/p:ro debian:trixie-slim sh -c \
-  'apt-get update -qq >/dev/null && apt-get install -y -qq --no-install-recommends systemd python3 >/dev/null 2>&1 && useradd -r hifi-bridge && groupadd -f bluetooth && groupadd -f audio && cp /p/systemd/hifi-bridge.service /etc/systemd/system/ && systemd-analyze verify /etc/systemd/system/hifi-bridge.service'
+docker image inspect btbridge-static:dev >/dev/null 2>&1 || docker build -q -f docker/Dockerfile.static -t btbridge-static:dev docker >/dev/null
+step systemd-unit docker run --rm -v "$PWD/packaging":/p:ro btbridge-static:dev sh -c \
+  'cp /p/systemd/*.service /etc/systemd/system/ && systemd-analyze verify /etc/systemd/system/hifi-bridge*.service && systemd-analyze security --offline=yes /etc/systemd/system/hifi-bridge.service | tail -1'
 step actionlint docker run --rm -v "$PWD":/repo:ro -w /repo rhysd/actionlint:1.7.7 -color
 echo "static exit: $rc"
 exit $rc

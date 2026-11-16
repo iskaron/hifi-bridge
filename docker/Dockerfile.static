@@ -1,0 +1,6 @@
+# Static checks with fixed tools (no apt at check time): systemd-analyze for unit files, shellcheck, Python.
+FROM debian:trixie-slim
+RUN apt-get update && apt-get install -y --no-install-recommends systemd python3 shellcheck \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd -r hifi-bridge && groupadd -f bluetooth && groupadd -f audio
+WORKDIR /w
