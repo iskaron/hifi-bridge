@@ -51,7 +51,8 @@ policy passed).
   bridge at 256 MB.
 
 ## 4. Licence obligations (AGPL-3.0-only project)
-* The image is a collection. Ship sources or a written offer for GPL/LGPL components (`make legal-info`; release step).
+* The image is a collection. Ship sources or a written offer for GPL/LGPL components (`make legal-info`; release step). The bridge's own
+  source lives in `https://git.cativa.net/hifi-bridge/hifi-bridge.git` (private today; how recipients get it is OPEN_QUESTIONS #43).
 * Reviewed exceptions in `os/tools/license_report.py`:
   * the Raspberry Pi firmware;
   * the **PROPRIETARY brcmfmac firmware (open: read its licence)**;

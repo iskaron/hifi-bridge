@@ -10,6 +10,6 @@ You are lead engineer for Bluetooth Audio Bridge. Read `CLAUDE.md`, all relevant
 
 **Recommended slices:** audio core solidification -> setup/network and state persistence -> WebUI owner UX -> MQTT/HA -> immutable Buildroot hardware integration -> image/flash tooling -> signed A/B+rollback -> hardware coverage/resource/storage tests -> packaging/security/docs/release readiness. Choose a better technical order if evidence supports it.
 
-**No automatic external effects:** no production deploy, Pi flash, push, commit, tag, publication, new public release, or modification of real servers/networks unless separately authorized. Do not set a guessed SD size minimum. Do not require Internet for playback, setup or routine operation. No automatic OTA installation.
+**No automatic external effects:** no production deploy, Pi flash, push of anything other than development commits on `develop` (CLAUDE.md, DECISIONS #69), tag, publication, new public release, or modification of real servers/networks unless separately authorized. Do not set a guessed SD size minimum. Do not require Internet for playback, setup or routine operation. No automatic OTA installation.
 
 **Deliver at major completion/blocker:** `reports/HANDOFF_FOR_CHATGPT.md` with exact evidence, tests and gaps, plus clear run/build/flashing instructions and unresolved approval items; then stop. A partial but truthful handoff is better than claiming supported hardware or safety-critical rollback works without measurements.

@@ -8,4 +8,4 @@ Read `CLAUDE.md`, then all documents in `docs/` that apply to the current phase.
 
 The project has two gated major tasks: `prompts/01_AUDIO_SPIKE.md` first; `prompts/02_FULL_PRODUCT.md` only after explicit owner approval. Implement and test independently within scope. No routine stop after each small step. Never falsely report physical measurements or hardware compatibility. Handoff at true phase completion/blocker via `reports/HANDOFF_FOR_CHATGPT.md`.
 
-Do not change production devices or settings. No publication, flash, push, tag, add or commit without explicit approval. Source should be portable and documented. See `CLAUDE.md` for full safety and reporting rules.
+Do not change production devices or settings. No publication, release, flash or tag without explicit approval. Development commits on `develop` may be pushed automatically to `origin` (`https://git.cativa.net/hifi-bridge/hifi-bridge.git`); `main`, merges into `main`, force-push and history rewrites need explicit approval (CLAUDE.md, DECISIONS #69). Source should be portable and documented. See `CLAUDE.md` for full safety and reporting rules.

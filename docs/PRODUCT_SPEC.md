@@ -49,7 +49,7 @@ The Bluetooth Audio Bridge is a standalone, open-source Raspberry Pi appliance w
 - Signed full-system A/B OTA, automatic rollback after failed boot, persistent settings/data, WebUI update upload plus reproducible `make ota`, optional update check **without automatic installation**. Known-good previous release should be selectable for recovery. Test power-failure paths per actual supported board. Recovery/flash utility for Windows/macOS/Linux.
 - **Storage size is NOT pre-decided**. Build and measure actual A/B root images, data requirements, OTA/recovery margin. Compute minimum and recommendation, grow data partition on first boot; 4 GB is an *unverified optimization target*, 32 GB not accepted as default minimum.
 - Intended future independent Docker runtime: maintain separation between core bridge logic and hardware services; not part of initial Raspberry Pi release.
-- AGPL-3.0-only; planned repository `iskaron/bluetooth-audio-bridge`, initially private. No publication or release without owner go-ahead.
+- AGPL-3.0-only; central repository `https://git.cativa.net/hifi-bridge/hifi-bridge.git` (DECISIONS #69). No publication or release without owner go-ahead.
 
 ## Optional capabilities vs promises
 

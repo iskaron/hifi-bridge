@@ -117,3 +117,10 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
     files (G2 P8-2).
 40. **Revocation:** no CRL; a compromised key is handled by shipping a new keyring. Is that enough for v1? (UPDATE_TRUST §5)
 41. **Project LICENSE file** (AGPL-3.0-only intent) is still missing; needed for `legal-info` and any publication.
+
+## Added with the central Git server (2026-11-17)
+42. **CI on the GitLab server:** `.github/workflows/ci.yml` is GitHub Actions and does not run on `git.cativa.net`. Add a `.gitlab-ci.yml`
+    that calls the same `scripts/run_*.sh`? It needs a GitLab runner with Docker (privileged for the PipeWire/OS suites), which is an owner
+    infrastructure decision.
+43. **Source availability for AGPL/GPL:** the repository is private today. Before a public image, decide how recipients get the
+    corresponding source (public mirror, source tarball with each release, or written offer) (G4 L-1).

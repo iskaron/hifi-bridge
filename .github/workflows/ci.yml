@@ -1,6 +1,7 @@
 # CI for every existing and new test suite (DECISIONS #39). Each job calls the SAME Docker scripts that run locally
-# (scripts/run_*.sh); nothing is installed on the runner besides Docker. Prepared only: the repository is not published yet,
-# so this workflow has never run on GitHub (validated locally with actionlint).
+# (scripts/run_*.sh); nothing is installed on the runner besides Docker. Prepared only: the repository lives on the project's
+# GitLab server (https://git.cativa.net/hifi-bridge/hifi-bridge.git), which does not run GitHub Actions, so this workflow has never
+# run (validated locally with actionlint; GitLab CI is OPEN_QUESTIONS #42).
 name: ci
 on:
   push:

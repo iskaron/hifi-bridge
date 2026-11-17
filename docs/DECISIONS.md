@@ -14,7 +14,7 @@
 10. Buildroot appliance, target Pi Zero 2 W / 3 B+ / 4; full signed A/B OTA and rollback, optional update check, never auto-install updates.
 11. MQTT optional, HA autodiscovery, system metrics 5 min, critical thermal warning immediate.
 12. Quality first, integration/hardware evidence required. Phase 1 audio proof, review gate, then phase 2 autonomous full build.
-13. Licensing intent AGPL-3.0-only; planned GitHub repository private first, not assumed present.
+13. Licensing intent AGPL-3.0-only; planned GitHub repository private first, not assumed present. *(Repository location superseded by #69.)*
 14. Future Docker support by architecture, not initial implementation.
 
 ## Phase-1 review decisions (owner + ChatGPT, 2026-11-15)
@@ -152,6 +152,12 @@ Raspberry Pi integration is explicitly **not yet verified**. Evidence: `docs/FIN
     tests. No board image is built in this package.
 68. **Signal handlers never take locks** (`supervision.StopSignal`): they set a flag that the main thread polls (≤ 0.2 s). Reason: a real
     deadlock with back-to-back SIGTERMs (see docs/SERVICE_SUPERVISION.md).
+
+## Central Git server (owner, 2026-11-17)
+69. **Central repository `https://git.cativa.net/hifi-bridge/hifi-bridge.git`** (remote `origin`; a GitLab server). `main` and `develop` were pushed with their full, unchanged
+    history. From now on, development commits on `develop` may be pushed to `origin/develop` automatically after the relevant tests
+    pass and the commits have been checked for secrets. Pushing `main`, merging into `main`, force-push, tags, releases and history
+    rewrites still need the owner's explicit approval. Supersedes the repository location in #13 and the "no push" boundaries of #21/#40.
 
 ## Measurement-driven / not yet verified
 

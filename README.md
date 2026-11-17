@@ -35,7 +35,7 @@ testkit/           lab-only tools: simulated phone, fake BlueZ, PipeWire harness
 tests/             unit/ integration/ pipewire/ hwkit/ browser/ homeassistant/ fixtures/
 docker/            lab images + compose (isolated `internal` network); lab LMS state in .lab/ (host filesystem)
 docs/              spec, decisions, security, local access/TLS, supervision, PipeWire, BlueZ, hardware plan and procedure
-.github/workflows/ CI definition (prepared; the repository is not published, so it has never run on GitHub)
+.github/workflows/ CI definition (GitHub Actions format; it does not run on the project's GitLab server, see OPEN_QUESTIONS #42)
 ```
 
 ## Tests (all in Docker; Docker + Compose are the only host requirements)
@@ -85,7 +85,10 @@ local access (mDNS, HTTPS, Host validation), health checks and crash recovery. T
 `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, `docs/SECURITY.md` and `docs/LOCAL_ACCESS_TLS.md`.
 
 ## Git
-Local repository, development branch `develop`, Conventional Commits, repository-local identity per DECISIONS #22. No remote, tags or releases;
-nothing is published.
+Central repository: `https://git.cativa.net/hifi-bridge/hifi-bridge.git` (remote `origin`, DECISIONS #69). Development branch `develop`, Conventional Commits, repository-local
+identity per DECISIONS #22. `main` is pushed only with the owner's approval; there are no tags or releases yet.
+```bash
+git clone -b develop https://git.cativa.net/hifi-bridge/hifi-bridge.git
+```
 
 License intent: AGPL-3.0-only. The licence file has not been added yet; third-party components are listed in `docs/THIRD_PARTY.md`.
