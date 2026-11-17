@@ -1,12 +1,14 @@
-# CI for every existing and new test suite (DECISIONS #39). Each job calls the SAME Docker scripts that run locally
-# (scripts/run_*.sh); nothing is installed on the runner besides Docker. Prepared only: the repository lives on the project's
-# GitLab server (https://git.cativa.net/hifi-bridge/hifi-bridge.git), which does not run GitHub Actions, so this workflow has never
-# run (validated locally with actionlint; GitLab CI is OPEN_QUESTIONS #42).
+# CI for every test suite (DECISIONS #39, #70). Each job calls the SAME Docker scripts that run locally (scripts/run_*.sh); nothing is
+# installed on the runner besides Docker. Repository: github.com/iskaron/hifi-bridge (private). GitHub Actions is the project's CI.
+# No job has access to signing keys: every key used by tests is generated per run (docs/UPDATE_TRUST.md section 4).
 name: ci
 on:
   push:
     branches: [develop, main]
+    # documentation-only pushes do not need the ~2 h of runner minutes (private repository budget, OPEN_QUESTIONS #44)
+    paths-ignore: ['**/*.md', 'docs/**', 'reports/**', 'measurements/**']
   pull_request:
+    paths-ignore: ['**/*.md', 'docs/**', 'reports/**', 'measurements/**']
   workflow_dispatch:
 
 permissions:
@@ -21,14 +23,18 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - run: scripts/run_static.sh
 
   unit:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - run: (cd docker && docker compose build -q)
       - run: scripts/run_unit.sh -q
 
@@ -37,7 +43,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - run: scripts/run_integration.sh -q
       - run: scripts/test_outage.sh lms
       - run: scripts/test_outage.sh player1
@@ -49,7 +57,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - run: scripts/run_pipewire.sh -q
 
   hwkit:
@@ -57,7 +67,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - run: scripts/run_hwkit.sh -q
 
   mdns:
@@ -65,7 +77,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - run: (cd docker && docker compose build -q && docker build -q -f Dockerfile.avahi -t btbridge-avahi:dev .)
       - run: scripts/test_mdns.sh
 
@@ -75,7 +89,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - run: scripts/os_fetch_buildroot.sh
       - run: scripts/run_os.sh
 
@@ -83,15 +99,21 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0          # the secret scan covers the complete history
       - run: scripts/run_security.sh
+      - run: scripts/run_secrets.sh
 
   python314:
     needs: unit
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - run: scripts/run_py314.sh
 
   syslog:
@@ -99,7 +121,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - run: (cd docker && docker compose build -q)
       - run: scripts/test_syslog.sh -q
 
@@ -108,20 +132,25 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - run: (cd docker && docker compose build -q)
       - run: scripts/run_coverage.sh --integration
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: reports/evidence/coverage.txt
+          if-no-files-found: error
 
   homeassistant:
     needs: unit
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - run: scripts/run_homeassistant.sh -q
 
   browser:
@@ -129,10 +158,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - run: scripts/run_browser.sh -q
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: screenshots
           path: reports/screenshots/
+          if-no-files-found: warn
