@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import importlib
+import os
 import sys
 import threading
 from typing import Callable
@@ -63,6 +64,15 @@ def main(argv=None) -> int:
     return run(a, source)
 
 
+def first_start_hint(auth) -> str | None:
+    """Where the owner finds the one-time setup code: the generated development file, or (provisioned) the flash tool's owner sheet."""
+    if auth.has_password():
+        return None
+    if os.path.isfile(auth.code_file):
+        return f"first start: open the WebUI and enter the setup code from {auth.code_file}"
+    return "first start: open the WebUI and enter the setup code from the owner sheet of the flash tool (provisioned device)"
+
+
 def run(a, source, ready: Callable[[ApplianceService, WebUI], None] | None = None, done: threading.Event | None = None) -> int:
     """Start everything and block until SIGINT/SIGTERM (or until ``done`` is set - tests)."""
     if getattr(a, "boot_dir", None):                          # test Pi without the image's hifi-bridge-boot.service
@@ -87,8 +97,9 @@ def run(a, source, ready: Callable[[ApplianceService, WebUI], None] | None = Non
     port = ui.start()
     svc.logs(f"WebUI on http://{a.http_host}:{port}/" + (f" and https://{svc.access.main_name()}:{ui.tls_port}/" if ui.tls_port and
                                                           ui._httpsd else ""))
-    if not svc.auth.has_password():
-        svc.logs(f"first start: open the WebUI and enter the setup code from {svc.auth.code_file}")
+    hint = first_start_hint(svc.auth)
+    if hint:
+        svc.logs(hint)
     if ready:
         ready(svc, ui)
     watchdog = Watchdog(svc.health, SystemdNotifier(), log=svc.logs)       # READY=1 + WATCHDOG=1 while healthy (no-op without systemd)

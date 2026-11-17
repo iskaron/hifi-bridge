@@ -70,3 +70,16 @@ def test_build_source_variants():
     assert AP.build_source("none", "SYSTEM") is None
     assert AP.build_source("sim", "SYSTEM").__class__.__name__ == "SimulatedA2dpSource"
     assert AP.build_source("btkit.sim_a2dp:SimulatedA2dpSource", "SYSTEM").__class__.__name__ == "SimulatedA2dpSource"
+
+
+def test_first_start_hint_points_to_where_the_setup_code_really_is(tmp_path):
+    """Found by the demo: after provisioning the generated code file is gone, so the hint must point to the owner sheet instead."""
+    from btbridge.config.store import ConfigStore
+    from btbridge.webui.auth import Auth
+    auth = Auth(ConfigStore(str(tmp_path)), iterations=1000)
+    assert auth.code_file in AP.first_start_hint(auth)                         # development: generated code file
+    auth.adopt_setup_code("ABCD-EFGH-JKLM")
+    hint = AP.first_start_hint(auth)
+    assert auth.code_file not in hint and "owner sheet" in hint                # provisioned by the flash tool
+    auth.complete_setup("127.0.0.1", "ABCD-EFGH-JKLM", "a good long passphrase")
+    assert auth.has_password() and AP.first_start_hint(auth) is None
