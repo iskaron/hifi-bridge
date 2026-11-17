@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Hi-Fi Bridge interactive demo (docs/DEMO.md). Host requirements: Docker with Compose, make. Nothing is installed on the host.
-#   scripts/demo.sh up | stop | status | logs [service] | reset | trust | ha | ha-stop
+#   scripts/demo.sh up | stop | status | logs [service] | reset | trust | recover | ha | ha-stop
 # Touches ONLY the compose project "hifi-demo" (its containers, networks and volumes) and the image hifi-demo:dev.
 set -euo pipefail
 # shellcheck disable=SC2016  # single-quoted commands are expanded INSIDE the containers on purpose
 cd "$(dirname "$0")/.."
-DC=(docker compose -f demo/compose.yml)
+DC=(docker compose -p "${DEMO_PROJECT:-hifi-demo}" -f demo/compose.yml)   # DEMO_PROJECT: only the stack test uses another one
 HOST=${DEMO_HOST:-127.0.0.1}
 P_HTTP=${DEMO_HTTP_PORT:-18080}; P_HTTPS=${DEMO_HTTPS_PORT:-18443}; P_CON=${DEMO_CONSOLE_PORT:-18100}; P_LMS=${DEMO_LMS_PORT:-19000}
 P_HA=${DEMO_HA_PORT:-18123}
@@ -35,6 +35,8 @@ fingerprint_oob() { "${DC[@]}" exec -T hifi-bridge sh -c 'sed -n "s/.*Device CA 
 secrets_info() {
   local code where
   code=$(sheet_code || true)
+  newer=$("${DC[@]}" exec -T hifi-bridge sh -c 'sed -n "s/.*[Oo]ne-time setup code: \([A-Z0-9-]*\).*/\1/p" /boot-demo/hifi-status.txt' 2>/dev/null | tail -1 | tr -d '\r' || true)
+  [ -n "$newer" ] && code=$newer                 # after a recovery the device shows a new code; the owner sheet's one is then void
   where=$(curl -s -m 5 -o /dev/null -w '%{redirect_url}' "http://$HOST:$P_HTTP/" 2>/dev/null || true)
   echo
   echo "  Owner data (local demo only - do not paste into public issues):"
@@ -119,6 +121,15 @@ case "${1:-}" in
     "${DC[@]}" cp console:/data/hifi-bridge-ca.pem "$OUT/hifi-bridge-ca.pem" >/dev/null
     echo "Verified device CA saved to $OUT/hifi-bridge-ca.pem - import it into your browser (docs/DEMO.md, 'Trusted HTTPS')."
     ;;
+  recover)
+    need
+    echo "SD-card recovery (docs/PROVISIONING.md, P8): request 'reset-owner-password' on the boot partition, then restart the device."
+    "${DC[@]}" exec -T hifi-bridge sh -c 'printf "reset-owner-password\n" > /boot-demo/hifi-recovery'
+    "${DC[@]}" restart hifi-bridge >/dev/null
+    for _ in $(seq 90); do [ "$("${DC[@]}" ps --format '{{.Health}}' hifi-bridge)" = healthy ] && break; sleep 1; done
+    "${DC[@]}" exec -T hifi-bridge sh -c 'grep -E "recovery|setup code" /boot-demo/hifi-status.txt' | sed 's/^/  /'
+    echo "Open http://$HOST:$P_HTTP and set a new owner password with this code. Settings and pairings are kept."
+    ;;
   ha)
     need
     "${DC[@]}" --profile ha up -d homeassistant
@@ -127,5 +138,5 @@ case "${1:-}" in
     echo "  Home Assistant: http://$HOST:$P_HA"
     ;;
   ha-stop) need; "${DC[@]}" --profile ha stop homeassistant ;;
-  *) echo "usage: $0 up|stop|status|logs [service]|reset|trust|ha|ha-stop"; exit 2 ;;
+  *) echo "usage: $0 up|stop|status|logs [service]|reset|trust|recover|ha|ha-stop"; exit 2 ;;
 esac

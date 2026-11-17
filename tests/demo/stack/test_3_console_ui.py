@@ -68,6 +68,9 @@ def test_02_phone_controls_in_the_browser(browser):
     ctx, page = page_for(browser, errors, "light", "de-DE", **DESKTOP)
     page.goto(CONSOLE + "/phones")
     anna = page.locator('[data-phone="a"]')
+    if phone_state("a")["connected"]:                                      # start from "not connected" whatever part 2 left behind
+        anna.get_by_role("button", name="Trennen").click()
+        wait(lambda: not phone_state("a")["connected"], 10, what="phone A disconnected via the UI")
     anna.get_by_role("button", name="Verbinden").click()
     wait(lambda: phone_state("a")["connected"], 15, what="phone A connected via the UI")
     anna.get_by_role("button", name="Play").click()

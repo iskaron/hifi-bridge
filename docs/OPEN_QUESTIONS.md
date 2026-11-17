@@ -116,17 +116,30 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 39. **Factory reset and Bluetooth pairings:** should a factory reset also remove `/var/lib/bluetooth`? Today it removes only the bridge's own
     files (G2 P8-2).
 40. **Revocation:** no CRL; a compromised key is handled by shipping a new keyring. Is that enough for v1? (UPDATE_TRUST §5)
-41. **Project LICENSE file** (AGPL-3.0-only intent) is still missing; needed for `legal-info` and any publication.
+41. ~~Project LICENSE file~~ **resolved by DECISIONS #72** (official AGPL-3.0 text; `HIFI_BRIDGE_LICENSE_FILES` set).
 
 ## Added with the central Git server and the GitHub migration (2026-11-17)
 42. ~~CI on the GitLab server~~ **resolved by DECISIONS #70:** GitHub Actions is the CI; the existing workflow runs there.
-43. **Source availability for AGPL/GPL:** the GitHub repository is private. Before a public image, decide how recipients get the
-    corresponding source: make the repository public, or attach a source tarball to each GitHub Release, plus the GPL/LGPL written offer
-    (G4 L-1).
-44. **Actions minutes of a private repository:** one full CI run uses about **1 runner-hour** (measured on the first GitHub run:
+43. **Source availability for AGPL/GPL:** the WebUI now links the repository in every footer (DECISIONS #72); this is sufficient for the
+    bridge's own code once the repository is public. Still open before a public image: source tarballs per GitHub Release (so the offer
+    matches the exact running version) and the GPL/LGPL written offer for the image's components (G4 L-1).
+44. **Actions minutes of a private repository** (moot once the repository is public: standard GitHub-hosted runners are free): one full CI run uses about **1 runner-hour** (measured on the first GitHub run:
     13 jobs, ~54 job-minutes, ~60 billed minutes, ~22 min wall time; integration and coverage take ~18-20 min each, see
     docs/REPOSITORY.md §3). Documentation-only pushes are skipped. If the plan's monthly minutes are not enough: run the heavy
     suites (Home Assistant, browser, coverage) only on `main`, pull requests and manual dispatch? Owner decision.
 45. **Update check while the repository is private:** devices fetch official bundles from GitHub Releases without credentials. A private
     repository's releases are not reachable anonymously, and a device must never carry a GitHub token. The update check therefore works
     only once the releases are public (G4). Alternative: a public release-only repository. Owner decision before G4.
+
+## Added by the demo and public-readiness package (2026-11-17)
+46. **Private information in the immutable Git history** (found by the publication check; agents must not rewrite history, #69): the owner's
+    name and e-mail (commit identity and docs, by design), the private GitLab domain `git.cativa.net` (8 files and commits since #69), the
+    local user name in one old report path, and 46 commit messages with Claude session links. None is a credential (Gitleaks clean). Accept
+    as is, or the owner rewrites history before publishing (force-push to a fresh repository). Owner decision before the visibility change.
+47. **GitHub settings to switch on when going public** (owner, repository settings): private vulnerability reporting (SECURITY.md relies
+    on it), "require approval for workflows from outside collaborators", branch protection for `main` (and `develop`), Dependabot alerts,
+    secret scanning with push protection.
+48. **Unpinned Lyrion image:** lab and demo use `lmscommunity/lyrionmusicserver:stable`; pin a version (e.g. the tested 9.1.x tag) for
+    reproducible CI once the tag naming is confirmed.
+49. **Demo volume:** Lyrion starts new players at volume 50, which is quiet in the audio monitor; the monitor has its own listening level.
+    Should the demo preset the rooms higher? (cosmetic)

@@ -154,6 +154,21 @@ def test_09_connection_loss_stops_the_room():
     RESULTS["link_loss_to_stop_s"] = round(time.time() - t0, 2)
 
 
+def test_10_manual_source_change_the_bridge_steps_back_and_stays_back():
+    """Someone starts other music on the room in Lyrion while the phone plays: the bridge must not fight for the room."""
+    from demo_env import ROOM_MAC, console
+    assert phone("a", "connect")["ok"] and phone("a", "play")["ok"]
+    wait(lambda: "/s/" in lms_status("Wohnzimmer")["url"] and lms_status("Wohnzimmer")["mode"] == "play", 20, what="bridge plays")
+    console("/api/lms/radio", {"player": ROOM_MAC["Wohnzimmer"]})          # the 'manual' change, as in Lyrion's own UI
+    wait(lambda: "radio.wav" in lms_status("Wohnzimmer")["url"], 15, what="radio started by hand")
+    time.sleep(8)                                                          # phone keeps sending music all the time
+    st = lms_status("Wohnzimmer")
+    RESULTS["manual_change_respected"] = "radio.wav" in st["url"] and st["mode"] == "play"
+    assert RESULTS["manual_change_respected"], st
+    phone("a", "pause")
+    console("/api/lms/stop", {"player": ROOM_MAC["Wohnzimmer"]})
+
+
 def test_99_write_measurements():
     from demo_env import STATE_DIR
     save_json(f"{STATE_DIR}/demo_chain.json", RESULTS)

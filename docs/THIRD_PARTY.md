@@ -36,3 +36,21 @@
 
 The logo (`webui/static/logo.svg`) is original to this project. It deliberately does **not** use the Bluetooth® trademark logo. The provisional product name is
 "Hi-Fi Bridge"; "Bluetooth" is used only descriptively (DECISIONS #34); trademark questions remain open before a public release.
+
+## Interactive demo (`make demo`, docs/DEMO.md; never shipped on a device)
+Nothing below is redistributed by this repository: the demo image `hifi-demo:dev` is built locally from Debian packages, the other images are
+pulled from their publishers. Versions as tested on 2026-11-17.
+| Component | Use in the demo | Licence | Source |
+|---|---|---|---|
+| Debian 13 "trixie" base, Python 3.13 | demo image | various free licences (Debian) / PSF | debian:trixie-slim |
+| PipeWire 1.4.2, WirePlumber, pipewire-pulse, pulseaudio-utils | the bridge's capture path (`pw-cat --raw`) | MIT / LGPL-2.1+ | Debian packages |
+| dbus-daemon | private D-Bus for the simulated Bluetooth stack | AFL-2.1 or GPL-2.0+ | Debian package |
+| Squeezelite 2.0 | the three simulated rooms' players | GPL-3.0-or-later | Debian package |
+| flac, mpg123, vorbis-tools | decoding the user's own files (local only) | GPL-2.0+ / BSD (libFLAC), LGPL-2.1, GPL-2.0 | Debian packages |
+| NumPy, jeepney, python-cryptography | music generation, D-Bus, flash-tool core | BSD-3-Clause, MIT, Apache-2.0 or BSD | Debian packages |
+| Lyrion Music Server (`lmscommunity/lyrionmusicserver:stable`) | the real Lyrion server | GPL-2.0 and others | Docker Hub |
+| Eclipse Mosquitto 2.0.20 | MQTT broker | EPL-2.0 or EDL-1.0 | Docker Hub |
+| Home Assistant 2026.11.1 (optional profile) | MQTT discovery in a real Home Assistant | Apache-2.0 | ghcr.io |
+| Playwright, axe-core (stack test only) | browser tests and WCAG audit | Apache-2.0, MPL-2.0 | Microsoft Playwright image, PyPI |
+| Gitleaks v8.24.3 (CI and `scripts/run_secrets.sh`) | secret scan of the Git history | MIT | ghcr.io |
+| Demo music, radio programme, notification sounds | generated in code (`demo/hifidemo/music.py`) | output: CC0-1.0 | this project |

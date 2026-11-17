@@ -65,3 +65,17 @@ A fresh clone has no `.lab/` and no Buildroot checkout, like a GitHub runner. Re
   **project** repository (it became shallow; a checkout of Buildroot over the project tree was only prevented by local changes).
   Fixed: separate statements plus a guard that refuses to run unless the directory is the top level of its own repository.
 * `scripts/lab_up.sh` now creates `.lab/` as the calling user before Docker can create it as root.
+
+## 7. Publication check (2026-11-17, before the owner makes the repository public)
+| Item | Result |
+|---|---|
+| Licence | `LICENSE` = official AGPL-3.0 text (SHA-256 `0d96a4ff…abcb0`); `bridge/LICENSE` identical (static check); README: copyright and licence notice |
+| AGPL section 13 | every WebUI page footer links `https://github.com/iskaron/hifi-bridge` with the version (unit-tested) |
+| Third-party licences | `docs/THIRD_PARTY.md` (device, lab/test, demo); Buildroot packages: `os/tools/license_report.py` policy, 0 to review |
+| Secrets in the history | Gitleaks v8.24.3 over all commits: no leaks (also a CI job) |
+| Secrets in docs, screenshots, CI logs, artifacts | tracked files: only lab/test values; committed screenshots: empty forms and a disposable lab CA fingerprint; all CI logs of the 3 runs (78 files) and the latest artifacts: Gitleaks clean, no token patterns (stream tokens appear as `***`) |
+| Private information | **owner decision OPEN_QUESTIONS #46**: owner name/e-mail, private GitLab domain, one local path, 46 Claude session links in commit messages - in the immutable history |
+| Untrusted pull requests | only `pull_request` triggers (no `pull_request_target`), `permissions: contents: read`, checkout without persisted credentials, no secrets in any job, SHA-pinned actions + Dependabot, GitHub-hosted runners only |
+| Repository settings | owner, OPEN_QUESTIONS #47 (private vulnerability reporting, fork-PR approval, branch protection, secret scanning) |
+| Honest status | README starts with the development-status note: no hardware validation, no image built, no releases |
+| Not done (by rule) | visibility change, releases, tags, image or OTA publication |

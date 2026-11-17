@@ -54,6 +54,11 @@ fi
 echo "### 5 MQTT discovery on the demo broker"
 disc=$("${DC[@]}" exec -T mosquitto sh -c '. /mosquitto/creds/credentials.env; timeout 8 mosquitto_sub -h 127.0.0.1 -u "$HOMEASSISTANT_USER" -P "$HOMEASSISTANT_PASSWORD" -t "homeassistant/#" -v -W 6' 2>/dev/null | grep -c "/config ")
 echo "discovery config topics: $disc"; [ "${disc:-0}" -ge 3 ] || rc=1
+echo "### 6 SD-card recovery (make demo-recover)"
+rec=$(DEMO_PROJECT="$P" scripts/demo.sh recover 2>&1)        # DEMO_PROJECT: never the owner's own demo
+echo "$rec" | grep -E "recovery|setup code" | sed -E 's/(code: )[A-Z0-9-]+/\1<redacted>/'
+loc=$("${DC[@]}" exec -T console curl -s -o /dev/null -w '%{redirect_url}' "http://hifi-bridge.local:$DEMO_HTTP_PORT/")
+echo "after recovery / redirects to: $loc"; echo "$rec" | grep -q "setup code" && echo "$loc" | grep -q "/setup" || rc=1
 echo "### resources"
 mapfile -t ids < <("${DC[@]}" ps -q)
 docker stats --no-stream --format '{{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}' "${ids[@]}" | sed 's/^/  /'

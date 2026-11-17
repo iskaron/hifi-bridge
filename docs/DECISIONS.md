@@ -171,6 +171,25 @@ Raspberry Pi integration is explicitly **not yet verified**. Evidence: `docs/FIN
     * Push rules of #69 apply unchanged to the new `origin`. History, identity (#22) and AGPL-3.0-only (#13) are unchanged; the hardware
       gate stays.
 
+## Interactive demo and public-repository preparation (2026-11-17)
+71. **Interactive Docker demo (`make demo`, docs/DEMO.md)** - a tool to try the product, never shipped on a device:
+    * the bridge runs **unchanged** with `--source bluez` against a SIMULATED bluetoothd (`demo/hifidemo/vbluez.py`, built on the fake BlueZ)
+      on a private D-Bus, with real PipeWire; virtual phones act only "over the air" (pairing agent, Device1/MediaTransport1/MediaPlayer1,
+      A2DP audio into a `bluez_input.<MAC>` node). The product logic is never bypassed;
+    * real Lyrion + three Squeezelite rooms; the audio monitor taps each player's PCM output (virtual DAC) behind Lyrion and Squeezelite;
+      its added latency is measured live and documented;
+    * the flash-tool core provisions setup code and trust key; the demo pre-sets `extra_hostnames=127.0.0.1` (an owner setting) so the
+      notebook's browser can use HTTPS with the device CA;
+    * isolation: own compose project, one image (`hifi-demo:dev`), every service on an `internal` network **without a host address**
+      (`inhibit_ipv4`), only a gateway publishing to 127.0.0.1, ports 18080/18443/18100/19000/18123 by default, nothing privileged.
+      Reason for `inhibit_ipv4`: on the development host the wizard's UDP discovery got answers from a real Lyrion server on the host
+      through the host's address on an internal Docker network (read-only listing, nothing changed); the test lab got the same fix;
+    * demo audio is generated in code (CC0-1.0 output); user files are decoded locally; Home Assistant is an optional profile.
+72. **Public-repository readiness:** `LICENSE` (official AGPL-3.0 text; `bridge/LICENSE` identical copy for Buildroot, checked statically),
+    copyright line in the README, AGPL section 13 source offer as a link in every WebUI footer (`btbridge.SOURCE_URL`), `SECURITY.md`,
+    CI hardened for public pull requests (only `pull_request`, read-only token, no secrets, SHA-pinned actions + Dependabot). Changing the
+    visibility, repository settings and releases remain the owner's (#69/#70).
+
 ## Measurement-driven / not yet verified
 
 - Startup latency (**software: ~1.6 s, accepted #16**), Pause/drain latency (**software: 0.07 s with #15**), reconnection and sample integrity (still to be measured on actual devices).

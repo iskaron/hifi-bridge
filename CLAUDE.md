@@ -56,6 +56,7 @@ Never claim a phase is complete if mandatory acceptance tests have not run. Inst
     missing permission, report the exact permission (the API's `x-accepted-github-permissions` header) instead of working around it.
   * The token changes **none** of the approval limits above: no `main` push, merge into `main`, release, tag, publication, visibility or
   security-relevant repository setting (branch protection, secrets, webhooks, Actions permissions, collaborators) without the owner.
+- **Interactive demo (`make demo`, DECISIONS #71):** the owner's running demo is the compose project `hifi-demo`. Never stop, reset or change it unless asked; automated tests use their own project (`scripts/test_demo.sh`: `hifi-demo-test`, other ports and subnets). Docker networks of the lab and the demo must not give the host an address (`inhibit_ipv4`), so no container can reach services on the host.
 - Preserve local user files and uncommitted changes. No secret tokens in logs, test artifacts, URLs shared publicly or reports. Never embed reusable passwords in public images or configs.
 - Minimize additional dependencies and complexity; avoid unproven claims about Linux/Bluetooth/LMS APIs. Research and verify uncertain compatibility.
 - Prioritize meaningful tests and runnable reproduction scripts over prematurely elaborate UI.
