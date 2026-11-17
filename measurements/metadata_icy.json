@@ -8,7 +8,7 @@
   },
   "label": "INTEGRATION real LMS + SIMULATED AVRCP metadata; real phone AVRCP metadata UNVERIFIED",
   "env": {
-    "date_utc": "2026-11-16T17:02:55Z",
+    "date_utc": "2026-11-17T13:39:42Z",
     "lms": "9.1.2",
     "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
     "kernel": "7.0.0-43-generic",

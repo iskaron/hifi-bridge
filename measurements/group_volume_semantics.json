@@ -9,7 +9,7 @@
   },
   "label": "REAL LMS (JSON-RPC only); sync-group volume semantics as observed in lab",
   "env": {
-    "date_utc": "2026-11-16T17:02:59Z",
+    "date_utc": "2026-11-17T13:39:46Z",
     "lms": "9.1.2",
     "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
     "kernel": "7.0.0-43-generic",

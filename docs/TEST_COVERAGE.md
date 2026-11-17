@@ -8,6 +8,7 @@ Measured with coverage.py (Debian `python3-coverage`, line **and** branch) in th
 | Stabilisation package: unit only | 4737 | 1776 | 82 % |
 | Stabilisation package: unit + integration | 4742 | 1784 | 90 % |
 | **Phase-2b preparation, commit `0ae4d2a`:** unit + integration + `tests/os` + `tests/flashtool` (bridge **and** flash tool) | 5606 | 2116 | **91 %** |
+| **Demo package (2026-11-17), commit `0e307d1`:** same scope | 5615 | 2120 | **91 %** |
 
 90 % was an intermediate measurement, not a target ceiling (DECISIONS #60). New code of this package: bootfiles 97 %, provisioning 92 %,
 recovery 91 %, trustproof 95 %, flash tool modules 93–100 %.

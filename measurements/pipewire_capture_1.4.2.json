@@ -1,5 +1,6 @@
 {
- "_node_ready_after_s": 0.03,
+ "_hwkit_silent_retries": 0,
+ "_node_ready_after_s": 0.04,
  "_stand_in_reloads": 0,
  "_version": "1.4.2",
  "auto_choice": {
@@ -43,7 +44,7 @@
   ],
   "bytes": 0,
   "mic_frames": 0,
-  "starts": 15
+  "starts": 14
  },
  "node_vanishes": {
   "bytes_before": 345744,
@@ -103,7 +104,7 @@
   "consecutive_pairs": 219611,
   "dropped_frames": 0,
   "drops": 0,
-  "first_index": 325349,
+  "first_index": 339685,
   "foreign_frames": 0,
   "frames": 219618,
   "garbage_prefix_frames": 6,
@@ -140,7 +141,7 @@
   "consecutive_pairs": 219617,
   "dropped_frames": 0,
   "drops": 0,
-  "first_index": 636645,
+  "first_index": 655077,
   "foreign_frames": 0,
   "frames": 219618,
   "garbage_prefix_frames": 0,
@@ -157,10 +158,10 @@
  },
  "restart": {
   "chunks_before": 98,
-  "chunks_while_node_missing": 1,
+  "chunks_while_node_missing": 0,
   "mic_frames_total": 0,
   "resume_asserted": true,
-  "resumed_pattern_frames": 96452,
+  "resumed_pattern_frames": 97846,
   "starts": 17,
   "tool": "pw-cat --raw"
  },

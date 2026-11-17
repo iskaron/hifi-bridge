@@ -1,21 +1,21 @@
 {
   "runs": 3,
   "pause_to_last_audible_output_s": [
-    1.6393656730651855,
-    1.6541309356689453,
-    1.6223702430725098
+    1.610426425933838,
+    1.5971965789794922,
+    1.589813232421875
   ],
   "resume_to_first_output_s": [
-    1.6091737747192383,
-    1.583571434020996,
-    1.601729393005371
+    1.560110092163086,
+    1.547118902206421,
+    1.5498309135437012
   ],
-  "median_pause_s": 1.6393656730651855,
-  "median_resume_s": 1.601729393005371,
+  "median_pause_s": 1.5971965789794922,
+  "median_resume_s": 1.5498309135437012,
   "method": "virtual DAC (paced pipe from Squeezelite -o -) arrival time vs simulated phone event time; same host clock",
   "label": "INTEGRATION real LMS + SIMULATED BT; NOT acoustic",
   "env": {
-    "date_utc": "2026-11-16T16:57:36Z",
+    "date_utc": "2026-11-17T13:34:17Z",
     "lms": "9.1.2",
     "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
     "kernel": "7.0.0-43-generic",

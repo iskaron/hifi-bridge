@@ -1,11 +1,11 @@
 {
- "buffer_ms_last": 241,
+ "buffer_ms_last": 243,
  "engine": "AudioWorklet",
  "label": "MEASURED in headless Chromium in Docker (no sound card: output latency as reported by the browser)",
  "latency_ms": {
-  "max": 295,
-  "median": 291,
-  "min": 286
+  "max": 296,
+  "median": 293,
+  "min": 287
  },
  "output_ms_reported": 50,
  "peak": 0.041,

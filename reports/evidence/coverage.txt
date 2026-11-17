@@ -1,6 +1,6 @@
 Name                                                  Stmts   Miss Branch BrPart  Cover   Missing
 -------------------------------------------------------------------------------------------------
-/work/bridge/btbridge/__init__.py                         2      0      0      0   100%
+/work/bridge/btbridge/__init__.py                         3      0      0      0   100%
 /work/bridge/btbridge/__main__.py                        50     15      8      2    64%   42-55, 59
 /work/bridge/btbridge/adapters/base.py                   20      0     16      8    78%   32->exit, 33->exit, 34->exit, 35->exit, 36->exit, 46->exit, 47->exit, 48->exit
 /work/bridge/btbridge/adapters/bluez/__init__.py          5      0      0      0   100%
@@ -11,7 +11,7 @@ Name                                                  Stmts   Miss Branch BrPart
 /work/bridge/btbridge/adapters/bluez/model.py           137      7     80      6    94%   33-34, 64->exit, 99, 119-120, 137->136, 149-150, 168->170, 172->174
 /work/bridge/btbridge/adapters/bluez/pcm.py             105      8     50      6    91%   27->exit, 28->exit, 67-68, 112-113, 121->exit, 124, 132, 137->153, 155-156
 /work/bridge/btbridge/app.py                            174      6     46      4    95%   84, 88->90, 91, 107-108, 114->exit, 176-177
-/work/bridge/btbridge/appliance.py                       81      3     22      7    90%   63, 68->75, 78->80, 83->85, 90->92, 92->94, 97, 106
+/work/bridge/btbridge/appliance.py                       89      3     26      7    91%   64, 78->85, 88->90, 93->95, 101->103, 103->105, 108, 117
 /work/bridge/btbridge/bootfiles.py                       48      1     16      1    97%   68
 /work/bridge/btbridge/config/__init__.py                  3      0      0      0   100%
 /work/bridge/btbridge/config/schema.py                  137      8     71      9    92%   61, 69, 86, 93, 99, 106->101, 178, 192, 195
@@ -26,7 +26,7 @@ Name                                                  Stmts   Miss Branch BrPart
 /work/bridge/btbridge/lms/discovery.py                   43      3     16      1    93%   26-27, 48
 /work/bridge/btbridge/mqtt/__init__.py                    3      0      0      0   100%
 /work/bridge/btbridge/mqtt/bridge.py                    126      1     36      2    98%   114->116, 185
-/work/bridge/btbridge/mqtt/client.py                    197     24     76     13    85%   32, 50->53, 65->exit, 99-100, 102->exit, 116-119, 132-133, 138-139, 153, 162->168, 180, 191-192, 202-204, 206, 214-216, 217->195, 220-221, 225->exit
+/work/bridge/btbridge/mqtt/client.py                    197     26     76     15    84%   32, 50->53, 65->exit, 99-100, 102->exit, 116-119, 132-133, 138-139, 150, 153, 162->168, 180, 191-192, 195->exit, 202-204, 206, 214-216, 217->195, 220-221, 225->exit, 228
 /work/bridge/btbridge/net/access.py                     147     18     44      5    86%   71-72, 79, 84-87, 92, 161-167, 172, 181-182
 /work/bridge/btbridge/net/addresses.py                   14      2      8      0    91%   16-17
 /work/bridge/btbridge/net/avahi.py                      118     19     40      4    84%   63, 67, 96, 118->123, 131, 136, 140-153, 157
@@ -57,6 +57,6 @@ Name                                                  Stmts   Miss Branch BrPart
 /work/flashtool/hififlash/trust.py                       16      0      4      0   100%
 /work/flashtool/hififlash/writer.py                     124      2     44      3    97%   101, 153, 158->164
 -------------------------------------------------------------------------------------------------
-TOTAL                                                  5606    404   2116    231    91%
+TOTAL                                                  5615    406   2120    233    91%
 
 6 empty files skipped.
