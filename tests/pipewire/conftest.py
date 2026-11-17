@@ -102,18 +102,39 @@ class Feeder:
 def pw():
     env = _env_after_start()
     os.environ.update({k: env[k] for k in ("XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS", "XDG_CONFIG_HOME") if k in env})
-    module = load_source(NODE, FIFO)
+    state = {"node": NODE, "module": load_source(NODE, FIFO), "mic_value": MIC_VALUE}
     load_source(MIC, MIC_FIFO)
     mic = MicFeeder(); mic.start()
-    # Keep the simulated phone node permanently running (a module-pipe-source suspends without consumers and produces a
-    # resume gap that is an artefact of the stand-in, not of the capture tools under test).
-    keep = subprocess.Popen(["parec", f"--device={NODE}", "--property=node.dont-fallback=true", "--raw"], stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL)
+    start_keepalive(state)
     pactl("set-default-source", MIC)                                                # fallback target = the 'microphone'
-    version = subprocess.run(["pipewire", "--version"], capture_output=True, text=True).stdout.strip().splitlines()[-1].split()[-1]
-    yield {"node": NODE, "version": version, "module": module, "mic_value": MIC_VALUE}
-    keep.terminate()
+    state["version"] = subprocess.run(["pipewire", "--version"], capture_output=True, text=True).stdout.strip().splitlines()[-1].split()[-1]
+    yield state
+    state["keep"].terminate()
     mic.stop_ev.set()
+
+
+def start_keepalive(pw) -> None:
+    """Stand-in workaround (NOT product behaviour): keep the simulated phone node permanently consumed. A module-pipe-source suspends
+    without consumers, and its resume produces a gap that is an artefact of the stand-in, not of the capture tools under test. A reloaded
+    module is a NEW node, so the old consumer is gone and a new one must be started (missing before 2026-11-17: on the slower GitHub
+    runner the resume gap of the reloaded node fell into the next test's measurement, 128002 'dropped' frames)."""
+    old = pw.get("keep")
+    if old is not None:
+        old.terminate()
+        try:
+            old.wait(3)
+        except subprocess.TimeoutExpired:
+            old.kill()
+    pw["keep"] = subprocess.Popen(["parec", f"--device={NODE}", "--property=node.dont-fallback=true", "--raw"],
+                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def reload_node(pw, unload: bool = True) -> None:
+    """Load the simulated phone node again (optionally unloading it first) together with its keep-alive consumer."""
+    if unload:
+        pactl("unload-module", pw["module"])
+    pw["module"] = load_source(NODE, FIFO)
+    start_keepalive(pw)
 
 
 def wait_until_node_delivers(node: str, timeout: float = 30.0) -> float:
@@ -144,8 +165,7 @@ def bring_up_node(pw, attempts: int = 3) -> int:
             if reloads == attempts:
                 raise
             reloads += 1
-            pactl("unload-module", pw["module"])
-            pw["module"] = load_source(NODE, FIFO)
+            reload_node(pw)
 
 
 @pytest.fixture(scope="session")

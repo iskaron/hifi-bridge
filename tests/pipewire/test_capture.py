@@ -94,7 +94,7 @@ def test_node_presence_check(pw):
 def test_node_disappearing_mid_capture_does_not_move_to_the_microphone(pw, feeder):
     """Phone disconnects -> its node vanishes. With dont-reconnect the stream must not be moved to the default source."""
     import subprocess as sp
-    from conftest import FIFO, NODE, load_source
+    from conftest import NODE, bring_up_node, reload_node
     got = []
     cap = PipeWireCapture(lambda a: parec_argv(NODE), retry_s=0.2, stall_s=1.0); cap.start("x", got.append)
     time.sleep(2.0)
@@ -105,7 +105,8 @@ def test_node_disappearing_mid_capture_does_not_move_to_the_microphone(pw, feede
     cap.stop()
     data = b"".join(got)
     RESULTS["node_vanishes"] = {"bytes_before": before, "bytes_total": len(data), "mic_frames": mic_frames(data, pw["mic_value"])}
-    pw["module"] = load_source(NODE, FIFO)                    # restore for later tests
+    reload_node(pw, unload=False)                             # restore for later tests: node + keep-alive consumer,
+    RESULTS["_stand_in_reloads"] = RESULTS.get("_stand_in_reloads", 0) + bring_up_node(pw)   # and real frames before the next test
     assert before > 44100 * 4 and mic_frames(data, pw["mic_value"]) == 0
 
 
