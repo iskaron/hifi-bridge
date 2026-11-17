@@ -5,7 +5,7 @@ name: ci
 on:
   push:
     branches: [develop, main]
-    # documentation-only pushes do not need the ~2 h of runner minutes (private repository budget, OPEN_QUESTIONS #44)
+    # documentation-only pushes do not need the ~1 h of runner minutes (private repository budget, OPEN_QUESTIONS #44)
     paths-ignore: ['**/*.md', 'docs/**', 'reports/**', 'measurements/**']
   pull_request:
     paths-ignore: ['**/*.md', 'docs/**', 'reports/**', 'measurements/**']

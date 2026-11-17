@@ -123,8 +123,9 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 43. **Source availability for AGPL/GPL:** the GitHub repository is private. Before a public image, decide how recipients get the
     corresponding source: make the repository public, or attach a source tarball to each GitHub Release, plus the GPL/LGPL written offer
     (G4 L-1).
-44. **Actions minutes of a private repository:** one full CI run uses roughly 2 runner-hours (13 jobs; measured per job in
-    docs/REPOSITORY.md once known). Documentation-only pushes are skipped. If the plan's monthly minutes are not enough: run the heavy
+44. **Actions minutes of a private repository:** one full CI run uses about **1 runner-hour** (measured on the first GitHub run:
+    13 jobs, ~54 job-minutes, ~60 billed minutes, ~22 min wall time; integration and coverage take ~18-20 min each, see
+    docs/REPOSITORY.md §3). Documentation-only pushes are skipped. If the plan's monthly minutes are not enough: run the heavy
     suites (Home Assistant, browser, coverage) only on `main`, pull requests and manual dispatch? Owner decision.
 45. **Update check while the repository is private:** devices fetch official bundles from GitHub Releases without credentials. A private
     repository's releases are not reachable anonymously, and a device must never carry a GitHub token. The update check therefore works

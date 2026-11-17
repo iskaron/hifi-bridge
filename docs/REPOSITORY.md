@@ -35,6 +35,17 @@ owner's approval; no merge from `develop` without approval). No tags, no release
   OPEN_QUESTIONS #44).
 * What CI can never show: anything in docs/HARDWARE_GATE_CHECKLIST.md. Green CI is software evidence only.
 
+**First runs on GitHub (2026-11-17)**
+| Run | Commit | Result | Notes |
+|---|---|---|---|
+| 44058979267 | `12555d4` | 12/13 jobs green, **pipewire failed** | ~22 min wall time, ~54 job-minutes (integration 19.8 min, coverage 17.6 min, all others ≤ 3 min) |
+| 44063882672 | `1ec2098` | **13/13 jobs green** | after the pipewire harness fix; 21.9 min wall time, 54 job-minutes |
+
+The pipewire failure was a test-harness fault, not product code: on PipeWire 1.4.2 `test_automatic_tool_choice_is_bit_exact…` saw
+128002 "dropped" frames. The preceding node-vanish test reloaded the simulated phone node without restarting the stand-in's keep-alive
+consumer; the reloaded `module-pipe-source` suspended, and its resume gap fell into the next measurement on the slower runner. Fixed in
+`tests/pipewire` (reloads always restart the consumer and wait for real frames).
+
 ## 4. Releases and the official OTA source
 * GitHub Releases of `iskaron/hifi-bridge` is the release platform and the **fixed official OTA source** (`update-trust.json` →
   `official_source`, docs/UPDATE_TRUST.md §4a).
