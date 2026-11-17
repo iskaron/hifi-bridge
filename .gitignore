@@ -40,3 +40,6 @@ reports/screenshots/*.png
 # phase-2b: release CA public certificate may be versioned once it exists (never a key)
 !os/br2-external/board/hifi-bridge/keys/release-ca.pem
 .keys/
+
+# demo: host-side output of make demo-trust (verified device CA)
+.demo/

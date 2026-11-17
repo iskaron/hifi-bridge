@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio monitor · Hi-Fi Bridge Demo</title>
+<link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" href="/static/console.css">
+<link rel="icon" href="/static/logo.svg">
+<script src="/static/console.js" defer></script>
+<script src="/static/monitor.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/"><img src="/static/logo.svg" width="36" height="36" alt=""><span><strong>Hi-Fi Bridge</strong><small>Demo <span class="sim" data-i18n="badge.simulated">SIMULATED</span></small></span></a>
+  <nav class="nav"><a href="/" data-i18n="nav.overview">Overview</a><a href="/phones" data-i18n="nav.phones">Phones</a><a href="/monitor" data-i18n="nav.monitor">Audio monitor</a></nav>
+  <div class="chrome">
+    <select id="lang" data-i18n-label="lang"><option value="de">Deutsch</option><option value="en">English</option></select>
+    <select id="theme" data-i18n-label="theme"><option value="auto" data-i18n="theme.auto">Auto</option><option value="light" data-i18n="theme.light">Light</option><option value="dark" data-i18n="theme.dark">Dark</option></select>
+  </div>
+</header>
+<main>
+  <h1><span data-i18n="mon.title">Audio monitor</span> <span class="sim" data-i18n="badge.simulated">SIMULATED</span></h1>
+  <p class="muted" data-i18n="mon.lead">What a room's Squeezelite player outputs – behind Lyrion – made audible on this computer. The rooms are simulated speakers.</p>
+  <div class="grid">
+    <section class="card">
+      <h2 data-i18n="mon.room">Room</h2>
+      <fieldset class="rooms-pick" id="rooms"><legend class="sr" data-i18n="mon.room">Room</legend></fieldset>
+      <div class="row"><button class="btn primary" id="listen" data-i18n="mon.listen">Listen</button><span class="muted small" id="lmsnow"></span></div>
+      <p class="small muted" data-i18n="mon.gesture">The browser only plays sound after a click.</p>
+      <label class="gain"><span data-i18n="mon.gain">Listening level (this browser only)</span><span class="row"><input type="range" id="gain" min="0" max="8" step="0.25" value="2"><span class="small" id="gainv"></span></span></label>
+      <h3 class="small muted" data-i18n="mon.left">Left</h3><div class="meter"><span id="ml"></span></div>
+      <h3 class="small muted" data-i18n="mon.right">Right</h3><div class="meter"><span id="mr"></span></div>
+    </section>
+    <section class="card">
+      <h2 data-i18n="mon.latency">Added monitor latency (measured)</h2>
+      <p class="big" id="lat">–</p>
+      <dl class="metrics">
+        <div><dt data-i18n="mon.buffer">Buffer</dt><dd id="buf">–</dd></div>
+        <div><dt data-i18n="mon.output">Audio output</dt><dd id="out">–</dd></div>
+        <div><dt data-i18n="mon.underruns">Underruns</dt><dd id="und">0</dd></div>
+      </dl>
+      <p class="small muted" data-i18n="mon.latency_note">From the player's virtual DAC to your speakers: relay + browser buffer + audio output. Not part of the bridge's own latency.</p>
+    </section>
+    <section class="card">
+      <h2 data-i18n="mon.helpers">Lyrion helpers (demo)</h2>
+      <p class="small muted" data-i18n="mon.helpers_note">These act on Lyrion like its own web UI would – never on the bridge.</p>
+      <div class="row"><button class="btn" id="radio" data-i18n="mon.radio">Play demo radio in this room</button><button class="btn" id="stop" data-i18n="mon.stop">Stop this room</button></div>
+      <fieldset class="rooms-pick"><legend class="small muted" data-i18n="mon.group">Synchronised group</legend><div class="row" id="groupset"></div></fieldset>
+      <div class="row"><button class="btn" id="sync" data-i18n="mon.sync">Form group (first ticked room leads)</button><button class="btn" id="unsync" data-i18n="mon.unsync">Dissolve groups</button></div>
+      <p class="toast" id="mtoast" role="status" aria-live="polite"></p>
+    </section>
+  </div>
+</main>
+<footer class="foot">Hi-Fi Bridge · AGPL-3.0-only · <span data-i18n="badge.simulated">SIMULATED</span></footer>
+</body>
+</html>

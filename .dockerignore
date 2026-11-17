@@ -1,0 +1,10 @@
+# Build contexts that use the repository root (demo/Dockerfile) see ONLY what is listed here (allowlist).
+# Never in a build context: secrets/ (GitHub token), .lab/, .keys/, .git/, reports/, local data.
+*
+!bridge/btbridge/**
+!testkit/btkit/**
+!testkit/pw/start_pipewire.sh
+!flashtool/hififlash/**
+!demo/**
+**/__pycache__
+**/*.pyc

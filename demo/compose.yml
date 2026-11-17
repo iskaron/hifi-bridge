@@ -1,0 +1,166 @@
+# Hi-Fi Bridge interactive demo (docs/DEMO.md). Start with `make demo`.
+# Isolation: own project name, own networks and volumes. Every service sits on the INTERNAL network "demo" (no route to the LAN or the
+# internet); only the gateway is also on "edge" so that Docker can publish its ports - bound to 127.0.0.1 unless DEMO_BIND says otherwise.
+# Nothing runs privileged. Simulated: phones, Bluetooth radio, rooms/speakers. Real: bridge software, Lyrion, Squeezelite, Mosquitto, HA.
+name: hifi-demo
+
+x-demo: &demo
+  image: hifi-demo:dev
+  build:
+    context: ..
+    dockerfile: demo/Dockerfile
+  networks: [demo]
+  restart: unless-stopped
+  init: false
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+
+x-room: &room
+  <<: *demo
+  depends_on:
+    lms:
+      condition: service_healthy
+
+services:
+  gateway:
+    <<: *demo
+    networks:
+      demo: {}
+      edge:
+        gw_priority: 1          # Docker publishes ports on the network that provides the default route: the non-internal one
+    command: ["python3", "-m", "hifidemo.gateway",
+              "${DEMO_HTTP_PORT:-18080}=hifi-bridge.local:${DEMO_HTTP_PORT:-18080},${DEMO_HTTPS_PORT:-18443}=hifi-bridge.local:${DEMO_HTTPS_PORT:-18443},${DEMO_CONSOLE_PORT:-18100}=console:8100,${DEMO_LMS_PORT:-19000}=lms:9000,${DEMO_HA_PORT:-18123}=homeassistant:8123"]
+    ports:
+      - "${DEMO_BIND:-127.0.0.1}:${DEMO_HTTP_PORT:-18080}:${DEMO_HTTP_PORT:-18080}"
+      - "${DEMO_BIND:-127.0.0.1}:${DEMO_HTTPS_PORT:-18443}:${DEMO_HTTPS_PORT:-18443}"
+      - "${DEMO_BIND:-127.0.0.1}:${DEMO_CONSOLE_PORT:-18100}:${DEMO_CONSOLE_PORT:-18100}"
+      - "${DEMO_BIND:-127.0.0.1}:${DEMO_LMS_PORT:-19000}:${DEMO_LMS_PORT:-19000}"
+      - "${DEMO_BIND:-127.0.0.1}:${DEMO_HA_PORT:-18123}:${DEMO_HA_PORT:-18123}"
+
+  # What the owner does on their computer before the first boot: the real flash-tool core provisions the "card" (once).
+  flashtool:
+    <<: *demo
+    restart: "no"
+    command: ["python3", "-m", "hifidemo.provision"]
+    volumes:
+      - boot:/boot-demo
+      - owner:/owner
+
+  # The "Raspberry Pi": unchanged bridge product + simulated Bluetooth stack (private D-Bus, virtual bluetoothd, real PipeWire).
+  hifi-bridge:
+    <<: *demo
+    hostname: hifi-bridge
+    command: ["python3", "-m", "hifidemo.node"]
+    environment:
+      - DEMO_HTTP_PORT=${DEMO_HTTP_PORT:-18080}
+      - DEMO_HTTPS_PORT=${DEMO_HTTPS_PORT:-18443}
+    volumes:
+      - bridge-data:/data
+      - boot:/boot-demo
+    depends_on:
+      flashtool:
+        condition: service_completed_successfully
+      lms:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "-H", "Host: localhost", "http://127.0.0.1:${DEMO_HTTP_PORT:-18080}/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+      start_period: 10s
+    networks:
+      demo:
+        aliases: ["hifi-bridge.local"]
+
+  # Virtual phones, audio monitor, demo radio, Lyrion helpers (all SIMULATED devices; never talks to the bridge directly).
+  console:
+    <<: *demo
+    hostname: console
+    command: ["python3", "-m", "hifidemo.console", "--port", "8100", "--air", "http://hifi-bridge.local:8099",
+              "--pcm", "hifi-bridge.local:8098", "--lms", "http://lms:9000", "--data", "/data"]
+    environment:
+      - DEMO_LINKS={"bridge_http":"http://${DEMO_HOST:-127.0.0.1}:${DEMO_HTTP_PORT:-18080}","bridge_https":"https://${DEMO_HOST:-127.0.0.1}:${DEMO_HTTPS_PORT:-18443}","lms":"http://${DEMO_HOST:-127.0.0.1}:${DEMO_LMS_PORT:-19000}","console":"http://${DEMO_HOST:-127.0.0.1}:${DEMO_CONSOLE_PORT:-18100}","homeassistant":"http://${DEMO_HOST:-127.0.0.1}:${DEMO_HA_PORT:-18123}"}
+    volumes:
+      - console-data:/data
+      - owner:/owner:ro
+      - mqtt-creds:/mqtt-creds:ro
+    depends_on: [hifi-bridge]
+
+  # Three SIMULATED rooms: real Squeezelite players (software, no sound card) -> virtual DAC -> audio monitor.
+  wohnzimmer:
+    <<: *room
+    hostname: wohnzimmer
+    command: ["python3", "-m", "hifidemo.player", "--name", "Wohnzimmer", "--mac", "02:00:00:00:01:01", "--server", "lms:3483"]
+  schlafzimmer:
+    <<: *room
+    hostname: schlafzimmer
+    command: ["python3", "-m", "hifidemo.player", "--name", "Schlafzimmer", "--mac", "02:00:00:00:01:02", "--server", "lms:3483"]
+  arbeitszimmer:
+    <<: *room
+    hostname: arbeitszimmer
+    command: ["python3", "-m", "hifidemo.player", "--name", "Arbeitszimmer", "--mac", "02:00:00:00:01:03", "--server", "lms:3483"]
+
+  lms:
+    image: lmscommunity/lyrionmusicserver:stable
+    networks: [demo]
+    restart: unless-stopped
+    volumes:
+      - ./lms:/seed:ro
+      - lms-config:/config
+    environment:
+      - HTTP_PORT=9000
+    entrypoint: ["/bin/bash", "-c", "mkdir -p /config/prefs && for f in server.prefs favorites.opml; do [ -f /config/prefs/$$f ] || cp /seed/$$f /config/prefs/$$f; done; exec start-container"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs -X POST -d '{\"id\":1,\"method\":\"slim.request\",\"params\":[\"\",[\"serverstatus\",0,1]]}' http://localhost:9000/jsonrpc.js >/dev/null"]
+      interval: 3s
+      timeout: 3s
+      retries: 60
+      start_period: 10s
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0.20
+    networks: [demo]
+    restart: unless-stopped
+    volumes:
+      - ./mosquitto:/mosquitto/config:ro
+      - mqtt:/mosquitto/data
+      - mqtt-creds:/mosquitto/creds
+    entrypoint: ["/bin/sh", "/mosquitto/config/start.sh"]
+
+  # Optional (make demo-ha): real Home Assistant with the MQTT integration for the demo broker.
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:2026.11.1
+    profiles: ["ha"]
+    networks: [demo]
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Berlin
+    volumes:
+      - ha-config:/config
+
+# Fixed, uncommon /24 subnets (override with DEMO_SUBNET_DEMO / DEMO_SUBNET_EDGE if they overlap with a network on this computer).
+# Automatically assigned ranges were not reachable from the host on one development machine (host firewall); fixed ones are predictable.
+networks:
+  demo:
+    internal: true
+    driver_opts:
+      # No host address on this bridge: containers cannot reach ANY service of the host (e.g. a real Lyrion server that answers
+      # discovery broadcasts) - found by the demo stack test, where the wizard's UDP discovery got an answer from the host.
+      com.docker.network.bridge.inhibit_ipv4: "true"
+    ipam:
+      config:
+        - subnet: ${DEMO_SUBNET_DEMO:-172.29.251.0/24}
+  edge:
+    ipam:
+      config:
+        - subnet: ${DEMO_SUBNET_EDGE:-172.29.250.0/24}
+
+volumes:
+  bridge-data:
+  boot:
+  owner:
+  console-data:
+  lms-config:
+  mqtt:
+  mqtt-creds:
+  ha-config:

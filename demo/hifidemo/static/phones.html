@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phones · Hi-Fi Bridge Demo</title>
+<link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" href="/static/console.css">
+<link rel="icon" href="/static/logo.svg">
+<script src="/static/console.js" defer></script>
+<script src="/static/phones.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/"><img src="/static/logo.svg" width="36" height="36" alt=""><span><strong>Hi-Fi Bridge</strong><small>Demo <span class="sim" data-i18n="badge.simulated">SIMULATED</span></small></span></a>
+  <nav class="nav"><a href="/" data-i18n="nav.overview">Overview</a><a href="/phones" data-i18n="nav.phones">Phones</a><a href="/monitor" data-i18n="nav.monitor">Audio monitor</a></nav>
+  <div class="chrome">
+    <select id="lang" data-i18n-label="lang"><option value="de">Deutsch</option><option value="en">English</option></select>
+    <select id="theme" data-i18n-label="theme"><option value="auto" data-i18n="theme.auto">Auto</option><option value="light" data-i18n="theme.light">Light</option><option value="dark" data-i18n="theme.dark">Dark</option></select>
+  </div>
+</header>
+<main>
+  <h1><span data-i18n="ph.title">Guest phones</span> <span class="sim" data-i18n="badge.simulated">SIMULATED</span></h1>
+  <p class="muted" data-i18n="ph.lead">Simulated phones. They reach the bridge only over the (simulated) Bluetooth radio, like real phones.</p>
+  <div class="phones" id="phones"></div>
+</main>
+<footer class="foot">Hi-Fi Bridge · AGPL-3.0-only · <span data-i18n="badge.simulated">SIMULATED</span></footer>
+</body>
+</html>
