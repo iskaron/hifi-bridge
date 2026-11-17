@@ -1,0 +1,10 @@
+# Keeps the SHA-pinned GitHub Actions current (monthly, grouped). Dependabot PRs run the normal CI; nothing is merged automatically.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]

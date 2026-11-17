@@ -1,6 +1,9 @@
-# CI for every test suite (DECISIONS #39, #70). Each job calls the SAME Docker scripts that run locally (scripts/run_*.sh); nothing is
-# installed on the runner besides Docker. Repository: github.com/iskaron/hifi-bridge (private). GitHub Actions is the project's CI.
-# No job has access to signing keys: every key used by tests is generated per run (docs/UPDATE_TRUST.md section 4).
+# CI for every test suite (DECISIONS #39, #70, #72). Each job calls the SAME Docker scripts that run locally (scripts/run_*.sh); nothing
+# is installed on the runner besides Docker. Repository: github.com/iskaron/hifi-bridge. GitHub Actions is the project's CI.
+# Public-repository safety: only `pull_request` (never `pull_request_target`), so code from forks runs with a read-only token and WITHOUT
+# any secret; no job uses a secret at all (test keys are generated per run, docs/UPDATE_TRUST.md section 4); third-party actions are
+# pinned to full commit SHAs (Dependabot proposes updates); jobs run on GitHub-hosted, disposable runners only - never attach a
+# self-hosted runner to this public repository.
 name: ci
 on:
   push:
@@ -23,7 +26,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
         with:
           persist-credentials: false
       - run: scripts/run_static.sh
@@ -32,7 +35,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
         with:
           persist-credentials: false
       - run: (cd docker && docker compose build -q)
@@ -43,7 +46,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
         with:
           persist-credentials: false
       - run: scripts/run_integration.sh -q
@@ -57,7 +60,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
         with:
           persist-credentials: false
       - run: scripts/run_pipewire.sh -q
@@ -67,7 +70,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
         with:
           persist-credentials: false
       - run: scripts/run_hwkit.sh -q
@@ -77,7 +80,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
         with:
           persist-credentials: false
       - run: (cd docker && docker compose build -q && docker build -q -f Dockerfile.avahi -t btbridge-avahi:dev .)
@@ -89,7 +92,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
         with:
           persist-credentials: false
       - run: scripts/os_fetch_buildroot.sh
@@ -99,7 +102,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0          # the secret scan covers the complete history
@@ -111,7 +114,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
         with:
           persist-credentials: false
       - run: scripts/run_py314.sh
@@ -121,7 +124,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
         with:
           persist-credentials: false
       - run: (cd docker && docker compose build -q)
@@ -132,12 +135,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
         with:
           persist-credentials: false
       - run: (cd docker && docker compose build -q)
       - run: scripts/run_coverage.sh --integration
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
         with:
           name: coverage
           path: reports/evidence/coverage.txt
@@ -148,7 +151,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
         with:
           persist-credentials: false
       - run: scripts/run_homeassistant.sh -q
@@ -158,13 +161,33 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
         with:
           persist-credentials: false
       - run: scripts/run_browser.sh -q
       - if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
         with:
           name: screenshots
           path: reports/screenshots/
+          if-no-files-found: warn
+
+  demo:
+    # The interactive demo (docs/DEMO.md): unit tests, then the full stack on its own compose project (setup in a real browser, audio
+    # chain proven by cross-correlation, takeover, multiroom, console UI + a11y, P7 trust proof, MQTT discovery). SIMULATED phones/rooms.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          persist-credentials: false
+      - run: scripts/run_demo_tests.sh -q
+      - run: scripts/test_demo.sh
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
+        with:
+          name: demo
+          path: |
+            reports/screenshots/demo-*.png
+            measurements/demo_*.json
           if-no-files-found: warn

@@ -24,6 +24,8 @@ scripts/lab_up.sh >/dev/null
   echo "### SECRETS";       scripts/run_secrets.sh                                    ; SECR=$?
   echo "### OS + FLASH TOOL"; scripts/run_os.sh                                       ; OS=$?
   echo "### HOMEASSISTANT"; scripts/run_homeassistant.sh -q                           ; HA=$?
+  echo "### DEMO (unit)";   scripts/run_demo_tests.sh -q                              ; DU=$?
+  echo "### DEMO (stack)";  scripts/test_demo.sh                                      ; DS=$?
   echo "### BROWSER";       scripts/run_browser.sh -q                                 ; B=$?
-  echo "exit codes: static=$S unit=$U integration=$I outage_lms=$O1 outage_player=$O2 pipewire=$P hwkit=$H mdns=$M syslog=$SY py314=$PY security=$SEC secrets=$SECR os=$OS homeassistant=$HA browser=$B"
+  echo "exit codes: static=$S unit=$U integration=$I outage_lms=$O1 outage_player=$O2 pipewire=$P hwkit=$H mdns=$M syslog=$SY py314=$PY security=$SEC secrets=$SECR os=$OS homeassistant=$HA demo_unit=$DU demo_stack=$DS browser=$B"
 } 2>&1 | tee "$LOG"
