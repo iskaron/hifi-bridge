@@ -24,9 +24,9 @@ printf 'wireplumber.profiles = {\n  main = {\n    monitor.bluez.seat-monitoring 
 dbus-daemon --session --fork --nopidfile --address="unix:path=$XDG_RUNTIME_DIR/dbus.sock" </dev/null >/dev/null 2>&1
 export DBUS_SESSION_BUS_ADDRESS="unix:path=$XDG_RUNTIME_DIR/dbus.sock"
 pipewire        </dev/null >"$LOG/pipewire.log"     2>&1 &
-for _ in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/pipewire-0" ] && break; sleep 0.1; done
+for _ in $(seq 150); do [ -S "$XDG_RUNTIME_DIR/pipewire-0" ] && break; sleep 0.1; done
 wireplumber     </dev/null >"$LOG/wireplumber.log"  2>&1 &
 pipewire-pulse  </dev/null >"$LOG/pipewire-pulse.log" 2>&1 &
-for _ in $(seq 100); do pactl info >/dev/null 2>&1 && break; sleep 0.1; done
-pactl info >/dev/null || { echo "pipewire-pulse did not come up" >&2; tail -5 "$LOG"/*.log >&2; return 1 2>/dev/null || exit 1; }
+for _ in $(seq 300); do pactl info >/dev/null 2>&1 && break; sleep 0.1; done   # up to 30 s: cold CI runners are slow
+pactl info >/dev/null || { echo "pipewire-pulse did not come up" >&2; tail -n 8 "$LOG"/*.log >&2; return 1 2>/dev/null || exit 1; }
 export XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS XDG_CONFIG_HOME
