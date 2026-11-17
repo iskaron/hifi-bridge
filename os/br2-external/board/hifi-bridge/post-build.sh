@@ -4,6 +4,8 @@
 #
 #  * update trust (P5, docs/UPDATE_TRUST.md): builds /etc/rauc/keyring.pem from the EXPLICIT choice in the configuration and records it in
 #    /etc/hifi-bridge/update-trust.json. Fails on: no choice, missing/non-CA certificate, any private key, unexpected extra input.
+#    Images that accept official bundles also record the FIXED official update source (GitHub Releases of iskaron/hifi-bridge,
+#    DECISIONS #70). The source is transport only: a bundle is installed only if its signature matches the keyring.
 #  * RAUC system.conf with the board's compatible string, U-Boot env access for fw_printenv/fw_setenv,
 #  * fstab (boot FAT writable for the hifi-bridge user only; data partition), persistent paths, enabled units.
 set -eu
@@ -60,11 +62,19 @@ case "$mode" in
 esac
 chmod 0644 "$keyring"
 mode_lc=$(echo "$mode" | tr 'A-Z_' 'a-z-')
+OFFICIAL_REPO="iskaron/hifi-bridge"	# fixed official update source (DECISIONS #70); not configurable on purpose
+case "$mode" in
+	OWN) official_source="null" ;;
+	*) official_source="{\"type\": \"github-releases\", \"repository\": \"$OFFICIAL_REPO\",
+    \"releases\": \"https://github.com/$OFFICIAL_REPO/releases\",
+    \"api\": \"https://api.github.com/repos/$OFFICIAL_REPO/releases\"}" ;;
+esac
 cat > "$TARGET_DIR/etc/hifi-bridge/update-trust.json" <<EOF
 {
   "format": "hifi-bridge-update-trust/1",
   "mode": "$mode_lc",
   "keyring": "/etc/rauc/keyring.pem",
+  "official_source": $official_source,
   "certificates": [$json_entries
   ]
 }

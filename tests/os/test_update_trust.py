@@ -63,6 +63,13 @@ def test_trust_matrix_with_real_rauc(tmp_path, tools):
         keyrings[mode] = target / "etc/rauc/keyring.pem"
         info = json.loads((target / "etc/hifi-bridge/update-trust.json").read_text())
         assert info["mode"] == mode.lower().replace("_", "-") and len(info["certificates"]) == (2 if mode == "OFFICIAL_AND_OWN" else 1)
+        # the official update source is fixed (DECISIONS #70) and present only when official bundles are accepted
+        if mode == "OWN":
+            assert info["official_source"] is None
+        else:
+            assert info["official_source"] == {"type": "github-releases", "repository": "iskaron/hifi-bridge",
+                                               "releases": "https://github.com/iskaron/hifi-bridge/releases",
+                                               "api": "https://api.github.com/repos/iskaron/hifi-bridge/releases"}
         assert "PRIVATE" not in keyrings[mode].read_text()
     result = {m: (accepts(tmp_path, k, rel_bundle, f"{m}-rel"), accepts(tmp_path, k, dev_bundle, f"{m}-dev")) for m, k in keyrings.items()}
     assert result == {"OFFICIAL": (True, False), "OWN": (False, True), "OFFICIAL_AND_OWN": (True, True)}, result
