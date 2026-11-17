@@ -169,6 +169,10 @@ services:
 networks:
   lab:
     internal: true
+    driver_opts:
+      # No host address on the lab bridge: lab containers cannot reach services of the host (e.g. a real Lyrion server answering the
+      # wizard's discovery broadcast). Found by the demo stack test on 2026-11-17 (DECISIONS #71).
+      com.docker.network.bridge.inhibit_ipv4: "true"
 
 volumes:
   lms-config:
