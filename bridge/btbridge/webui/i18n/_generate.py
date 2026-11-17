@@ -210,6 +210,8 @@ for c,(en,de) in {"tls_mode.local_ca":("Local CA of this device (recommended)","
 for c,(en,de) in {"invalid_hostname":("letters, digits and hyphens only","nur Buchstaben, Ziffern und Bindestriche"),
                   "invalid_network":("not a valid address or network","keine gültige Adresse bzw. kein gültiges Netz")}.items(): k(f"error.{c}",en,de)
 
+k("foot.source", "Source code (AGPL-3.0-only)", "Quellcode (AGPL-3.0-only)")
+
 for lang, dct in (("en", E), ("de", D)):
     json.dump(dict(sorted(dct.items())), open(os.path.join(os.path.dirname(os.path.abspath(__file__)), f"{lang}.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 print(len(E), len(D))

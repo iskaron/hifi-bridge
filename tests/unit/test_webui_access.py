@@ -195,3 +195,12 @@ def test_exactly_the_bootstrap_endpoints_are_public():
     public = sorted(f"{m} {p}" for (m, p), fn in V.routes(None).items() if getattr(fn, "public", False))
     assert public == ["GET /ca.crt", "GET /ca.der", "GET /healthz", "GET /login", "GET /manifest.webmanifest", "GET /setup", "GET /trust",
                       "GET /trust/proof", "POST /lang", "POST /login", "POST /setup"], public
+
+
+def test_agpl_source_offer_in_every_page_footer(ui):
+    """AGPL-3.0 section 13: users interacting over the network are offered the corresponding source (public pages and the app)."""
+    from btbridge import SOURCE_URL, __version__
+    for client, path in ((Client(ui.port), "/trust"), (ui.c, "/"), (ui.c, "/settings")):
+        body = client.get(path).body
+        assert f'href="{SOURCE_URL}"' in body and "AGPL-3.0-only" in body and __version__ in body, path
+    assert SOURCE_URL == "https://github.com/iskaron/hifi-bridge"

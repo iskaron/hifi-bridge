@@ -8,6 +8,7 @@ step shellcheck docker run --rm -v "$PWD":/w:ro -w /w koalaman/shellcheck-alpine
   'shellcheck -S warning scripts/*.sh docker/mosquitto/start.sh demo/mosquitto/start.sh testkit/pw/start_pipewire.sh os/br2-external/board/hifi-bridge/post-image.sh \
    && shellcheck -s sh packaging/bin/hifi-bridge-respawn os/br2-external/board/hifi-bridge/post-build.sh \
       os/br2-external/board/hifi-bridge/overlay/usr/libexec/hifi-bridge/growdata.sh'
+step licence-copy cmp LICENSE bridge/LICENSE                  # Buildroot needs the licence inside the package directory
 step python-compile docker run --rm -v "$PWD":/w:ro -w /w python:3.11-slim python3 -c \
   'import pathlib,sys
 bad = 0

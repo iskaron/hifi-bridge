@@ -177,6 +177,7 @@
  "flash.session_expired": "Bitte erneut anmelden.",
  "flash.setup_done": "Einrichtung abgeschlossen. Gäste können sich jetzt per Bluetooth verbinden.",
  "flash.token_rotated": "Neue Stream-Adresse erzeugt.",
+ "foot.source": "Quellcode (AGPL-3.0-only)",
  "headline.audio_disabled": "Bridge-Wiedergabe aus",
  "headline.audio_disabled.detail": "Telefone bleiben verbunden, aber auf Lyrion wird nichts abgespielt.",
  "headline.connected": "Telefon verbunden",

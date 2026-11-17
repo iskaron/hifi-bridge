@@ -6,7 +6,7 @@ import mimetypes
 import os
 import urllib.parse
 
-from .. import PRODUCT_NAME, __version__
+from .. import PRODUCT_NAME, SOURCE_URL, __version__
 from ..config import SettingError
 from .auth import AuthError
 
@@ -81,7 +81,7 @@ def page(ui, req, title: str, body: str, active: str | None = None, live: bool =
 <span><strong>{esc(PRODUCT_NAME)}</strong><small><span class="sr">{esc(t("brand.device"))}: </span>{esc(svc.store.get("device_name"))}</small></span></a>{nav}</header>
 {flash_html(req)}
 <main id="main">{body}</main>
-<footer class="foot"><span>{esc(PRODUCT_NAME)} {esc(__version__)} · {esc(t("brand.tagline"))}</span></footer>
+<footer class="foot"><span>{esc(PRODUCT_NAME)} {esc(__version__)} · {esc(t("brand.tagline"))}</span> · <a href="{esc(SOURCE_URL)}" rel="noopener">{esc(t("foot.source"))}</a></footer>
 <script type="application/json" id="i18n">{live_strings(req)}</script>
 </body></html>""")
     if req.flash:

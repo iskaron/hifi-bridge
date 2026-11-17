@@ -177,6 +177,7 @@
  "flash.session_expired": "Please log in again.",
  "flash.setup_done": "Setup complete. Guests can now connect via Bluetooth.",
  "flash.token_rotated": "New stream address created.",
+ "foot.source": "Source code (AGPL-3.0-only)",
  "headline.audio_disabled": "Bridge audio off",
  "headline.audio_disabled.detail": "Phones can stay connected, but nothing is played on Lyrion.",
  "headline.connected": "Phone connected",

@@ -8,7 +8,8 @@ HIFI_BRIDGE_VERSION = $(shell sed -n 's/^__version__ = "\(.*\)"/\1/p' $(BR2_EXTE
 HIFI_BRIDGE_SITE = $(BR2_EXTERNAL_HIFI_BRIDGE_PATH)/../../bridge
 HIFI_BRIDGE_SITE_METHOD = local
 HIFI_BRIDGE_LICENSE = AGPL-3.0-only
-# HIFI_BRIDGE_LICENSE_FILES: the repository has no LICENSE file yet (open owner task, docs/PHASE2B_PLAN.md section 4)
+# bridge/LICENSE is an identical copy of the repository LICENSE (checked by scripts/run_static.sh)
+HIFI_BRIDGE_LICENSE_FILES = LICENSE
 HIFI_BRIDGE_DEPENDENCIES = python3 python-jeepney
 
 HIFI_BRIDGE_PACKAGING = $(BR2_EXTERNAL_HIFI_BRIDGE_PATH)/../../packaging
