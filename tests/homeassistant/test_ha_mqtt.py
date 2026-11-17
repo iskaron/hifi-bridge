@@ -120,6 +120,9 @@ def test_04_enabling_one_control_swaps_entities_and_removes_the_stale_one(ha, da
         assert m, ha.entity_map(DEV, svc.instance_id())
         assert m["Pairing window"].startswith("switch.") and "Bridge playback" not in m and "Test tone" not in m
         assert "Bridge playback allowed" in m                                           # audio control still read-only
+        # A user can only switch an AVAILABLE entity: wait until HA has processed the retained 'online' after creating the entity
+        # (switching in between was a race of this test on a slow CI runner, 2026-11-17; the bridge subscribes before it announces).
+        assert ha.wait(lambda: (ha.state(m["Pairing window"]) or {}).get("state") in ("on", "off"), 20)
         ha.service("switch", "turn_on", {"entity_id": m["Pairing window"]})
         assert ha.wait(lambda: svc.runtime.pairing.is_open(), 10)                       # the HA switch really opened the pairing window
         assert ha.wait(lambda: ha.state(m["Pairing window"])["state"] == "on", 10)
