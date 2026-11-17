@@ -14,7 +14,7 @@
 10. Buildroot appliance, target Pi Zero 2 W / 3 B+ / 4; full signed A/B OTA and rollback, optional update check, never auto-install updates.
 11. MQTT optional, HA autodiscovery, system metrics 5 min, critical thermal warning immediate.
 12. Quality first, integration/hardware evidence required. Phase 1 audio proof, review gate, then phase 2 autonomous full build.
-13. Licensing intent AGPL-3.0-only; planned GitHub repository private first, not assumed present. *(Repository location superseded by #69.)*
+13. Licensing intent AGPL-3.0-only; planned GitHub repository private first, not assumed present. *(Repository location superseded by #69, then #70.)*
 14. Future Docker support by architecture, not initial implementation.
 
 ## Phase-1 review decisions (owner + ChatGPT, 2026-11-15)
@@ -158,6 +158,18 @@ Raspberry Pi integration is explicitly **not yet verified**. Evidence: `docs/FIN
     history. From now on, development commits on `develop` may be pushed to `origin/develop` automatically after the relevant tests
     pass and the commits have been checked for secrets. Pushing `main`, merging into `main`, force-push, tags, releases and history
     rewrites still need the owner's explicit approval. Supersedes the repository location in #13 and the "no push" boundaries of #21/#40.
+    *(Location superseded by #70; the push rules stay.)*
+
+## Migration to GitHub (owner, 2026-11-17)
+70. **GitHub is the final platform: `git@github.com:iskaron/hifi-bridge.git`** (remote `origin`; the GitLab server stays as remote `gitlab`).
+    * The repository stays **private** until the owner explicitly releases it. No automatic publication, no visibility change by agents.
+    * **GitHub Actions** is the CI (`.github/workflows/ci.yml`, all suites in Docker + a full-history Gitleaks scan); **GitHub Releases** is
+      the release platform. Releases and tags are created only by the owner.
+    * **Official OTA source:** GitHub Releases of `iskaron/hifi-bridge`, fixed in images that accept official bundles
+      (`update-trust.json` → `official_source`). The source is transport only; trust comes from the RAUC signature (docs/UPDATE_TRUST.md).
+      Release signing keys never go into GitHub (no Actions secret); bundles are re-signed offline and uploaded by the owner.
+    * Push rules of #69 apply unchanged to the new `origin`. History, identity (#22) and AGPL-3.0-only (#13) are unchanged; the hardware
+      gate stays.
 
 ## Measurement-driven / not yet verified
 

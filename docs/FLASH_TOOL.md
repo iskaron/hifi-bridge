@@ -38,7 +38,8 @@ started**.
 
 ## 3. Write and verify (`hififlash.writer`)
 1. Verify the manifest signature (official key built in; a key for self-built images only after explicit addition, shown as "custom
-   publisher").
+   publisher"). Official images and manifests are downloaded from GitHub Releases of `iskaron/hifi-bridge` (DECISIONS #70); the
+   signature, not the download source, decides.
 2. Refuse before writing: the identity changed, the image is larger than the card, or the provisioning data does not fit the slot.
 3. Stream in 4 MiB chunks with SHA-256 on the fly. Size and hash must match the manifest (catches a damaged or modified download).
 4. Flush, then **read back** and hash again (catches fake-capacity cards and write errors).

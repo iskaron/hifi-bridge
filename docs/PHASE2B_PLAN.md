@@ -52,7 +52,7 @@ policy passed).
 
 ## 4. Licence obligations (AGPL-3.0-only project)
 * The image is a collection. Ship sources or a written offer for GPL/LGPL components (`make legal-info`; release step). The bridge's own
-  source lives in `https://git.cativa.net/hifi-bridge/hifi-bridge.git` (private today; how recipients get it is OPEN_QUESTIONS #43).
+  source lives in `https://github.com/iskaron/hifi-bridge` (private today; how recipients get it is OPEN_QUESTIONS #43).
 * Reviewed exceptions in `os/tools/license_report.py`:
   * the Raspberry Pi firmware;
   * the **PROPRIETARY brcmfmac firmware (open: read its licence)**;
@@ -71,7 +71,7 @@ policy passed).
 | 3 | Network service: Wi-Fi XOR hotspot from `network.json`, regulatory domain, 60 s fallback; Wi-Fi settings in the WebUI | provisioning and `network.json` | G2 P6-1, P6-2, P6-4 |
 | 4 | Avahi + HTTPS on 443 in the image; boot unit | bootfiles, trust proof | G1 H1/H2, G2 P7-1 |
 | 5 | Recovery on the device | journaled requests | G2 P8-* |
-| 6 | Signed update upload in the WebUI, showing `update-trust.json`; optional update check (never automatic) | trust json | G4 U-1, U-2 |
+| 6 | Signed update upload in the WebUI, showing `update-trust.json`; optional update check against the fixed official source, GitHub Releases of `iskaron/hifi-bridge` (never automatic) | trust json incl. `official_source` | G4 U-1, U-2 |
 | 7 | Flash tool GUI (PySide6), block-device helper with exclusive open and privilege separation, installers | core library | G3 F-1…F-6 |
 | 8 | Measure sizes and resources; storage recommendation | – | G2 P4-3/P4-4 |
 

@@ -121,13 +121,16 @@ that was not tested.
 ## G4 – Before any productive OTA rollout or public release
 - [ ] K-1 Release CA and signing key created **offline** (hardware token); the public `release-ca.pem` committed; the process documented and
   rehearsed.
-- [ ] K-2 Re-signing a CI bundle on the offline machine works end to end; no release key in any CI log or secret store.
+- [ ] K-2 Re-signing a CI bundle on the offline machine works end to end; no release key in any CI log, GitHub secret or Actions artifact.
+- [ ] K-3 Repository and release visibility decided (OPEN_QUESTIONS #43/#45): official bundles are downloadable without credentials, and
+  the corresponding source is available to recipients.
 - [ ] L-1 `make legal-info` complete. Review the `brcmfmac_sdio-firmware-rpi` (PROPRIETARY) and Raspberry Pi firmware licence texts.
   Source offer for GPL/LGPL in place.
 - [ ] L-2 Project `LICENSE` (AGPL-3.0-only) added; `HIFI_BRIDGE_LICENSE_FILES` set.
 - [ ] U-1 The WebUI update upload refuses unsigned and wrongly signed bundles; it installs only after owner confirmation; the previous release
   can be selected.
-- [ ] U-2 The update check never installs automatically (PRODUCT_SPEC).
+- [ ] U-2 The update check never installs automatically (PRODUCT_SPEC). It finds a test release on GitHub Releases of `iskaron/hifi-bridge`
+  and refuses a bundle that is not signed by the keyring, even from that source.
 - [ ] R-1 G2 power-cut tests passed on **every** board that is to be listed as supported.
 
 ## Recording

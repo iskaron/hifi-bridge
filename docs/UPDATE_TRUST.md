@@ -29,7 +29,8 @@ certificate, or a certificate that is not a CA.
 | `own update CA only` | own CA | own bundles | development, forks |
 | `official releases and own update CA` | release CA + own CA | both | a self-builder who wants official updates **and** own test builds |
 
-The image records the choice in `/etc/hifi-bridge/update-trust.json`: the mode plus subject and SHA-256 fingerprint of each certificate.
+The image records the choice in `/etc/hifi-bridge/update-trust.json`: the mode, subject and SHA-256 fingerprint of each certificate, and
+the **official update source** (`official_source`, section 4a; `null` in own-only images).
 The WebUI update page (phase 2b, step 6) shows it before any installation.
 
 **Compatible string:** RAUC installs a bundle only if its `compatible` equals the device's. Official bundles use `hifi-bridge-rpi3`,
@@ -47,7 +48,23 @@ own bundles. This is the documented, intended behaviour.
    This replaces the signature; the content stays identical. Verified in `tests/os`: after re-signing, the bundle is accepted by the
    release keyring and refused by the development keyring.
 4. Likewise the flash manifest is signed with `openssl dgst -sha256 -sign` (ECDSA P-256); the flash tool verifies it (docs/FLASH_TOOL.md).
-5. Publish the bundle, the image, the manifest and its signature.
+5. The **owner** publishes the re-signed bundle, the image, the manifest and its signature as a **GitHub Release** of `iskaron/hifi-bridge`
+   (manually; no workflow creates releases, and no release key is ever stored as a GitHub secret).
+
+## 4a. Official update source (DECISIONS #70)
+Official bundles are distributed through **GitHub Releases of `iskaron/hifi-bridge`**. Images that accept official bundles carry this
+source fixed in `update-trust.json`:
+```json
+"official_source": {"type": "github-releases", "repository": "iskaron/hifi-bridge",
+  "releases": "https://github.com/iskaron/hifi-bridge/releases", "api": "https://api.github.com/repos/iskaron/hifi-bridge/releases"}
+```
+* It is **transport only.** A downloaded bundle is installed only if RAUC verifies its signature against the keyring; a compromised
+  GitHub account alone cannot install anything.
+* It is **not configurable** in the image configuration, so an official image cannot be pointed at another source. Own-only images record
+  `null`; self-builders distribute their own bundles by upload.
+* The update check (phase 2b step 6) only **reports** a newer release; installation always needs the owner's confirmation (PRODUCT_SPEC).
+* While the repository is private, devices cannot reach its releases without credentials, and devices never get a token
+  (OPEN_QUESTIONS #45).
 
 ## 5. Rotation and revocation
 * **Signing certificate:** short-lived; a new one is issued by the release CA. There is nothing to change on devices.
@@ -61,6 +78,8 @@ own bundles. This is the documented, intended behaviour.
 | Statement | Evidence |
 |---|---|
 | The keyring holds exactly the chosen CAs; no private key; the choice is recorded | UNIT (`post-build.sh` with a fake target tree) |
+| The official source is recorded for official/both and `null` for own | UNIT (same test) |
+| The update check against GitHub Releases | **NOT IMPLEMENTED** – phase 2b step 6 |
 | official ⇒ accepts release, refuses own; own ⇒ the reverse; both ⇒ both | **real RAUC 1.13** `rauc info` with the generated keyrings |
 | Re-signing gives a release bundle without the release key ever being in the build | real RAUC `resign` |
 | A certificate without codeSigning purpose is refused | real RAUC with `check-purpose=codesign` |
