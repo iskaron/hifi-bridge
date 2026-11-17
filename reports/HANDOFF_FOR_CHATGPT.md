@@ -1,171 +1,183 @@
-# HANDOFF_FOR_CHATGPT — Phase-2b review implementation and preparation (2026-11-16)
-
-Previous handoff (software stabilisation) is in git history at commit `576b823`. Decisions: `docs/DECISIONS.md` #51–#68 are new.
-Gate checklist: `docs/HARDWARE_GATE_CHECKLIST.md`. Plan: `docs/PHASE2B_PLAN.md`.
+# HANDOFF_FOR_CHATGPT - Interactive Docker demo and public-repository preparation (2026-11-17)
 
 ## 1. Status and decisions requested
-**Status: COMPLETE for every task of this package that can be done without hardware. Stopped before the hardware gate.** Nothing in this
-package has been run on real hardware.
-- **Not built:** no Raspberry Pi image.
-- **Not booted:** nothing.
-- **Not performed:** no A/B update; no Bluetooth connection on real hardware.
-- **Not written:** no real disk. The flash tool only writes regular files that simulate cards.
+**Done (software, Docker only):** `make demo` starts a complete, usable demo on an ordinary Linux notebook - the **unchanged** bridge software
+with its real BlueZ adapter, a real Lyrion server with three Squeezelite rooms, Mosquitto, optional Home Assistant, **virtual phones** and a
+**browser audio monitor** that plays what the rooms output behind Lyrion and Squeezelite. The repository is prepared for public visibility
+(licence, copyright, AGPL source offer, security policy, hardened CI, secret and privacy check).
 
-All evidence is UNIT, INTEGRATION (real Docker services and host tools), SIMULATED or STATIC. **There is no REAL-HARDWARE evidence.**
+**Not changed by rule:** repository visibility, GitHub settings, releases, tags, images or OTA packages; no hardware test; the hardware gate
+(`docs/HARDWARE_GATE_CHECKLIST.md`) stays exactly as it was. **Nothing here proves real Bluetooth, real phones, a Raspberry Pi or A/B updates.**
 
-Decisions requested from the owner:
-1. **Run gate G1** (stock Pi OS, phones, player) per `docs/HARDWARE_TEST_PROCEDURE.md` + `docs/HARDWARE_GATE_CHECKLIST.md`.
-2. Open product questions (`docs/OPEN_QUESTIONS.md` #35–#41):
-   - #35: review the licence of the PROPRIETARY brcmfmac firmware;
-   - #36: how firmware/DTB updates work (not A/B);
-   - #38: who creates the release CA, offline and on which hardware token;
-   - #39: whether a factory reset also removes Bluetooth pairings;
-   - #40: whether revocation by shipping a new keyring (no CRL) is enough for v1;
-   - #41: add the project LICENSE file (AGPL-3.0-only).
-3. Optional: `scripts/cleanup_own_images.sh --apply` removes **18 superseded images of this project (about 7.1 GB)**. They are left over from
-   rebuilds of my own images. My earlier deletions were refused by the permission system, and I did not work around that.
+**Owner decisions requested**
+1. **OPEN_QUESTIONS #46 - private information in the immutable history** before going public: owner name and e-mail (commit identity, by
+   design), the private GitLab domain `git.cativa.net`, one local user path in an old report, 46 commit messages with Claude session links.
+   No credential (Gitleaks clean). Accept, or rewrite history yourself before the visibility change (agents must not).
+2. **OPEN_QUESTIONS #47 - GitHub settings when going public:** private vulnerability reporting (SECURITY.md uses it), approval for workflows
+   from outside contributors, branch protection, secret scanning with push protection.
+3. **Incident to note (resolved, details in section 4):** during development the demo's setup wizard briefly **read** the server status and
+   player list of a **real Lyrion server on the development host** (via the host's address on an internal Docker network). Nothing was
+   played or changed. Both the demo and the test lab networks now give the host no address; a test step verifies it before any packet.
+4. Minor: #48 pin the Lyrion image tag; #49 preset the demo rooms' volume (Lyrion starts players at 50).
 
-## 2. Implementation status by review decision
-| Decision | Status | Where |
-|---|---|---|
-| P1 Buildroot 2026.02 LTS, one br2-external (approved) | skeleton for Zero 2 W / 3 B+ / 4; **defconfigs generated from the pinned upstream board configs + fragments**; a check fails if Kconfig silently drops a required option; licence policy from `make show-info` | `os/`, `scripts/os_defconfigs.sh`, `scripts/os_licenses.sh` |
-| P2 Avahi (approved) | in the package set; bridge-side Avahi backend from the last package | `fragments/common.fragment` |
-| P3 RAUC preferred, U-Boot boot-count provisional | RAUC `system.conf`, U-Boot `boot.cmd` following the RAUC pattern (compiles with mkimage; empty slot B is never tried), fw_env config. **Per-board feasibility is open** (G2 P3-1…P3-8, `tryboot` kept as the alternative) | `os/br2-external/board/hifi-bridge/{rauc,uboot}` |
-| P4 boot + A + B + data | MBR layout via genimage, verified with dummy content: 4 partitions, A = B size, FAT contents, data label, **first-boot growth of the data partition** on an image file. File systems/sizes are placeholders until measured | `genimage.cfg.in`, `post-image.sh`, `growdata.sh`, `tests/os` |
-| P5 revised (dev/release separate, official updates on configured self-built images, explicit trust, no release key in CI) | build-time choice official / own / official+own **with no default** (the build fails); keyring from public CA certificates only (refuses keys, non-CA input, several certificates); recorded in `/etc/hifi-bridge/update-trust.json`; release = **offline `rauc resign`** of a CI-signed bundle; `check-purpose=codesign`. **Verified with real RAUC 1.13** (matrix: official⇒release only, own⇒own only, both⇒both) | `docs/UPDATE_TRUST.md`, `post-build.sh`, `tests/os/test_update_trust.py` |
-| P6 revised (no hotspot without owner-known individual password; flash tool or manual file; FAT secrets evaluated) | `hifi-bridge-provision/1`: strict validation (problems by field, never values), journaled idempotent apply, **in-place scrub**, power-cut safety tested, status file without secrets; **no network entries ⇒ no hotspot ever**. FAT evaluation (residual data in FS and FTL, hand-edited files, takeover, failures, deletion) in the doc | `bridge/btbridge/provisioning.py`, `bootfiles.py`, `docs/PROVISIONING.md` |
-| P7 CA stays on the device; contradiction removed; usable OOB flow | The flash tool cannot know the fingerprint at flash time. Instead it puts a **one-time trust key** on the card. After first boot it fetches the CA from `/trust/proof` with a fresh nonce and checks `HMAC-SHA256(key, nonce, SHA-256(CA))`, then verifies HTTPS against **only** that CA. The key ends with the setup. A **CA-swapping LAN attacker is detected** (test) | `trustproof.py`, `/trust/proof`, `hififlash/trust.py`, `docs/TRUST_BOOTSTRAP.md` |
-| P8 SD recovery (approved; once + power-cut safe) | journal before/after the action; the request file is removed only after "done"; the journal survives a factory reset; tests inject a power cut after each step (repeat vs. no repeat) | `recovery.py`, `tests/unit/test_recovery.py` |
-| P9 PySide6 provisionally | **core library only, no GUI:** disk policy (removable, not system, size limits, typed confirmation, identity re-check), signed manifest (openssl-signed, verified with python-cryptography), write → hash → read-back → slot → verify, cancel, **invalidation on failure**, per-device secrets, owner sheet DE/EN, CLI without a write command. LGPL/packaging/privileges documented | `flashtool/hififlash`, `docs/FLASH_TOOL.md` |
-| Coverage goal (90 % is not a ceiling) | **91 %** line+branch for bridge + flash tool; new modules 91–100 % | `docs/TEST_COVERAGE.md` |
-
-Supporting changes:
-- **Boot-partition unit:** `hifi-bridge-boot.service` is the only writer of `/boot`. It has no network and a systemd exposure of 0.6.
-- **Public-route pin:** the set of public routes is pinned by a test.
-- **Firmware config:** the product firmware configuration has no `miniuart-bt`.
-- **OS tooling image:** one image, `btbridge-os` (522 MB), for all OS and flash-tool checks.
-
-## 3. Defects found and fixed in this package
-1. **WirePlumber silently dropped:** without Lua ≥ 5.3, Buildroot's Kconfig drops WirePlumber, and also two wrongly named options. Found by the new defconfig check.
-2. **Deadlock on double stop signal:** in the appliance, mDNS responder and Avahi publisher.
-   * The SIGTERM handler called `threading.Event.set()`. A second SIGTERM during that call deadlocked the process: no mDNS goodbye, and the appliance would only have ended by SIGKILL.
-   * The mDNS interop test exposed it intermittently (`pkill` hit tini and Python). A `faulthandler` stack dump confirmed the cause.
-   * The fix is an async-signal-safe `StopSignal`. Before the fix: about 1 hang in 4–11 runs; after: 0 in 40, plus 5 × 13/13 runs of the full script. Regression test: 30 real processes, each receiving 2–5 SIGTERMs back to back.
-3. **mDNS test script fragility:** `test_mdns.sh` relied on fixed sleeps, and could count an old goodbye line as new.
-   * It now polls with timeouts and counts only new goodbye lines.
-   * It measures the time until the name disappears after a goodbye: ≤ 4.5 s, including the 3 s resolve timeout.
-   * It prints diagnostics if a stop hangs.
-4. **Test-day crash:** with a root-owned `/boot/firmware` on stock Pi OS, `appliance --boot-dir` would have crashed. It now reports and continues.
-5. **Flash tool:** if even invalidating the card failed, the tool kept silent. It now reports that the card must not be used.
-6. **genimage template:** a comment contained the placeholder token, and `sed` broke the generated config.
-7. **During development, never committed broken:** inserting the `/trust/proof` view moved `@public` off `/healthz`. It was caught by the tests, and a guard test was added.
-
-## 4. Tests — clean-slate full run on commit `0ae4d2a`
-Evidence: `reports/evidence/full_run_phase2b_prep.log`, 2026-11-16T16:19Z, after `lab_down`.
+## 2. The demo (docs/DEMO.md, German: docs/DEMO.de.md)
+```bash
+make demo           # build + start; prints the URLs and the one-time setup code
+make demo-status    # URLs, setup code, CA fingerprint, MQTT credentials, CPU/RAM
+make demo-trust     # P7 trust proof (before setup) or fingerprint comparison (after); saves .demo/hifi-bridge-ca.pem
+make demo-recover   # SD-card recovery: new one-time setup code, settings kept
+make demo-ha        # + Home Assistant, onboarded, with the MQTT integration
+make demo-logs | demo-stop | demo-reset   # reset deletes ONLY the demo's own data, after typing RESET
 ```
-exit codes: static=0 unit=0 integration=0 outage_lms=0 outage_player=0 pipewire=0 hwkit=0 mdns=0 syslog=0 py314=0 security=0 os=0 homeassistant=0 browser=0
-static: shellcheck (incl. OS scripts), python compile, systemd-analyze verify (hifi-bridge 1.9 OK, hifi-bridge-boot 0.6 SAFE), actionlint
-unit 294 | integration 55 (real LMS 9.1.2 / Squeezelite / Mosquitto) | outages lms + player | PipeWire 0.3.65: 11 + 1 skip, 1.4.2: 12
-hwkit 32 | mDNS vs real Avahi 13/13 (goodbye: name gone after 3.8 s) | syslog vs real rsyslog 2/2 | Python 3.14: 294 | bandit: 0 high/medium
-OS + flash tool: 3 defconfigs PASS (72 requirements kept each), licences 48 target packages/board, 0 to review; tests/os + tests/flashtool 46
-Home Assistant 2026.11.1: 7/7 | browser 5/5 (Chromium + WebKit, axe-core)
+URLs (defaults, all bound to 127.0.0.1, configurable): bridge http://127.0.0.1:18080 / https://127.0.0.1:18443, console
+http://127.0.0.1:18100 (`/phones`, `/monitor`), Lyrion http://127.0.0.1:19000, Home Assistant http://127.0.0.1:18123.
+Host requirements: Docker + Compose v2 + make. No host installation, no hardware access, no privileged container.
+
+**Architecture (DECISIONS #71)**
 ```
-**Coverage** on the same commit, unit + integration + os + flash tool (`reports/evidence/coverage.txt`): **91 %** (5606 statements, 2116 branches).
+virtual phones (console) --"air" API--> SIMULATED bluetoothd (fake BlueZ, private D-Bus): pairing agent, Device1, MediaTransport1, MediaPlayer1
+        | A2DP stand-in (PCM, real time)          | D-Bus
+        v                                         v
+  PipeWire node bluez_input.<MAC> --pw-cat--> REAL bridge (--source bluez, unchanged) --HTTP stream--> REAL Lyrion --> 3x REAL Squeezelite
+                                                                                                                    | virtual DAC + tap
+                                                              browser audio monitor <-- console relay <-------------+
+```
+* The phones never talk to the bridge: they can only do what a phone can do over the air. Refusal of a second phone, the pairing window,
+  owner removal, takeover rules - all decided by the product's own code.
+* The flash-tool core provisions the setup code and trust key on the simulated boot partition, as for a real card.
+* Isolation: compose project `hifi-demo`, one image `hifi-demo:dev` (394 MB), internal network **without host address**, only a gateway
+  publishes ports (127.0.0.1). The demo pre-sets the owner setting `extra_hostnames=127.0.0.1` so HTTPS works at 127.0.0.1 with the device CA.
+* Audio: generated in code (4 tracks, radio programme, notification chime; CC0 output). Users can add their own WAV/FLAC/MP3/Ogg files;
+  decoded locally, never sent anywhere.
 
-**Timings** (real LMS + Squeezelite with a virtual DAC + SIMULATED phone; **not acoustic**):
-
-| Measurement | Result |
-|---|---|
-| Play → sound | WAV 1.58 s / FLAC 1.99 s |
-| Pause → silence | 0.057 s |
-| Resume | 1.58 s |
-| Takeover → LMS command | 2.04 s |
-
-**Not executable here (gate items):**
-- real BlueZ, phones, AVRCP, volume and players;
-- acoustic latency;
-- the Buildroot build and boot on any board;
-- U-Boot/RAUC install, rollback and power cuts;
-- the hotspot on the on-board Wi-Fi;
-- vfat in-place overwrite on real media, and FTL residue;
-- the flash tool on real computers and cards;
-- installers;
-- CI on GitHub (the repository is unpublished).
-
-## 5. Open hardware risks
-| Risk | Gate item |
-|---|---|
-| Capturable phone node / PipeWire 1.2.8 `pw-cat --raw` path | G1 A3/A4 |
-| Music vs. notification separation on real phones (main software risk) | G1 C1/C2 |
-| U-Boot `rpi_arm64` + boot-count on each board; `tryboot` maybe only on the Pi 4 | G2 P3-1…P3-8 |
-| Firmware/DTB/overlays on the shared boot partition (not A/B) | G2 P3-7, OQ #36 |
-| Bluetooth on PL011 without `miniuart-bt` | G2 P1-3 |
-| vfat in-place overwrite assumption; FTL residue cannot be tested without lab equipment | G2 P6-3 |
-| Zero 2 W: 512 MB RAM, shared 2.4 GHz radio | G1 E5, G2 P4-4 |
-| Power cut during install / boot-count write | G2 P3-5/P3-6 |
-| Licence of the brcmfmac firmware | G4 L-1 |
-
-## 6. Docker resources (read-only, `reports/evidence/docker_usage_phase2b_prep.txt`)
-| | Start of package | End of package |
+## 3. Requirements of the assignment - status
+| # | Requirement | Status / evidence |
 |---|---|---|
-| `/dockerfs` (196 G) | 71 G used, 115 G free | 73 G used, **114 G free** |
-| Images | 47.4 GB (103) | 48.7 GB (107) |
+| 1 | `make demo`, `-stop`, `-status`, `-logs`, `-reset` (with confirmation); only Docker/Compose/make; no privileged containers; isolation; configurable ports on localhost | done; plus `-trust`, `-recover`, `-ha`, `-test`. Port pre-check; isolation verified by the stack test (step 0) |
+| 2 | Real product software with all functions (wizard, login/HTTPS, pairing window, devices, playback, Lyrion, player choice, diagnostics/test tone, MQTT, monitoring, DE/EN, light/dark); security not weakened; setup code + TLS trust easy; persistent | done: unchanged product; setup in Chromium, pairing window, device removal, MQTT, ICY titles tested; P7 trust proof + fingerprint fallback; volumes persist across restarts |
+| 3 | Virtual phones UI in the CI: search, pair, connect/disconnect, play/pause/resume, volume, track change, metadata, notifications, link loss, second phone; existing fake BlueZ; no product bypass | done (`/phones`); built on `btkit.fake_bluez`; unit-tested against the product's real `BluezAdapter` |
+| 4 | Real Lyrion, Squeezelite Wohnzimmer/Schlafzimmer/Arbeitszimmer, single and synchronised playback, simulated radio, Lyrion UI on the host | done; multiroom proven by correlation in the Schlafzimmer; demo radio as Lyrion favourite and console helper |
+| 5 | Audible audio: browser monitor of the players' PCM (behind Lyrion and Squeezelite), room choice, documented added latency, own/free content, no external transfer | done; AudioWorklet (secure context) with ScriptProcessor fallback; latency measured live: ~260-295 ms |
+| 6 | Real Mosquitto; Home Assistant as optional profile; discovery and enable-able controls | done; random per-install broker passwords; `make demo-ha` onboards HA and adds MQTT (manual run; the HA suite of the lab tests discovery + all controls) |
+| 7 | URLs in the terminal; short guide with the 8 examples; simulated devices/values marked | done: docs/DEMO.md (EN, full), docs/DEMO.de.md (DE); every console page shows SIMULATED; measurement files carry a label |
+| 8 | Public-visibility preparation | done, section 6; visibility not changed |
+| 9 | TDD, unit/integration/browser tests, coverage kept, resources watched, Conventional Commits, auto-push + CI monitoring, rules, hardware gate | done; section 5 |
 
-The one new image is `btbridge-os:dev` (522 MB).
-- **Superseded own images:** 18 images, about 7.1 GB, removable with the owner-run cleanup script.
-- **Lab:** stopped with `lab_down` (own compose project only).
-- **Buildroot checkout:** in `.lab/buildroot` (~80 MB, host filesystem, not versioned).
-- **Foreign resources:** none touched; no prune command used.
+## 4. Defects and findings in this package (all fixed)
+1. **Host services reachable from "internal" Docker networks.** The host keeps an address on an internal bridge; a Lyrion server running on
+   the host answered the wizard's UDP discovery, and the bridge in the **test** stack listed its players (read-only; the test stopped
+   before choosing one). Fix: `com.docker.network.bridge.inhibit_ipv4` on the demo **and the lab** network; stack test step 0 aborts if
+   the host has an address there. Full run after the fix: all suites green (the lab does not need host access).
+2. **Product: misleading first-start hint** - after provisioning, the log still pointed to the deleted `setup-code.txt`. Now points to the
+   flash tool's owner sheet (unit test).
+3. **Product: no AGPL source offer** in the WebUI. Every page footer now links the repository (unit test; `btbridge.SOURCE_URL`).
+4. **Test race (CI): Home Assistant switch** pressed before HA had processed the entity's availability. The bridge subscribes before it
+   announces (checked); the test now waits for availability, like a user would.
+5. Demo-internal (found by its own tests): concurrent saves of pairings; correlation finding a repeated bar (search window bounded); trust
+   key consumed by setup (P7 before setup, fingerprint fallback after); AudioWorklet missing in insecure contexts (fallback); CSP blocking
+   inline styles; a11y: unnamed select (axe "critical"); ambiguous labels; stale phone messages; `scripts/demo.sh` addressed the owner's
+   project from the stack test (now `DEMO_PROJECT`, the test never touches the owner's demo).
+6. Development host specifics: automatically assigned Docker ranges 172.17/16 and 172.18/16 were not reachable from this host - the demo now
+   uses fixed, overridable /24 subnets. The old `scripts/demo.sh` (phase-1 lab walkthrough) was overwritten by mistake and restored as
+   `scripts/lab_walkthrough.sh`.
+7. **Harness: PipeWire start on a cold CI runner** - `testkit/pw/start_pipewire.sh` waited only 10 s for pipewire-pulse (0.3.65) and its
+   diagnostic `tail -5` with several files was invalid, so logs never appeared. Now up to 30 s and `tail -n 8`.
 
-## 7. Changes and commits
-7 commits on `develop` (`576b823..0ae4d2a`) plus this handoff/evidence commit. All use the identity `Oliver Meyer <olm@cativa.net>`. 131 files
-changed. There was no push, tag, release or history rewrite.
+## 5. Tests
+**Local full run** (`scripts/run_all.sh`, log `reports/evidence/full_run_demo_package.log`, started 2026-11-17T12:53Z on `e93d9fe`; the HA
+and demo suites ran with the test fix committed as `dc92515`; code-identical to `0e307d1`): **all 17 suites exit 0** - static (incl. licence-copy check), unit 296,
+integration 55, outages 2, PipeWire 11+1 skip / 12, hwkit 32, mDNS 13/13, syslog 2, Python 3.14 296, bandit, Gitleaks (74 commits), OS
+(3 defconfigs, licences, 46 tests), Home Assistant 7/7, **demo unit 52**, **demo stack** (below), browser.
 
-| Commit | What |
+**Demo stack test** (`scripts/test_demo.sh`, separate project `hifi-demo-test`, fresh volumes):
+0 isolation (no host address, no default route) - P7 trust proof before setup (`VERIFIED`, HTTPS 200 with only the device CA) - 1 owner
+setup in Chromium - 2 audio chain **11/11** - 3 console UI **8/8** - 4 fingerprint method after setup - 5 MQTT discovery (14 config topics)
+- 6 SD-card recovery (new code, `/` redirects to `/setup`).
+Chain tests: pairing inside the window; Play reaches the Wohnzimmer behind Lyrion and Squeezelite (**cross-correlation with the phone's
+track: score 1.0**); track change; phone volume changes the room volume (50 -> 40); second phone refused, first untouched; pause/resume;
+0.7 s notification does **not** take the radio over, music does; synchronised group plays the same track in the Schlafzimmer (score 1.0);
+link loss stops the room; manual source change in Lyrion is respected (the bridge does not take the room back).
+Console UI: overview/phones/monitor in DE light mobile and EN dark desktop with axe-core (no serious/critical), no console/CSP errors, no
+overflow; phone controls; both monitor engines with measured latency; owner removes a phone in the WebUI and the phone learns it; MQTT set
+in the WebUI; ICY titles appear in Lyrion after the owner enables them.
+
+**GitHub Actions:** run 44087288559 (`e93d9fe`): 13/14 green incl. the new **demo job (4.2 min)**, homeassistant failed (finding 4);
+run 44093151791 (`0e307d1`): 13/14, pipewire start failed (finding 7); **run 44097021835 (`87074ad`): 14/14 green** (section 9). Full CI: 58 job-minutes, 21.6 min wall time.
+
+**Coverage** (product code, unit + integration): see section 9 (`reports/evidence/coverage.txt`). The demo code is a tool and is covered by
+its own tests, not counted in the product figure (docs/TEST_COVERAGE.md).
+
+## 5a. Measurements (SIMULATED phones and rooms; software timing in Docker - not acoustic, not Bluetooth)
+`measurements/demo_chain.json`, `measurements/demo_monitor_latency_*.json`:
+| What | Value |
 |---|---|
-| a3af4b2 | device: provisioning, `/trust/proof`, journaled recovery, bootfiles step + its systemd unit |
-| e96416f | `os/` skeleton, OS tooling image, defconfig/licence checks, `tests/os`, flash tool core + `tests/flashtool` |
-| dfb7736 | docs: P1–P9 review, UPDATE_TRUST, PROVISIONING, TRUST_BOOTSTRAP, FLASH_TOOL, gate checklist; CI/run_all/coverage wiring |
-| 65127b7 | flash tool CLI (no disk writing); bundle ships the flash tool + gate docs; coverage tests |
-| adb3c1e | fix: appliance keeps starting with a non-writable boot directory |
-| 7b1aded | fix: async-signal-safe stop handling; robust mDNS test script |
-| 0ae4d2a | docs: stop handling, measured goodbye |
+| Play on the phone -> Lyrion plays the bridge stream | 2.1 s |
+| Phone -> room DAC while playing (Lyrion + Squeezelite buffering) | 2.2 s (Wohnzimmer; grouped Schlafzimmer 2.25 s) |
+| Takeover of the radio after Play (notification filter) | 2.3 s |
+| Resume after pause (within the grace period) | 0.27 s |
+| Link loss -> room stops | 0.02 s |
+| Audio monitor, **added** latency (player DAC -> browser output) | ~260-295 ms (jitter buffer ~225-240 ms + browser-reported output ~50 ms; headless Chromium) |
+| Resources while playing | ~430 MB RAM for the whole demo (bridge ~65 MB), a few % CPU |
 
-## 8. Recommendation for the next step
-1. **Run gate G1 now.** Everything for it is prepared:
-   * `scripts/hwkit_bundle.sh`;
-   * `docs/HARDWARE_TEST_PROCEDURE.md`, about 4 h;
-   * the new test-day items: provisioning and `hififlash verify-device` from a laptop.
+Screenshots (`reports/screenshots/`): `demo-03-bridge-pairing-open.png`, `demo-04-phones-playing.png`, `demo-05-monitor-listening.png`,
+`demo-phones-mobile-light-de.png`, `demo-overview-desktop-dark-en.png`, `demo-monitor-desktop-dark-en.png` (all screenshots of every run are
+also uploaded by the CI demo job).
 
-   G1 decides whether the audio path works with real phones, which is the precondition for any image work.
-2. In parallel, owner decisions: OQ #35, #38, #41 (licence review, release-CA process, LICENSE file). They block a public image, not G1.
-3. After G1 passes and is approved, start **phase 2b step 1/2** (PHASE2B_PLAN §5):
-   * real Buildroot builds in `btbridge-os`;
-   * then the boot-mechanism and RAUC/rollback feasibility **per board** (G2).
+## 6. Publication check (docs/REPOSITORY.md section 7, DECISIONS #72)
+| Item | Result |
+|---|---|
+| LICENSE | official AGPL-3.0 text (SHA-256 `0d96a4ff…abcb0`); `bridge/LICENSE` identical copy for Buildroot (static check); `HIFI_BRIDGE_LICENSE_FILES` set (OPEN_QUESTIONS #41 resolved) |
+| Copyright / licence notice | README: "Copyright (C) 2026 Oliver Meyer and contributors", AGPL-3.0-only notice, CC0 note for generated audio |
+| AGPL section 13 | WebUI footer links the repository with the version on every page |
+| Third-party licences | docs/THIRD_PARTY.md now also lists every demo component |
+| Secrets | Gitleaks over all 76 commits: clean. Tracked files: only lab/test values. Committed screenshots: empty forms, a disposable lab CA fingerprint. CI logs of all runs (78 files) and latest artifacts: Gitleaks clean, no token patterns. The GitHub token file is git-ignored, 0600, never in images (`.dockerignore` allowlist) |
+| Private information | see decision 1 (OPEN_QUESTIONS #46) |
+| Pull requests from forks | `pull_request` only, read-only token, no secrets anywhere, checkout without persisted credentials, actions pinned to SHAs + Dependabot, GitHub-hosted runners only |
+| README | starts with an explicit development-status warning: no hardware validation, no image built, no releases |
+| SECURITY.md | private reporting via GitHub (needs the setting, #47) |
 
-   Only after that: the network service (step 3) and the flash-tool GUI (step 7).
+## 7. Remaining limitations (unverified, by design of the demo)
+* Simulated: phones, Bluetooth radio and codecs (no SBC/AAC, no link quality), AVRCP behaviour of real phones, the rooms' speakers, the radio.
+  The demo's PipeWire node is a `module-pipe-source`, not the PipeWire BlueZ plugin.
+* PipeWire 1.4.2 in the demo vs. 1.2.8 in Buildroot; Squeezelite 2.0 (trixie) in the demo vs. 1.9.9 in the lab.
+* The monitor latency is measured in headless Chromium; real browsers and sound cards add their own output latency (the page shows it live).
+* `make demo-ha` was exercised manually by its building blocks (onboarding + MQTT flow reuse the lab's tested HA client); the stack test
+  checks MQTT discovery on the broker, the lab HA suite checks discovery and all controls in a real HA.
+* No temperature in containers (system page shows CPU/RAM only). No Wi-Fi/hotspot network service exists yet (phase 2b step 3).
+* Everything in the hardware gate remains open.
 
-**Do not** start a productive OTA rollout before G4 (keys, licences, power-cut results per board).
+## 8. Docker resources (read-only checks)
+148 GB free on the Docker filesystem. New images: `hifi-demo:dev` 394 MB, `ghcr.io/gitleaks/gitleaks:v8.24.3` 39 MB. 60 superseded
+intermediate `hifi-demo` builds of today (identified by the Dockerfile's own configuration, unused) were removed; the image count went from
+191 back to 129; no foreign image, container or volume was touched. The image now carries a label for safe identification. The owner's demo
+(`hifi-demo`) is running; the test stack `hifi-demo-test` removes itself after each run.
 
-## 9. Operator summary (copy/paste)
-> The phase-2b review is implemented without hardware. Everything ran in Docker; no Pi image was built or booted, no real Bluetooth was
-> used, and no real disk was written.
->
-> - **P5:** update trust is now an explicit build choice (official / own / both, no default), verified with real RAUC 1.13. Release bundles
->   are re-signed offline, so the release key never touches CI.
-> - **P6:** a strictly validated, journaled provisioning file on the boot partition, scrubbed in place after use. There is no hotspot
->   without an owner-known password, and the FAT residual-data risks are documented.
-> - **P7:** the contradiction is removed. The flash tool cannot know the fingerprint at flash time, so it puts a one-time trust key on the
->   card and later authenticates the device CA with an HMAC proof plus an HTTPS check. A CA-swapping attacker is detected in tests.
-> - **P8:** recovery runs exactly once and is power-cut safe.
-> - **P9:** the flash-tool core (disk safety policy, signed manifest, write/verify/invalidate, provisioning) is tested with simulated cards
->   only.
-> - **Buildroot:** a br2-external skeleton for Zero 2 W / 3 B+ / 4 with checked defconfigs (this caught WirePlumber being silently
->   dropped) and a licence report (48 packages; brcmfmac firmware licence still to review).
-> - **Bugs fixed:** a real deadlock with back-to-back SIGTERMs (appliance/mDNS/Avahi) and a test-day crash with a read-only
->   `/boot/firmware`.
->
-> Full clean run on one commit: all 14 suites green, 294 unit, 55 integration, coverage 91 %. Docker: 114 GB free; 18 superseded own
-> images (~7 GB) can be removed with the owner script.
->
-> Next: hardware gate G1, then phase 2b builds and the per-board boot/rollback feasibility (G2).
+## 9. Final CI run and coverage
+* **GitHub Actions run 44097021835 on `87074ad`: 14/14 jobs green** (static, unit, integration, pipewire, hwkit, mdns, os-and-flashtool,
+  security incl. Gitleaks, python314, syslog, coverage, homeassistant, browser, **demo**). The two runs before were red once each for a
+  test-harness reason: the Home Assistant switch race (finding 4) and a PipeWire 0.3.65 start that needed more than 10 s on a cold runner
+  (finding 7) - both fixed in tests/harness, not in product code.
+* **Coverage** (product code, unit + integration, `reports/evidence/coverage.txt`, commit `0e307d1`): 5615 statements, 2120 branches,
+  **91 %** (unchanged; 90 % is an intermediate value, not a ceiling).
+
+## 10. Commits (develop, pushed; no tag, no release, no history rewrite)
+`e99b757` fix(appliance) first-start hint - `e4a94f4` feat(demo) - `f1e15ab` feat(webui) licence + source link - `1bfdb78` fix(lab) no host
+address - `eecc7d2` ci hardening + demo job - `e93d9fe` feat(demo) recovery/trust/monitor/docs - `dc92515` test(homeassistant) race -
+`0e307d1` chore(demo) label + coverage doc - `4dea08f` test(pipewire) start wait - `87074ad` docs: full run, coverage,
+measurements - this handoff.
+
+## 11. Recommendation
+1. Decide #46 (history) and #47 (settings), then switch the repository to public; the CI then runs on free runners.
+2. Use the demo to walk through the guest experience with the owner and family - it exercises the same product code paths as the device.
+3. Then the hardware gate G1 (unchanged) with real phones; the demo's virtual-phone scenarios map one-to-one to G1's B/C tests.
+
+## 12. Operator summary (copy/paste)
+Interactive Docker demo delivered: `make demo` runs the unchanged Hi-Fi Bridge (real BlueZ adapter over a simulated bluetoothd, real
+PipeWire), real Lyrion with three Squeezelite rooms, Mosquitto, optional Home Assistant, virtual phones and a browser audio monitor of the
+rooms' output (added latency ~260-295 ms, measured). Tests: local full run 17/17 suites green; demo stack test proves by cross-correlation
+that the rooms play the phone's track; takeover, notification filter, multiroom, link loss, manual source change, P7 trust, MQTT, recovery
+covered; GitHub Actions 14/14 green (run 44097021835) after two test-harness fixes; product coverage 91 %. Public-readiness: AGPL LICENSE, copyright,
+source link in the WebUI, SECURITY.md, CI hardened (SHA pins, no secrets, pull_request only), secrets check of history/docs/screenshots/CI
+logs clean. Found and fixed: Docker "internal" networks still let containers reach host services (a real Lyrion on the host was listed
+read-only once) - now blocked for demo and lab. Owner decisions: private data in Git history (#46), GitHub settings (#47), then visibility.
+Nothing verified on real Bluetooth, phones or a Pi; hardware gate unchanged.
