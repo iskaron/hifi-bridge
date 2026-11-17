@@ -24,3 +24,4 @@ ENV PYTHONPATH=/opt/hifi-bridge/bridge:/opt/hifi-bridge/testkit:/opt/hifi-bridge
 WORKDIR /opt/hifi-bridge
 USER hifi
 ENTRYPOINT ["/usr/bin/tini", "--"]
+LABEL org.opencontainers.image.title="hifi-demo" org.opencontainers.image.source="https://github.com/iskaron/hifi-bridge" net.hifi-bridge.component="demo"

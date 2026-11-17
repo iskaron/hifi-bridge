@@ -37,3 +37,13 @@ covered.
 * `os/br2-external/board/hifi-bridge/*.sh` (shell): exercised by `tests/os` (post-build with fake trees, post-image with genimage, growdata
   on image files) and shellcheck, but shell is not instrumented.
 * `packaging/systemd/*.service`: `systemd-analyze verify/security` only.
+
+## Interactive demo (`demo/hifidemo`, not product code)
+The demo is a development tool and is **not** counted in the product coverage above. Its own tests:
+* `scripts/run_demo_tests.sh` - 52 unit tests: music generation, the simulated bluetoothd **against the product's real BlueZ adapter** on a
+  private D-Bus (pairing window, agent, refusal of a second phone, owner removal, link loss, persistence), phone model, decoding, audio
+  monitor framing and pacing, gateway, Lyrion helpers, console API incl. rebinding/CSRF guards.
+* `scripts/test_demo.sh` - the full stack on its own compose project: isolation check, P7 trust proof, owner setup in Chromium, 11 audio
+  chain tests (the room's PCM behind Lyrion and Squeezelite matched to the phone's track by cross-correlation, score 1.0), takeover rules,
+  multiroom, manual source change, console UI in two languages/themes/sizes with axe-core, both audio monitor engines, MQTT discovery,
+  SD-card recovery.
