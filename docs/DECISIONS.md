@@ -246,3 +246,25 @@ Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardwar
 82. **Isolation against production Lyrion servers is regression-tested** statically (every network internal + `inhibit_ipv4` except the
     gateway's `edge`; no host networking, `extra_hosts`, Docker socket; Lyrion only as `lms`) and at runtime (`scripts/check_isolation.sh`:
     no host address, TCP 9000/3483, UDP discovery and broadcast to host addresses fail), with a positive and a negative control.
+
+## Implementation decisions of package 3 - network management (reversible; 2026-11-18; details docs/NETWORK.md)
+83. **Privilege boundary:** a small root agent `hifi-netd` accepts six JSON requests (`status`, `trial`, `confirm`, `revert`, `scan`,
+    `hostname`) on `/run/hifi-net/agent.sock` (0660 root:hifi-bridge, SO_PEERCRED: root or the bridge's uid, ≤ 4 KiB). No request carries
+    configuration: the bridge owns `network.json` (0600); the agent reads it strictly (no symlinks, owner, mode, size), checks its SHA-256
+    against the request id, validates it again and never writes the bridge's data. An invalid file means Ethernet + DHCP only.
+84. **Hotspot policy:** only with owner-known hotspot credentials + a regulatory country + no working Ethernet uplink (P6, #56). Opens 60 s
+    after the configured Wi-Fi fails, or 15 s after start without configured Wi-Fi; retries the Wi-Fi after 2 min, 5 min, then every
+    10 min, never while a phone is connected to the hotspot and only if a scan sees the network; closes after Ethernet returns and 30 s idle.
+    Client Wi-Fi and hotspot are mutually exclusive, also enforced by systemd `Conflicts=` between the units.
+85. **Owner network changes are trials:** a change that affects the connection the owner may be using must be confirmed on the page within
+    3 min, otherwise it is rolled back automatically; a failed Wi-Fi attempt rolls back at once; after a power cut the last confirmed
+    configuration applies. SD-card/console recovery `network-reset` forgets client Wi-Fi and fixed addresses (keeps country and hotspot).
+86. **Hotspot network:** 10.42.0.1/24, WPA2-PSK/CCMP, client isolation, ≤ 8 stations, dnsmasq DHCP only (no router, no DNS - no captive-portal
+    emulation); WPA3-SAE for the hotspot only after hardware test N-4.
+87. **No SSID or password as text in daemon configuration files** (WPA2 PMK hex, SAE password hex, hostapd `wpa_psk` hex, SSIDs hex) -
+    found by the real-tool test: wpa_supplicant strips `#` outside quotes, so a passphrase containing `"` or `#` was silently truncated.
+88. **V1 scope:** one saved client Wi-Fi network; open, WEP, WPA1 and enterprise networks are not supported.
+89. **OS stack:** systemd-networkd + timesyncd + hostnamed + nftables (inet, default deny inbound/forward; LAN: WebUI 80/443, stream 8090,
+    mDNS, DHCP/ND replies, Lyrion discovery replies, rate-limited ICMP; hotspot clients: DHCP + WebUI only); base firewall loaded before
+    `network-pre.target`; Avahi host name follows `local_hostname` through the agent; wait-online `--any --timeout=15`; the time-sync clock
+    file persists on the data partition (no RTC).

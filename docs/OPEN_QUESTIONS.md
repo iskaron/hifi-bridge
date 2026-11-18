@@ -163,3 +163,11 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 57. **Image pin updates:** enable Dependabot for the Docker ecosystem (proposes digest bumps as pull requests), or keep manual updates via
     `scripts/image_pins.sh`? Owner decision together with #47.
 58. Engine 29 with Compose 2.21-2.23 was not tried; the stated Engine-29 minimum (2.24.5) is the lowest release tested there.
+
+## Added by package 3 - network management (2026-11-18)
+59. **Fallback NTP server:** keep `pool.ntp.org` after the DHCP-provided servers, use none, or make it an owner setting?
+60. **Devices without internet never sync time:** certificate validity is judged by the device clock, so browsers may see an expired
+    certificate after ~13 months. Options: a time hint from the owner's browser or from Lyrion, or manual renewal.
+61. Do phones need a "stay connected without internet" hint on the hotspot page? Depends on hardware test N-5.
+62. More than one saved client Wi-Fi network in V1 (today one, DECISIONS #88)?
+63. Should `hifi-bridge.service` declare `Wants=hifi-netd.service` (today independent; the WebUI shows the agent as unavailable)?
