@@ -84,7 +84,9 @@ build() {
 }
 sbom() {
 	make -s -C $O show-info > $O/hifi/show-info.json
-	python3 $B/utils/generate-cyclonedx -i $O/hifi/show-info.json -o $O/hifi/sbom.cdx.json \
+	# the tool runs `make -C <buildroot> print-version`, which needs a writable O= (the tree is mounted read-only) and caches the
+	# SPDX licence schema in $BR2_DL_DIR/cyclonedx
+	BR2_DL_DIR=/dl MAKEFLAGS="O=/tmp/print-version" python3 $B/utils/generate-cyclonedx -i $O/hifi/show-info.json -o $O/hifi/sbom.cdx.json \
 		--project-name "hifi-bridge-$BOARD" --project-version "$(sed -n "s/^VERSION_ID=//p" $O/target/usr/lib/os-release)"
 	python3 /work/os/tools/license_report.py $O/hifi/show-info.json $BOARD $O/hifi/licences.md
 }
@@ -98,7 +100,7 @@ for s in $STEPS; do
 	esac
 done
 echo "=== done ($(date -u +%FT%TZ))"
-' 2>&1 | tee "$log" | grep --line-buffered -E '^(===|>>>|ERROR|make: \*\*\*|configure:|hifi-bridge post-|post-image:)'
+' 2>&1 | tee "$log" | grep --line-buffered -E '^(===|>>>|ERROR|make: \*\*\*|configure: dropped|hifi-bridge post-|post-image:)'
 rc=${PIPESTATUS[0]}
 set -e
 echo "os_build: $BOARD exit code $rc (log $log)"
