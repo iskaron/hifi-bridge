@@ -28,6 +28,6 @@ s=$(date +%s); scripts/hwkit_bundle.sh; r=$?; echo "hwkit_bundle: exit $r after 
 ls -la dist | head -8
 echo "### $(t) images after"
 docker image ls --format '{{.Repository}}:{{.Tag}} {{.Size}}' | grep -E '^(btbridge-|hifi-demo|lmscommunity|eclipse-mosquitto)'
-kill $(jobs -p) 2>/dev/null; pkill nc 2>/dev/null
+pkill nc 2>/dev/null
 echo "CLEAN-ENVIRONMENT RESULT: $([ $rc = 0 ] && echo PASS || echo FAIL)"
 exit $rc

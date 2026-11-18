@@ -11,8 +11,12 @@ in German and English, reached under `hifi-bridge.local` over HTTPS with the dev
 > phone over real Bluetooth, and **no** device image has been built or booted. A/B updates, rollback and the flash tool are not verified.
 > There are no releases. Do not use it for anything important yet. The hardware gate (`docs/HARDWARE_GATE_CHECKLIST.md`) comes next.
 
-**Try it now - interactive demo** (Docker + Compose + make, nothing else on the host; `docs/DEMO.md`, German: `docs/DEMO.de.md`):
+**Try it now - interactive demo** (Docker + Compose + make, nothing else on the host; `docs/DEMO.md`, German: `docs/DEMO.de.md`).
+**Requirements: Docker Engine >= 24.0 and Docker Compose (v2 plugin) >= 2.20** - see `docs/DOCKER_REQUIREMENTS.md` for how these minimums were
+determined. `make doctor` checks them (and disk, ports); `make demo` checks them itself before it starts anything and builds or pulls
+every missing image with visible progress (the first run takes several minutes; `HB_QUIET=1 make demo` prints step lines only).
 ```bash
+make doctor        # is this computer ready? (Docker/Compose versions, make, disk space, ports, images) - changes nothing
 make demo          # builds and starts everything, prints the URLs and the one-time setup code
 make demo-status   # URLs, setup code, MQTT credentials, resources
 make demo-stop     # stop (data is kept); make demo-reset deletes only the demo's own data
@@ -51,8 +55,13 @@ docs/              spec, decisions, security, local access/TLS, supervision, Pip
 .github/workflows/ GitHub Actions CI: every suite below in Docker, plus a full-history Gitleaks secret scan
 ```
 
-## Tests (all in Docker; Docker + Compose are the only host requirements)
+## Tests (all in Docker; Docker >= 24.0 + Compose >= 2.20 are the only host requirements)
+Every script checks its prerequisites first and builds the project images it needs (`scripts/lib/common.sh`); third-party images are pinned by
+tag and digest (`docker/image-pins.txt`, `docs/IMAGE_PINS.md`).
 ```bash
+scripts/run_entry_tests.sh        # entry scripts (fake docker), compose isolation rules, image pins - no daemon needed
+scripts/test_docker_versions.sh   # Docker Engine 24-29 x Compose matrix in disposable Docker-in-Docker sandboxes
+scripts/test_entry_clean.sh       # fresh clone, no images: make demo + hwkit_bundle end to end in a sandbox
 scripts/lab_up.sh                 # lab: LMS, 4 Squeezelite players, Mosquitto
 scripts/run_static.sh             # shellcheck, Python compile, systemd-analyze verify, actionlint
 scripts/run_unit.sh               # unit tests

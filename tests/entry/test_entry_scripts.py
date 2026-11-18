@@ -98,3 +98,13 @@ def test_existing_demo_data_with_default_volume_is_migrated_once_and_owner_chang
     (cfg / "prefs/server.prefs").write_text(text)
     run()
     assert volumes(cfg)["02:00:00:00:01:01"] == 40                                           # never touched again
+
+
+def test_documented_minimum_versions_match_the_scripts():
+    """README, both demo guides, the requirements page and the Makefile name the same minimum Engine/Compose as scripts/lib/common.sh."""
+    src = (ROOT / "scripts/lib/common.sh").read_text()
+    eng = re.search(r"HB_MIN_ENGINE=\$\{HB_MIN_ENGINE:-([0-9.]+)\}", src).group(1)
+    comp = re.search(r"HB_MIN_COMPOSE=\$\{HB_MIN_COMPOSE:-([0-9.]+)\}", src).group(1)
+    for f in ("README.md", "docs/DEMO.md", "docs/DEMO.de.md", "docs/DOCKER_REQUIREMENTS.md", "Makefile"):
+        t = (ROOT / f).read_text()
+        assert f"{eng}" in t and f"{comp}" in t, f"{f} does not state Engine {eng} / Compose {comp}"
