@@ -14,6 +14,19 @@ from .mdns import MdnsResponder
 
 RENEW_CHECK_S = 3600          # certificate validity check
 ADDRESS_CHECK_S = 60          # a new DHCP address triggers a re-issue (the certificate lists the device's IPs)
+LABEL_MAX = 63                # one DNS label (RFC 1035), in UTF-8 bytes
+
+
+def instance_name(device_name: str) -> str:
+    """DNS-SD instance name "Hi-Fi Bridge (<device name>)", shortened on a UTF-8 character boundary to fit one DNS label: the
+    schema limits the name to 32 characters, but 32 Cyrillic or umlaut characters are more than 63 bytes (review H5)."""
+    pre, post = "Hi-Fi Bridge (", ")"
+    full = f"{pre}{device_name}{post}"
+    if len(full.encode("utf-8")) <= LABEL_MAX:
+        return full
+    room = LABEL_MAX - len(f"{pre}\u2026{post}".encode("utf-8"))
+    short = device_name.encode("utf-8")[:room].decode("utf-8", "ignore").rstrip()
+    return f"{pre}{short}\u2026{post}"
 
 
 class LocalAccess:
@@ -40,7 +53,12 @@ class LocalAccess:
         return [x.strip() for x in self.store.get("extra_hostnames").split(",") if x.strip()]
 
     def host_names(self) -> list[str]:
-        return [self.main_name(), f"{self.store.get('local_hostname')}.local", *self.extra_names()]
+        """Names the WebUI answers to. Includes the bare device name: a router's DNS search domain turns http://hifi-bridge/
+        into a working lookup (review M9). A single-label name cannot be an attacker's public domain (DNS rebinding)."""
+        base = self.store.get("local_hostname")
+        main = self.main_name()
+        bare_main = main[:-len(".local")] if main.endswith(".local") else None
+        return [n for n in dict.fromkeys([main, f"{base}.local", base, bare_main, *self.extra_names()]) if n]
 
     def cert_names(self) -> list[str]:
         ips = [ip for ip in self.addresses() if permitted(ip)]
@@ -55,15 +73,14 @@ class LocalAccess:
         return self.mode != "proxy" and self.ctx is not None
 
     def _load_ctx(self) -> None:
+        """Build a NEW context and swap the reference (review L12): load_cert_chain on a context that live handshakes use is
+        not documented as thread-safe. The WebUI reads ``ctx`` per connection, so new handshakes use the new certificate and
+        open connections are unaffected; ``None`` (proxy mode) makes the HTTPS listener refuse every handshake."""
         crt, key = self.certs.server_paths(self.mode)
-        self._loaded = (self.mode, crt)
-        if self.ctx is None:
-            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-            ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-            ctx.load_cert_chain(crt, key)
-            self.ctx = ctx
-        else:
-            self.ctx.load_cert_chain(crt, key)           # new handshakes use the new certificate; open connections are unaffected
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+        ctx.load_cert_chain(crt, key)
+        self.ctx, self._loaded = ctx, (self.mode, crt)
 
     def ensure_certificates(self) -> str | None:
         """Make sure a valid certificate for the current names is loaded. Returns the renewal reason (or None)."""
@@ -105,7 +122,7 @@ class LocalAccess:
     def _make_mdns(self):
         """DECISIONS #49: Avahi when reachable (auto) or required (avahi); the built-in responder only as fallback (auto) or on request."""
         services = [("_https._tcp", self.https_port, {"path": "/"}), ("_http._tcp", self.http_port, {"path": "/"})]
-        args = (self.store.get("local_hostname"), f"Hi-Fi Bridge ({self.store.get('device_name')})", services)
+        args = (self.store.get("local_hostname"), instance_name(self.store.get("device_name")), services)
         backend = self.store.get("mdns_backend")
         if backend in ("auto", "avahi"):
             from .avahi import AvahiPublisher, AvahiUnavailable
@@ -128,8 +145,8 @@ class LocalAccess:
         try:
             self.mdns = self._make_mdns()
             self.mdns.start()
-        except OSError as e:
-            self.log(f"mdns not available: {e}")
+        except Exception as e:                           # mDNS is optional: any failure degrades, never aborts the start (review H5)
+            self.log(f"mdns not available: {type(e).__name__}: {e}")
             self.mdns, self.mdns_backend = None, "unavailable"
 
     def start(self) -> None:
@@ -154,10 +171,21 @@ class LocalAccess:
         if changed and self.ctx is not None:
             self.ensure_certificates()                  # a conflict-renamed device needs its new name in the certificate
 
+    def _check_mdns(self) -> None:
+        """Re-publish if the backend lost our records (e.g. avahi-daemon restarted). Never raises into the loop."""
+        m = self.mdns
+        if m is None or not hasattr(m, "check"):
+            return
+        try:
+            m.check()
+        except Exception as e:
+            self.log(f"mdns: not published ({type(e).__name__}: {e}); retrying")
+
     def _loop(self) -> None:
         next_renew = RENEW_CHECK_S
         waited = 0
         while not self._stop.wait(ADDRESS_CHECK_S):
+            self._check_mdns()
             waited += ADDRESS_CHECK_S
             addrs = set(self.addresses())
             if addrs != self._last_addrs or waited >= next_renew:
@@ -178,7 +206,7 @@ class LocalAccess:
             from .certs import cert_info
             crt, _ = self.certs.server_paths(self.mode)
             srv = cert_info(crt) if self.mode != "proxy" and __import__("os").path.exists(crt) else None
-        except CertError:
+        except (CertError, AttributeError):                  # unreadable certificate: shown as missing, never a 500
             pass
         return {"mode": self.mode, "https_only": self.store.get("https_only"), "main_name": self.main_name(), "names": self.host_names(),
                 "mdns": self.mdns_name if self.mdns else None, "mdns_backend": self.mdns_backend, "http_port": self.http_port, "https_port": self.https_port,

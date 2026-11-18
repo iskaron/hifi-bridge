@@ -204,3 +204,25 @@ Do not turn measurements into artificial requirements. Ask for an explicit decis
 ## Owner clarification, 2026-11-15: development host has no physical audio hardware
 
 Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardware, sound cards, physical players or live LMS hosts. Build an actual in-Docker LMS and headless players, inject simulated phone Bluetooth audio through a replaceable adapter, and label the measured and unmeasured parts rigorously. Physical radio and device testing is a separate later-stage validation, not a phase-1 blocker.
+
+## Phase 2b - software completion and hardware readiness (owner, 2026-11-18)
+73. **Hardware-gate exception for software only:** the owner allows the software implementation of phase 2b (flash tool GUI, network
+    management, OTA/update management, review and coverage work) **and complete internal Buildroot development builds** before gate G1 is
+    passed. The exception covers software development, builds and hardware-free tests only. **All hardware gates (G1-G4) stay open**;
+    no simulated, emulated or build-only result counts as hardware validation. Images built under this exception are internal,
+    non-hardware-validated development artefacts and are never published (no release, no tag, no upload).
+74. **Findings of the owner's personal demo test (2026-11-18)** are in scope: Docker/Compose minimum versions with a pre-flight check, entry
+    scripts that build missing project images themselves, visible progress output, demo loudness (without changing the product audio
+    engine without reason), clean-environment tests of the entry points, isolation regression tests against production Lyrion servers,
+    reproducibly pinned Lyrion images.
+
+## Implementation decisions of package 1 - review fixes (reversible engineering rules; 2026-11-18)
+75. **No LMS call under the controller's state lock.** The controller takes a snapshot under the lock, calls LMS without it and
+    revalidates under the lock afterwards (server, target, phone and session unchanged); a superseded start removes exactly the item it
+    started, by URL. Status reads never wait for LMS I/O; the LMS host name is resolved in a worker with a 2 s timeout and cached 60 s.
+    Health treats a loop waiting in an LMS call as busy and only a call over 60 s as hung (review H2, docs/SERVICE_SUPERVISION.md).
+76. **Settings survive a downgrade:** the configuration store keeps unknown keys, values and secrets verbatim and never lowers
+    `schema_version`; only undecodable content counts as corrupt, an I/O error is reported instead of resetting the device (review M8;
+    needed for OTA rollback).
+77. **Bare local host names are accepted** by the Host check (e.g. `http://hifi-bridge/` through a router's search domain); single-label
+    names cannot be rebound through public DNS. Extends #35 (review M9).

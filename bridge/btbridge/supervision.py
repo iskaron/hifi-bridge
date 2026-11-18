@@ -103,6 +103,19 @@ class SessionJournal:
             except FileNotFoundError:
                 pass
 
+    def clear_if(self, url: str) -> bool:
+        """Clear only if the journal still names ``url``: crash recovery runs in the watch thread while the controller may
+        already have recorded a new session (review L3)."""
+        with self._lock:
+            cur = self.pending()
+            if not cur or cur.get("url") != url:
+                return False
+            try:
+                os.unlink(self.path)
+            except FileNotFoundError:
+                pass
+            return True
+
     def pending(self) -> dict | None:
         try:
             with open(self.path) as fh:

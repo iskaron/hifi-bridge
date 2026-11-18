@@ -30,8 +30,9 @@ def build_source(spec: str, dbus: str):
         from btkit.sim_a2dp import SimulatedA2dpSource           # lab only (testkit on PYTHONPATH)
         return SimulatedA2dpSource()
     if spec == "bluez":
+        from . import privacy
         from .adapters.bluez.factory import create_adapter
-        return create_adapter(bus=dbus)
+        return create_adapter(bus=dbus, log=privacy.scrubbed_print)          # journald gets pseudonyms, not phone MACs
     mod, cls = spec.split(":")
     return getattr(importlib.import_module(mod), cls)()
 

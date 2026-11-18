@@ -1,6 +1,6 @@
 {
- "_hwkit_silent_retries": 1,
- "_node_ready_after_s": 0.06,
+ "_hwkit_silent_retries": 0,
+ "_node_ready_after_s": 0.04,
  "_stand_in_reloads": 0,
  "_version": "0.3.65",
  "auto_choice": {
@@ -23,7 +23,7 @@
   ],
   "bytes": 0,
   "mic_frames": 0,
-  "starts": 15
+  "starts": 7
  },
  "no_fallback_pw-cat": {
   "argv": [
@@ -100,17 +100,17 @@
   ],
   "bit_exact": true,
   "bytes": 878472,
-  "consecutive_pairs": 195017,
+  "consecutive_pairs": 206292,
   "dropped_frames": 0,
   "drops": 0,
-  "first_index": 310785,
+  "first_index": 311809,
   "foreign_frames": 0,
   "frames": 219618,
   "garbage_prefix_frames": 0,
   "header": null,
   "headerless": true,
-  "inserted_silence_frames": 24576,
-  "inserted_silence_runs": 24,
+  "inserted_silence_frames": 13312,
+  "inserted_silence_runs": 13,
   "label": "INTEGRATION real PipeWire tools + SIMULATED source node (module-pipe-source); not BlueZ",
   "leading_silence_frames": 0,
   "offset": 0,
@@ -120,11 +120,11 @@
  },
  "restart": {
   "chunks_before": 98,
-  "chunks_while_node_missing": 0,
+  "chunks_while_node_missing": 1,
   "mic_frames_total": 0,
   "resume_asserted": false,
-  "resumed_pattern_frames": 89964,
-  "starts": 17,
+  "resumed_pattern_frames": 0,
+  "starts": 8,
   "tool": "parec"
  },
  "restart_stand_in_reloads": 0,
@@ -154,7 +154,7 @@
    "s16",
    "-"
   ],
-  "bytes": 522144,
-  "mic_frames": 114152
+  "bytes": 525672,
+  "mic_frames": 114688
  }
 }

@@ -73,7 +73,16 @@ class FlacEncoder:
         return out
 
     def close(self) -> None:
+        """Stop the encoder child, wait for it (no zombie) and close its pipes (review L4)."""
         try:
             self.proc.kill()
+            self.proc.wait(timeout=2)
         except Exception:
             pass
+        for f in (self.proc.stdin, self.proc.stdout):
+            try:
+                if f is not None:
+                    f.close()
+            except Exception:
+                pass
+        self._t.join(timeout=1)

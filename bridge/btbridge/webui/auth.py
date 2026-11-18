@@ -6,13 +6,15 @@
 * Passwords: PBKDF2-HMAC-SHA256, per-password random salt, iteration count stored with the hash (tunable for a Pi Zero 2 W).
 * Sessions: random 256-bit ids held in memory (a restart logs out; browsers can store the password), sliding idle timeout, absolute
   lifetime, one CSRF token per session.  Cookies: ``HttpOnly; SameSite=Strict; Path=/`` (+ ``Secure`` when served over TLS).
-* Brute force: per-client exponential back-off after 5 failures (also for setup-code attempts).
+* Brute force: per-client exponential back-off after 5 failures (also for setup-code attempts and password changes); IPv6 clients
+  are keyed by their /64 prefix; a global failure budget limits guesses spread over many addresses (review M4).
 """
 from __future__ import annotations
 
 import base64
 import hashlib
 import hmac
+import ipaddress
 import os
 import secrets
 import threading
@@ -72,10 +74,28 @@ def normalise_code(code: str) -> str:
     return "".join(c for c in code.upper() if c.isalnum())
 
 
+def limit_key(client: str) -> str:
+    """Back-off key for a client address: IPv6 by /64 (one host can rotate through its whole prefix), IPv4 as is."""
+    try:
+        a = ipaddress.ip_address(client)
+    except ValueError:
+        return client
+    if a.version == 6:
+        if a.ipv4_mapped:
+            return str(a.ipv4_mapped)
+        return str(ipaddress.ip_network(f"{a}/64", strict=False))
+    return str(a)
+
+
 class RateLimiter:
-    def __init__(self, free: int = 5, base_s: float = 2.0, max_s: float = 300.0, clock=time.monotonic):
+    GLOBAL = "*"
+
+    def __init__(self, free: int = 5, base_s: float = 2.0, max_s: float = 300.0, clock=time.monotonic,
+                 global_free: int = 50, global_max_s: float = 60.0, global_quiet_s: float = 900.0):
         self.free, self.base, self.max, self.clock = free, base_s, max_s, clock
+        self.global_free, self.global_max, self.global_quiet = global_free, global_max_s, global_quiet_s
         self._fails: dict[str, tuple[int, float]] = {}
+        self._global = (0, 0.0, 0.0)                     # (failures, blocked until, last failure)
         self._lock = threading.Lock()
 
     def check(self, key: str) -> None:
@@ -84,23 +104,33 @@ class RateLimiter:
             now = self.clock()
             if until > now:
                 raise AuthError("rate_limited", until - now)
+            gn, guntil, _ = self._global
+            if guntil > now:
+                raise AuthError("rate_limited", guntil - now)
 
     def fail(self, key: str) -> None:
         with self._lock:
+            now = self.clock()
             n, _ = self._fails.get(key, (0, 0.0))
             n += 1
             delay = 0.0 if n < self.free else min(self.max, self.base * 2 ** (n - self.free))
-            self._fails[key] = (n, self.clock() + delay)
+            self._fails[key] = (n, now + delay)
             if len(self._fails) > 10_000:                     # bound memory
                 self._fails.pop(next(iter(self._fails)))
+            gn, _, last = self._global
+            gn = 1 if now - last > self.global_quiet else gn + 1     # the budget refills after a quiet period
+            gdelay = 0.0 if gn < self.global_free else min(self.global_max, self.base * 2 ** (gn - self.global_free))
+            self._global = (gn, now + gdelay, now)
 
     def ok(self, key: str) -> None:
         with self._lock:
             self._fails.pop(key, None)
+            self._global = (0, 0.0, 0.0)
 
 
 class Sessions:
-    def __init__(self, idle_s: float = 8 * 3600, absolute_s: float = 30 * 24 * 3600, clock=time.time):
+    def __init__(self, idle_s: float = 8 * 3600, absolute_s: float = 30 * 24 * 3600, clock=time.monotonic):
+        # monotonic: a Pi has no RTC, so the wall clock jumps at the NTP sync after boot (review L8: mass logouts)
         self.idle, self.absolute, self.clock = idle_s, absolute_s, clock
         self._s: dict[str, dict] = {}
         self._lock = threading.Lock()
@@ -169,14 +199,15 @@ class Auth:
     def complete_setup(self, client: str, code: str, password: str) -> tuple[str, str]:
         if self.has_password():
             raise AuthError("already_set_up")
-        self.limiter.check(client)
+        key = limit_key(client)
+        self.limiter.check(key)
         if not verify_password(normalise_code(code), self.store.secret("setup_code_hash")):
-            self.limiter.fail(client)
+            self.limiter.fail(key)
             raise AuthError("bad_setup_code")
         probs = password_problems(password)
         if probs:
             raise AuthError("weak_password:" + ",".join(probs))
-        self.limiter.ok(client)
+        self.limiter.ok(key)
         self.store.set_secret("admin_password_hash", hash_password(password, self.iterations))
         self.store.set_secret("setup_code_hash", None)
         self.store.set_secret("trust_key", None)          # P7: the flash tool's one-time device-verification key ends with the setup
@@ -188,16 +219,22 @@ class Auth:
         return self.sessions.create()
 
     def login(self, client: str, password: str) -> tuple[str, str]:
-        self.limiter.check(client)
+        key = limit_key(client)
+        self.limiter.check(key)
         if not verify_password(password, self.store.secret("admin_password_hash")):
-            self.limiter.fail(client)
+            self.limiter.fail(key)
             raise AuthError("bad_password")
-        self.limiter.ok(client)
+        self.limiter.ok(key)
         return self.sessions.create()
 
-    def change_password(self, old: str, new: str) -> None:
+    def change_password(self, old: str, new: str, client: str = "") -> None:
+        """A stolen session must not become an unlimited password oracle: wrong old passwords back off like logins (review M4)."""
+        key = limit_key(client)
+        self.limiter.check(key)
         if not verify_password(old, self.store.secret("admin_password_hash")):
+            self.limiter.fail(key)
             raise AuthError("bad_password")
+        self.limiter.ok(key)
         probs = password_problems(new)
         if probs:
             raise AuthError("weak_password:" + ",".join(probs))

@@ -143,3 +143,18 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
     reproducible CI once the tag naming is confirmed.
 49. **Demo volume:** Lyrion starts new players at volume 50, which is quiet in the audio monitor; the monitor has its own listening level.
     Should the demo preset the rooms higher? (cosmetic)
+
+## Added by package 1 - review fixes (2026-11-18)
+50. **Privacy of MQTT state:** the bridge publishes the connected phone's name and the track title as **retained** MQTT state, readable by
+    every broker subscriber and stored in Home Assistant's history. Keep, make it an opt-in setting, or publish without retain? (Logs,
+    syslog and the diagnostics bundle now use salted pseudonyms `dev-<8 hex>` for MAC addresses and leave phone names out.)
+51. LMS player IDs look like MAC addresses and are now pseudonymised in logs as well. Should player IDs stay in clear for debugging?
+52. The new global login-failure budget (50 failures, then up to 60 s delay) can slow the owner during a distributed guessing attack.
+    Accept or tune?
+53. A player that reads nothing for 60 s is dropped by the stream server; a pause at LMS longer than 60 s therefore starts a fresh bridge
+    session on resume. Validate on hardware (E2).
+54. Capture restart back-off (4 fast retries, then doubling up to 5 s) - measure against the real PipeWire BlueZ node on the Pi (A3/A4).
+55. A device CA regenerated after a torn write (power cut during first boot) has a new fingerprint, so the owner must trust it again.
+    Accept, or keep a backup copy of the CA?
+56. An unreadable configuration now makes the service fail at start (systemd restarts it; the log names the reason) instead of silently
+    resetting the device. Should the reason also go into `hifi-status.txt` on the boot partition?
