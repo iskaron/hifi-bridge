@@ -21,7 +21,7 @@ import threading
 import time
 from typing import Callable
 
-from . import __version__
+from . import __version__, privacy
 from .app import BridgeRuntime, RuntimeConfig
 from .config import ConfigStore
 from .core.controller import Config
@@ -83,7 +83,7 @@ class LogBuffer:
         self.forward: Callable[[str], None] | None = None
 
     def _clean(self, msg: str) -> str:
-        m = redact(str(msg))
+        m = privacy.scrub(redact(str(msg)))            # MAC addresses -> per-device pseudonyms (review M10)
         for s in self.secrets:
             if s:
                 m = m.replace(s, "***")
@@ -129,6 +129,11 @@ class ApplianceService:
                  mqtt_factory: Callable | None = None, discover: Callable = discovery.discover, echo=print, auth_iterations: int | None = None):
         self.logs = LogBuffer(data_dir, echo=echo)
         self.store = ConfigStore(data_dir, log=self.logs)
+        salt = self.store.secret("log_salt")
+        if not salt:
+            salt = secrets.token_hex(16)
+            self.store.set_secret("log_salt", salt)
+        privacy.configure(bytes.fromhex(salt))
         self.logs.secrets = [self.store.secret("stream_token") or ""]
         self.auth = Auth(self.store, log=self.logs, **({"iterations": auth_iterations} if auth_iterations else {}))
         self.lms_factory, self.discover, self.advertise_cfg = lms_factory, discover, advertise_host
@@ -552,13 +557,21 @@ class ApplianceService:
         self.logs("stream token rotated (new sessions use the new URL)")
 
     def diagnostics_bundle(self) -> dict:
-        """Owner download: everything needed to debug, nothing secret (test: no token/password hash/MAC labels leak)."""
-        return {
+        """Owner download: everything needed to debug, nothing secret. No stream token or password hash; every MAC address
+        (phones, players) is replaced by its salted per-device pseudonym as in the logs; device labels and phone names are left
+        out (review M10). Tests: test_service.py, test_review_service.py."""
+        cfg = self.store.export_redacted()
+        labels = cfg["settings"].get("device_labels") or {}
+        cfg["settings"]["device_labels"] = f"{len(labels)} label(s), not included"
+        st = self.status()
+        if st["bluetooth"].get("connected_device"):
+            st["bluetooth"]["connected_device"] = {"address": st["bluetooth"]["connected_device"]["address"]}
+        return privacy.scrub_data({
             "generated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "version": __version__,
             "python": platform.python_version(), "platform": platform.platform(),
-            "config": self.store.export_redacted(), "status": self.status(),
+            "config": cfg, "status": st,
             "stream": dict(self.runtime.stream.stats), "lms_commands": [c[0] for c in getattr(self.runtime.lms, "commands_sent", [])][-50:],
             "controller_events": [(round(t, 2), n, str(d)) for t, n, d in list(self.runtime.controller.events)[-100:]],
             "logs": [(round(t, 2), m) for t, m in self.logs.recent(300)], "faults": self.logs.faults(),
-            "note": "stream token, password hash and other secrets are never included",
-        }
+            "note": "stream token, password hash and other secrets are never included; MAC addresses are pseudonymised",
+        })

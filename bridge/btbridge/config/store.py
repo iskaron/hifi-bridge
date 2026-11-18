@@ -22,7 +22,7 @@ from typing import Any, Callable
 from .schema import SETTINGS, defaults, validate
 
 SCHEMA_VERSION = 1
-SECRET_KEYS = ("admin_password_hash", "setup_code_hash", "session_key", "stream_token", "mqtt_password", "trust_key")
+SECRET_KEYS = ("admin_password_hash", "setup_code_hash", "session_key", "stream_token", "mqtt_password", "trust_key", "log_salt")
 
 
 def _atomic_write(path: str, data: dict, mode: int) -> None:

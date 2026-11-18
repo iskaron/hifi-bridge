@@ -63,6 +63,58 @@ def test_loopback_only_for_a_local_lms_and_nothing_without_a_server(tmp_path):
     assert s.stream_host() == "127.0.0.1"                                   # LMS on the same host: the route says loopback
 
 
+# ---------------------------------------------------------------- M10: MAC addresses pseudonymised in logs and diagnostics
+PHONE = "11:22:33:44:55:66"
+
+
+def test_log_lines_carry_a_stable_salted_pseudonym_instead_of_the_mac(tmp_path):
+    from btbridge.service import LogBuffer
+    from btbridge import privacy
+    forwarded = []
+    lb = LogBuffer(str(tmp_path), echo=None)
+    lb.forward = forwarded.append
+    privacy.configure(b"salt-one")
+    lb(f"refusing {PHONE}: second source"); lb("path /org/bluez/hci0/dev_11_22_33_44_55_66 gone")
+    lb.fault("bluetooth", f"lost {PHONE.lower()}")
+    text = " ".join(m for _, m in lb.recent(10)) + " ".join(forwarded) + open(tmp_path / "faults.jsonl").read()
+    assert PHONE not in text.upper() and "11_22_33_44_55_66" not in text
+    pseudo = privacy.mac(PHONE)
+    assert pseudo.startswith("dev-") and text.count(pseudo) >= 4               # same device -> same pseudonym everywhere
+    privacy.configure(b"salt-two")
+    assert privacy.mac(PHONE) != pseudo                                        # per-device salt: not linkable across devices
+
+
+def test_adapter_console_log_is_pseudonymised(capsys):
+    from btbridge import privacy
+    privacy.configure(b"s")
+    privacy.scrubbed_print(f"ignoring non-audio-source device {PHONE}")
+    out = capsys.readouterr().out
+    assert PHONE not in out and privacy.mac(PHONE) in out
+
+
+def test_diagnostics_bundle_has_no_mac_addresses_device_labels_or_phone_names(tmp_path):
+    import json
+    import re
+    lmses = Lmses(); sim = SimulatedA2dpSource(device=PHONE)
+    s = ApplianceService(str(tmp_path / "data"), source=sim, stream_port=0, advertise_host="bridge", lms_factory=lmses,
+                         monitor=fake_tree(tmp_path), echo=None, auth_iterations=1000)
+    s.store.update({"lms_host": "10.0.0.5", "target_player": P1})
+    s.start()
+    try:
+        sim.connect(); sim.play()
+        assert wait(lambda: s.runtime.controller.device)
+        dev = s.runtime.controller.device
+        assert wait(lambda: s.status()["bluetooth"]["connected_device"])
+        s.set_device_label(dev, "Annas Handy")
+        s.logs(f"test line for {dev}")
+        blob = json.dumps(s.diagnostics_bundle())
+        assert not re.search(r"(?i)\b([0-9a-f]{2}[:_-]){5}[0-9a-f]{2}\b", blob), "a MAC address leaked into the bundle"
+        assert "Annas Handy" not in blob
+        assert s.status()["bluetooth"]["connected_device"]["name"] == "Annas Handy"   # the owner's own UI is unchanged
+    finally:
+        s.stop()
+
+
 # ---------------------------------------------------------------- H4: a bad optional integration never aborts start or settings
 BOGUS_PEM = "-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----"
 
