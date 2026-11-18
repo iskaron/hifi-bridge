@@ -53,7 +53,7 @@
 [manager]	WARNING	Test in comment: see is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: appliance is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: py is not a test name or id, ignoring
-Run started:2026-11-18 22:30:40.134782
+Run started:2026-11-18 23:15:07.605854
 
 Test results:
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -206,10 +206,10 @@ Test results:
    Severity: Low   Confidence: High
    CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
    More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
-   Location: bridge/btbridge/net/netsys.py:265:16
-264	        try:
-265	            r = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
-266	            return r.returncode, (r.stdout + r.stderr)
+   Location: bridge/btbridge/net/netsys.py:266:16
+265	        try:
+266	            r = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+267	            return r.returncode, (r.stdout + r.stderr)
 
 --------------------------------------------------
 >> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
@@ -283,7 +283,7 @@ Test results:
 --------------------------------------------------
 
 Code scanned:
-	Total lines of code: 9556
+	Total lines of code: 9557
 	Total lines skipped (#nosec): 0
 	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 6
 

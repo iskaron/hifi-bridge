@@ -28,7 +28,7 @@ Review findings for package 1: `reports/REVIEW_PHASE2B_EXISTING_CODE.md`; repro 
 |---|---|---|---|
 | 1 | Review fixes (H1-H6, M1-M10, L1-L12; M11/M12 belong to package 5) | **done** (CI run 44350223892: 14/14 green) | `618e395` (+ `649fc32` test fixes) |
 | 2 | Demo and entry points | **done** (CI run 44372722429: 14/14 green) | `46483a0` |
-| 3 | Network management | in progress (Opus agent resumed on `wip/network`) | |
+| 3 | Network management | **done** | `926e945` |
 | 4 | OTA update management | pending (resume `wip/ota`) | |
 | 5 | Flash tool GUI | pending (resume `wip/flashtool`) | |
 | 6 | Buildroot images | pending (resume `wip/os`; rebuild all three boards after packages 3/4 are merged) | |

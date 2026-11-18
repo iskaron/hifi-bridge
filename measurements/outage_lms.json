@@ -27,9 +27,9 @@
     36.5,
     54.0
   ],
-  "audible_fraction_during_outage": 1.0000114404338052,
-  "first_audio_after_target_back_s": 0.23265361785888672,
-  "age_of_first_recovered_frame_s": 1.601421594619751,
+  "audible_fraction_during_outage": 1.0000014299545528,
+  "first_audio_after_target_back_s": 0.25149106979370117,
+  "age_of_first_recovered_frame_s": 1.612156629562378,
   "audio_never_stopped_during_outage": true,
   "bridge_commands": [
     "play",
@@ -37,7 +37,7 @@
   ],
   "label": "INTEGRATION real LMS/player container outage + SIMULATED BT",
   "env": {
-    "date_utc": "2026-11-18T18:19:36Z",
+    "date_utc": "2026-11-18T23:03:42Z",
     "lms": "9.1.2",
     "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
     "kernel": "7.0.0-43-generic",

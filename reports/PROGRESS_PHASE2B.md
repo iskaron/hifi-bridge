@@ -62,3 +62,16 @@ Scope: owner work package of 2026-11-18 (DECISIONS #73/#74).
 ### Package 3 - network management (in progress)
 - Opus agent resumed on `wip/network`; `develop` merged into the branch (`3b66948`). Interrupted once more by the account rate limit
   (~19:00, reset 20:10); resumed 23:02.
+
+### Package 3 - network management (done)
+- Opus agent on `wip/network`, merged as `926e945`: root network agent `hifi-netd` (six-request socket API, strict re-validation), pure
+  state machine (client Wi-Fi XOR hotspot, 60 s fallback, retries, trials with 3-min confirmation and rollback), rtnetlink/wpa/hostapd/iw
+  adapters, WebUI network pages (DE/EN, axe-clean), nftables firewall, networkd/timesyncd/hostnamed, Avahi host name, `network-reset`
+  recovery, docs/NETWORK.md, hardware tests N-1..N-11. Real-tool suite `scripts/run_net.sh` (nft, dnsmasq, hostapd, wpa_supplicant,
+  networkd, avahi in containers; live firewall + DHCP) - now in CI (job `network`) and in the full run. Real bug found and fixed: passphrases
+  with `#`/`"` were truncated by wpa_supplicant (DECISIONS #87). DECISIONS #83-#89, OPEN_QUESTIONS #59-#63.
+- Full run (`reports/evidence/full_run_pkg3_network.log`): unit 618, network 16 + live, browser 9, demo stack, Home Assistant, OS, secrets
+  (160 commits) etc. green; mDNS red (host environment, as before). Integration 1/55 red again: `test_end_to_end_bit_exact[wav]`, the first
+  test after the lab is **recreated** - reproduced by force-recreating LMS + players: the first output cannot be aligned with the reference
+  ("samples altered?", first audio at frame 190). Not seen in CI (cold LMS, fresh state, green) and not after a warm start: points at the
+  lab's persisted LMS state in `.lab/`; analysed by a separate investigation (below).

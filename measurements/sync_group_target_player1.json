@@ -6,19 +6,22 @@
   ],
   "bridge_target": "player1",
   "max_player_spread_ms_at_3_frames": [
-    17.3,
-    17.3,
-    17.3
+    7.6,
+    7.6,
+    7.7
   ],
   "sync_correction_jumps_frames": {
     "player1": [
-      441
+      617
     ],
     "player2": [
-      573,
+      441,
       441
     ],
-    "player3": []
+    "player3": [
+      485,
+      441
+    ]
   },
   "integrity": {
     "player1": {
@@ -27,12 +30,12 @@
       "mismatched": 2,
       "jumps": [
         [
-          80,
+          72,
           0
         ],
         [
-          81,
-          441
+          73,
+          617
         ]
       ]
     },
@@ -42,28 +45,45 @@
       "mismatched": 4,
       "jumps": [
         [
-          10,
+          72,
           0
         ],
         [
-          11,
-          573
+          73,
+          441
         ],
         [
-          30,
+          102,
           0
         ],
         [
-          31,
+          103,
           441
         ]
       ]
     },
     "player3": {
       "blocks": 143,
-      "matched": 143,
-      "mismatched": 0,
-      "jumps": []
+      "matched": 139,
+      "mismatched": 4,
+      "jumps": [
+        [
+          52,
+          0
+        ],
+        [
+          53,
+          485
+        ],
+        [
+          121,
+          0
+        ],
+        [
+          122,
+          441
+        ]
+      ]
     }
   },
   "bridge_only_commands": [
@@ -72,7 +92,7 @@
   ],
   "label": "INTEGRATION real LMS sync + SIMULATED BT; virtual DACs, NOT acoustic",
   "env": {
-    "date_utc": "2026-11-18T18:08:54Z",
+    "date_utc": "2026-11-18T22:52:56Z",
     "lms": "9.1.2",
     "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
     "kernel": "7.0.0-43-generic",
