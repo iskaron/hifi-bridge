@@ -54,8 +54,9 @@ def test_layout_boot_a_b_data_and_slot(built_image):
     assert a["size"] == bslot["size"] and pt["partitions"][0].get("bootable") is True
     boot_off = pt["partitions"][0]["start"] * 512
     listing = sh("mdir", "-b", "-i", f"{img}@@{boot_off}", "::").stdout
-    for f in ("boot.scr", "u-boot.bin", "config.txt", "hifi-provision.json", "bcm2710-rpi-3-b-plus.dtb", "overlays"):
+    for f in ("boot.scr", "u-boot.bin", "config.txt", "hifi-provision.json", "bcm2710-rpi-3-b-plus.dtb", "overlays", "licenses"):
         assert f in listing, listing
+    assert "AGPL-3.0-only" in sh("mtype", "-i", f"{img}@@{boot_off}", "::licenses/NOTICE.txt").stdout
     cfgtxt = [x for x in sh("mtype", "-i", f"{img}@@{boot_off}", "::config.txt").stdout.splitlines() if x and not x.startswith("#")]
     assert "kernel=u-boot.bin" in cfgtxt and not any("miniuart-bt" in x for x in cfgtxt)
     off, size = man["slot"]["offset"], man["slot"]["size"]
@@ -107,3 +108,23 @@ def test_growdata_refuses_a_missing_partition(tmp_path, tools):
     subprocess.run(["sfdisk", "-q", str(disk)], input="label: dos\n,32M,83\n", text=True, check=True)
     r = sh(f"{BOARD}/overlay/usr/libexec/hifi-bridge/growdata.sh", str(disk), "4", check=False)
     assert r.returncode != 0 and "not found" in r.stderr
+
+
+def test_post_image_refuses_an_image_without_the_firmware_licences(tmp_path, tools):
+    """The firmware licences require their text with every copy: if the radio firmware is enabled but its licence file is missing from
+    the build, post-image fails instead of producing an image without the notice."""
+    b = tmp_path / "images"
+    b.mkdir()
+    build = tmp_path / "build"
+    build.mkdir()
+    cfg = tmp_path / ".config"
+    cfg.write_text('BR2_PACKAGE_HIFI_BRIDGE_COMPATIBLE="hifi-bridge-rpi3"\nBR2_PACKAGE_BRCMFMAC_SDIO_FIRMWARE_RPI=y\n')
+    env = {"BINARIES_DIR": str(b), "BUILD_DIR": str(build), "BR2_CONFIG": str(cfg), "PYTHONPATH": f"{REPO}/bridge:{REPO}/flashtool"}
+    r = sh(f"{BOARD}/post-image.sh", env=env, check=False)
+    assert r.returncode != 0 and "licence file brcmfmac_sdio-firmware-rpi-*/LICENSE not found" in r.stderr
+    (build / "brcmfmac_sdio-firmware-rpi-123").mkdir()
+    (build / "brcmfmac_sdio-firmware-rpi-123" / "LICENSE").write_text("Broadcom licence text\n")
+    r = sh(f"{BOARD}/post-image.sh", env=env, check=False)
+    assert "licence file" not in r.stderr                  # passes the licence step (then stops: no firmware/kernel in this test)
+    assert (b / "licenses" / "SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt").exists()
+    assert (b / "licenses" / "brcmfmac_sdio-firmware-rpi.LICENSE").read_text() == "Broadcom licence text\n"

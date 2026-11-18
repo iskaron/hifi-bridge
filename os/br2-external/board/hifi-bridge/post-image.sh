@@ -22,9 +22,42 @@ suffix=""
 # the empty provisioning slot (fixed size, filled in place by the flash tool or by hand)
 python3 -m btbridge.provisioning placeholder > "${BINARIES_DIR}/hifi-provision.json"
 
+# third-party notices on the FAT, readable on any computer: the firmware licences require the licence text and copyright notice to
+# accompany every copy (docs/IMAGE_LICENSING.md). Required whenever the firmware package is part of the image.
+lic="${BINARIES_DIR}/licenses"
+rm -rf "$lic"
+mkdir -p "$lic"
+enabled() { grep -q "^$1=y" "$BR2_CONFIG"; }
+copy_licence() {	# $1 glob below BUILD_DIR, $2 name on the FAT
+	local f
+	f=$(ls -d ${BUILD_DIR}/$1 2>/dev/null | head -1 || true)
+	[ -n "$f" ] && [ -f "$f" ] || { echo "post-image: licence file $1 not found in ${BUILD_DIR}" >&2; exit 1; }
+	cp "$f" "$lic/$2"
+}
+if enabled BR2_PACKAGE_RPI_FIRMWARE; then copy_licence "rpi-firmware-*/boot/LICENCE.broadcom" rpi-firmware.LICENCE.broadcom; fi
+if enabled BR2_PACKAGE_BRCMFMAC_SDIO_FIRMWARE_RPI; then
+	copy_licence "brcmfmac_sdio-firmware-rpi-*/LICENSE" brcmfmac_sdio-firmware-rpi.LICENSE
+	cp "${BOARD_DIR}/licenses/SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt" "$lic/"
+fi
+cat > "$lic/NOTICE.txt" <<'EOF'
+Hi-Fi Bridge card image - third-party notices
+
+This image is a collection of separately licensed programs. The Hi-Fi Bridge service is licensed under AGPL-3.0-only; its source
+code is at https://github.com/iskaron/hifi-bridge. Every other component, its licence text and its source code are listed in the
+legal-info archive published with the image (manifest.csv, licences, sources).
+
+The following firmware is included as binary only and UNMODIFIED, under the licence files in this directory. It may be used only
+with the hardware it was made for (the Raspberry Pi and its Broadcom/Cypress/Synaptics wireless chips):
+  * Raspberry Pi boot firmware (bootcode.bin, start*.elf, fixup*.dat) - rpi-firmware.LICENCE.broadcom
+    Copyright (c) 2006, Broadcom Corporation. Copyright (c) 2015, Raspberry Pi (Trading) Ltd. All rights reserved.
+  * Wi-Fi and Bluetooth firmware in /usr/lib/firmware/{brcm,cypress,synaptics} of the root file system -
+    brcmfmac_sdio-firmware-rpi.LICENSE (Broadcom, Cypress Semiconductor, Synaptics) and
+    SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt (synaptics/*.hcd, Raspberry Pi Zero 2 W Bluetooth).
+EOF
+
 FILES=()
 for i in "${BINARIES_DIR}"/rpi-firmware/* "${BINARIES_DIR}"/*.dtb "${BINARIES_DIR}/u-boot.bin" "${BINARIES_DIR}/boot.scr" \
-         "${BINARIES_DIR}/hifi-provision.json"; do
+         "${BINARIES_DIR}/hifi-provision.json" "$lic"; do
 	[ -e "$i" ] || { echo "post-image: missing $i" >&2; exit 1; }
 	FILES+=( "${i#"${BINARIES_DIR}"/}" )
 done
