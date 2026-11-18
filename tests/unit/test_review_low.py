@@ -79,6 +79,37 @@ def test_recovery_in_the_watch_thread_keeps_the_journal_of_a_session_started_mea
     assert (s.journal.pending() or {}).get("url") == "http://bridge:8090/s/NEW/live.wav"   # was: cleared
 
 
+# ---------------------------------------------------------------- L5: thermal state with hysteresis; faults file fsynced
+def test_temperature_around_the_threshold_does_not_flap(tmp_path):
+    s = _svc(tmp_path)
+    thermal = tmp_path / "temp"
+    events = []
+    s.on_event(lambda kind, data: events.append(kind) if kind == "thermal" else None)
+    for milli in [75100, 74900, 75100, 74900, 75050, 74950] * 5:           # sensor noise around 75 C
+        thermal.write_text(str(milli)); s.check_thermal()
+    assert s.thermal()["state"] == "warning"
+    assert len([f for f in s.logs.faults() if f["kind"] == "thermal"]) == 1 and events.count("thermal") == 1   # was: one per flip
+    thermal.write_text("71500"); s.check_thermal()                         # clearly cooler: back to ok
+    assert s.thermal()["state"] == "ok"
+
+
+def test_critical_also_has_hysteresis():
+    from btbridge.system import SystemMonitor
+    m = SystemMonitor(thermal=None)
+    assert m.thermal_state(80.0) == "critical"
+    assert m.thermal_state(79.5) == "critical" and m.thermal_state(76.9) == "warning" and m.thermal_state(71.0) == "ok"
+
+
+def test_fault_log_is_fsynced(tmp_path, monkeypatch):
+    import os
+    from btbridge.service import LogBuffer
+    calls = []
+    real = os.fsync
+    monkeypatch.setattr(os, "fsync", lambda fd: (calls.append(fd), real(fd))[1])
+    LogBuffer(str(tmp_path), echo=None).fault("thermal", "warning: 75 C")
+    assert calls                                                            # was: rewritten without fsync
+
+
 # ---------------------------------------------------------------- L2: settings apply in the order they were saved, all or nothing
 def test_concurrent_updates_reach_listeners_in_the_order_they_were_stored(tmp_path):
     from btbridge.config import ConfigStore

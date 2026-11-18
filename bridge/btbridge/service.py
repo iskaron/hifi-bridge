@@ -108,6 +108,8 @@ class LogBuffer:
                 tmp = self.faults_path + ".tmp"
                 with open(tmp, "w") as fh:
                     fh.write("\n".join(old + [rec]) + "\n")
+                    fh.flush()
+                    os.fsync(fh.fileno())                  # a fault is exactly what must survive a power cut (review L5)
                 os.replace(tmp, self.faults_path)
             except OSError:
                 pass
