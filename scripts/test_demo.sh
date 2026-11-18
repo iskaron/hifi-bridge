@@ -63,7 +63,7 @@ echo "### resources"
 mapfile -t ids < <("${DC[@]}" ps -q)
 docker stats --no-stream --format '{{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}' "${ids[@]}" | sed 's/^/  /'
 for f in demo_chain demo_monitor_latency_AudioWorklet demo_monitor_latency_ScriptProcessor demo_axe; do [ -f "$STATE/$f.json" ] && cp "$STATE/$f.json" "measurements/$f.json"; done
-docker run --rm -v "$PWD/reports":/r -v "$PWD/$STATE":/s alpine:3.20 chown -R "$(id -u):$(id -g)" /r/screenshots /s >/dev/null 2>&1
+docker run --rm -v "$PWD/reports":/r -v "$PWD/$STATE":/s alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc chown -R "$(id -u):$(id -g)" /r/screenshots /s >/dev/null 2>&1
 [ $rc = 0 ] || "${DC[@]}" logs --no-color --tail 40 hifi-bridge console 2>&1 | tail -60
 echo "demo stack test: rc=$rc"
 exit $rc

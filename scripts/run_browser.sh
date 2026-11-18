@@ -13,5 +13,5 @@ for _ in $(seq 60); do docker compose --profile browser exec -T appliance test -
 docker compose --profile browser run --rm -T browser python3 -m pytest -p no:cacheprovider -v tests/browser "$@"; rc=$?
 docker compose --profile browser logs --no-color appliance 2>/dev/null | grep -E "ctl|error|Error|unreach" | tail -25
 docker compose --profile browser rm -sf appliance >/dev/null 2>&1
-[ -d ../reports/screenshots ] && docker run --rm -v "$PWD/../reports":/r alpine:3.20 chown -R "$(id -u):$(id -g)" /r/screenshots >/dev/null 2>&1
+[ -d ../reports/screenshots ] && docker run --rm -v "$PWD/../reports":/r alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc chown -R "$(id -u):$(id -g)" /r/screenshots >/dev/null 2>&1
 exit $rc

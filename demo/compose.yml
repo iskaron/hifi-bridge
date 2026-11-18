@@ -26,8 +26,9 @@ services:
     <<: *demo
     networks:
       demo: {}
-      edge:
-        gw_priority: 1          # Docker publishes ports on the network that provides the default route: the non-internal one
+      edge: {}                  # the gateway's default route (and so the published ports) is on the one NON-internal network, `edge`: Docker
+                                # prefers non-internal networks for the default gateway on every supported version (docs/DOCKER_REQUIREMENTS.md),
+                                # so no `gw_priority` (Engine 28 / Compose 2.33+ only) is needed
     command: ["python3", "-m", "hifidemo.gateway",
               "${DEMO_HTTP_PORT:-18080}=hifi-bridge.local:${DEMO_HTTP_PORT:-18080},${DEMO_HTTPS_PORT:-18443}=hifi-bridge.local:${DEMO_HTTPS_PORT:-18443},${DEMO_CONSOLE_PORT:-18100}=console:8100,${DEMO_LMS_PORT:-19000}=lms:9000,${DEMO_HA_PORT:-18123}=homeassistant:8123"]
     ports:
@@ -101,7 +102,7 @@ services:
     command: ["python3", "-m", "hifidemo.player", "--name", "Arbeitszimmer", "--mac", "02:00:00:00:01:03", "--server", "lms:3483"]
 
   lms:
-    image: lmscommunity/lyrionmusicserver:stable
+    image: lmscommunity/lyrionmusicserver:9.1.2@sha256:a8709abda8a80766274abeb44015189b7e050eb1a6372678dcb077eb8c3a1e21
     networks: [demo]
     restart: unless-stopped
     volumes:
@@ -118,7 +119,7 @@ services:
       start_period: 10s
 
   mosquitto:
-    image: eclipse-mosquitto:2.0.20
+    image: eclipse-mosquitto:2.0.20@sha256:21421af7b32bf9ce508e9090c8eb13bb81f410ca778dc205506180a6f862d0eb
     networks: [demo]
     restart: unless-stopped
     volumes:
@@ -129,7 +130,7 @@ services:
 
   # Optional (make demo-ha): real Home Assistant with the MQTT integration for the demo broker.
   homeassistant:
-    image: ghcr.io/home-assistant/home-assistant:2026.11.1
+    image: ghcr.io/home-assistant/home-assistant:2026.11.1@sha256:6785d1eca68747a524c156faae1b139ed415c07357386ae6fe17291986e59e82
     profiles: ["ha"]
     networks: [demo]
     restart: unless-stopped
