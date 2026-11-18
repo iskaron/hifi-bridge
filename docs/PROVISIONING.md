@@ -1,8 +1,9 @@
 # First-setup provisioning (P6, DECISIONS #56, #62)
 
 Status: format, validation, device-side processing and the flash tool's generator are implemented and tested (UNIT; INTEGRATION with a
-real genimage card layout, mtools reading back through FAT, real HTTP/TLS). **Not tested:** the real vfat kernel driver on a Pi, a real
-SD card, and the network service that will start Wi-Fi or the hotspot from `network.json` (phase 2b).
+real genimage card layout, mtools reading back through FAT, real HTTP/TLS). The network service that starts Wi-Fi or the hotspot from `network.json` is implemented (docs/NETWORK.md; UNIT,
+INTEGRATION with the real network tools in Docker). **Not tested:** the real vfat kernel driver on a Pi, a real SD card, and the network
+service on a real Wi-Fi radio.
 
 ## 1. Rule
 **There is no setup hotspot without an individual password that the owner knows.** The password comes from the provisioning file, which
@@ -47,7 +48,9 @@ can be secrets.
    * The setup code becomes the device's setup code. Its plaintext is **not** stored, because the owner already has it. If an owner password
      already exists, the code is ignored and the status says so; use recovery (P8) instead.
    * The trust key is stored as a device secret until the owner password is set.
-   * `country`, `hotspot` and `wifi` go to `network.json` (mode 0600) in the data partition, for the network service (phase 2b).
+   * `country`, `hotspot` and `wifi` go to `network.json` (mode 0600) in the data partition, for the network agent `hifi-netd`
+     (docs/NETWORK.md). The file format is `hifi-bridge-network/1` (`btbridge.net.netconfig`); the provisioning output is a valid subset,
+     Ethernet and Wi-Fi addresses default to DHCP / automatic IPv6. Re-provisioning replaces the whole network part.
 3. **Scrub:** overwrite the whole file **in place** with the placeholder (same length), then `fsync` the file and the directory. The name
    stays, so the slot remains.
 
@@ -55,7 +58,7 @@ can be secrets.
 | Aspect | Finding | Measure |
 |---|---|---|
 | **Residual data in the file system** | Deleting a file on FAT only marks the directory entry; the clusters keep the data. | We do **not** delete; we overwrite the same bytes in place. On vfat an in-place write of the same length does not reallocate clusters. **Assumption, to be verified on a Pi** (gate item P6-3): read the raw card afterwards and search for the secret. |
-| **Residual data in the card's flash (FTL)** | SD cards remap blocks internally (wear levelling); overwritten data may physically survive and could be read with lab equipment. Software cannot prevent this. | Keep the secrets **short-lived**: the setup code and the trust key are worthless once the owner password is set; the hotspot password only protects the setup hotspot; the owner can change it. The home Wi-Fi password is the only long-lived secret. **GUI requirement (not implemented yet):** the flash tool must say so and offer to leave it out, to be entered later in the WebUI over HTTPS (that WebUI page is phase 2b step 3). |
+| **Residual data in the card's flash (FTL)** | SD cards remap blocks internally (wear levelling); overwritten data may physically survive and could be read with lab equipment. Software cannot prevent this. | Keep the secrets **short-lived**: the setup code and the trust key are worthless once the owner password is set; the hotspot password only protects the setup hotspot; the owner can change it. The home Wi-Fi password is the only long-lived secret. **GUI requirement (not implemented yet):** the flash tool must say so and offer to leave it out, to be entered later in the WebUI over HTTPS (**Settings → Network**, docs/NETWORK.md). |
 | **Hand-edited files** | Editors may write a new file and delete the old one, which leaves the old clusters behind. | Documented in §2; the manual path is for owners who accept it. The flash tool writes in place. |
 | **Takeover** (someone else gets the card or the device first) | Physical access to the card equals authority by design (P8). A person holding the card before the owner can read the setup code. | The owner flashes the card themselves. After setup, the provisioning secrets are useless. Recovery requires physical access again. |
 | **Network takeover during setup** | A LAN attacker cannot read the card. The hotspot is WPA2/WPA3 with an individual password. | No open hotspot ever. |
@@ -68,4 +71,6 @@ can be secrets.
 ## 5. Open
 * Gate items: in-place overwrite on real vfat and a real card (P6-3); the hotspot with a per-device password on the on-board Wi-Fi (P6-1);
   "client Wi-Fi OR hotspot, never both" (P6-2).
-* The network service that consumes `network.json` is phase 2b step 3.
+* The network service that consumes `network.json` is implemented (docs/NETWORK.md); its hardware items are N-1 … N-11 there.
+* Recovery: a boot-partition request `network-reset` forgets the client Wi-Fi and every fixed address but keeps the country and the
+  hotspot credentials (docs/NETWORK.md section 10).

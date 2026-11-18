@@ -93,6 +93,7 @@ that was not tested.
   testable without lab equipment; record the limitation).
 - [ ] P6-4 Card **without** provisioning file: no hotspot ever; Ethernet works; `hifi-status.txt` shows a one-time setup code.
 - [ ] P6-5 Power cut 5× during first boot: the device still ends up provisioned, and the file is overwritten.
+- [ ] N-1 … N-11 Network management on the device (client Wi-Fi variants, hotspot with phones, AP-mode scan, WPA3 AP, captive-portal behaviour, regulatory domain, interface names, nftables modules, persistent clock, host name via Avahi, 2.4 GHz coexistence): list and procedure in docs/NETWORK.md section 11.
 - [ ] P7-1 Flash-tool trust proof against the real device. Then a phone shows a lock after installing the CA, and the fingerprint matches the
   tool's.
 

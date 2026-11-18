@@ -3,6 +3,9 @@ manual tests can 'press Play on the phone'.  The control API exists only here (t
 
   python3 -m btkit.appliance_lab --data /data --http-port 8080 --sim-port 8099 [appliance options...]
   curl http://appliance:8099/connect | /play | /pause | /notify | /disconnect | /status
+
+``--sim-network [PORT]`` also runs the REAL network agent with the SIMULATED radio (btkit.sim_net) on a socket in /tmp, so the network
+pages are managed; its control API (``/ethernet/on|off``, ``/stations/<n>``) listens on PORT (default 8098).
 """
 from __future__ import annotations
 
@@ -35,11 +38,38 @@ def control(sim: SimulatedA2dpSource, svc, port: int) -> None:
     threading.Thread(target=srv.serve_forever, daemon=True).start()
 
 
+def start_sim_network(data: str, port: int) -> str:
+    import os
+
+    from btbridge.net.netagent import Agent
+
+    from .sim_net import SimulatedNetworkSystem, _control_server
+    run = "/tmp/hifi-net"
+    os.makedirs(run, mode=0o700, exist_ok=True)
+    os.makedirs(data, mode=0o700, exist_ok=True)
+    system = SimulatedNetworkSystem()
+    agent = Agent(system, data, os.getuid(), run, log=lambda m: print(m, flush=True))
+    agent.start()
+    path = agent.bind(None)
+    threading.Thread(target=agent.serve, daemon=True, name="sim-net-serve").start()
+    threading.Thread(target=agent.loop, daemon=True, name="sim-net-loop").start()
+    _control_server(system, port)
+    print(f"SIMULATED network agent on {path}, control on :{port}", flush=True)
+    return path
+
+
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     sim_port = 8099
     if "--sim-port" in argv:
         i = argv.index("--sim-port"); sim_port = int(argv[i + 1]); del argv[i:i + 2]
+    if "--sim-network" in argv:
+        i = argv.index("--sim-network"); del argv[i]
+        port = 8098
+        if i < len(argv) and argv[i].isdigit():
+            port = int(argv.pop(i))
+        data = argv[argv.index("--data") + 1]
+        argv += ["--net-agent", start_sim_network(data, port)]
     a = appliance.parser().parse_args(argv)
     sim = SimulatedA2dpSource()
     return appliance.run(a, sim, ready=lambda svc, ui: control(sim, svc, sim_port))
