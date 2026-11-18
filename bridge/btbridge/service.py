@@ -144,6 +144,7 @@ class ApplianceService:
         self.mqtt_failed = False                        # enabled but could not be started (shown as degraded)
         self.syslog = None
         self.access = None                              # LocalAccess (names, HTTPS, mDNS) - set by the appliance entry point
+        self.network = None                             # net.netclient.NetworkService - set by the appliance entry point
         c = self.store.all()
         rc = RuntimeConfig(lms_url=lms_url(c["lms_host"], c["lms_port"]) if c["lms_host"] else "http://127.0.0.1:9",
                            advertise_host="" if advertise_host == "auto" else advertise_host, stream_port=stream_port, stream_format=c["stream_format"],
@@ -224,6 +225,8 @@ class ApplianceService:
             self.syslog.stop()
         if self.access is not None:
             self.access.stop()                         # mDNS goodbye
+        if self.network is not None:
+            self.network.stop()
         self.runtime.stop()
 
     # ------------------------------------------------------------------ config -> runtime
@@ -592,5 +595,6 @@ class ApplianceService:
             "stream": dict(self.runtime.stream.stats), "lms_commands": [c[0] for c in getattr(self.runtime.lms, "commands_sent", [])][-50:],
             "controller_events": [(round(t, 2), n, str(d)) for t, n, d in list(self.runtime.controller.events)[-100:]],
             "logs": [(round(t, 2), m) for t, m in self.logs.recent(300)], "faults": self.logs.faults(),
+            "network": self.network.diagnostics() if self.network is not None else None,     # passwords redacted (netconfig.redact)
             "note": "stream token, password hash and other secrets are never included; MAC addresses are pseudonymised",
         })
