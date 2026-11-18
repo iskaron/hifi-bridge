@@ -99,8 +99,7 @@ class RaucClient:
         """Operation, LastError, Progress (percent, message, depth), Compatible, Variant, BootSlot."""
         body = self._call("GetAll", "s", (IFACE,), iface="org.freedesktop.DBus.Properties")
         props = plain("a{sv}", body[0])
-        if "Progress" in props:
-            props["Progress"] = tuple(props["Progress"])
+        props["Progress"] = tuple(props.get("Progress") or (0, "", 0))
         return props
 
     def slots(self) -> list[dict]:
