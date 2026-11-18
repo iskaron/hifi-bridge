@@ -66,7 +66,7 @@ hb_logfile() {                                                       # a fresh l
 # Reads a command's merged output on stdin: writes ALL of it to $HB_PUMP_LOG, prints the lines matching $HB_FILTER (ERE; default: all)
 # unless quiet, and says "still working" after $HB_HEARTBEAT seconds without output.
 hb_pump() {
-  local line carry="" last now t0 rc seen=""
+  local line carry="" last now t0 rc seen="" filter
   t0=$(date +%s); last=$t0
   while :; do
     if IFS= read -r -t 1 line; then
@@ -74,7 +74,8 @@ hb_pump() {
       line=${line%$'\r'}
       printf '%s\n' "$line" >>"$HB_PUMP_LOG"
       seen=$line
-      if [ "$HB_QUIET" != 1 ] && printf '%s' "$line" | grep -Eq "${HB_FILTER:-.}"; then
+      filter=${HB_FILTER:-.}
+      if [ "$HB_QUIET" != 1 ] && [[ $line =~ $filter ]]; then
         printf '      %s\n' "${line:0:150}"
         last=$(date +%s)
       fi
@@ -339,7 +340,7 @@ hb_pull_compose_images() {
   local f=$1 img refs; shift
   refs=$(docker compose -f "$f" "$@" config --images 2>/dev/null) || { hb_warn "could not list the images of $f (compose will pull them itself)"; return 0; }
   for img in $refs; do
-    case "$img" in btbridge-*|hifi-demo:*|*-hifi-*) continue ;; esac
+    case "$img" in btbridge-*|hifi-demo:*) continue ;; esac     # built from this repository: hb_ensure_image
     hb_ensure_pulled "$img" "third-party service of $(basename "$(dirname "$f")")/$(basename "$f")" || return $?
   done
 }
