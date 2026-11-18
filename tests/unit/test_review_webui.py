@@ -75,6 +75,41 @@ def test_mqtt_form_refuses_a_ca_with_markers_but_no_certificate(ui):
     assert ui.svc.store.get("mqtt_ca_pem") == "" and ui.svc.store.get("mqtt_enabled") is False
 
 
+# ---------------------------------------------------------------- M1/M2: TLS handshake per connection, connection timeouts and caps
+def _threads():
+    import threading
+    return threading.active_count()
+
+
+def test_idle_connections_are_released_after_the_timeout(ui, monkeypatch):
+    from btbridge.webui import server as S
+    ui.web.stop()
+    monkeypatch.setattr(S, "CONN_TIMEOUT_S", 0.5)
+    port = S.WebUI(ui.svc, "127.0.0.1", 0).start()
+    base = _threads()
+    conns = [socket.create_connection(("127.0.0.1", port)) for _ in range(30)]
+    time.sleep(0.3)
+    assert _threads() > base
+    time.sleep(1.5)
+    assert _threads() <= base + 2                                            # was: one thread per idle peer, forever
+    for c in conns:
+        c.close()
+    assert Client(port).get("/healthz").status == 200
+
+
+def test_connections_beyond_the_cap_are_refused_not_queued(ui, monkeypatch):
+    from btbridge.webui import server as S
+    ui.web.stop()
+    monkeypatch.setattr(S, "MAX_CONNECTIONS", 5)
+    port = S.WebUI(ui.svc, "127.0.0.1", 0).start()
+    conns = [socket.create_connection(("127.0.0.1", port)) for _ in range(5)]
+    time.sleep(0.2)
+    extra = socket.create_connection(("127.0.0.1", port), timeout=3)
+    assert extra.recv(100).startswith(b"HTTP/1.0 503")
+    for c in conns:
+        c.close()
+
+
 def test_normal_login_post_still_works(ui):
     c = Client(ui.port)
     r = c.post("/setup", {"code": ui.code, "password": "a good long passphrase", "confirm": "a good long passphrase"}, csrf=False)

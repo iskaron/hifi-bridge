@@ -22,6 +22,8 @@ from .auth import AuthError
 from .i18n import Translator, pick_language
 
 MAX_BODY = 64 * 1024
+CONN_TIMEOUT_S = 10.0          # per connection: TLS handshake, request, body and response (review M2: idle peers pinned a thread each)
+MAX_CONNECTIONS = 64           # concurrent connections per listener; more are answered 503 and closed
 BOOTSTRAP_PATHS = ("/trust", "/ca.crt", "/ca.der", "/healthz", "/static/app.css", "/static/logo.svg", "/static/app.js", "/manifest.webmanifest", "/trust/proof")
 WIZARD_ACTIONS = ("/diagnostics/test",)     # actions offered inside the setup wizard (test sound on the last step)
 COOKIE = "bab_session"
@@ -127,6 +129,40 @@ def json_response(data, status: int = 200) -> Response:
     return Response(status, json.dumps(data), "application/json")
 
 
+class _Server(ThreadingHTTPServer):
+    """Threaded listener with a cap on concurrent connections. With TLS the handshake runs in the connection's own thread with
+    a timeout: wrapping the listening socket ran it inside accept(), so one idle TCP peer blocked every HTTPS client (review M1)."""
+    daemon_threads = True
+
+    def __init__(self, addr, handler, max_connections: int):
+        super().__init__(addr, handler)
+        self._slots = threading.BoundedSemaphore(max_connections)
+
+    def process_request(self, request, client_address):
+        if not self._slots.acquire(blocking=False):
+            try:
+                request.settimeout(1.0)
+                request.sendall(b"HTTP/1.0 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+            except OSError:
+                pass
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except Exception:
+            self._slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._slots.release()
+
+    def handle_error(self, request, client_address):
+        pass                                             # failed handshakes, timeouts, resets: nothing to report per peer
+
+
 class WebUI:
     def __init__(self, service, host: str = "0.0.0.0", port: int = 8080, tls_port: int | None = None,  # nosec B104 - see appliance.py
                  static_dir: str | None = None):
@@ -145,6 +181,27 @@ class WebUI:
         class H(BaseHTTPRequestHandler):
             server_version = "hifi-bridge"
             sys_version = ""
+            timeout = CONN_TIMEOUT_S
+
+            def setup(self):
+                if tls:
+                    self.request.settimeout(CONN_TIMEOUT_S)
+                    ctx = ui.svc.access.ctx if ui.svc.access is not None else None    # read per connection: renewal/swap applies
+                    if ctx is None:
+                        raise ConnectionAbortedError("TLS not available")
+                    self.request = ctx.wrap_socket(self.request, server_side=True, do_handshake_on_connect=False)
+                    self.request.do_handshake()
+                super().setup()
+
+            def finish(self):
+                try:
+                    super().finish()
+                finally:
+                    if tls:
+                        try:
+                            self.request.close()
+                        except OSError:
+                            pass
 
             def log_message(self, fmt, *args):            # access logs would leak paths of the stream; keep quiet
                 pass
@@ -158,10 +215,7 @@ class WebUI:
             def do_HEAD(self):
                 ui._dispatch(self, tls)
 
-        httpd = ThreadingHTTPServer((self.host, port), H)
-        httpd.daemon_threads = True
-        if tls:
-            httpd.socket = self.svc.access.ctx.wrap_socket(httpd.socket, server_side=True)   # ctx reloads on renewal
+        httpd = _Server((self.host, port), H, MAX_CONNECTIONS)
         threading.Thread(target=httpd.serve_forever, daemon=True, name="webui-tls" if tls else "webui").start()
         return httpd
 

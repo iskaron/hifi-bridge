@@ -30,6 +30,45 @@ def redact(text: str) -> str:
     return TOKEN_RE.sub("/s/***/", text)
 
 
+REQUEST_TIMEOUT_S = 10.0     # reading the request (an idle or slowloris peer is dropped: review M2)
+WRITE_TIMEOUT_S = 60.0       # one write may block this long; a reader that takes nothing for a minute is gone
+MAX_CONNECTIONS = 16         # players of a sync group + probes; more are answered 503 and closed
+
+
+class _Server(ThreadingHTTPServer):
+    """Threaded stream listener with a cap on concurrent connections (review M2)."""
+    daemon_threads = True
+    allow_reuse_address = True
+
+    def __init__(self, addr, handler, max_connections: int):
+        super().__init__(addr, handler)
+        self._slots = threading.BoundedSemaphore(max_connections)
+
+    def process_request(self, request, client_address):
+        if not self._slots.acquire(blocking=False):
+            try:
+                request.settimeout(1.0)
+                request.sendall(b"HTTP/1.0 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+            except OSError:
+                pass
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except Exception:
+            self._slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._slots.release()
+
+    def handle_error(self, request, client_address):
+        pass
+
+
 class StreamServer:
     def __init__(self, ring: PcmRing, feeder: LiveFeeder, token: str, fmt: str = "wav", lead_in_ms: int = 1000,
                  icy: bool = False, log=None):
@@ -82,6 +121,7 @@ class StreamServer:
 
         class H(BaseHTTPRequestHandler):
             protocol_version = "HTTP/1.0"
+            timeout = REQUEST_TIMEOUT_S
 
             def log_message(self, fmt, *a):
                 srv.log(redact(fmt % a))
@@ -92,9 +132,7 @@ class StreamServer:
             def do_GET(self):
                 srv._handle(self, head=False)
 
-        ThreadingHTTPServer.daemon_threads = True
-        ThreadingHTTPServer.allow_reuse_address = True
-        self.httpd = ThreadingHTTPServer((host, port), H)
+        self.httpd = _Server((host, port), H, MAX_CONNECTIONS)
         threading.Thread(target=self.httpd.serve_forever, daemon=True, name="stream-http").start()
         return self.httpd.server_address[1]
 
@@ -139,6 +177,7 @@ class StreamServer:
             return
         self.stats["connections"] += 1
         self._ev("client_connected", f"range={start_byte}")
+        h.connection.settimeout(WRITE_TIMEOUT_S)            # a stalled reader times out instead of pinning this thread
         enc = FlacEncoder() if fmt == "flac" else WavEncoder(with_header=(start_byte < WAV_HEADER_LEN))
         pos = self.feeder.lead_in_start(self.lead_in_ms)
         first = True
@@ -171,7 +210,7 @@ class StreamServer:
                 if out:
                     h.wfile.write(out)
                     self.stats["bytes_sent"] += len(out)
-        except (BrokenPipeError, ConnectionResetError, TimeoutError):
+        except (BrokenPipeError, ConnectionResetError, TimeoutError, OSError):
             pass
         finally:
             enc.close()

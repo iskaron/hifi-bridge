@@ -1,7 +1,12 @@
 """UNIT (fake mDNS/Avahi backends, real openssl certificates, real HTTP/TLS on localhost): regressions for review findings on local
 access (reports/REVIEW_PHASE2B_EXISTING_CODE.md: H5, H6, M9, L12)."""
+import socket
+import ssl
+import time
+
 import pytest
 from test_avahi import FakeStore
+from test_webui_access import NAME, TlsClient, ui  # noqa: F401  (TLS-enabled WebUI fixture)
 
 from btbridge.net import avahi as A
 from btbridge.net import mdns as M
@@ -68,6 +73,30 @@ def test_any_unexpected_mdns_error_degrades(tmp_path):
     acc, _ = _access(tmp_path, builtin_fail=ValueError("bad label"), mdns_backend="builtin")
     acc._start_mdns()
     assert acc.mdns is None and acc.mdns_backend == "unavailable"
+
+
+# ---------------------------------------------------------------- M1: the TLS handshake runs per connection, with a timeout
+def test_idle_tcp_connection_does_not_block_https_for_others(ui):
+    idle = socket.create_connection(("127.0.0.1", ui.tls_port))             # never starts a TLS handshake
+    time.sleep(0.2)
+    ctx = ssl.create_default_context(cafile=ui.ca)
+    t0 = time.monotonic()
+    with ctx.wrap_socket(socket.create_connection(("127.0.0.1", ui.tls_port), timeout=5), server_hostname=NAME) as tc:
+        tc.sendall(f"GET /healthz HTTP/1.1\r\nHost: {NAME}\r\n\r\n".encode())
+        assert tc.recv(100).startswith(b"HTTP/1.0 200")
+    assert time.monotonic() - t0 < 2.0                                      # was: blocked until the idle peer went away
+    idle.close()
+
+
+def test_plain_http_on_the_tls_port_does_not_break_the_listener(ui):
+    s = socket.create_connection(("127.0.0.1", ui.tls_port), timeout=5)
+    s.sendall(b"GET / HTTP/1.0\r\n\r\n")
+    try:
+        s.recv(100)
+    except OSError:
+        pass
+    s.close()
+    assert TlsClient(ui.tls_port, ui.ca).get("/healthz").status == 200
 
 
 # ---------------------------------------------------------------- H6: torn certificate files heal instead of crash-looping
