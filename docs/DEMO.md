@@ -49,7 +49,10 @@ network), `DEMO_HOST` (the host name printed in links), `DEMO_SUBNET_DEMO` / `DE
 **Isolation.** The demo is the compose project `hifi-demo` with its own networks and volumes; it never touches other containers. All services
 sit on an `internal` network on which the host has **no address**: they can reach neither the internet nor your LAN nor services on your
 computer (for example a real Lyrion server - its discovery answers would otherwise reach the demo's setup wizard; found and fixed while
-building the demo). Only a small gateway publishes the ports above, bound to 127.0.0.1.
+building the demo). Only a small gateway publishes the ports above, bound to 127.0.0.1. This is regression-tested: `tests/entry/test_compose_isolation.py` parses both compose
+files (every network internal with `inhibit_ipv4`, only the gateway on the edge network, no `network_mode: host`/`extra_hosts`/Docker socket, Lyrion only ever
+addressed as `lms`), and `scripts/check_isolation.sh` probes a running project (TCP 9000/3483, UDP 3483 discovery, broadcast, host-name lookups) - it is step 0 of
+`scripts/test_demo.sh`, and `scripts/test_entry_clean.sh` runs it with a decoy "Lyrion" listening on the Docker host.
 
 **Resources** (measured on the development machine): about 430 MB RAM for the whole demo while playing (bridge ~65 MB, Lyrion ~125 MB,
 console ~150 MB, each room ~25 MB), a few percent CPU. Images: `hifi-demo:dev` ~395 MB (one image for all demo services), plus Lyrion,

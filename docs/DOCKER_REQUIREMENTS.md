@@ -63,5 +63,8 @@ scripts/test_docker_versions.sh                                   # whole matrix
 scripts/test_docker_versions.sh --engines "24.0.9" --compose "2.20.3"
 scripts/test_entry_clean.sh --engine 25.0.5 --compose 2.24.5      # the owner's failing combination, from a fresh clone
 ```
+`scripts/check_isolation.sh` (runtime isolation check of a running lab/demo) has a negative control, `tests/entry/docker_matrix/negative_control.yml`
+(a project with a normal and an internal-without-`inhibit_ipv4` network): the check fails for it (`reports/evidence/isolation_negative_control.log`).
+
 The sandboxes are `--privileged` (Docker-in-Docker needs it) and **only** used for this test: no host socket, no host mount, own name prefix
 `hifi-entry-`, removed with their volumes at the end. Nothing is installed on the host.
