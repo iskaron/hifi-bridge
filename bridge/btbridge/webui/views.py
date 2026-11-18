@@ -717,7 +717,7 @@ def settings_password(req):
     if f.get("new") != f.get("confirm"):
         return _srv().redirect("/settings/security", req.t("error.password_mismatch"), req.secure, error=True)
     try:
-        req.ui.svc.auth.change_password(f.get("old", ""), f.get("new", ""))
+        req.ui.svc.auth.change_password(f.get("old", ""), f.get("new", ""), client=req.client)
     except AuthError as e:
         return _srv().redirect("/settings/security", err_text(req, e), req.secure, error=True)
     sid, _ = req.ui.svc.auth.sessions.create()                 # all old sessions are gone; keep this browser logged in

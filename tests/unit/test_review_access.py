@@ -99,6 +99,97 @@ def test_plain_http_on_the_tls_port_does_not_break_the_listener(ui):
     assert TlsClient(ui.tls_port, ui.ca).get("/healthz").status == 200
 
 
+# ---------------------------------------------------------------- M3: CSRF origin check behind a trusted reverse proxy
+def _proxy(ui):
+    ui.c.post("/settings/access/tls", {"tls_mode": "local_ca", "trusted_proxies": "127.0.0.1/32", "https_only": ""})
+    assert ui.svc.store.get("trusted_proxies") == "127.0.0.1/32"
+
+
+def test_browser_login_through_a_trusted_proxy_passes_the_origin_check(ui):
+    from test_webui import PW, Client
+    _proxy(ui)
+    via = {"Host": f"127.0.0.1:{ui.port}", "X-Forwarded-Host": "bridge.home.arpa", "X-Forwarded-Proto": "https",
+           "X-Forwarded-For": "192.168.1.50", "Origin": "https://bridge.home.arpa"}
+    r = Client(ui.port).post("/login", {"password": PW}, csrf=False, headers=via)
+    assert r.status == 303 and r.getheader("Location") == "/"            # was: 403 (Origin compared with the raw Host)
+
+
+def test_proxy_origin_check_still_refuses_foreign_origins(ui):
+    from test_webui import PW, Client
+    _proxy(ui)
+    for origin in ("https://evil.example", "https://bridge.home.arpa.evil.example"):
+        via = {"Host": f"127.0.0.1:{ui.port}", "X-Forwarded-Host": "bridge.home.arpa", "X-Forwarded-Proto": "https",
+               "X-Forwarded-For": "192.168.1.50", "Origin": origin}
+        assert Client(ui.port).post("/login", {"password": PW}, csrf=False, headers=via).status == 403, origin
+
+
+def test_untrusted_peer_cannot_use_forwarded_host_to_pass_the_origin_check(ui):
+    from test_webui import PW, Client
+    via = {"Host": f"127.0.0.1:{ui.port}", "X-Forwarded-Host": "bridge.home.arpa", "Origin": "https://bridge.home.arpa"}
+    assert Client(ui.port).post("/login", {"password": PW}, csrf=False, headers=via).status == 403
+
+
+# ---------------------------------------------------------------- M4: login back-off cannot be bypassed
+def test_forwarded_for_rotation_does_not_reset_the_back_off(ui):
+    from test_webui import Client
+    _proxy(ui)
+    for i in range(8):                                                   # attacker varies the leftmost X-Forwarded-For entry
+        Client(ui.port).post("/login", {"password": "wrong"}, csrf=False,
+                             headers={"X-Forwarded-For": f"10.9.9.{i}, 192.168.1.50"})
+    from btbridge.webui.auth import AuthError
+    with pytest.raises(AuthError, match="rate_limited"):
+        ui.svc.auth.limiter.check("192.168.1.50")                        # the address the proxy itself saw is limited
+
+
+def test_client_address_is_the_rightmost_untrusted_hop(ui):
+    from btbridge.webui.server import client_address
+    trusted = lambda ip: ip in ("127.0.0.1", "10.0.0.2")                 # noqa: E731
+    assert client_address("127.0.0.1", "6.6.6.6, 192.168.1.50", trusted) == "192.168.1.50"
+    assert client_address("127.0.0.1", "6.6.6.6, 192.168.1.50, 10.0.0.2", trusted) == "192.168.1.50"
+    assert client_address("127.0.0.1", "", trusted) == "127.0.0.1"
+    assert client_address("127.0.0.1", "garbage", trusted) == "127.0.0.1"
+
+
+def test_ipv6_clients_are_limited_per_64_prefix():
+    from btbridge.webui.auth import RateLimiter, limit_key
+    assert limit_key("2001:db8:1:2::1") == limit_key("2001:db8:1:2:ffff::9") != limit_key("2001:db8:1:3::1")
+    assert limit_key("192.168.1.50") == "192.168.1.50"
+    t = [0.0]
+    lim = RateLimiter(clock=lambda: t[0])
+    for i in range(6):
+        lim.fail(limit_key(f"2001:db8:1:2::{i + 1}"))
+    from btbridge.webui.auth import AuthError
+    with pytest.raises(AuthError):
+        lim.check(limit_key("2001:db8:1:2::abcd"))
+
+
+def test_global_failure_budget_limits_a_distributed_guess(tmp_path):
+    from btbridge.config import ConfigStore
+    from btbridge.webui.auth import Auth, AuthError
+    a = Auth(ConfigStore(str(tmp_path)), iterations=1000)
+    a.complete_setup("127.0.0.1", open(a.code_file).read().strip(), "a good long passphrase")
+    hits = 0
+    for i in range(200):
+        try:
+            a.login(f"10.{i // 250}.{i % 250}.1", "wrong")
+        except AuthError as e:
+            hits += e.code == "rate_limited"
+    assert hits > 0                                                      # many addresses, one budget
+
+
+
+def test_change_password_with_a_wrong_old_password_backs_off(tmp_path):
+    from btbridge.config import ConfigStore
+    from btbridge.webui.auth import Auth, AuthError
+    a = Auth(ConfigStore(str(tmp_path)), iterations=1000)
+    a.complete_setup("127.0.0.1", open(a.code_file).read().strip(), "a good long passphrase")
+    for _ in range(5):
+        with pytest.raises(AuthError):
+            a.change_password("wrong", "another long passphrase", client="192.168.1.50")
+    with pytest.raises(AuthError, match="rate_limited"):
+        a.change_password("a good long passphrase", "another long passphrase", client="192.168.1.50")
+
+
 # ---------------------------------------------------------------- H6: torn certificate files heal instead of crash-looping
 def _certs(tmp_path, faults=None):
     from btbridge.net.certs import CertManager

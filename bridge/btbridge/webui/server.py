@@ -49,9 +49,7 @@ class Request:
         self.client, self.scheme, self.host = self.peer, ("https" if tls else "http"), h.headers.get("Host", "")
         acc = server.svc.access
         if acc is not None and acc.is_trusted_proxy(self.peer):            # only an explicitly trusted reverse proxy may set these
-            fwd = h.headers.get("X-Forwarded-For", "")
-            if fwd:
-                self.client = fwd.split(",")[0].strip()
+            self.client = client_address(self.peer, h.headers.get("X-Forwarded-For", ""), acc.is_trusted_proxy)
             proto = h.headers.get("X-Forwarded-Proto", "").lower()
             if proto in ("http", "https"):
                 self.scheme = proto
@@ -276,7 +274,7 @@ class WebUI:
             return Response(404, views.not_found(self, req))
         public = getattr(handler, "public", False)
         if method == "POST":
-            if not same_origin(req.h.headers):
+            if not same_origin(req.h.headers, req.host):
                 return error_page(403, "Cross-origin request refused")
             try:
                 req.read_form()
@@ -330,13 +328,33 @@ class WebUI:
             pass
 
 
-def same_origin(headers) -> bool:
+def client_address(peer: str, forwarded_for: str, trusted: Callable[[str], bool]) -> str:
+    """The client behind trusted proxies: the RIGHTMOST X-Forwarded-For entry that is not itself a trusted proxy. The leftmost
+    entry is whatever the client wrote and was used to reset the login back-off at will (review M4)."""
+    import ipaddress
+    hops = [x.strip() for x in forwarded_for.split(",") if x.strip()]
+    for hop in reversed(hops):
+        try:
+            ipaddress.ip_address(hop)
+        except ValueError:
+            return peer                                  # malformed chain: fall back to the proxy's own address
+        if not trusted(hop):
+            return hop
+    return peer
+
+
+def same_origin(headers, host: str | None = None) -> bool:
     """CSRF defence in depth for POSTs (the CSRF token is the primary control for authenticated actions):
-    a real Origin must match Host; "Origin: null" is accepted only if the browser's Sec-Fetch-Site says same-origin;
+    a real Origin must match the request's host - behind a trusted reverse proxy the forwarded host the browser used, not the
+    proxy's upstream Host (review M3); "Origin: null" is accepted only if the browser's Sec-Fetch-Site says same-origin;
     clients sending neither header (non-browsers) are left to the token check."""
-    origin, host, site = headers.get("Origin"), headers.get("Host", ""), headers.get("Sec-Fetch-Site")
+    origin, site = headers.get("Origin"), headers.get("Sec-Fetch-Site")
+    host = headers.get("Host", "") if host is None else host
     if origin and origin != "null":
-        return urllib.parse.urlsplit(origin).netloc == host
+        u = urllib.parse.urlsplit(origin)
+        default = {"http": ":80", "https": ":443"}.get(u.scheme, "")
+        strip = lambda n: n[:-len(default)] if default and n.lower().endswith(default) else n   # noqa: E731
+        return strip(u.netloc.lower()) == strip(host.lower())
     if site is not None:
         return site in ("same-origin", "none")
     return origin is None
