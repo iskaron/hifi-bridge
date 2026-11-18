@@ -13,9 +13,13 @@ There is deliberately NO generic stop/pause/clear.
 """
 from __future__ import annotations
 
+import ipaddress
 import json
+import socket
+import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 
@@ -40,22 +44,89 @@ class Observation:
         return self.player_connected and self.mode == "play" and self.url is not None
 
 
+class _Resolver:
+    """Bounded, cached name lookup for the LMS host (review H2): ``getaddrinfo`` has no timeout (glibc: about 10 s per
+    name server and address family when DNS is down), which used to stall every LMS call. One lookup runs at a time in a
+    worker thread; callers wait at most ``timeout`` and fail as unreachable. A result is reused for ``cache_s`` seconds
+    and dropped on a connection failure (the LMS host may have a new DHCP address). IPv4 is preferred (home LAN)."""
+
+    def __init__(self, host: str, port: int, resolve=socket.getaddrinfo, timeout: float = 2.0, cache_s: float = 60.0):
+        self.host, self.port, self.resolve, self.timeout, self.cache_s = host, port, resolve, timeout, cache_s
+        self._lock = threading.Lock()
+        self._addr: str | None = None
+        self._until = 0.0
+        self._pending: threading.Thread | None = None
+        self._result: tuple | None = None
+
+    def _work(self) -> None:
+        try:
+            infos = self.resolve(self.host, self.port, 0, socket.SOCK_STREAM)
+            v4 = [i[4][0] for i in infos if i[0] == socket.AF_INET]
+            addrs = v4 or [i[4][0] for i in infos]
+            self._result = ("ok", addrs[0]) if addrs else ("err", "no address")
+        except (OSError, UnicodeError) as e:
+            self._result = ("err", str(e))
+
+    def address(self) -> str:
+        with self._lock:
+            if self._addr and time.monotonic() < self._until:
+                return self._addr
+            if self._pending is None or not self._pending.is_alive():
+                self._result = None
+                self._pending = threading.Thread(target=self._work, daemon=True, name="lms-resolve")
+                self._pending.start()
+            t = self._pending
+        t.join(self.timeout)
+        with self._lock:
+            res = self._result
+            if t.is_alive() or res is None:
+                raise LmsUnreachable(f"name lookup for {self.host} timed out")
+            if res[0] != "ok":
+                raise LmsUnreachable(f"name lookup for {self.host} failed: {res[1]}")
+            self._addr, self._until = res[1], time.monotonic() + self.cache_s
+            return self._addr
+
+    def forget(self) -> None:
+        with self._lock:
+            self._addr = None
+
+
 class LmsClient:
-    def __init__(self, base_url: str, timeout: float = 3.0):
+    def __init__(self, base_url: str, timeout: float = 3.0, resolve=socket.getaddrinfo, resolve_timeout: float = 2.0,
+                 resolve_cache_s: float = 60.0):
         if not base_url.lower().startswith(("http://", "https://")):     # never file:// or custom schemes (bandit B310)
             raise ValueError("LMS URL must use http or https")
         self.endpoint = base_url.rstrip("/") + "/jsonrpc.js"
         self.timeout = timeout
-        self.commands_sent: list[tuple] = []     # audit trail of state-changing commands (tests assert on it)
-        self.command_times: list[tuple[float, float]] = []   # (wall before, wall after) per command: timing probe t_lms_command
+        u = urllib.parse.urlsplit(self.endpoint)
+        self._resolver: _Resolver | None = None
+        host = u.hostname or ""
+        try:
+            ipaddress.ip_address(host)
+        except ValueError:
+            if u.scheme == "http" and host:              # https keeps the name (certificate check); LMS speaks plain http
+                self._resolver = _Resolver(host, u.port or 80, resolve, resolve_timeout, resolve_cache_s)
+        self._netloc, self._path = u.netloc, u.path
+        from ..core.bounded import BoundedList
+        self.commands_sent: list[tuple] = BoundedList(1000)     # audit trail of state-changing commands (tests assert on it)
+        self.command_times: list[tuple[float, float]] = BoundedList(1000)   # (wall before, wall after): probe t_lms_command
 
     def _rpc(self, player: str, *cmd):
         body = json.dumps({"id": 1, "method": "slim.request", "params": [player, list(cmd)]}).encode()
-        req = urllib.request.Request(self.endpoint, body, {"Content-Type": "application/json"})
+        url, headers = self.endpoint, {"Content-Type": "application/json"}
+        if self._resolver is not None:                   # connect to the looked-up address, keep the name in Host
+            addr = self._resolver.address()
+            host = f"[{addr}]" if ":" in addr else addr
+            port = urllib.parse.urlsplit(self.endpoint).port
+            url = f"http://{host}{':' + str(port) if port else ''}{self._path}"
+            headers["Host"] = self._netloc
+        req = urllib.request.Request(url, body, headers)
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as r:  # nosec B310 - scheme restricted to http/https in __init__
                 data = json.loads(r.read())
         except (urllib.error.URLError, OSError, ValueError) as e:
+            if self._resolver is not None and not isinstance(e, ValueError):
+                self._resolver.forget()
             raise LmsUnreachable(str(e)) from e
         return data.get("result", {}) or {}
 

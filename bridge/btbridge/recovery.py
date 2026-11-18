@@ -24,7 +24,8 @@ import os
 import sys
 import time
 
-OWN_FILES = ("settings.json", "secrets.json", "session.json", "faults.jsonl", "setup-code.txt", "network.json", "provision-journal.json")
+OWN_FILES = ("settings.json", "secrets.json", "session.json", "faults.jsonl", "setup-code.txt", "network.json", "provision-journal.json",
+             "faults-respawn.log")
 OWN_CERT_FILES = ("ca.key", "ca.crt", "server.key", "server.crt", "custom.key", "custom.crt", "state.json")
 REQUEST_FILE, STATUS_FILE, JOURNAL = "hifi-recovery", "hifi-status.txt", "recovery-journal.json"
 ACTIONS = ("reset-owner-password", "factory-reset")
@@ -161,6 +162,27 @@ def write_boot_status(boot_dir: str, lines: list[str]) -> None:
     _write_status(boot_dir, "".join(f"{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())} {line}\n" for line in lines))
 
 
+def _drop_to(uid: int, gid: int) -> None:
+    os.setgroups([])
+    os.setgid(gid)
+    os.setuid(uid)
+
+
+def run_as_data_owner(data_dir: str) -> str | None:
+    """Act as the owner of the data directory. Run as root on the console, the CLI used to leave root-owned files that the
+    service (user hifi-bridge) could not read: the next start moved secrets.json aside and the printed setup code was useless
+    (review M8). Root drops to the owner; any other user is refused. Returns an error text, or None."""
+    st = os.stat(data_dir)
+    euid = os.geteuid()
+    if euid == st.st_uid:
+        return None
+    if euid == 0:
+        _drop_to(st.st_uid, st.st_gid)
+        return None
+    return (f"refusing: {data_dir} belongs to uid {st.st_uid}, this process runs as uid {euid}; "
+            "run as root (the tool switches to the data owner) or as the data owner")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="btbridge.recovery", description="local recovery (console / SD card only)")
     ap.add_argument("--data", required=True)
@@ -172,6 +194,10 @@ def main(argv=None) -> int:
     if not os.path.isdir(a.data):
         print(f"data directory not found: {a.data}", file=sys.stderr)
         return 2
+    err = run_as_data_owner(a.data)
+    if err:
+        print(err, file=sys.stderr)
+        return 4
     if a.cmd == "reset-owner-password":
         print(f"owner password removed; new setup code: {reset_owner_password(a.data)}")
     elif a.cmd == "factory-reset":

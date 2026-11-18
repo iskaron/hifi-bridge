@@ -22,7 +22,8 @@
   });
 
   var countdown = document.querySelector(".countdown[data-remaining]");
-  var deviceName = (document.querySelector(".brand strong") || {}).textContent || "";
+  // the Bluetooth name guests select (review M6: the header shows the product name, not this one)
+  var deviceName = countdown ? (countdown.getAttribute("data-name") || "") : "";
   if (countdown) {
     var left = parseInt(countdown.getAttribute("data-remaining"), 10) || 0;
     var tick = setInterval(function () {

@@ -15,11 +15,16 @@ real phones' browsers or real home networks.
 | Mechanism | Implementation | Evidence |
 |---|---|---|
 | mDNS host name `<local_hostname>.local` (default `hifi-bridge`) | **Avahi preferred (DECISIONS #49):** `net/avahi.py` publishes an own entry group via the system's avahi-daemon (D-Bus; no root needed; collision -> next name; `Free` = goodbye). Built-in stdlib responder (`net/mdns.py`) only when no Avahi daemon is reachable (`mdns_backend=auto`) or explicitly chosen | real Avahi peer: built-in 7/7 and Avahi backend 6/6 (`scripts/test_mdns.sh`) |
-| DNS-SD services `_https._tcp` and `_http._tcp` | instance "Hi-Fi Bridge (<device name>)" | Avahi browse |
-| Extra names (reverse proxy, local DNS) | setting `extra_hostnames` | unit tests |
+| DNS-SD services `_https._tcp` and `_http._tcp` | instance "Hi-Fi Bridge (<device name>)", shortened on a character boundary (…) to the 63-byte DNS label limit (a 32-character Cyrillic name is 64+ bytes) | Avahi browse; UNIT `test_review_access.py` |
+| Extra names (reverse proxy, local DNS) | setting `extra_hostnames` (single labels allowed) | unit tests |
+| Bare device name `http://hifi-bridge/` (router DNS search domain) | always accepted by the Host check (not in the certificate: outside the CA's name constraints) | UNIT |
 | `--no-mdns` | when the OS publishes the name with avahi instead | – |
 
 A conflict-renamed device (for example `hifi-bridge-2.local`) automatically gets the new name in its certificate.
+
+The publication is checked every 60 s: if avahi-daemon restarted (its entry groups vanish with it), the bridge publishes again and keeps
+retrying while the daemon is down. Any mDNS error degrades to "unavailable" instead of stopping the start. The built-in responder runs one
+re-probe at a time and, after 15 conflicts within 10 s, waits 5 s before each further probe (RFC 6762 §8.1).
 
 ## 3. Certificates
 **Mode `local_ca` (default):**
@@ -30,8 +35,15 @@ A conflict-renamed device (for example `hifi-bridge-2.local`) automatically gets
   * The CA key is a 0600 file on the device and never leaves it.
 * **Server certificate:** ECDSA P-256, valid 397 days (within browser limits), `serverAuth` only. Its SANs are the mDNS name, the extra names
   (only those inside the constraints) and the current private IP addresses.
-* **Renewal:** automatic 30 days before expiry, when the name or address set changes (checked every 60 s), or when the CA changes. The TLS
-  context is reloaded in place: new handshakes use the new certificate, and open connections are not interrupted.
+* **Renewal:** automatic 30 days before expiry, when the name or address set changes (checked every 60 s), when the CA changes (also a
+  regenerated CA with the same subject: its fingerprint is recorded at issue time), or when key and certificate do not match. A **new**
+  TLS context is built and swapped in; the HTTPS listener reads it per connection and runs each handshake in the connection's own thread
+  with a 10 s timeout, so new handshakes use the new certificate, open connections are not interrupted, and one idle peer cannot block
+  other clients. In proxy mode there is no context and the HTTPS listener refuses every handshake.
+* **Power-cut safety:** keys and certificates are written to temporary files, fsynced and renamed (key first), then the directory is
+  fsynced. A CA that does not parse or whose key does not match (for example after a power cut during the very first boot) is replaced by
+  a new CA, logged as a fault; its new fingerprint is in `hifi-status.txt`, and every client must trust the new CA again
+  (docs/TRUST_BOOTSTRAP.md). A missing or unusable CA never stops the start; `hifi-status.txt` is written anyway.
 
 **Mode `custom`:** the owner's own certificate (with chain) and key (PEM).
 * The device rejects a key that does not match, an expired certificate, and a certificate that does not cover the device name.
@@ -60,12 +72,13 @@ configured HTTPS installations. A broken certificate together with HSTS could lo
 
 ## 5. DNS rebinding
 Every request is checked **before** any processing. The Host header must be one of:
-* the mDNS name (configured or conflict-renamed);
+* the mDNS name (configured or conflict-renamed), also without `.local`;
 * an extra name;
 * `localhost`;
 * an IP literal (IP literals cannot be rebound).
 
-Anything else gets **421 Misdirected Request**. Session cookies are `SameSite=Strict` and every POST is origin-checked (docs/SECURITY.md).
+A single-label name cannot be a public domain, so accepting the bare names keeps the protection. Anything else gets **421 Misdirected
+Request**, as a page in German and English with links to the device's names and to the address the browser actually used. Session cookies are `SameSite=Strict` and every POST is origin-checked (docs/SECURITY.md).
 
 ## 6. Evidence
 | Check | Label |

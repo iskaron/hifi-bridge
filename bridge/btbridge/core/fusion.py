@@ -13,6 +13,9 @@ Rules
     only the absence of PCM frames / transport going idle means paused.
   * Transport-only activity while AVRCP is available but not 'playing' (typical
     notification sound) does NOT count as media playing.
+  * A ``None`` status (the phone's MediaPlayer1 was removed, or it reported 'error'/an unknown status) means "no usable
+    AVRCP information": the PCM rule applies again until the phone reports a real status (review L11; conservative fix,
+    HARDWARE-PENDING - real phones' player lifecycle is unverified).
 """
 from __future__ import annotations
 
@@ -28,7 +31,7 @@ class MediaFusion:
 
     def on_avrcp(self, status: str | None) -> None:
         self.avrcp = status
-        self.avrcp_supported = status is not None or self.avrcp_supported
+        self.avrcp_supported = status is not None      # None: player gone -> fall back to transport + PCM
 
     def on_transport(self, state: str) -> None:
         self.transport = state

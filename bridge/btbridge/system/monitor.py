@@ -11,9 +11,11 @@ import time
 
 class SystemMonitor:
     def __init__(self, proc: str = "/proc", thermal: str | None = "/sys/class/thermal/thermal_zone0/temp", data_dir: str = "/",
-                 warn_c: float = 75.0, crit_c: float = 80.0, clock=time.monotonic):
+                 warn_c: float = 75.0, crit_c: float = 80.0, clock=time.monotonic, hysteresis_c: float = 3.0):
         self.proc, self.thermal, self.data_dir = proc, thermal, data_dir
         self.warn_c, self.crit_c, self.clock = warn_c, crit_c, clock
+        self.hyst_c = hysteresis_c
+        self._state = "unknown"                       # last classification (hysteresis reference)
         self._cpu_prev: tuple[int, int] | None = None
         self.last: dict = {}
 
@@ -82,9 +84,15 @@ class SystemMonitor:
         return t, self.thermal_state(t)
 
     def thermal_state(self, temp: float | None) -> str:
+        """ok/warning/critical. A state is entered at its threshold but only left ``hysteresis_c`` below it, so sensor noise
+        around 75 C no longer produces a fault and an MQTT event every 10 s (review L5)."""
         if temp is None:
             return "unknown"
-        return "critical" if temp >= self.crit_c else ("warning" if temp >= self.warn_c else "ok")
+        prev = self._state
+        crit_at = self.crit_c - self.hyst_c if prev == "critical" else self.crit_c
+        warn_at = self.warn_c - self.hyst_c if prev in ("warning", "critical") else self.warn_c
+        self._state = "critical" if temp >= crit_at else ("warning" if temp >= warn_at else "ok")
+        return self._state
 
     def sample(self) -> dict:
         load = (self._read(self.proc, "loadavg") or "").split()
