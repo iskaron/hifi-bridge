@@ -6,6 +6,10 @@
 set -uo pipefail
 # NOTE: on this development host Docker cannot deliver signals to containers ("unable to signal init: permission denied"), so
 # `docker stop` ends in SIGKILL. Clean stops are therefore requested INSIDE the container (pkill -TERM), as a service manager would.
+# shellcheck source=lib/common.sh
+. "$(dirname "$0")/lib/common.sh"
+hb_require --compose
+hb_ensure_images btbridge-lab:dev btbridge-avahi:dev
 cd "$(dirname "$0")/../docker"  || exit 1
 C="docker compose --profile mdns"
 fail=0

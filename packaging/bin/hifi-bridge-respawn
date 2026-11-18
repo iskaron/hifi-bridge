@@ -1,22 +1,28 @@
 #!/bin/sh
 # Respawn wrapper for init systems WITHOUT systemd (e.g. BusyBox init: "::respawn:" alone has no back-off).
 # Restarts the command when it exits, with exponential back-off (2 s .. 60 s); resets after 5 minutes of healthy runtime.
-# Records each crash in $HIFI_DATA/faults-respawn.log. SIGTERM/SIGINT are forwarded and end the wrapper.
+# Records each crash in $HIFI_DATA/faults-respawn.log (last RESPAWN_LOG_KEEP lines). SIGTERM/SIGINT are forwarded and end the wrapper.
+# Durations use the boot clock (/proc/uptime): a Pi has no RTC and the wall clock jumps at the NTP sync.
 # Usage: hifi-bridge-respawn <command> [args...]
 set -u
 DATA=${HIFI_DATA:-/var/lib/hifi-bridge}
-MIN=${RESPAWN_MIN_S:-2}; MAX=${RESPAWN_MAX_S:-60}; HEALTHY=${RESPAWN_HEALTHY_S:-300}
+MIN=${RESPAWN_MIN_S:-2}; MAX=${RESPAWN_MAX_S:-60}; HEALTHY=${RESPAWN_HEALTHY_S:-300}; KEEP=${RESPAWN_LOG_KEEP:-200}
+LOG="$DATA/faults-respawn.log"
 delay=$MIN; child=0; stopping=0
+boot_s() { up=0; { read -r up _ < /proc/uptime; } 2>/dev/null; echo "${up%.*}"; }
 trap 'stopping=1; [ "$child" -gt 0 ] && kill -TERM "$child" 2>/dev/null' TERM INT
 while [ "$stopping" -eq 0 ]; do
-  start=$(date +%s)
+  start=$(boot_s)
   "$@" &
   child=$!
   wait "$child"; rc=$?
   [ "$stopping" -eq 1 ] && { wait "$child" 2>/dev/null; exit 0; }
-  ran=$(( $(date +%s) - start ))
+  ran=$(( $(boot_s) - start ))
   [ "$ran" -ge "$HEALTHY" ] && delay=$MIN
-  echo "$(date -u +%FT%TZ) exit=$rc ran=${ran}s restart_in=${delay}s" >> "$DATA/faults-respawn.log" 2>/dev/null
+  echo "$(date -u +%FT%TZ) exit=$rc ran=${ran}s restart_in=${delay}s" >> "$LOG" 2>/dev/null
+  if [ "$(wc -l < "$LOG" 2>/dev/null || echo 0)" -gt "$KEEP" ]; then
+    tail -n "$KEEP" "$LOG" > "$LOG.tmp" 2>/dev/null && mv -f "$LOG.tmp" "$LOG"
+  fi
   echo "hifi-bridge-respawn: exited rc=$rc after ${ran}s; restarting in ${delay}s" >&2
   sleep "$delay" & wait $! 2>/dev/null
   delay=$(( delay * 2 )); [ "$delay" -gt "$MAX" ] && delay=$MAX

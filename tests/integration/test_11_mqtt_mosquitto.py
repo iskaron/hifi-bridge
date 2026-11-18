@@ -4,6 +4,7 @@ payloads are checked for the documented HA MQTT-discovery schema keys, not impor
 import json
 import socket
 import threading
+import uuid
 import time
 
 import pytest
@@ -102,15 +103,18 @@ class Proxy:
 
 
 def test_last_will_on_abrupt_loss_and_automatic_reconnect():
+    # A fresh topic per run: a retained "online" left by an earlier run must not satisfy the first check before this client connected.
+    topic = f"will/{uuid.uuid4().hex}/avail"
     sub = Sub(["will/#"])
     px = Proxy()
-    c = MqttClient("127.0.0.1", px.port, client_id="willy", keepalive=5, will=("will/avail", b"offline", True), backoff=(0.2, 1.0),
-                   on_connect=lambda: c.publish("will/avail", "online", retain=True))
+    c = MqttClient("127.0.0.1", px.port, client_id="willy", keepalive=5, will=(topic, b"offline", True), backoff=(0.2, 1.0),
+                   on_connect=lambda: c.publish(topic, "online", retain=True))
     c.start()
-    assert wait_for(lambda: sub.get("will/avail") == ["online"], 10)
+    assert wait_for(lambda: c.connects >= 1 and sub.get(topic) == ["online"], 10)
     px.cut()                                                         # crash-like loss: broker publishes the last will
-    assert wait_for(lambda: "offline" in sub.get("will/avail"), 15), sub.msgs
-    assert wait_for(lambda: c.connects >= 2 and sub.get("will/avail")[-1] == "online", 15)   # reconnected, online again
+    assert wait_for(lambda: "offline" in sub.get(topic), 15), sub.msgs
+    assert wait_for(lambda: c.connects >= 2 and sub.get(topic)[-1] == "online", 15)   # reconnected, online again
+    c.publish(topic, "", retain=True)                                # leave no retained message behind
     c.stop(); sub.stop()
 
 

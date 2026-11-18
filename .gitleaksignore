@@ -1,0 +1,5 @@
+# Reviewed Gitleaks false positives (commit-specific fingerprints; review each new entry, never ignore a real credential).
+# 2026-11-18: a fake stream token in a unit test (since changed to a neutral value)
+ac3b8ab3e7fb3ac5515cfc85e6990b5e1600ef19:tests/unit/test_review_stream.py:generic-api-key:14
+# 2026-11-18: documentation of the image secret scanner quoting the constant PEM header it deliberately ignores
+bf0adfa5fefe416ce425a2bd293c81c81ea9b762:os/tools/secret_scan.py:private-key:6

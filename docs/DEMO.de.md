@@ -10,8 +10,14 @@ Der Audiomonitor spielt die **Ausgabe der Squeezelite-Player hinter Lyrion** ab,
 Echte Bluetooth-Verbindungen, echte Telefone und ein Raspberry Pi sind damit **nicht** nachgewiesen (Hardware-Gate).
 
 ## Start
-Voraussetzungen: Docker mit Compose v2 und `make`. Keine Installation auf dem Rechner, keine privilegierten Container.
+Voraussetzungen: **Docker Engine ≥ 24.0 und Docker Compose (v2-Plugin) ≥ 2.20** (Engine 29+: Compose ≥ 2.24.5) sowie `make` (Begründung und Prüfung der Mindestversionen:
+[DOCKER_REQUIREMENTS.md](DOCKER_REQUIREMENTS.md), englisch). Keine Installation auf dem Rechner, keine privilegierten Container.
+`make demo` prüft vor dem Start Docker, Compose, Daemon, freien Speicher und Ports und nennt bei einem Mangel gefundene und benötigte
+Version sowie die Abhilfe (englisch, mit deutschem Hinweis). Der erste Start baut das Demo-Image (ca. 5 Minuten) und lädt Lyrion und
+Mosquitto (ca. 240 MB); jeder Schritt zeigt Nummer, Zeit und Grund, bei Stille meldet „still working“ alle 15 s. `HB_QUIET=1 make demo`
+zeigt nur die Schrittzeilen (für CI).
 ```bash
+make doctor        # nur prüfen: Versionen, Speicher, Ports, Images
 make demo          # bauen + starten, zeigt alle Adressen und den Einrichtungscode
 make demo-status   # Status, Adressen, Einrichtungscode, CA-Fingerabdruck, MQTT-Zugang, CPU/RAM
 make demo-logs     # Logs verfolgen
@@ -50,6 +56,11 @@ Schlüssel absichtlich gelöscht; `make demo-trust` vergleicht dann den Fingerab
 * **Zweites Smartphone:** Ben verbinden, während Anna spielt: wird abgelehnt, Anna spielt weiter. Unter Bridge → Kopplung „Entfernen“.
 * **Eigene Musik:** am Telefon „Eigene Datei hinzufügen“ (WAV, FLAC, MP3, Ogg; bleibt in der Demo).
 * **MQTT/Home Assistant:** Bridge → Einstellungen → MQTT mit den Daten aus `make demo-status`; dann `make demo-ha`.
+
+## Lautstärke
+Die Räume starten mit Lyrion-Lautstärke 75 (früher 50 = −25 dB), die erzeugte Musik ist lauter (−13,6 dBFS RMS statt −17,7) und der
+Abhörpegel im Monitor steht auf 400 % hinter einem weichen Limiter. Am virtuellen DAC: −25,7 dBFS RMS statt −42,1; am Browser-Ausgang
+−14,9 dBFS RMS (gemessen). Ältere Demo-Daten werden beim Start einmal auf 75 gesetzt. Details und Messung: DEMO.md „Loudness“.
 
 ## Messwerte (SIMULIERTE Telefone und Räume; Software-Zeiten in Docker, nicht akustisch)
 Play → Lyrion spielt: 2,1 s · Telefon → Raum im Betrieb: 2,2 s · Übernahme vom Radio: 2,3 s · Abbruch → Stopp: 0,02 s ·

@@ -100,7 +100,8 @@ class MqttBridge:
             on_message=self._on_message, on_connect=self._on_connect, log=service.logs)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
-        self.commands: list[tuple[str, str, bool]] = []          # (command, value, executed)
+        from ..core.bounded import BoundedList
+        self.commands: list[tuple[str, str, bool]] = BoundedList(200)   # (command, value, executed)
         service.on_event(self._on_event)
 
     # ---- lifecycle ----
@@ -111,6 +112,9 @@ class MqttBridge:
 
     def stop(self) -> None:
         self._stop.set()
+        off = getattr(self.svc, "off_event", None)
+        if off is not None:
+            off(self._on_event)                          # a restarted bridge must not leave its listener behind (review L1)
         if self.client.connected:
             self.client.publish(self.topic("availability"), "offline", retain=True)
         self.client.stop()

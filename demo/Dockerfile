@@ -2,7 +2,7 @@
 # Debian trixie: PipeWire 1.4 (closest to Buildroot's 1.2.8; capture via pw-cat --raw), Python 3.13.
 # Build context = repository root, filtered by /.dockerignore (allowlist: no secrets/, no .lab/, no .git/).
 # Nothing here is a product image: the product code is copied unchanged; everything simulated lives in testkit/ and demo/.
-FROM debian:trixie-slim
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
 ENV DEBIAN_FRONTEND=noninteractive PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \

@@ -15,8 +15,15 @@ What you hear in the audio monitor is the **output of the Squeezelite players be
 Nothing in this demo proves real Bluetooth, real phones or a Raspberry Pi: that is the hardware gate (`docs/HARDWARE_GATE_CHECKLIST.md`).
 
 ## 1. Start
-Requirements on the host: Docker with Compose v2, `make`. Nothing is installed on the host; no privileged containers; no hardware is touched.
+Requirements on the host: **Docker Engine >= 24.0 and Docker Compose (v2 plugin) >= 2.20** (Engine 29+: Compose >= 2.24.5), `make`. Nothing is installed on the host; no
+privileged containers; no hardware is touched. Why these minimums and how they were verified: [DOCKER_REQUIREMENTS.md](DOCKER_REQUIREMENTS.md).
+`make demo` checks Docker, Compose, the daemon, free disk space and the ports **before** it starts or changes anything and, if something is
+missing, prints what it found, what is required and how to fix it (English, with a German hint). `make doctor` does only this check.
+The first start builds the demo image (apt downloads, about 5 minutes) and pulls the pinned Lyrion and Mosquitto images (about 240 MB) -
+every step prints its number, elapsed time and what is being built or pulled and why, and a silent step says "still working" every 15 s.
+`HB_QUIET=1 make demo` (or `scripts/demo.sh -q up`) prints the step lines only, for CI; full logs stay in `/tmp/hifi-bridge-logs-<uid>/`.
 ```bash
+make doctor        # only check this computer (versions, disk, ports, images)
 make demo          # build + start, then print all URLs and the one-time setup code
 make demo-status   # status, URLs, setup code (until used), CA fingerprint, MQTT credentials, CPU/RAM
 make demo-logs     # follow the logs (SERVICE=hifi-bridge make demo-logs for one service)
@@ -42,7 +49,10 @@ network), `DEMO_HOST` (the host name printed in links), `DEMO_SUBNET_DEMO` / `DE
 **Isolation.** The demo is the compose project `hifi-demo` with its own networks and volumes; it never touches other containers. All services
 sit on an `internal` network on which the host has **no address**: they can reach neither the internet nor your LAN nor services on your
 computer (for example a real Lyrion server - its discovery answers would otherwise reach the demo's setup wizard; found and fixed while
-building the demo). Only a small gateway publishes the ports above, bound to 127.0.0.1.
+building the demo). Only a small gateway publishes the ports above, bound to 127.0.0.1. This is regression-tested: `tests/entry/test_compose_isolation.py` parses both compose
+files (every network internal with `inhibit_ipv4`, only the gateway on the edge network, no `network_mode: host`/`extra_hosts`/Docker socket, Lyrion only ever
+addressed as `lms`), and `scripts/check_isolation.sh` probes a running project (TCP 9000/3483, UDP 3483 discovery, broadcast, host-name lookups) - it is step 0 of
+`scripts/test_demo.sh`, and `scripts/test_entry_clean.sh` runs it with a decoy "Lyrion" listening on the Docker host.
 
 **Resources** (measured on the development machine): about 430 MB RAM for the whole demo while playing (bridge ~65 MB, Lyrion ~125 MB,
 console ~150 MB, each room ~25 MB), a few percent CPU. Images: `hifi-demo:dev` ~395 MB (one image for all demo services), plus Lyrion,
@@ -116,6 +126,22 @@ light/dark. The system page shows real CPU/memory of the bridge container; there
 `reset-owner-password` on the boot partition and restarts the device; the device processes it exactly once and shows a new one-time setup
 code (also in `make demo-status`). Settings and pairings are kept.
 
+## Loudness (rooms, generated audio, monitor)
+The first version was hardly audible. Measured at the room's virtual DAC (Wohnzimmer, demo radio, Lyrion volume 50), `measurements/demo_loudness_*.json`:
+
+| | before | after |
+|---|---|---|
+| generated audio (source), RMS / peak | -17.7 / -3.1 dBFS | -13.6 / -1.0 dBFS |
+| Lyrion volume of the rooms at start | 50 (= -25 dB; Lyrion maps 100 -> 0 dB, 0.5 dB per step) | 75 (-12.5 dB, headroom up and down) |
+| **at the room's DAC**, RMS / peak | **-42.1 / -28.8 dBFS** | **-25.7 / -13.5 dBFS** |
+| monitor listening level (default) | 200 % | 400 % behind a soft-knee limiter (linear to 0.6 of full scale, tanh knee to 0.98; no makeup gain, no latency) |
+| at the browser output (headless Chromium), RMS / peak | about -36 dBFS (computed) | **-14.9 dBFS / 0.79** (measured) |
+
+Cause: Lyrion's default player volume (-25 dB) on top of quiet generated programme material (-17.7 dBFS RMS) and a +6 dB monitor. The product
+audio engine (`bridge/`) is unchanged; only the demo's content, the rooms' initial volume (`demo/lms/server.prefs`, one-time migration in
+`demo/lms/start.sh`) and the monitor (`demo/hifidemo/static/monitor.js`) changed. Reproduce: `tests/demo/stack/measure_level.py` (run against a
+demo project, see its docstring); the stack test asserts the browser-output level.
+
 ## 5. Measured values (SIMULATED phones and rooms - software timing in Docker, not acoustic, not Bluetooth)
 From `scripts/test_demo.sh` (`measurements/demo_*.json`, 2026-11-17):
 
@@ -134,7 +160,10 @@ not part of the bridge's latency.
 * **"Port(s) already in use"**: start with other ports, e.g. `DEMO_HTTP_PORT=28080 DEMO_HTTPS_PORT=28443 DEMO_CONSOLE_PORT=28100
   DEMO_LMS_PORT=29000 DEMO_HA_PORT=28123 make demo`.
 * **"Pool overlaps with other one"**: set `DEMO_SUBNET_DEMO` / `DEMO_SUBNET_EDGE` to free /24 networks.
-* **Silent monitor**: is the room playing (monitor shows "Lyrion: playing")? Raise the listening level; Lyrion starts players at volume 50.
+* **"Docker Compose is too old" / "Docker Engine is too old"**: upgrade as printed (Docker's own apt repository instead of an old distribution
+  package); minimums are in [DOCKER_REQUIREMENTS.md](DOCKER_REQUIREMENTS.md).
+* **Silent monitor**: is the room playing (monitor shows "Lyrion: playing")? The rooms start at Lyrion volume 75 and the listening level is
+  400 % (section "Loudness"); raise either one. Demo data from before 2026-11-18 is migrated once to volume 75 when the demo starts.
 * **Browser warning on HTTPS**: import the CA (section 3) and use exactly https://127.0.0.1:18443.
 * **Start over**: `make demo-reset`.
 

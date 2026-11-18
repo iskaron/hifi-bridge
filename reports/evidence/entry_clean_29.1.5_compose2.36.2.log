@@ -1,0 +1,278 @@
+# clean-environment test 2026-11-18T17:46:48Z: Engine 29.1.5 (sandbox docker:29.1.5-dind@sha256:3a33fc81fa4d38360f490f5b900e9846f725db45bb1d9b1fe02d849bd42a5cf2), Compose 2.36.2, clone of 4f63f61
+### 17:46:48 docker and compose versions
+engine 29.1.5 (API 1.52), client 29.1.5
+Docker Compose version v2.36.2
+### 17:46:48 images before: only the sandbox's own (none of the project's)
+(none)
+### 17:46:48 decoy: a fake Lyrion on the Docker host (all addresses, TCP 9000 and 3483) - nothing in the demo may reach it
+### 17:46:48 make demo   (first run on a clean machine: builds hifi-demo:dev, pulls the pinned Lyrion and Mosquitto images)
+[1/5 0:00] checking prerequisites (Docker Engine >= 24.0, Compose >= 2.20, disk, ports)
+      docker engine 29.1.5, compose 2.36.2 (required: engine >= 24.0, compose >= 2.20)
+[2/5 0:00] images: build the demo image (first run: ~5 min of apt downloads), pull Lyrion and Mosquitto (~240 MB)
+      image hifi-demo:dev is missing - first run: the interactive demo: bridge node, phones, rooms, gateway (one image)
+      building hifi-demo:dev - the interactive demo: bridge node, phones, rooms, gateway (one image) (about 400 MB)
+      #1 [internal] load build definition from Dockerfile
+      #2 [internal] load metadata for docker.io/library/debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
+      #3 [internal] load .dockerignore
+      #4 [1/9] FROM docker.io/library/debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
+      #5 [internal] load build context
+      #4 [1/9] FROM docker.io/library/debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
+      #6 [2/9] RUN apt-get update  && apt-get install -y --no-install-recommends       python3 python3-numpy python3-jeepney python3-cryptography python3-py
+      ... still working, 59 s elapsed (last output: #6 54.63 Setting up shared-mime-info (2.4-5+b2) ...)
+      #7 [3/9] RUN useradd --uid 10001 --create-home --shell /usr/sbin/nologin hifi  && mkdir -p /data /boot-demo /owner /run/hifi /var/cache/hifi-demo  && 
+      #8 [4/9] COPY bridge/btbridge /opt/hifi-bridge/bridge/btbridge
+      #9 [5/9] COPY testkit/btkit /opt/hifi-bridge/testkit/btkit
+      #10 [6/9] COPY testkit/pw/start_pipewire.sh /opt/hifi-bridge/testkit/pw/start_pipewire.sh
+      #11 [7/9] COPY flashtool/hififlash /opt/hifi-bridge/flashtool/hififlash
+      #12 [8/9] COPY demo /opt/hifi-bridge/demo
+      #13 [9/9] WORKDIR /opt/hifi-bridge
+      #14 naming to docker.io/library/hifi-demo:dev done
+      build hifi-demo:dev: done in 1 min 34 s
+      pulling lmscommunity/lyrionmusicserver:9.1.2 - third-party service of demo/compose.yml
+      docker.io/lmscommunity/lyrionmusicserver@sha256:a8709abda8a80766274abeb44015189b7e050eb1a6372678dcb077eb8c3a1e21: Pulling from lmscommunity/lyrionmusi
+      4f4fb700ef54: Already exists
+      11422d7ca1a4: Pull complete
+      99d7164bacfb: Pull complete
+      34a0abf5e534: Pull complete
+      5b76e9217609: Pull complete
+      23d81adc7166: Pull complete
+      2ed41b10832c: Pull complete
+      51c339d10025: Pull complete
+      0e5f139c66c9: Pull complete
+      4f4fb700ef54: Pull complete
+      f08cb5d7cf22: Pull complete
+      Digest: sha256:a8709abda8a80766274abeb44015189b7e050eb1a6372678dcb077eb8c3a1e21
+      Status: Downloaded newer image for lmscommunity/lyrionmusicserver@sha256:a8709abda8a80766274abeb44015189b7e050eb1a6372678dcb077eb8c3a1e21
+      pull lmscommunity/lyrionmusicserver:9.1.2: done in 6 s
+      pulling eclipse-mosquitto:2.0.20 - third-party service of demo/compose.yml
+      docker.io/library/eclipse-mosquitto@sha256:21421af7b32bf9ce508e9090c8eb13bb81f410ca778dc205506180a6f862d0eb: Pulling from library/eclipse-mosquitto
+      0a9a5dfd008f: Pull complete
+      3feb7da14d0f: Pull complete
+      536822d30dca: Pull complete
+      Digest: sha256:21421af7b32bf9ce508e9090c8eb13bb81f410ca778dc205506180a6f862d0eb
+      Status: Downloaded newer image for eclipse-mosquitto@sha256:21421af7b32bf9ce508e9090c8eb13bb81f410ca778dc205506180a6f862d0eb
+      pull eclipse-mosquitto:2.0.20: done in 2 s
+[3/5 1:42] starting the stack (project hifi-demo: 8 containers on an internal network)
+       Network hifi-demo_edge  Creating
+       Network hifi-demo_edge  Created
+       Network hifi-demo_demo  Creating
+       Network hifi-demo_demo  Created
+       Volume "hifi-demo_console-data"  Creating
+       Volume "hifi-demo_console-data"  Created
+       Volume "hifi-demo_lms-config"  Creating
+       Volume "hifi-demo_lms-config"  Created
+       Volume "hifi-demo_mqtt"  Creating
+       Volume "hifi-demo_mqtt"  Created
+       Volume "hifi-demo_mqtt-creds"  Creating
+       Volume "hifi-demo_mqtt-creds"  Created
+       Volume "hifi-demo_bridge-data"  Creating
+       Volume "hifi-demo_bridge-data"  Created
+       Volume "hifi-demo_boot"  Creating
+       Volume "hifi-demo_boot"  Created
+       Volume "hifi-demo_owner"  Creating
+       Volume "hifi-demo_owner"  Created
+       Container hifi-demo-lms-1  Creating
+       Container hifi-demo-flashtool-1  Creating
+       Container hifi-demo-gateway-1  Creating
+       Container hifi-demo-mosquitto-1  Creating
+       Container hifi-demo-flashtool-1  Created
+       Container hifi-demo-gateway-1  Created
+       Container hifi-demo-mosquitto-1  Created
+       Container hifi-demo-lms-1  Created
+       Container hifi-demo-hifi-bridge-1  Creating
+       Container hifi-demo-wohnzimmer-1  Creating
+       Container hifi-demo-schlafzimmer-1  Creating
+       Container hifi-demo-arbeitszimmer-1  Creating
+       Container hifi-demo-wohnzimmer-1  Created
+       Container hifi-demo-hifi-bridge-1  Created
+       Container hifi-demo-console-1  Creating
+       Container hifi-demo-schlafzimmer-1  Created
+       Container hifi-demo-arbeitszimmer-1  Created
+       Container hifi-demo-console-1  Created
+       Container hifi-demo-gateway-1  Starting
+       Container hifi-demo-lms-1  Starting
+       Container hifi-demo-flashtool-1  Starting
+       Container hifi-demo-mosquitto-1  Starting
+       Container hifi-demo-flashtool-1  Started
+       Container hifi-demo-lms-1  Started
+       Container hifi-demo-lms-1  Waiting
+       Container hifi-demo-lms-1  Waiting
+       Container hifi-demo-lms-1  Waiting
+       Container hifi-demo-flashtool-1  Waiting
+       Container hifi-demo-lms-1  Waiting
+       Container hifi-demo-mosquitto-1  Started
+       Container hifi-demo-gateway-1  Started
+       Container hifi-demo-flashtool-1  Exited
+       Container hifi-demo-lms-1  Healthy
+       Container hifi-demo-schlafzimmer-1  Starting
+       Container hifi-demo-lms-1  Healthy
+       Container hifi-demo-arbeitszimmer-1  Starting
+       Container hifi-demo-lms-1  Healthy
+       Container hifi-demo-hifi-bridge-1  Starting
+       Container hifi-demo-lms-1  Healthy
+       Container hifi-demo-wohnzimmer-1  Starting
+       Container hifi-demo-wohnzimmer-1  Started
+       Container hifi-demo-schlafzimmer-1  Started
+       Container hifi-demo-arbeitszimmer-1  Started
+       Container hifi-demo-hifi-bridge-1  Started
+       Container hifi-demo-console-1  Starting
+       Container hifi-demo-console-1  Started
+      docker compose up: done in 13 s
+[4/5 1:55] waiting for the bridge to become healthy (usually 20-40 s)
+[5/5 2:00] ready
+
+  Hi-Fi Bridge demo  (SIMULATED: phones, Bluetooth radio, rooms/speakers - REAL: bridge software, Lyrion, Squeezelite)
+
+    Bridge WebUI (HTTP)     http://127.0.0.1:18080
+    Bridge WebUI (HTTPS)    https://127.0.0.1:18443        (after "make demo-trust" and importing the CA, see docs/DEMO.md)
+    Demo console            http://127.0.0.1:18100          (overview)
+      Virtual phones        http://127.0.0.1:18100/phones
+      Audio monitor         http://127.0.0.1:18100/monitor
+    Lyrion Media Server     http://127.0.0.1:19000
+
+  Owner data (local demo only - do not paste into public issues):
+    Setup code              <redacted>   (one-time; enter it in the setup wizard)
+    Device CA (SHA-256)     89:DB:84:C9:48:FB:EA:D6:52:B2:6C:8A:BB:2A:42:B0:2B:6A:45:D2:BA:F4:3E:9B:9D:41:5F:23:BE:A6:B0:5E
+    MQTT (bridge settings)  host mosquitto, port 1883, user hifi-bridge, password <redacted>
+
+  Next: open the bridge, enter the setup code, choose Lyrion server 'lms' and a room. Guide: docs/DEMO.md
+make demo: exit 0 after 121 s
+### 17:48:49 make demo-status
+      docker engine 29.1.5, compose 2.36.2 (required: engine >= 24.0, compose >= 2.20)
+NAME                        IMAGE                                                                                                          COMMAND                  SERVICE         CREATED          STATUS                         PORTS
+hifi-demo-arbeitszimmer-1   hifi-demo:dev                                                                                                  "/usr/bin/tini -- py…"   arbeitszimmer   14 seconds ago   Up 7 seconds                   
+hifi-demo-console-1         hifi-demo:dev                                                                                                  "/usr/bin/tini -- py…"   console         13 seconds ago   Up 6 seconds                   
+hifi-demo-gateway-1         hifi-demo:dev                                                                                                  "/usr/bin/tini -- py…"   gateway         18 seconds ago   Up 13 seconds                  127.0.0.1:18080->18080/tcp, 127.0.0.1:18100->18100/tcp, 127.0.0.1:18123->18123/tcp, 127.0.0.1:18443->18443/tcp, 127.0.0.1:19000->19000/tcp
+hifi-demo-hifi-bridge-1     hifi-demo:dev                                                                                                  "/usr/bin/tini -- py…"   hifi-bridge     14 seconds ago   Up 7 seconds (healthy)         
+hifi-demo-lms-1             lmscommunity/lyrionmusicserver:9.1.2@sha256:a8709abda8a80766274abeb44015189b7e050eb1a6372678dcb077eb8c3a1e21   "/bin/bash /seed/sta…"   lms             18 seconds ago   Up 13 seconds (healthy)        3483/tcp, 9000/tcp, 9090/tcp, 3483/udp
+hifi-demo-mosquitto-1       eclipse-mosquitto:2.0.20@sha256:21421af7b32bf9ce508e9090c8eb13bb81f410ca778dc205506180a6f862d0eb               "/bin/sh /mosquitto/…"   mosquitto       18 seconds ago   Restarting (3) 4 seconds ago   
+hifi-demo-schlafzimmer-1    hifi-demo:dev                                                                                                  "/usr/bin/tini -- py…"   schlafzimmer    14 seconds ago   Up 7 seconds                   
+hifi-demo-wohnzimmer-1      hifi-demo:dev                                                                                                  "/usr/bin/tini -- py…"   wohnzimmer      14 seconds ago   Up 7 seconds                   
+
+  Hi-Fi Bridge demo  (SIMULATED: phones, Bluetooth radio, rooms/speakers - REAL: bridge software, Lyrion, Squeezelite)
+
+    Bridge WebUI (HTTP)     http://127.0.0.1:18080
+    Bridge WebUI (HTTPS)    https://127.0.0.1:18443        (after "make demo-trust" and importing the CA, see docs/DEMO.md)
+    Demo console            http://127.0.0.1:18100          (overview)
+      Virtual phones        http://127.0.0.1:18100/phones
+      Audio monitor         http://127.0.0.1:18100/monitor
+    Lyrion Media Server     http://127.0.0.1:19000
+
+  Owner data (local demo only - do not paste into public issues):
+    Setup code              <redacted>   (one-time; enter it in the setup wizard)
+    Device CA (SHA-256)     89:DB:84:C9:48:FB:EA:D6:52:B2:6C:8A:BB:2A:42:B0:2B:6A:45:D2:BA:F4:3E:9B:9D:41:5F:23:BE:A6:B0:5E
+    MQTT (bridge settings)  host mosquitto, port 1883, user hifi-bridge, password <redacted>
+
+  Resources:
+hifi-demo-arbeitszimmer-1	1.04%	22.93MiB / 22.89GiB
+hifi-demo-console-1	0.60%	22.71MiB / 22.89GiB
+hifi-demo-gateway-1	0.00%	11.58MiB / 22.89GiB
+hifi-demo-hifi-bridge-1	1.22%	51.5MiB / 22.89GiB
+hifi-demo-lms-1	0.00%	125.4MiB / 22.89GiB
+hifi-demo-mosquitto-1	0.00%	0B / 0B
+hifi-demo-schlafzimmer-1	1.06%	22.93MiB / 22.89GiB
+hifi-demo-wohnzimmer-1	0.86%	22.94MiB / 22.89GiB
+image hifi-demo:dev 577MB
+### 17:48:52 the published ports answer (bridge redirects to the setup wizard, console, Lyrion)
+port 18080 -> 303 http://127.0.0.1:18080/setup
+port 18100 -> 200 
+port 19000 -> 200 
+### 17:48:52 runtime isolation check against the real demo (decoy listening on the host)
+      docker engine 29.1.5 (required: engine >= 24.0)
+ok    network hifi-demo_demo: internal, inhibit_ipv4 (the host has no address on it)
+ok    host: no IPv4 address on br-68e81e627e17
+ok    network hifi-demo_edge: not internal, attached only to the allowed edge service(s):hifi-demo-gateway-1 
+note  gateway is an allowed edge service (it only forwards fixed targets)
+ok    network hifi-demo_demo: TCP 9000/3483 and UDP 3483 discovery to the candidate host addresses (172.29.251.1) and the broadcast reach nothing outside the project
+isolation check of project hifi-demo: rc=0
+### 17:49:09 make demo-stop
+      docker engine 29.1.5, compose 2.36.2 (required: engine >= 24.0, compose >= 2.20)
+ Container hifi-demo-wohnzimmer-1  Stopping
+ Container hifi-demo-gateway-1  Stopping
+ Container hifi-demo-mosquitto-1  Stopping
+ Container hifi-demo-console-1  Stopping
+ Container hifi-demo-arbeitszimmer-1  Stopping
+ Container hifi-demo-schlafzimmer-1  Stopping
+ Container hifi-demo-mosquitto-1  Stopped
+ Container hifi-demo-wohnzimmer-1  Stopped
+ Container hifi-demo-schlafzimmer-1  Stopped
+ Container hifi-demo-arbeitszimmer-1  Stopped
+ Container hifi-demo-console-1  Stopped
+ Container hifi-demo-hifi-bridge-1  Stopping
+ Container hifi-demo-gateway-1  Stopped
+ Container hifi-demo-hifi-bridge-1  Stopped
+ Container hifi-demo-lms-1  Stopping
+ Container hifi-demo-flashtool-1  Stopping
+ Container hifi-demo-flashtool-1  Stopped
+ Container hifi-demo-lms-1  Stopped
+### 17:49:22 scripts/hwkit_bundle.sh   (btbridge-lab:dev is missing here: it must be built first, then btbridge-hwkit:dev)
+[1/3 0:00] checking prerequisites (Docker Engine >= 24.0, disk)
+      docker engine 29.1.5 (required: engine >= 24.0)
+[2/3 0:00] images: btbridge-hwkit:dev (FROM btbridge-lab:dev); the first run builds both, ~3-5 min
+      image btbridge-lab:dev is missing - first run: lab runner: bridge runtime, test tools, software Squeezelite players
+      building btbridge-lab:dev - lab runner: bridge runtime, test tools, software Squeezelite players (about 390 MB)
+      #1 [internal] load build definition from Dockerfile.lab
+      #2 [internal] load metadata for docker.io/library/debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
+      #3 [internal] load .dockerignore
+      #4 [1/3] FROM docker.io/library/debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
+      #4 [1/3] FROM docker.io/library/debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
+      #5 [2/3] RUN apt-get update  && apt-get install -y --no-install-recommends       python3 python3-numpy python3-pytest python3-coverage python3-jeepney
+      ... still working, 42 s elapsed (last output: #5 38.10 Setting up shared-mime-info (2.2-1) ...)
+      #6 [3/3] WORKDIR /work
+      #7 naming to docker.io/library/btbridge-lab:dev done
+      build btbridge-lab:dev: done in 1 min 12 s
+      image btbridge-hwkit:dev is missing - first run: hardware kit: lab image plus FFmpeg (SBC/AAC)
+      building btbridge-hwkit:dev - hardware kit: lab image plus FFmpeg (SBC/AAC) (about 630 MB)
+      #1 [internal] load build definition from Dockerfile.hwkit
+      #2 [internal] load metadata for docker.io/library/btbridge-lab:dev
+      #3 [internal] load .dockerignore
+      #4 [1/2] FROM docker.io/library/btbridge-lab:dev@sha256:0e73b3fbb9291f80547209a30e876ff227d031e25a13aba645d54dcca1646965
+      #5 [2/2] RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+      ... still working, 25 s elapsed (last output: #5 23.54 Processing triggers for libc-bin (2.36-9+deb12u14) ...)
+      #6 naming to docker.io/library/btbridge-hwkit:dev done
+      build btbridge-hwkit:dev: done in 36 s
+[3/3 1:48] building the bundle and the phone test tracks (WAV, AAC) in the container
+      ... still working, 15 s elapsed
+      ... still working, 30 s elapsed
+      ... still working, 45 s elapsed
+      ... still working, 1 min 00 s elapsed
+      ... still working, 1 min 15 s elapsed
+      ... still working, 1 min 30 s elapsed
+      ... still working, 1 min 45 s elapsed
+      dist:
+      total 324
+      drwxr-xr-x  3 root root   4096 Nov 18 17:53 .
+      drwxrwxr-x 21 1000 1000   4096 Nov 18 17:51 ..
+      -rw-r--r--  1 root root      8 Nov 18 17:53 HWKIT_REVISION
+      -rw-r--r--  1 root root 312792 Nov 18 17:53 hwkit-bundle-unknown.tar.gz
+      drwxr-xr-x  2 root root   4096 Nov 18 17:52 hwkit-tracks
+      dist/hwkit-tracks:
+      total 397116
+      drwxr-xr-x 2 root root      4096 Nov 18 17:52 .
+      drwxr-xr-x 3 root root      4096 Nov 18 17:53 ..
+      -rw-r--r-- 1 root root       475 Nov 18 17:51 MANIFEST.json
+      -rw-r--r-- 1 root root  53462324 Nov 18 17:52 bab_continuity_30min.m4a
+      -rw-r--r-- 1 root root 317520044 Nov 18 17:51 bab_continuity_30min.wav
+      -rw-r--r-- 1 root root   1198126 Nov 18 17:52 bab_quiet_passage.m4a
+      -rw-r--r-- 1 root root   9702044 Nov 18 17:51 bab_quiet_passage.wav
+      -rw-r--r-- 1 root root   3567130 Nov 18 17:53 bab_startstop_2min.m4a
+      -rw-r--r-- 1 root root  21168044 Nov 18 17:51 bab_startstop_2min.wav
+      hardware-kit bundle: done in 1 min 54 s
+bundle: dist/hwkit-bundle-unknown.tar.gz (copy it to the Raspberry Pi yourself; see docs/HARDWARE_TEST_PROCEDURE.md)
+hwkit_bundle: exit 0 after 222 s
+total 324
+drwxr-xr-x  3 root root   4096 Nov 18 17:53 .
+drwxrwxr-x 21 1000 1000   4096 Nov 18 17:51 ..
+-rw-r--r--  1 root root      8 Nov 18 17:53 HWKIT_REVISION
+-rw-r--r--  1 root root 312792 Nov 18 17:53 hwkit-bundle-unknown.tar.gz
+drwxr-xr-x  2 root root   4096 Nov 18 17:52 hwkit-tracks
+### 17:53:04 images after
+btbridge-hwkit:dev 892MB
+btbridge-lab:dev 557MB
+btbridge-entry:dev 174MB
+hifi-demo:dev 577MB
+lmscommunity/lyrionmusicserver:<none> 337MB
+eclipse-mosquitto:<none> 15.7MB
+Terminated                 nc -l -p $p < /dev/null > /dev/null 2>&1
+Terminated                 nc -l -p $p < /dev/null > /dev/null 2>&1
+CLEAN-ENVIRONMENT RESULT: PASS

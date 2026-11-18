@@ -15,7 +15,7 @@
 | Component | Use | Licence |
 |---|---|---|
 | Debian bookworm/trixie images | lab containers | various (DFSG) |
-| Lyrion Music Server 9.1.2 (`lmscommunity/lyrionmusicserver:stable`) | real LMS in the lab | GPL-2.0 |
+| Lyrion Music Server 9.1.2 (`lmscommunity/lyrionmusicserver:9.1.2@sha256 pin`) | real LMS in the lab | GPL-2.0 |
 | Squeezelite 1.9.9 | software players in the lab | GPL-3.0 |
 | Eclipse Mosquitto 2.0.20 | MQTT broker in the lab | EPL-2.0 / EDL-1.0 |
 | numpy, pytest | analysis, test runner | BSD-3-Clause / MIT |
@@ -48,7 +48,7 @@ pulled from their publishers. Versions as tested on 2026-11-17.
 | Squeezelite 2.0 | the three simulated rooms' players | GPL-3.0-or-later | Debian package |
 | flac, mpg123, vorbis-tools | decoding the user's own files (local only) | GPL-2.0+ / BSD (libFLAC), LGPL-2.1, GPL-2.0 | Debian packages |
 | NumPy, jeepney, python-cryptography | music generation, D-Bus, flash-tool core | BSD-3-Clause, MIT, Apache-2.0 or BSD | Debian packages |
-| Lyrion Music Server (`lmscommunity/lyrionmusicserver:stable`) | the real Lyrion server | GPL-2.0 and others | Docker Hub |
+| Lyrion Music Server (`lmscommunity/lyrionmusicserver:9.1.2@sha256 pin`) | the real Lyrion server | GPL-2.0 and others | Docker Hub |
 | Eclipse Mosquitto 2.0.20 | MQTT broker | EPL-2.0 or EDL-1.0 | Docker Hub |
 | Home Assistant 2026.11.1 (optional profile) | MQTT discovery in a real Home Assistant | Apache-2.0 | ghcr.io |
 | Playwright, axe-core (stack test only) | browser tests and WCAG audit | Apache-2.0, MPL-2.0 | Microsoft Playwright image, PyPI |

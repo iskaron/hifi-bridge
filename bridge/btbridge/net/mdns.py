@@ -110,6 +110,11 @@ class MdnsResponder:
         self._probing = False
         self._conflict = threading.Event()
         self.state = "stopped"
+        self._clock, self._sleep = time.monotonic, self._stop.wait    # injectable (tests)
+        self._conflicts: list[float] = []              # times of recent probe conflicts (RFC 6762 s8.1 rate limit)
+        self._limited = False                          # rate limit active until a probe succeeds
+        self._reclaim_lock = threading.Lock()
+        self._reclaiming = False
 
     @property
     def fqdn(self) -> str:
@@ -206,6 +211,8 @@ class MdnsResponder:
         n = 1
         while True:
             self._conflict.clear()
+            if self._rate_limited():
+                return                                 # stopped while waiting
             self._probing = True
             q = enc_name(self.fqdn) + struct.pack("!HH", ANY, IN | QU)
             for _ in range(3):
@@ -214,10 +221,36 @@ class MdnsResponder:
                     break
             self._probing = False
             if not self._conflict.is_set():
+                self._limited = False
                 return
+            now = self._clock()
+            self._conflicts = [t for t in self._conflicts if now - t < 10.0] + [now]
             n += 1
             old, self.host = self.fqdn, f"{self.base}-{n}"
             self.log(f"mdns: {old} is used by another device; trying {self.fqdn}")
+
+    def _rate_limited(self) -> bool:
+        """RFC 6762 s8.1: after 15 conflicts within 10 s, wait 5 s before each further probe. True if stopped meanwhile."""
+        now = self._clock()
+        if len([t for t in self._conflicts if now - t < 10.0]) >= 15:
+            self._limited = True                       # stays on while conflicts continue (5 s spacing ages the window out)
+        return bool(self._sleep(5.0)) if self._limited else False
+
+    def _on_conflicting_announcement(self) -> None:
+        """Another host announced our name: re-probe once - not one thread per conflicting packet (review L7)."""
+        with self._reclaim_lock:
+            if self._reclaiming or self.state != "announced":
+                return
+            self._reclaiming = True
+        self.log(f"mdns: another device announced {self.fqdn}; re-probing")
+
+        def run():
+            try:
+                self._reclaim()
+            finally:
+                with self._reclaim_lock:
+                    self._reclaiming = False
+        threading.Thread(target=run, daemon=True, name="mdns-reclaim").start()
 
     def announce(self, ttl: int | None = None) -> None:
         for i in range(2):
@@ -261,9 +294,8 @@ class MdnsResponder:
                 if claims:
                     if self._probing:
                         self._conflict.set()
-                    elif self.state == "announced":
-                        self.log(f"mdns: another device announced {self.fqdn}; re-probing")
-                        threading.Thread(target=self._reclaim, daemon=True).start()
+                    else:
+                        self._on_conflicting_announcement()
                 if msg["response"]:
                     continue
             if self._probing:

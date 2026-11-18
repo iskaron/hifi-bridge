@@ -170,6 +170,9 @@ class MqttClient:
 
     def _session(self) -> None:
         s = self._open()
+        if self._stop.is_set():                          # stopped while connecting: never send CONNECT with our client id,
+            s.close()                                    # the replacement client already uses it (review L1)
+            return
         self._sock = s
         with self._wlock:
             s.sendall(connect_packet(self.client_id, self.keepalive, self.username, self.password, self.will))
