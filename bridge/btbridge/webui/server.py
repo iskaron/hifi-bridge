@@ -190,7 +190,11 @@ class WebUI:
                     if ctx is None:
                         raise ConnectionAbortedError("TLS not available")
                     self.request = ctx.wrap_socket(self.request, server_side=True, do_handshake_on_connect=False)
-                    self.request.do_handshake()
+                    try:
+                        self.request.do_handshake()
+                    except BaseException:
+                        self.request.close()                 # failed or timed-out handshake: free the fd now
+                        raise
                 super().setup()
 
             def finish(self):
