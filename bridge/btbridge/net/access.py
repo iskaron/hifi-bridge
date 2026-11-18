@@ -44,6 +44,7 @@ class LocalAccess:
         self.cert_error: str | None = None
         self._stop = threading.Event()
         self._last_addrs: set[str] = set()
+        self.before_rename: Callable[[], None] | None = None   # network agent: system host name + Avahi follow first (docs/NETWORK.md)
 
     # ---- names ----
     def main_name(self) -> str:
@@ -157,6 +158,11 @@ class LocalAccess:
 
     def reconfigure(self, keys: set[str]) -> None:
         """Apply changed access settings in place."""
+        if "local_hostname" in keys and self.before_rename is not None:
+            try:
+                self.before_rename()
+            except Exception as e:                       # the name must still change locally
+                self.log(f"network: host name hook failed ({type(e).__name__}: {e})")
         if {"local_hostname", "mdns_enabled", "mdns_backend", "device_name"} & keys:
             if self.mdns:
                 self.mdns.stop()
@@ -181,6 +187,24 @@ class LocalAccess:
         except Exception as e:
             self.log(f"mdns: not published ({type(e).__name__}: {e}); retrying")
 
+    def _republish_addresses(self) -> None:
+        """The Avahi backend publishes a snapshot of our addresses; after an address change (hotspot <-> client Wi-Fi) publish again.
+        The built-in responder answers with the current addresses anyway."""
+        if self.mdns is not None and self.mdns_backend == "avahi":
+            self.mdns.stop()
+            self.mdns, self.mdns_name = None, None
+            self._start_mdns()
+
+    def network_changed(self) -> None:
+        """Called by the network service when the address set changed: certificate SANs and mDNS follow at once (not after 60 s)."""
+        addrs = set(self.addresses())
+        if addrs != self._last_addrs:
+            self._last_addrs = addrs
+            self._republish_addresses()
+        why = self.ensure_certificates()
+        if why:
+            self.log(f"tls: certificate re-issued ({why})")
+
     def _loop(self) -> None:
         next_renew = RENEW_CHECK_S
         waited = 0
@@ -189,7 +213,10 @@ class LocalAccess:
             waited += ADDRESS_CHECK_S
             addrs = set(self.addresses())
             if addrs != self._last_addrs or waited >= next_renew:
-                self._last_addrs, waited = addrs, 0
+                if addrs != self._last_addrs:
+                    self._last_addrs = addrs
+                    self._republish_addresses()
+                waited = 0
                 why = self.ensure_certificates()
                 if why:
                     self.log(f"tls: certificate re-issued ({why})")

@@ -17,6 +17,7 @@ from typing import Callable
 
 from .mqtt import MqttBridge
 from .net.access import LocalAccess
+from .net.netclient import AgentClient, NetworkService
 from .service import ApplianceService
 from .supervision import StopSignal, SystemdNotifier, Watchdog
 from .system import SystemMonitor
@@ -52,6 +53,8 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument("--proc-root", default="/proc")
     ap.add_argument("--thermal-path", default="/sys/class/thermal/thermal_zone0/temp", help='"" disables temperature reading')
     ap.add_argument("--no-mqtt", action="store_true")
+    ap.add_argument("--net-agent", default="/run/hifi-net/agent.sock",
+                    help="socket of the root network agent hifi-netd; without it the network pages only show the current addresses")
     return ap
 
 
@@ -89,7 +92,12 @@ def run(a, source, ready: Callable[[ApplianceService, WebUI], None] | None = Non
     if a.no_mdns:
         svc.store.update({"mdns_enabled": False})
     svc.access = LocalAccess(svc.store, a.data, svc.instance_id(), a.http_port, a.https_port or 0, log=svc.logs)
+    svc.network = NetworkService(a.data, AgentClient(getattr(a, "net_agent", "/run/hifi-net/agent.sock")), log=svc.logs,
+                                 secrets=svc.logs.secrets)
+    svc.network.access = svc.access
+    svc.access.before_rename = svc.network.apply_hostname
     svc.access.start()
+    svc.network.start()
     ca = svc.access.certs.ca_info()
     if ca:                                   # out-of-band reference for the trust step (docs/LOCAL_ACCESS_TLS.md 4.2)
         svc.logs(f"local CA fingerprint (SHA-256): {ca['sha256']}")

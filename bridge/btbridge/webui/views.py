@@ -493,7 +493,7 @@ def select(req, key, value, choices, help_key: str | None = None) -> str:
     return f'<label>{esc(t("field." + key))}<select name="{key}"{desc}>{opts}</select></label>{helptext}'
 
 
-SECTIONS = ("lyrion", "playback", "bluetooth", "access", "mqtt", "logging", "appearance", "security")
+SECTIONS = ("lyrion", "playback", "bluetooth", "access", "mqtt", "logging", "appearance", "security", "network")
 
 
 def section_summary(req, name: str) -> str:
@@ -516,6 +516,9 @@ def section_summary(req, name: str) -> str:
         return f'{t("choice.language." + c["language"])} · {t("choice.theme." + c["theme"])}'
     if name == "logging":
         return f'{c["syslog_host"]}:{c["syslog_port"]} (TLS)' if c["syslog_enabled"] else t("summary.syslog_off")
+    if name == "network":
+        from .views_network import summary
+        return summary(req)
     return t("summary.security")
 
 
@@ -955,7 +958,8 @@ def api_diagnostics(req):
 
 
 def routes(ui):
-    return {
+    from .views_network import routes as network_routes
+    return network_routes(ui) | {
         ("GET", "/setup"): setup_get, ("POST", "/setup"): setup_post, ("POST", "/lang"): lang_post,
         ("GET", "/setup/bluetooth"): setup_bluetooth_get, ("POST", "/setup/bluetooth"): setup_bluetooth_post,
         ("GET", "/setup/lyrion"): setup_lyrion_get, ("POST", "/setup/lyrion"): setup_lyrion_post,

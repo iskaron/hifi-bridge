@@ -197,6 +197,8 @@ nameConstraints=critical,{nc}
             return "unreadable"
         if not _pair_ok(self.p["srv_crt"], self.p["srv_key"]):
             return "key_mismatch"                       # torn key, or a crash between the key and the certificate rename
+        if dt.datetime.fromisoformat(info["not_before"]) > self.clock() + dt.timedelta(minutes=5):
+            return "not_yet_valid"                      # issued while the clock was ahead (no RTC); renewed once the clock is right
         left = dt.datetime.fromisoformat(info["not_after"]) - self.clock()
         if left < dt.timedelta(days=RENEW_BEFORE_DAYS):
             return "expiring"

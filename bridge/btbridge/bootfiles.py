@@ -19,6 +19,21 @@ import sys
 from . import provisioning, recovery
 
 
+def network_lines(data_dir: str) -> list[str]:
+    """Where to find the device without a working network (no password ever: the owner knows the hotspot password)."""
+    from .net import netconfig
+    try:
+        cfg = netconfig.load(os.path.join(data_dir, netconfig.FILE_NAME))
+    except netconfig.NetConfigError:
+        return ["Network settings unreadable: Ethernet with DHCP only (put a 'hifi-recovery' file containing 'network-reset' here)"]
+    out = []
+    if cfg["wifi"]:
+        out.append(f"Wi-Fi network: '{cfg['wifi']['ssid']}'")
+    if cfg["hotspot"]:
+        out.append(f"Setup hotspot (opens when no network works): '{cfg['hotspot']['ssid']}' -> http://{netconfig.HOTSPOT_ADDRESS}/")
+    return out
+
+
 def run(data_dir: str, boot_dir: str, iterations: int | None = None, log=print) -> dict:
     from .config import ConfigStore
     from .net.certs import CertManager
@@ -43,8 +58,9 @@ def run(data_dir: str, boot_dir: str, iterations: int | None = None, log=print) 
     lines = [f"Hi-Fi Bridge '{store.get('device_name')}' - http://{name}/ (or the IP address shown by your router)",
              f"Device CA fingerprint (SHA-256): {ca['sha256']}" if ca else
              "Device CA: not available yet (HTTPS starts once it could be created; see the diagnostics page)"]
-    if out["recovery"] in ("reset-owner-password", "factory-reset"):
+    if out["recovery"] in ("reset-owner-password", "factory-reset", "network-reset"):
         lines.append(f"Recovery request processed: {out['recovery']}")
+    lines += network_lines(data_dir)
     prov = out["provisioning"]
     if prov["result"] == "applied":
         lines += [f"Provisioning applied: {n}" for n in prov["notes"]]

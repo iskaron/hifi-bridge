@@ -1,0 +1,88 @@
+# network management with real tools - 2026-11-18T22:37:09Z - label INTEGRATION (Docker, no Wi-Fi hardware)
+nft: nftables v1.1.3 (Commodore Bullmoose #4)
+dnsmasq: Dnsmasq version 2.91  Copyright (c) 2000-2025 Simon Kelley
+hostapd: hostapd v2.10
+wpa_supplicant: wpa_supplicant v2.10
+iw: iw version 6.9
+systemd-networkd: systemd 257 (257.13-1~deb13u1)
+avahi: avahi-daemon 0.8
+### 1. tests/net (single container, own namespace)
+============================= test session starts ==============================
+platform linux -- Python 3.13.5, pytest-8.3.5, pluggy-1.5.0 -- /usr/bin/python3
+rootdir: /work
+configfile: pytest.ini
+collecting ... collected 16 items
+
+tests/net/test_real_tools.py::test_nft_accepts_and_loads_the_generated_ruleset[None] PASSED [  6%]
+tests/net/test_real_tools.py::test_nft_accepts_and_loads_the_generated_ruleset[wlan0] PASSED [ 12%]
+tests/net/test_real_tools.py::test_nft_negative_control PASSED           [ 18%]
+tests/net/test_real_tools.py::test_dnsmasq_accepts_the_generated_configuration PASSED [ 25%]
+tests/net/test_real_tools.py::test_hostapd_parses_the_generated_configuration PASSED [ 31%]
+tests/net/test_real_tools.py::test_wpa_supplicant_parses_the_generated_configuration PASSED [ 37%]
+tests/net/test_real_tools.py::test_pmk_equals_wpa_passphrase[pa"ss word#1-Wohnzimmer "5G" \u2615] PASSED [ 43%]
+tests/net/test_real_tools.py::test_pmk_equals_wpa_passphrase[correct horse battery-Hi-Fi Bridge 4F2A] PASSED [ 50%]
+tests/net/test_real_tools.py::test_pmk_equals_wpa_passphrase[~!@#$%^&*()_+{}|:<>?`-=[]\\;',./ x-K\xfcche] PASSED [ 56%]
+tests/net/test_real_tools.py::test_control_socket_client_against_a_real_wpa_supplicant PASSED [ 62%]
+tests/net/test_real_tools.py::test_networkd_applies_the_generated_static_addresses_and_netlink_reads_them PASSED [ 68%]
+tests/net/test_real_tools.py::test_networkd_accepts_the_dhcp_and_hotspot_files PASSED [ 75%]
+tests/net/test_real_tools.py::test_netlink_reader_matches_ip_addr PASSED [ 81%]
+tests/net/test_real_tools.py::test_linux_system_applies_the_firewall_with_the_real_nft PASSED [ 87%]
+tests/net/test_real_tools.py::test_avahi_set_hostname_against_a_real_daemon PASSED [ 93%]
+tests/net/test_real_tools.py::test_units_pass_systemd_analyze_verify PASSED [100%]
+
+============================== 16 passed in 4.91s ==============================
+### 2. live firewall and hotspot DHCP (three containers)
+ready hotspot_iface=eth1 dnsmasq_pid=8
+table inet hifi {
+	chain input {
+		type filter hook input priority filter; policy drop;
+		iif "lo" accept
+		ct state invalid drop
+		ct state established,related accept
+		icmp type { destination-unreachable, time-exceeded, parameter-problem } accept
+		icmp type echo-request limit rate 10/second burst 20 packets accept
+		icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem, mld-listener-query, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } accept
+		icmpv6 type echo-request limit rate 10/second burst 20 packets accept
+		udp dport 5353 accept
+		iifname "eth1" jump hotspot
+		udp sport 67 udp dport 68 accept
+		ip6 saddr fe80::/10 udp sport 547 udp dport 546 accept
+		udp sport 3483 udp dport 1024-65535 accept
+		tcp dport { 80, 443, 8090 } accept
+	}
+
+	chain hotspot {
+		udp dport 67 accept
+		tcp dport { 80, 443 } accept
+		drop
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+	}
+}
+
+PASS 3b8f2e24a988 -> 192.168.77.10:80 expected open, got open
+PASS 3b8f2e24a988 -> 192.168.77.10:443 expected open, got open
+PASS 3b8f2e24a988 -> 192.168.77.10:8090 expected open, got open
+PASS 3b8f2e24a988 -> 192.168.77.10:2222 expected dropped, got dropped
+PASS 3b8f2e24a988 -> 192.168.77.10:53 expected dropped, got dropped
+PASS 3b8f2e24a988 -> 192.168.77.10 ICMP echo
+PASS 0fb3a3b9f2cc -> 10.42.0.1:80 expected open, got open
+PASS 0fb3a3b9f2cc -> 10.42.0.1:443 expected open, got open
+PASS 0fb3a3b9f2cc -> 10.42.0.1:8090 expected dropped, got dropped
+PASS 0fb3a3b9f2cc -> 10.42.0.1:2222 expected dropped, got dropped
+PASS 0fb3a3b9f2cc -> 10.42.0.1:53 expected dropped, got dropped
+PASS 0fb3a3b9f2cc -> 10.42.0.1 ICMP echo
+udhcpc: started, v1.37.0
+udhcpc: broadcasting discover
+udhcpc: broadcasting discover
+udhcpc: broadcasting select for 10.42.0.54, server 10.42.0.1
+udhcpc: lease of 10.42.0.54 obtained from 10.42.0.1, lease time 3600
+lease: ip=10.42.0.54 mask=255.255.255.0 router=none dns=none server=10.42.0.1
+PASS lease address in 10.42.0.10-60
+PASS no default router
+PASS no DNS server
+PASS served by the device
+PASS hotspot client cannot reach the LAN
+network exit codes: tests=0 live=0
