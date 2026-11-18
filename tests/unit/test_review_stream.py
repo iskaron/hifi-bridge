@@ -110,6 +110,57 @@ def test_mqtt_command_log_is_bounded():
     assert len(b.commands) <= 500
 
 
+# ---------------------------------------------------------------- L4: child processes back off and are reaped
+def test_a_capture_child_that_keeps_dying_backs_off_and_every_child_is_reaped():
+    import subprocess
+    from btbridge.adapters.bluez.pcm import PipeWireCapture
+    procs = []
+
+    def popen(argv, **kw):
+        p = subprocess.Popen(argv, **kw); procs.append(p); return p
+    cap = PipeWireCapture(argv_for=lambda addr: ["sh", "-c", "exit 0"], popen=popen, retry_s=0.05)
+    cap.start("AA:BB:CC:DD:EE:FF", lambda pcm: None)
+    time.sleep(2.0)
+    cap.stop()
+    assert 2 <= cap.starts <= 12, cap.starts                  # was: a restart every retry_s (about 40 in 2 s)
+    assert procs and all(p.returncode is not None for p in procs)          # waited for: no zombies
+    assert all(p.stdout is None or p.stdout.closed for p in procs)         # no leaked pipe fds
+
+
+def test_capture_stop_reaps_a_running_child():
+    import subprocess
+    from btbridge.adapters.bluez.pcm import PipeWireCapture
+    procs = []
+
+    def popen(argv, **kw):
+        p = subprocess.Popen(argv, **kw); procs.append(p); return p
+    cap = PipeWireCapture(argv_for=lambda addr: ["sh", "-c", "while :; do sleep 0.05; done"], popen=popen, retry_s=0.05, stall_s=30)
+    cap.start("AA:BB:CC:DD:EE:FF", lambda pcm: None)
+    assert wait_for(lambda: procs)
+    cap.stop()
+    assert procs[0].returncode is not None and procs[0].stdout.closed
+
+
+def test_flac_encoder_close_reaps_the_encoder():
+    import shutil
+    from btbridge.stream.encoders import FlacEncoder
+    if not shutil.which("flac"):
+        pytest.skip("flac not installed in this image")
+    e = FlacEncoder()
+    e.encode(b"\0" * 4410 * 4)
+    e.close()
+    assert e.proc.returncode is not None and e.proc.stdout.closed and e.proc.stdin.closed
+
+
+def wait_for(cond, t=3.0):
+    t0 = time.time()
+    while time.time() - t0 < t:
+        if cond():
+            return True
+        time.sleep(0.02)
+    return False
+
+
 def test_connections_beyond_the_cap_are_refused(srv):
     _, port, _ = srv
     hold = [socket.create_connection(("127.0.0.1", port)) for _ in range(4)]
