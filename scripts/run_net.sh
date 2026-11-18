@@ -21,7 +21,10 @@ NI=(--internal -o com.docker.network.bridge.inhibit_ipv4=true)
 # DHCP DISCOVER. It still gets NO host address and NO masquerading, so its containers have no route anywhere (checked below).
 HI=(-o com.docker.network.bridge.inhibit_ipv4=true -o com.docker.network.bridge.enable_ip_masquerade=false)
 cleanup() {
-  docker rm -f hifi-net-tools hifi-net-dev hifi-net-lanclient hifi-net-hsclient >/dev/null 2>&1
+  local c
+  for c in hifi-net-tools hifi-net-dev hifi-net-lanclient hifi-net-hsclient; do
+    for _ in 1 2 3; do docker container inspect "$c" >/dev/null 2>&1 || break; docker rm -f "$c" >/dev/null 2>&1 || sleep 1; done
+  done
   for n in hifi-net-lan hifi-net-hs; do
     for _ in 1 2 3; do docker network inspect "$n" >/dev/null 2>&1 || break; docker network rm "$n" >/dev/null 2>&1 || sleep 1; done
   done

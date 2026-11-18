@@ -1,6 +1,7 @@
 #!/bin/sh
 # busybox udhcpc script for the live hotspot DHCP check: reports the lease (never configures anything) and checks the policy:
 # an address from the hotspot range, NO default router and NO DNS server (no fake captive portal, docs/NETWORK.md).
+# shellcheck disable=SC2154  # ip, subnet, router, dns, serverid come from udhcpc in the environment
 case "$1" in
   bound|renew)
     exec >>/tmp/lease.txt
