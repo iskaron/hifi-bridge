@@ -143,7 +143,7 @@ def test_changed_sections_and_reset():
 
 def test_write_private_and_load_round_trip(tmp_path):
     p = str(tmp_path / N.FILE_NAME)
-    assert N.load(p) == N.defaults()
+    assert N.load(p) == N.defaults() and N.parse(None) == N.defaults()
     cfg = N.validate({"country": "DE", "wifi": dict(WIFI)})
     raw = N.write_private(p, cfg)
     assert os.stat(p).st_mode & 0o777 == 0o600 and N.load(p) == cfg and N.parse(raw) == cfg
