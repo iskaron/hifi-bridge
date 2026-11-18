@@ -226,3 +226,23 @@ Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardwar
     needed for OTA rollback).
 77. **Bare local host names are accepted** by the Host check (e.g. `http://hifi-bridge/` through a router's search domain); single-label
     names cannot be rebound through public DNS. Extends #35 (review M9).
+
+## Implementation decisions of package 2 - demo and entry points (reversible; 2026-11-18)
+78. **Docker minimums: Engine 24.0 + Compose 2.20; Engine >= 29 needs Compose >= 2.24.5** (Engine 29 refuses API 1.43 clients). Determined
+    by validating the compose files with static Compose binaries 2.20.3-2.36.2 and by running the demo topology in disposable dind
+    sandboxes on Engine 24.0.9-29.1.5 (docs/DOCKER_REQUIREMENTS.md, reports/evidence/docker_version_matrix*.log). `gw_priority` (Compose
+    >= 2.33, the cause of the owner's failure) is no longer used: Docker puts the gateway's default route on the only non-internal network
+    on every tested engine; isolation unchanged (#71). A pre-flight check (`make doctor`, run by every entry point) names the detected and
+    required versions and how to upgrade, before anything is started.
+79. **Entry scripts share `scripts/lib/common.sh`:** an image registry (Dockerfile, context, build args, dependencies) builds missing project
+    images in dependency order and pulls third-party images itself; step counters, elapsed time, filtered build output and a heartbeat after
+    15 s of silence; `-q`/`HB_QUIET=1` for CI; full logs under `/tmp/hifi-bridge-logs-<uid>/`.
+80. **Reproducible images:** every third-party image is pinned by exact tag **and** manifest-list digest in `docker/image-pins.txt`
+    (Lyrion 9.1.2 instead of `stable`); a static test rejects unpinned or moving references; pins are updated deliberately with
+    `scripts/image_pins.sh` (docs/IMAGE_PINS.md). Resolves OPEN_QUESTIONS #48.
+81. **Demo loudness (demo only, product audio engine unchanged):** rooms start at volume 75 (Lyrion's default 50 = -25 dB), generated audio
+    at -13.6 dBFS RMS / -1 dBFS peak with a soft limiter, monitor default gain 4 behind a soft-knee limiter. Measured at the Wohnzimmer DAC:
+    -42.1 → -25.7 dBFS RMS. Resolves OPEN_QUESTIONS #49.
+82. **Isolation against production Lyrion servers is regression-tested** statically (every network internal + `inhibit_ipv4` except the
+    gateway's `edge`; no host networking, `extra_hosts`, Docker socket; Lyrion only as `lms`) and at runtime (`scripts/check_isolation.sh`:
+    no host address, TCP 9000/3483, UDP discovery and broadcast to host addresses fail), with a positive and a negative control.

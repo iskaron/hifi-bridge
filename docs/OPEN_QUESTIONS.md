@@ -139,9 +139,9 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 47. **GitHub settings to switch on when going public** (owner, repository settings): private vulnerability reporting (SECURITY.md relies
     on it), "require approval for workflows from outside collaborators", branch protection for `main` (and `develop`), Dependabot alerts,
     secret scanning with push protection.
-48. **Unpinned Lyrion image:** lab and demo use `lmscommunity/lyrionmusicserver:stable`; pin a version (e.g. the tested 9.1.x tag) for
+48. ~~**Unpinned Lyrion image:**~~ **resolved by DECISIONS #80** (9.1.2 + digest). lab and demo use `lmscommunity/lyrionmusicserver:stable`; pin a version (e.g. the tested 9.1.x tag) for
     reproducible CI once the tag naming is confirmed.
-49. **Demo volume:** Lyrion starts new players at volume 50, which is quiet in the audio monitor; the monitor has its own listening level.
+49. ~~**Demo volume:**~~ **resolved by DECISIONS #81** (rooms at 75). Lyrion starts new players at volume 50, which is quiet in the audio monitor; the monitor has its own listening level.
     Should the demo preset the rooms higher? (cosmetic)
 
 ## Added by package 1 - review fixes (2026-11-18)
@@ -158,3 +158,8 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
     Accept, or keep a backup copy of the CA?
 56. An unreadable configuration now makes the service fail at start (systemd restarts it; the log names the reason) instead of silently
     resetting the device. Should the reason also go into `hifi-status.txt` on the boot partition?
+
+## Added by package 2 - demo and entry points (2026-11-18)
+57. **Image pin updates:** enable Dependabot for the Docker ecosystem (proposes digest bumps as pull requests), or keep manual updates via
+    `scripts/image_pins.sh`? Owner decision together with #47.
+58. Engine 29 with Compose 2.21-2.23 was not tried; the stated Engine-29 minimum (2.24.5) is the lowest release tested there.
