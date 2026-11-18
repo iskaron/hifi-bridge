@@ -215,3 +215,14 @@ Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardwar
     scripts that build missing project images themselves, visible progress output, demo loudness (without changing the product audio
     engine without reason), clean-environment tests of the entry points, isolation regression tests against production Lyrion servers,
     reproducibly pinned Lyrion images.
+
+## Implementation decisions of package 1 - review fixes (reversible engineering rules; 2026-11-18)
+75. **No LMS call under the controller's state lock.** The controller takes a snapshot under the lock, calls LMS without it and
+    revalidates under the lock afterwards (server, target, phone and session unchanged); a superseded start removes exactly the item it
+    started, by URL. Status reads never wait for LMS I/O; the LMS host name is resolved in a worker with a 2 s timeout and cached 60 s.
+    Health treats a loop waiting in an LMS call as busy and only a call over 60 s as hung (review H2, docs/SERVICE_SUPERVISION.md).
+76. **Settings survive a downgrade:** the configuration store keeps unknown keys, values and secrets verbatim and never lowers
+    `schema_version`; only undecodable content counts as corrupt, an I/O error is reported instead of resetting the device (review M8;
+    needed for OTA rollback).
+77. **Bare local host names are accepted** by the Host check (e.g. `http://hifi-bridge/` through a router's search domain); single-label
+    names cannot be rebound through public DNS. Extends #35 (review M9).
