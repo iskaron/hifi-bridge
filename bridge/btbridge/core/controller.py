@@ -452,7 +452,7 @@ class Controller:
             with self.lock:
                 self.stream.close_session(sid)
                 if st.lms is self.lms:
-                    self.stale_urls.append((st.target, url))   # the play may still have reached LMS: remove it when back
+                    self._defer_release(st.target, url)    # the play may still have reached LMS: remove it when back
                     self._set_reachability("unreachable")
                     self.blocked_reason = "lyrion_unreachable"
             return None
@@ -494,12 +494,19 @@ class Controller:
             except LmsUnreachable:
                 with self.lock:
                     if lms is self.lms:
-                        self.stale_urls.append((player, url))   # retry when LMS returns
+                        self._defer_release(player, url)   # retry when LMS returns
                         self._set_reachability("unreachable")
             if then:
                 with self.lock:
                     self._ev(*then)
         return act
+
+    STALE_MAX = 32
+
+    def _defer_release(self, player: str, url: str) -> None:
+        """Remember an own URL to remove once LMS is reachable again (bounded: a long outage must not grow it forever)."""
+        if (player, url) not in self.stale_urls:
+            self.stale_urls = (self.stale_urls + [(player, url)])[-self.STALE_MAX:]
 
     def _finish_session_local(self) -> None:
         if self.session:

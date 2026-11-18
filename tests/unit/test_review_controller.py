@@ -145,6 +145,16 @@ def test_tick_makes_no_further_lms_calls_after_an_unreachable_one():
         assert len(calls) - n <= 1                           # one timeout per tick at most, not poll + retry
 
 
+def test_failed_plays_are_remembered_for_cleanup_but_bounded():
+    r = Rig()
+
+    def failing_play(pid, url, title="x"):
+        raise LmsUnreachable("timed out after sending")      # the play may still have reached LMS
+    r.lms.play = failing_play
+    r.connect_and_play(); r.run(300)
+    assert 1 <= len(r.ctl.stale_urls) <= r.ctl.STALE_MAX     # each URL is removed once LMS answers again; never unbounded
+
+
 class SlowDeadLms:
     """Every call blocks DELAY s, then fails (a dead LMS behind a slow resolver)."""
     DELAY = 10.0
