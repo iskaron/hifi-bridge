@@ -186,13 +186,13 @@ class ApplianceService:
         if not j:
             return "none"
         if isinstance(self.runtime.lms, UnconfiguredLms):
-            self.journal.clear()
+            self.journal.clear_if(j["url"])
             return "dropped_unconfigured"
         try:
             self.runtime.controller.io.call(self.runtime.lms.release, j["player"], j["url"])
         except LmsUnreachable:
             return "pending"                             # retried by the watch loop until LMS is reachable
-        self.journal.clear()
+        self.journal.clear_if(j["url"])                  # a session started meanwhile keeps its own entry
         self.logs("recovered: released the stream item a previous (crashed) process left at Lyrion")
         return "released"
 

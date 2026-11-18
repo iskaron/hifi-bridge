@@ -58,6 +58,27 @@ def test_a_stopped_mqtt_client_never_connects_afterwards():
     assert sock.sent == [] and sock.closed                  # was: CONNECT with the same client id after stop()
 
 
+# ---------------------------------------------------------------- L3: crash recovery never clears a newer session's journal
+def test_recovery_in_the_watch_thread_keeps_the_journal_of_a_session_started_meanwhile(tmp_path):
+    s = _svc(tmp_path)
+    s.store.update({"lms_host": "10.0.0.5", "target_player": P1})
+    s.journal.record(P1, "http://bridge:8090/s/OLD/crashed.wav")          # left behind by a crashed process
+    lms = s.runtime.lms
+    entered, go = threading.Event(), threading.Event()
+    real = lms.release
+
+    def slow_release(pid, url):
+        if "crashed" in url:
+            entered.set(); go.wait(5)
+        return real(pid, url)
+    lms.release = slow_release
+    t = threading.Thread(target=s.recover_stale_session); t.start()
+    assert entered.wait(2)
+    s.journal.record(P1, "http://bridge:8090/s/NEW/live.wav")             # the controller starts a session meanwhile
+    go.set(); t.join(5)
+    assert (s.journal.pending() or {}).get("url") == "http://bridge:8090/s/NEW/live.wav"   # was: cleared
+
+
 # ---------------------------------------------------------------- L2: settings apply in the order they were saved, all or nothing
 def test_concurrent_updates_reach_listeners_in_the_order_they_were_stored(tmp_path):
     from btbridge.config import ConfigStore
