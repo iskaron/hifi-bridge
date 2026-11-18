@@ -230,8 +230,7 @@ def setup_post(req):
 def lang_post(req):
     lang = req.form.get("lang")
     to = req.h.headers.get("Referer") or "/"
-    path = urllib.parse.urlsplit(to).path or "/"
-    r = _srv().redirect(path if path.startswith("/") else "/")
+    r = _srv().redirect(local_path(urllib.parse.urlsplit(to).path or "/"))
     if lang in ("de", "en"):
         r.cookie(_srv().LANG_COOKIE, lang, req.secure, max_age=365 * 86400)
         if req.session:
@@ -422,8 +421,16 @@ def audio_post(req):
 
 
 def safe_back(req, default: str) -> str:
-    b = req.form.get("back", "")
-    return b if b.startswith("/") and not b.startswith("//") else default
+    return local_path(req.form.get("back", ""), default)
+
+
+def local_path(p: str, default: str = "/") -> str:
+    """``p`` if it is a path on this device, else ``default``. Browsers treat a backslash like a slash, so "/\\evil" is
+    "//evil" (another host); control characters would inject headers (review L10)."""
+    if (not p or not p.startswith("/") or p.startswith("//") or "\\" in p or any(ord(c) < 0x20 or ord(c) == 0x7F for c in p)):
+        return default
+    u = urllib.parse.urlsplit(p)
+    return p if not u.scheme and not u.netloc else default
 
 
 # ============================================================== pairing page

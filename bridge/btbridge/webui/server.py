@@ -117,6 +117,8 @@ class Response:
 def redirect(to: str, flash: str | None = None, secure: bool = False, error: bool = False) -> Response:
     """PRG redirect with a one-shot message. Errors are marked so the next page announces them (role=alert) and moves focus there."""
     r = Response(303)
+    if any(c in to for c in "\r\n\0"):                 # defence in depth: never a header injection via a redirect target
+        to = "/"
     r.headers.append(("Location", to))
     if flash:
         r.cookie("bab_flash", urllib.parse.quote(("e:" if error else "i:") + flash), secure, max_age=30)

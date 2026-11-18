@@ -152,6 +152,30 @@ def test_language_chips_carry_their_language(ui):
     assert 'value="de" lang="de"' in body and 'value="en" lang="en"' in body
 
 
+# ---------------------------------------------------------------- L10: no open redirect, no header injection
+@pytest.mark.parametrize("back", ["/\\evil.example", "//evil.example", "/\\/evil.example", "/x\r\nSet-Cookie: a=b", "https://evil.example/",
+                                  "/\tevil", "\\\\evil.example"])
+def test_back_parameter_cannot_leave_the_device(ui, back):
+    from test_webui import finish_wizard
+    finish_wizard(ui)
+    r = ui.c.post("/pairing/close", {"back": back})
+    loc = r.getheader("Location")
+    assert r.status == 303 and loc == "/" and not any(k.lower() == "set-cookie" and v.startswith("a=") for k, v in r.headers_list)
+
+
+def test_back_parameter_keeps_local_paths(ui):
+    from test_webui import finish_wizard
+    finish_wizard(ui)
+    assert ui.c.post("/pairing/close", {"back": "/pairing"}).getheader("Location") == "/pairing"
+
+
+@pytest.mark.parametrize("referer,expect", [("http://127.0.0.1//evil.example/x", "/"), ("http://127.0.0.1/\\evil.example", "/"),
+                                            ("http://127.0.0.1/settings", "/settings"), ("", "/")])
+def test_language_switch_redirects_only_to_local_paths(ui, referer, expect):
+    r = ui.c.post("/lang", {"lang": "de"}, csrf=False, headers={"Referer": referer} if referer else {})
+    assert r.status == 303 and r.getheader("Location") == expect
+
+
 def test_normal_login_post_still_works(ui):
     c = Client(ui.port)
     r = c.post("/setup", {"code": ui.code, "password": "a good long passphrase", "confirm": "a good long passphrase"}, csrf=False)
