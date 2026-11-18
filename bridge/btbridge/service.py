@@ -151,6 +151,7 @@ class ApplianceService:
         self.last_system: dict = {}
         self._thermal = {"state": "unknown", "temperature_c": None, "checked_at": None}
         self.watch_heartbeat = time.monotonic()
+        self.watch_ident: int | None = None
         self.history: collections.deque = collections.deque(maxlen=HISTORY_SAMPLES)    # (t, cpu %, temp C, memory %) for the trend graphs
 
     # ------------------------------------------------------------------ lifecycle
@@ -160,7 +161,11 @@ class ApplianceService:
         if name == "session_start" and ctl.session is not None:
             self.journal.record(ctl.cfg.target_player, ctl.session.url)
         elif name in ("session_release", "session_parked", "ownership_lost", "stream_died", "restart_after_outage"):
-            self.journal.clear()                         # released by us, or no longer ours: nothing to clean up after a crash
+            # released by us, or no longer ours: nothing to clean up after a crash. A release is reported after its LMS call
+            # (outside the controller lock), so a newer session may already own the journal: keep that entry.
+            s, j = ctl.session, self.journal.pending()
+            if not (s is not None and not s.released_at_lms and ctl.ownership == "owned" and j and j.get("url") == s.url):
+                self.journal.clear()
 
     def recover_stale_session(self) -> str:
         """After a crash: release the URL a previous process left at LMS (URL-addressed: harmless if anything else plays now)."""
@@ -171,7 +176,7 @@ class ApplianceService:
             self.journal.clear()
             return "dropped_unconfigured"
         try:
-            self.runtime.lms.release(j["player"], j["url"])
+            self.runtime.controller.io.call(self.runtime.lms.release, j["player"], j["url"])
         except LmsUnreachable:
             return "pending"                             # retried by the watch loop until LMS is reachable
         self.journal.clear()
@@ -237,11 +242,7 @@ class ApplianceService:
             rt.reconfigure_stream(ch.get("stream_format"), ch.get("icy_metadata"))
         if {"lms_host", "lms_port"} & set(ch) or ("target_player" in ch and (not c["target_player"] or isinstance(rt.lms, UnconfiguredLms))):
             rt.rcfg.advertise_host = self._advertise(c)
-            if "target_player" in ch:
-                with ctl.lock:
-                    ctl._release("target_change")
-                    ctl.cfg.target_player = c["target_player"]
-            rt.set_lms(self._lms_for(c))
+            rt.set_lms(self._lms_for(c), c["target_player"] if "target_player" in ch else None)
         elif "target_player" in ch:
             ctl.set_target(c["target_player"])
         if any(k.startswith("mqtt_") for k in ch):
@@ -311,6 +312,7 @@ class ApplianceService:
     def _watch(self) -> None:
         next_sys = time.monotonic() + 2.0                 # second sample soon: CPU % needs two /proc/stat readings
         next_thermal = time.monotonic()
+        self.watch_ident = threading.get_ident()
         while not self._stop.wait(0.5):
             self.watch_heartbeat = time.monotonic()
             try:
@@ -339,6 +341,7 @@ class ApplianceService:
 
     # ------------------------------------------------------------------ health (supervision, /healthz)
     HEARTBEAT_STALE_S = 5.0
+    LMS_CALL_HANG_S = 60.0          # an LMS call is bounded by the client's timeouts (lms/client.py); longer = a real hang
 
     def health(self) -> dict:
         """'failed' = a vital internal loop is dead or hung -> the service supervisor must restart the process (watchdog stops pinging).
@@ -347,9 +350,12 @@ class ApplianceService:
         rt = self.runtime
         threads = {t.name: t.is_alive() for t in rt._threads}
         checks = {
-            "control_loop": bool(threads.get("controller")) and now - rt.heartbeat < self.HEARTBEAT_STALE_S,
+            # waiting in a slow LMS call (outage, DNS) is not a hang: degraded, never a restart (review H2)
+            "control_loop": bool(threads.get("controller")) and rt.controller.io.alive(
+                rt.loop_ident, rt.heartbeat, self.HEARTBEAT_STALE_S, self.LMS_CALL_HANG_S, now),
             "feeder": bool(threads.get("feeder")),
-            "service_watch": any(t.is_alive() for t in self._threads) and now - self.watch_heartbeat < self.HEARTBEAT_STALE_S,
+            "service_watch": any(t.is_alive() for t in self._threads) and rt.controller.io.alive(
+                self.watch_ident, self.watch_heartbeat, self.HEARTBEAT_STALE_S, self.LMS_CALL_HANG_S, now),
             "stream_server": rt.stream.httpd is not None,
         }
         st = self.status()

@@ -53,6 +53,7 @@ class BridgeRuntime:
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
         self.heartbeat = time.monotonic()
+        self.loop_ident: int | None = None               # control-loop thread (health: busy in a bounded LMS call != hung)
         self.on_controller_event = None                  # optional hook (service: crash-recovery journal)
         self.timeline: list[tuple] = []         # (wall, event, detail) probes; no tokens
 
@@ -64,33 +65,23 @@ class BridgeRuntime:
         self.logf(m)
 
     # -- in-place reconfiguration (owner settings; never rebuilds the runtime, so a connected phone stays connected) --
-    def set_lms(self, lms) -> None:
-        """Switch to another LMS server: release OUR stream on the old server (URL-addressed, as always), then continue on the new one."""
-        c = self.controller
-        with c.lock:
-            c._release("server_change")
-            c.lms = self.lms = lms
-            c.reachability, c.lost_at, c.stale_urls = "unknown", None, []
-            c.ownership = "none"
-            if c._wanted():
-                c._maybe_takeover(fresh=True)
+    def set_lms(self, lms, target_player: str | None = None) -> None:
+        """Switch to another LMS server (optionally with a new target): release OUR stream on the old server (URL-addressed, as
+        always), then continue on the new one."""
+        self.lms = lms
+        self.controller.change_server(lms, target_player)
 
     def reconfigure_stream(self, fmt: str | None = None, icy: bool | None = None) -> None:
         """Format/ICY apply to new sessions; a running session of ours is restarted with the new format."""
-        c = self.controller
-        with c.lock:
+        def apply() -> bool:
             changed = (fmt is not None and fmt != self.stream.fmt) or (icy is not None and icy != self.stream.icy)
-            if not changed:
-                return
-            owned = c.session is not None and c.ownership == "owned"
-            if owned:
-                c._release("stream_reconfigure")
-            if fmt is not None:
-                self.stream.fmt = self.rcfg.stream_format = fmt
-            if icy is not None:
-                self.stream.icy = self.rcfg.icy_metadata = icy
-            if owned and c._wanted():
-                c._maybe_takeover(fresh=True)
+            if changed:
+                if fmt is not None:
+                    self.stream.fmt = self.rcfg.stream_format = fmt
+                if icy is not None:
+                    self.stream.icy = self.rcfg.icy_metadata = icy
+            return changed
+        self.controller.restart_session("stream_reconfigure", apply)
 
     def rotate_token(self, new_token: str) -> None:
         """New stream URLs use the new token; the running session continues (docs/OPEN_QUESTIONS.md #11)."""
@@ -167,6 +158,7 @@ class BridgeRuntime:
             self.source.start()
 
     def _loop(self) -> None:
+        self.loop_ident = threading.get_ident()
         while not self._stop.wait(0.1):
             self.heartbeat = time.monotonic()           # supervision: a hung control loop (e.g. a deadlock) stops this
             try:
@@ -180,9 +172,7 @@ class BridgeRuntime:
         self._stop.set()
         if self.source and stop_source:
             self.source.stop()
-        c = self.controller
-        with c.lock:
-            c._release("shutdown")
+        self.controller.release("shutdown")
         self.stream.stop()
 
     def diagnostic_test(self, duration_s: float = 3.0) -> str:
