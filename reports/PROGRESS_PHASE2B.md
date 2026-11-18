@@ -57,3 +57,8 @@ Scope: owner work package of 2026-11-18 (DECISIONS #73/#74).
   outages green. Reds: mDNS (same host-environment issue as in package 1, green in CI) and integration 1/55: the first test right after the
   lab's Lyrion was recreated on the newly pinned 9.1.2 image received 0 blocks; not reproducible (4 reruns, 8/8 green) - recorded as a
   cold-start flake, watched in CI (cold Lyrion on every run).
+- Package 2 CI: GitHub Actions run 44372722429 on `242184b` - 14/14 green (the cold-start flake did not recur).
+
+### Package 3 - network management (in progress)
+- Opus agent resumed on `wip/network`; `develop` merged into the branch (`3b66948`). Interrupted once more by the account rate limit
+  (~19:00, reset 20:10); resumed 23:02.
