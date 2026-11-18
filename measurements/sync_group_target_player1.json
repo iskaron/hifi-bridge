@@ -6,93 +6,64 @@
   ],
   "bridge_target": "player1",
   "max_player_spread_ms_at_3_frames": [
-    23.7,
-    23.5,
-    23.5
+    17.3,
+    17.3,
+    17.3
   ],
   "sync_correction_jumps_frames": {
     "player1": [
-      882,
-      529
+      441
     ],
     "player2": [
-      705
-    ],
-    "player3": [
-      529,
-      617,
+      573,
       441
-    ]
+    ],
+    "player3": []
   },
   "integrity": {
     "player1": {
-      "blocks": 143,
-      "matched": 139,
-      "mismatched": 4,
-      "jumps": [
-        [
-          8,
-          0
-        ],
-        [
-          9,
-          882
-        ],
-        [
-          87,
-          0
-        ],
-        [
-          88,
-          529
-        ]
-      ]
-    },
-    "player2": {
       "blocks": 143,
       "matched": 141,
       "mismatched": 2,
       "jumps": [
         [
-          107,
+          80,
           0
         ],
         [
-          108,
-          705
+          81,
+          441
+        ]
+      ]
+    },
+    "player2": {
+      "blocks": 143,
+      "matched": 139,
+      "mismatched": 4,
+      "jumps": [
+        [
+          10,
+          0
+        ],
+        [
+          11,
+          573
+        ],
+        [
+          30,
+          0
+        ],
+        [
+          31,
+          441
         ]
       ]
     },
     "player3": {
       "blocks": 143,
-      "matched": 137,
-      "mismatched": 6,
-      "jumps": [
-        [
-          8,
-          0
-        ],
-        [
-          9,
-          529
-        ],
-        [
-          67,
-          0
-        ],
-        [
-          68,
-          617
-        ],
-        [
-          127,
-          0
-        ],
-        [
-          128,
-          441
-        ]
-      ]
+      "matched": 143,
+      "mismatched": 0,
+      "jumps": []
     }
   },
   "bridge_only_commands": [
@@ -101,7 +72,7 @@
   ],
   "label": "INTEGRATION real LMS sync + SIMULATED BT; virtual DACs, NOT acoustic",
   "env": {
-    "date_utc": "2026-11-18T16:28:12Z",
+    "date_utc": "2026-11-18T18:08:54Z",
     "lms": "9.1.2",
     "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
     "kernel": "7.0.0-43-generic",

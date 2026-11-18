@@ -43,3 +43,17 @@ Scope: owner work package of 2026-11-18 (DECISIONS #73/#74).
     ENETUNREACH; the same suite was green locally on 2026-11-17 and in CI. Left to CI (fresh networks) as the deciding run; to be analysed
     further in package 7 if it persists.
 - Pushed `82b2bb3`; GitHub Actions run 44350223892.
+
+### Package 2 - demo and entry points (done)
+- Sonnet agent (resumed on `wip/entry`), merged as `46483a0`. Docker minimums Engine 24.0 + Compose 2.20 (Engine >= 29: Compose >= 2.24.5)
+  from a dind matrix of six engines x two/three Compose versions; `gw_priority` removed (the owner's failure); pre-flight check
+  (`make doctor`); shared `scripts/lib/common.sh` with image registry, automatic builds/pulls, progress + heartbeat; demo loudness
+  (-42.1 → -25.7 dBFS RMS at the DAC, product audio unchanged); clean-clone runs of `make demo` + `hwkit_bundle.sh` in empty dind sandboxes
+  on 24.0.9/2.20.3, 25.0.5/2.24.5 (the owner's pair) and 29.1.5/2.36.2 - all PASS; static + runtime isolation regression tests with
+  negative control; every third-party image pinned by tag + digest (Lyrion 9.1.2). 90 entry tests. DECISIONS #78-#82, OPEN_QUESTIONS
+  #48/#49 resolved, #57/#58 new.
+- Full run after the merge (`reports/evidence/full_run_pkg2_entry.log`): entry 90, unit 428, Python 3.14, security, Gitleaks (146 commits),
+  OS 46, Home Assistant 7/7, demo unit 52, **demo stack incl. the new runtime isolation check** (rc=0), browser 5, PipeWire, hwkit, syslog,
+  outages green. Reds: mDNS (same host-environment issue as in package 1, green in CI) and integration 1/55: the first test right after the
+  lab's Lyrion was recreated on the newly pinned 9.1.2 image received 0 blocks; not reproducible (4 reruns, 8/8 green) - recorded as a
+  cold-start flake, watched in CI (cold Lyrion on every run).
