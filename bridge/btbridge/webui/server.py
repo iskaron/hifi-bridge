@@ -19,7 +19,7 @@ from typing import Callable
 
 from . import views
 from .auth import AuthError
-from .i18n import Translator, pick_language
+from .i18n import LANGS, Translator, pick_language
 
 MAX_BODY = 64 * 1024
 CONN_TIMEOUT_S = 10.0          # per connection: TLS handshake, request, body and response (review M2: idle peers pinned a thread each)
@@ -246,7 +246,7 @@ class WebUI:
             req = Request(h, self, tls)
             policy = self.svc.access.policy if self.svc.access is not None else self._fallback_policy
             if not policy.allowed(req.host):              # DNS-rebinding protection: refuse foreign host names before anything else
-                resp = error_page(421, "Misdirected request: unknown host name")
+                resp = self._misdirected(req, tls)
             elif self._needs_https(req):
                 resp = Response(308)
                 host = req.host.split("]")[0] + "]" if req.host.startswith("[") else req.host.split(":")[0]
@@ -255,8 +255,24 @@ class WebUI:
                 resp = self._route(req)
         except Exception as e:                                # never echo internals to the browser
             self.svc.logs(f"webui error: {type(e).__name__}: {e}")
-            resp = error_page(500, "Internal error")
+            resp = error_page(500, req.lang if req is not None else "en")
         self._send(h, resp, req)
+
+    def _misdirected(self, req: Request, tls: bool) -> Response:
+        """421 for a foreign host name (DNS-rebinding protection), with links that do work: the device's names and the address
+        the browser actually connected to (review M9: a bare English text left owners stuck)."""
+        from ..net.hostcheck import split_host
+        acc = self.svc.access
+        try:
+            local_ip, port = req.h.connection.getsockname()[:2]
+        except (OSError, ValueError):
+            local_ip, port = None, (self.tls_port if tls else self.port)
+        scheme = "https" if tls else "http"
+        names = [acc.main_name(), *acc.extra_names()] if acc is not None else []
+        hosts = list(dict.fromkeys(n for n in [*names, local_ip, *(acc.addresses() if acc is not None else [])] if n))
+        suffix = "" if (scheme, port) in (("http", 80), ("https", 443)) else f":{port}"
+        links = [f"{scheme}://{'[' + h + ']' if ':' in h else h}{suffix}/" for h in hosts]
+        return error_page(421, req.lang, host=split_host(req.host)[:100], links=links)
 
     def _needs_https(self, req: Request) -> bool:
         acc = self.svc.access
@@ -270,20 +286,20 @@ class WebUI:
         handler = self.routes.get((method, req.path))
         if handler is None:
             if any(p == req.path for (_, p) in self.routes):
-                return error_page(405, "Method not allowed")
+                return error_page(405, req.lang)
             return Response(404, views.not_found(self, req))
         public = getattr(handler, "public", False)
         if method == "POST":
             if not same_origin(req.h.headers, req.host):
-                return error_page(403, "Cross-origin request refused")
+                return error_page(403, req.lang)
             try:
                 req.read_form()
             except BodyError as e:
-                resp = error_page(e.status, "Bad request")
+                resp = error_page(e.status, req.lang)
                 resp.close = True                               # the unread body must not be parsed as a next request
                 return resp
             except (ValueError, json.JSONDecodeError):
-                return error_page(400, "Bad request")
+                return error_page(400, req.lang)
             if not public:
                 token = req.form.get("csrf") or req.h.headers.get("X-CSRF-Token")
                 if not self.svc.auth.sessions.check_csrf(req.sid, token):
@@ -360,8 +376,18 @@ def same_origin(headers, host: str | None = None) -> bool:
     return origin is None
 
 
-def error_page(status: int, text: str) -> Response:
-    return Response(status, f'<!doctype html><html lang="en"><meta charset="utf-8"><title>{status}</title><p>{html.escape(text)}</p></html>')
+def error_page(status: int, lang: str = "en", host: str = "", links: list[str] | tuple = ()) -> Response:
+    """Error page in both UI languages (the preferred one first, each marked with its lang attribute); never echoes internals."""
+    first = lang if lang in LANGS else "en"
+    parts = []
+    for code in (first, *[x for x in LANGS if x != first]):
+        t = Translator(code)
+        key = f"errorpage.{status}" if f"errorpage.{status}" in t.s else "errorpage.400"
+        parts.append(f'<section lang="{code}"><h1>{esc(t("errorpage.title", status=status))}</h1><p>{esc(t(key, host=host))}</p></section>')
+    items = "".join(f'<li><a href="{esc(u)}">{esc(u)}</a></li>' for u in links)
+    return Response(status, f'<!doctype html><html lang="{first}"><meta charset="utf-8">'
+                            f'<meta name="viewport" content="width=device-width, initial-scale=1"><title>{status}</title>'
+                            f'<main>{"".join(parts)}{f"<ul>{items}</ul>" if items else ""}</main></html>')
 
 
 def esc(s) -> str:

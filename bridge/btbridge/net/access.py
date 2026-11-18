@@ -53,7 +53,12 @@ class LocalAccess:
         return [x.strip() for x in self.store.get("extra_hostnames").split(",") if x.strip()]
 
     def host_names(self) -> list[str]:
-        return [self.main_name(), f"{self.store.get('local_hostname')}.local", *self.extra_names()]
+        """Names the WebUI answers to. Includes the bare device name: a router's DNS search domain turns http://hifi-bridge/
+        into a working lookup (review M9). A single-label name cannot be an attacker's public domain (DNS rebinding)."""
+        base = self.store.get("local_hostname")
+        main = self.main_name()
+        bare_main = main[:-len(".local")] if main.endswith(".local") else None
+        return [n for n in dict.fromkeys([main, f"{base}.local", base, bare_main, *self.extra_names()]) if n]
 
     def cert_names(self) -> list[str]:
         ips = [ip for ip in self.addresses() if permitted(ip)]

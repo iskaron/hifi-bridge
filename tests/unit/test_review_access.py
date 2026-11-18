@@ -190,6 +190,32 @@ def test_change_password_with_a_wrong_old_password_backs_off(tmp_path):
         a.change_password("a good long passphrase", "another long passphrase", client="192.168.1.50")
 
 
+# ---------------------------------------------------------------- M9: bare host names (router search domain) and a helpful 421
+def test_the_bare_device_name_is_accepted(ui):
+    from test_webui import Client
+    for host in ("hifi-bridge", f"hifi-bridge:{ui.port}", "HIFI-BRIDGE."):
+        assert Client(ui.port).get("/healthz", headers={"Host": host}).status == 200, host   # was: 421
+
+
+def test_a_bare_extra_host_name_can_be_configured(ui):
+    from test_webui import Client
+    from btbridge.config.schema import validate
+    assert validate({"extra_hostnames": "hifibox, bridge.home.arpa"})["extra_hostnames"] == "hifibox, bridge.home.arpa"
+    ui.svc.store.update({"extra_hostnames": "hifibox, bridge.home.arpa"})
+    assert Client(ui.port).get("/healthz", headers={"Host": "hifibox"}).status == 200
+
+
+def test_unknown_host_gets_a_bilingual_page_with_working_addresses(ui):
+    from test_webui import Client
+    r = Client(ui.port).get("/", headers={"Host": "evil.example"})
+    assert r.status == 421
+    assert 'lang="de"' in r.body and 'lang="en"' in r.body
+    assert "evil.example" in r.body and "<script" not in r.body
+    assert f'href="http://hifi-bridge.local:{ui.port}/"' in r.body and f'href="http://127.0.0.1:{ui.port}/"' in r.body
+    r = Client(ui.port).get("/", headers={"Host": "<b>x</b>"})
+    assert r.status == 421 and "<b>x</b>" not in r.body                  # the refused name is escaped
+
+
 # ---------------------------------------------------------------- H6: torn certificate files heal instead of crash-looping
 def _certs(tmp_path, faults=None):
     from btbridge.net.certs import CertManager

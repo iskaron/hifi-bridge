@@ -66,7 +66,7 @@ def _label(v: str) -> str:
 def _hostlist(v: str) -> str:
     items = [x.strip().lower().rstrip(".") for x in re.split(r"[,\s]+", v or "") if x.strip()]
     for x in items:
-        if not _HOST.match(x) or "." not in x:
+        if not _HOST.match(x):                     # a bare name (router search domain) is fine, too (review M9)
             raise ValueError("invalid_host")
     return ", ".join(dict.fromkeys(items))
 
