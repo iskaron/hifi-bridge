@@ -11,7 +11,7 @@ from btbridge.stream import server as S
 from btbridge.stream.feeder import LiveFeeder
 from btbridge.stream.server import StreamServer
 
-TOKEN = "tok_SECRET-123"
+TOKEN = "unit-test-stream-token"
 
 
 @pytest.fixture
