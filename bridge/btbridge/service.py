@@ -326,6 +326,12 @@ class ApplianceService:
     def on_event(self, fn: Callable[[str, dict], None]) -> None:
         self._listeners.append(fn)
 
+    def off_event(self, fn: Callable[[str, dict], None]) -> None:
+        try:
+            self._listeners.remove(fn)
+        except ValueError:
+            pass
+
     def _emit(self, kind: str, data: dict) -> None:
         for fn in list(self._listeners):
             try:

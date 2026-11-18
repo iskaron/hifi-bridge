@@ -112,6 +112,9 @@ class MqttBridge:
 
     def stop(self) -> None:
         self._stop.set()
+        off = getattr(self.svc, "off_event", None)
+        if off is not None:
+            off(self._on_event)                          # a restarted bridge must not leave its listener behind (review L1)
         if self.client.connected:
             self.client.publish(self.topic("availability"), "offline", retain=True)
         self.client.stop()
