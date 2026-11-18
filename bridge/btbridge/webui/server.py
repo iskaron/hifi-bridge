@@ -30,6 +30,13 @@ CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' 
        "frame-ancestors 'none'; form-action 'self'; base-uri 'none'; object-src 'none'")
 
 
+class BodyError(ValueError):
+    """A request body that is refused before it is read (status: 400, 411 or 413)."""
+    def __init__(self, status: int, reason: str):
+        super().__init__(reason)
+        self.status = status
+
+
 class Request:
     def __init__(self, h: BaseHTTPRequestHandler, server: "WebUI", tls: bool = False):
         self.h, self.ui = h, server
@@ -62,10 +69,24 @@ class Request:
         self.flash = self.cookies.get("bab_flash")
 
     def read_form(self) -> None:
-        n = int(self.h.headers.get("Content-Length") or 0)
+        """Parse the request body. Before any session or CSRF check, so it is strict: only one plain decimal Content-Length of at
+        most MAX_BODY bytes is accepted (a negative length used to read until EOF: review H1); chunked bodies are refused, and a
+        short body ends with the connection's socket timeout instead of blocking a thread."""
+        if self.h.headers.get("Transfer-Encoding") is not None:
+            raise BodyError(411, "chunked request bodies are not supported")
+        values = self.h.headers.get_all("Content-Length") or []
+        if len(values) > 1:
+            raise BodyError(400, "conflicting Content-Length")
+        value = values[0].strip() if values else "0"
+        if not value.isascii() or not value.isdigit() or len(value) > 12:
+            raise BodyError(400, "malformed Content-Length")
+        n = int(value)
         if n > MAX_BODY:
-            raise ValueError("body too large")
-        raw = self.h.rfile.read(n).decode("utf-8", "replace") if n else ""
+            raise BodyError(413, "body too large")
+        raw = self.h.rfile.read(n) if n else b""
+        if len(raw) != n:
+            raise BodyError(400, "truncated body")
+        raw = raw.decode("utf-8", "replace")
         ctype = self.h.headers.get("Content-Type", "")
         if ctype.startswith("application/json"):
             data = json.loads(raw or "{}")
@@ -79,6 +100,7 @@ class Response:
         self.status, self.ctype = status, ctype
         self.body = body.encode("utf-8") if isinstance(body, str) else body
         self.headers: list[tuple[str, str]] = []
+        self.close = False
 
     def cookie(self, name: str, value: str, secure: bool, max_age: int | None = None, http_only: bool = True) -> "Response":
         parts = [f"{name}={value}", "Path=/", "SameSite=Strict"]
@@ -204,6 +226,10 @@ class WebUI:
                 return error_page(403, "Cross-origin request refused")
             try:
                 req.read_form()
+            except BodyError as e:
+                resp = error_page(e.status, "Bad request")
+                resp.close = True                               # the unread body must not be parsed as a next request
+                return resp
             except (ValueError, json.JSONDecodeError):
                 return error_page(400, "Bad request")
             if not public:
@@ -240,6 +266,9 @@ class WebUI:
                 h.send_header("Cache-Control", "no-store")
             for k, v in r.headers:
                 h.send_header(k, v)
+            if r.close:
+                h.send_header("Connection", "close")
+                h.close_connection = True
             h.end_headers()
             if h.command != "HEAD":
                 h.wfile.write(r.body)
