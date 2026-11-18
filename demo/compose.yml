@@ -109,7 +109,7 @@ services:
       - lms-config:/config
     environment:
       - HTTP_PORT=9000
-    entrypoint: ["/bin/bash", "-c", "mkdir -p /config/prefs && for f in server.prefs favorites.opml; do [ -f /config/prefs/$$f ] || cp /seed/$$f /config/prefs/$$f; done; exec start-container"]
+    entrypoint: ["/bin/bash", "/seed/start.sh"]
     healthcheck:
       test: ["CMD-SHELL", "curl -fs -X POST -d '{\"id\":1,\"method\":\"slim.request\",\"params\":[\"\",[\"serverstatus\",0,1]]}' http://localhost:9000/jsonrpc.js >/dev/null"]
       interval: 3s
