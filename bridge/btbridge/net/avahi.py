@@ -110,6 +110,29 @@ class AvahiPublisher:
         self.on_name(self.fqdn)
         return self.fqdn
 
+    def check(self) -> bool:
+        """Publish again when the entry group is gone - avahi-daemon restarted (its objects vanish with it) or the group failed
+        (review L7: the name used to stay unpublished until the bridge restarted). True if it published again; raises
+        AvahiUnavailable while the daemon is still down (the caller retries on its next check)."""
+        with self._lock:
+            if self.state not in ("announced", "lost"):
+                return False
+            if self.state == "announced":
+                try:
+                    if self._call(self.group, IF_GROUP, "GetState")[0] == ESTABLISHED:
+                        return False
+                except Exception:                              # error reply, broken connection, ...
+                    pass
+                self.log("mdns (avahi): our entry group is gone (avahi-daemon restarted?) - publishing again")
+            try:
+                if self.conn is not None:
+                    self.conn.close()
+            except Exception:
+                pass
+            self.conn, self.group, self.state, self.host = None, None, "lost", self.base
+        self.start()                                            # raises AvahiUnavailable while the daemon is down
+        return True
+
     def stop(self) -> None:
         with self._lock:
             if self.conn is None:

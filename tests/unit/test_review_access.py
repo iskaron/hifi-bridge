@@ -75,6 +75,92 @@ def test_any_unexpected_mdns_error_degrades(tmp_path):
     assert acc.mdns is None and acc.mdns_backend == "unavailable"
 
 
+# ---------------------------------------------------------------- L7: Avahi restarts and conflict storms
+def test_avahi_daemon_restart_is_noticed_and_the_name_published_again():
+    from test_avahi import FakeConn, Reply, pub
+    p = pub([A.ESTABLISHED])
+    p.start()
+    adds = lambda c: [m for m, _ in c.calls if m == "AddService"]          # noqa: E731
+
+    class Restarted(FakeConn):                                  # the old group object is gone after avahi-daemon restarted
+        def send_and_get_reply(self, msg, timeout=None):
+            from jeepney import HeaderFields
+            if msg.header.fields[HeaderFields.member] == "GetState":
+                return Reply(("org.freedesktop.Avahi.InvalidObjectError",), err=True)
+            return super().send_and_get_reply(msg, timeout)
+    p.conn = Restarted([A.ESTABLISHED])
+    fresh = FakeConn([A.ESTABLISHED])
+
+    def reconnect():
+        p.conn = fresh
+        return "avahi 0.8"
+    p.connect = reconnect
+    assert p.check() is True                                    # was: never checked, name gone until the bridge restarts
+    assert p.state == "announced" and adds(fresh)
+    assert p.check() is False                                   # healthy group: nothing to do
+
+
+def test_avahi_still_down_is_retried_on_the_next_check():
+    from test_avahi import FakeConn, pub
+    p = pub([A.ESTABLISHED])
+    p.start()
+
+    def down():
+        raise A.AvahiUnavailable("no daemon")
+    p.conn.close(); p.conn = None
+    p.connect = down
+    with pytest.raises(A.AvahiUnavailable):
+        p.check()
+    p.connect = lambda: (setattr(p, "conn", FakeConn([A.ESTABLISHED])), "avahi 0.8")[1]
+    assert p.check() is True and p.state == "announced"
+
+
+def test_local_access_checks_the_mdns_backend_periodically(tmp_path):
+    acc, made = _access(tmp_path, mdns_backend="builtin")
+    acc._start_mdns()
+    made["builtin"].check = lambda: (_ for _ in ()).throw(A.AvahiUnavailable("still down"))
+    acc._check_mdns()                                           # errors are logged, never raised into the loop
+    calls = []
+    made["builtin"].check = lambda: calls.append(1) or False
+    acc._check_mdns()
+    assert calls == [1]
+
+
+def test_builtin_responder_runs_one_reclaim_at_a_time():
+    import threading
+    r = M.MdnsResponder("hifi-bridge", "Hi-Fi Bridge (X)", [], addresses=lambda: ["192.168.1.20"])
+    r.state = "announced"
+    started, gate = [], threading.Event()
+    r._reclaim = lambda: (started.append(1), gate.wait(2))
+    for _ in range(50):                                         # a storm of conflicting announcements
+        r._on_conflicting_announcement()
+    time.sleep(0.2)
+    assert len(started) == 1                                    # was: one thread per conflicting packet
+    gate.set()
+
+
+def test_builtin_responder_rate_limits_probing_after_15_conflicts_in_10_s():
+    r = M.MdnsResponder("hifi-bridge", "Hi-Fi Bridge (X)", [], addresses=lambda: ["192.168.1.20"])
+    now = [1000.0]
+    sleeps, rounds = [], {"n": 0}
+    r._clock = lambda: now[0]
+    r._sleep = lambda s: (sleeps.append(s), now.__setitem__(0, now[0] + s))[0] and False
+
+    class Done(Exception):
+        pass
+
+    def send(data, addr=None):
+        rounds["n"] += 1
+        if rounds["n"] > 25:
+            raise Done()
+        now[0] += 0.01
+        r._conflict.set()                                       # every probe is answered by a conflicting claim
+    r._send = send
+    with pytest.raises(Done):
+        r._claim()
+    assert sleeps.count(5.0) >= 5                               # RFC 6762 s8.1: wait 5 s before each further probe
+
+
 # ---------------------------------------------------------------- M1: the TLS handshake runs per connection, with a timeout
 def test_idle_tcp_connection_does_not_block_https_for_others(ui):
     idle = socket.create_connection(("127.0.0.1", ui.tls_port))             # never starts a TLS handshake

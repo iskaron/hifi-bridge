@@ -172,10 +172,21 @@ class LocalAccess:
         if changed and self.ctx is not None:
             self.ensure_certificates()                  # a conflict-renamed device needs its new name in the certificate
 
+    def _check_mdns(self) -> None:
+        """Re-publish if the backend lost our records (e.g. avahi-daemon restarted). Never raises into the loop."""
+        m = self.mdns
+        if m is None or not hasattr(m, "check"):
+            return
+        try:
+            m.check()
+        except Exception as e:
+            self.log(f"mdns: not published ({type(e).__name__}: {e}); retrying")
+
     def _loop(self) -> None:
         next_renew = RENEW_CHECK_S
         waited = 0
         while not self._stop.wait(ADDRESS_CHECK_S):
+            self._check_mdns()
             waited += ADDRESS_CHECK_S
             addrs = set(self.addresses())
             if addrs != self._last_addrs or waited >= next_renew:
