@@ -288,6 +288,7 @@ hb_image_info() {
   esac
 }
 
+# shellcheck disable=SC2034  # used by scripts/build_images.sh
 HB_ALL_IMAGES="btbridge-lab:dev btbridge-hwkit:dev btbridge-pw:bookworm btbridge-pw:trixie btbridge-avahi:dev btbridge-browser:dev \
 btbridge-static:dev btbridge-syslog:dev btbridge-py314:dev btbridge-security:dev btbridge-os:dev btbridge-entry:dev hifi-demo:dev"
 
