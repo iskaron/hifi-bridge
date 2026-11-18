@@ -9,7 +9,7 @@ import time
 from dataclasses import dataclass
 
 from .core.clock import SystemClock
-from .core.controller import Config, Controller
+from .core.controller import Config, Controller, StreamAddressUnavailable
 from .core.fusion import MediaFusion
 from .core.pairing import PairingWindow
 from .core.ring import PcmRing
@@ -53,6 +53,7 @@ class BridgeRuntime:
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
         self.heartbeat = time.monotonic()
+        self.advertise = None                            # optional callable -> host for stream URLs, evaluated per session
         self.loop_ident: int | None = None               # control-loop thread (health: busy in a bounded LMS call != hung)
         self.on_controller_event = None                  # optional hook (service: crash-recovery journal)
         self.timeline: list[tuple] = []         # (wall, event, detail) probes; no tokens
@@ -99,7 +100,12 @@ class BridgeRuntime:
                 self.logf(f"controller event hook error: {type(e).__name__}: {e}")
 
     def _url_for(self, sid: str) -> str:
-        return self.stream.url(self.rcfg.advertise_host, self.port, sid)
+        host = self.advertise() if self.advertise is not None else self.rcfg.advertise_host
+        if not host:
+            raise StreamAddressUnavailable()
+        if ":" in host and not host.startswith("["):
+            host = f"[{host}]"
+        return self.stream.url(host, self.port, sid)
 
     def _pairable_changed(self, on: bool) -> None:
         if self.source:

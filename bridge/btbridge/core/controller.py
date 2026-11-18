@@ -31,6 +31,10 @@ from typing import Callable
 from ..lms.client import LmsUnreachable, Observation
 from .volume import VolumePolicy
 
+class StreamAddressUnavailable(Exception):
+    """``url_for`` has no address that LMS could reach (network not up yet): no start is sent (review H3)."""
+
+
 @dataclass
 class Config:
     target_player: str = ""
@@ -422,11 +426,20 @@ class Controller:
     def _launch(self, st: _Start, obs: Observation) -> str | None:
         """Send the start (no lock held) and commit it after revalidation. Returns the session id, or None."""
         sid = secrets.token_urlsafe(6)
-        url = self.url_for(sid)                           # may look up the local address: not under the lock
+        try:
+            url = self.url_for(sid)                       # looks up the local address per session: not under the lock
+        except StreamAddressUnavailable:
+            url = None
         with self.lock:
             if not self._valid(st):
                 return None
             now = self.clock.now()
+            if url is None:                               # never hand LMS a URL it cannot reach; tick() retries
+                self.next_start_attempt = now + self.cfg.restart_backoff_s
+                if self.blocked_reason != "stream_address_unavailable":
+                    self._ev("stream_address_unavailable")
+                self.blocked_reason = "stream_address_unavailable"
+                return None
             self.next_start_attempt = now + self.cfg.restart_backoff_s
             self.stream.open_session(sid)
             wake = not obs.power and self.cfg.wake_standby
@@ -535,7 +548,8 @@ class Controller:
         # 4. wanted but nothing running (e.g. LMS was unreachable at Play time)
         with self.lock:
             retry = (self._wanted() and not self.session and self._starting is None and self.ownership != "lost"
-                     and self.blocked_reason in (None, "lyrion_unreachable") and now >= self.next_start_attempt
+                     and self.blocked_reason in (None, "lyrion_unreachable", "stream_address_unavailable")
+                     and now >= self.next_start_attempt
                      and self.io_failures == failures)
             if retry:
                 self.next_start_attempt = now + self.cfg.restart_backoff_s

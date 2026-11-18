@@ -23,6 +23,7 @@ S = {"connected":("Connected","Verbunden"),"disconnected":("Not connected","Nich
      "lost":("Taken over by another source","Von anderer Quelle übernommen"),"closed":("Closed","Geschlossen"),"parked":("Paused (grace period)","Pausiert (Karenzzeit)"),
      "streaming":("Streaming","Streamt"),"audio_disabled":("Bridge audio off","Bridge-Wiedergabe aus"),"override_disabled":("Override disabled","Übernahme deaktiviert"),
      "notification_filter":("Checking: notification or music?","Prüft: Hinweiston oder Musik?"),"lyrion_unreachable":("Lyrion unreachable","Lyrion nicht erreichbar"),
+     "stream_address_unavailable":("Waiting for the network","Wartet auf das Netzwerk"),
      "no_device":("No phone connected","Kein Telefon verbunden"),"not_configured":("Not configured","Nicht eingerichtet"),"not_connected":("Not connected","Nicht verbunden")}
 for s,(en,de) in S.items(): k(f"state.{s}",en,de)
 DIM = {"bluetooth_connection":("Bluetooth","Bluetooth"),"bt_media_activity":("Phone media","Medien am Telefon"),"audio_permission":("Bridge audio","Bridge-Wiedergabe"),
@@ -112,7 +113,9 @@ for key,en,de in [("sys.health","Health","Zustand"),("sys.cpu","CPU","CPU"),("sy
     ("mqtt.disabled","Not enabled.","Nicht aktiviert."),("mqtt.connected","Connected to {broker}.","Mit {broker} verbunden."),("mqtt.disconnected","Not connected ({error}).","Nicht verbunden ({error}).")]: k(key,en,de)
 for s,(en,de) in {"ok":("normal","normal"),"warning":("warm","warm"),"critical":("too hot","zu heiß"),"unknown":("not available","nicht verfügbar")}.items(): k(f"thermal.{s}",en,de)
 for d,(en,de) in {"not_configured":("Setup is not finished.","Die Einrichtung ist nicht abgeschlossen."),"lyrion_unreachable":("The Lyrion server or player is not reachable.","Lyrion-Server oder Player sind nicht erreichbar."),
-    "thermal_warning":("The device is getting warm.","Das Gerät wird warm."),"thermal_critical":("The device is too hot.","Das Gerät ist zu heiß."),"mqtt_disconnected":("MQTT broker not connected.","MQTT-Broker nicht verbunden.")}.items(): k(f"degraded.{d}",en,de)
+    "thermal_warning":("The device is getting warm.","Das Gerät wird warm."),"thermal_critical":("The device is too hot.","Das Gerät ist zu heiß."),"mqtt_disconnected":("MQTT broker not connected.","MQTT-Broker nicht verbunden."),
+    "stream_address_unavailable":("No network address for the stream yet: the bridge waits for the network before it starts playback.",
+                                  "Noch keine Netzwerkadresse für den Stream: Die Bridge wartet auf das Netzwerk, bevor sie die Wiedergabe startet.")}.items(): k(f"degraded.{d}",en,de)
 # flashes + errors
 for key,en,de in [("flash.session_expired","Please log in again.","Bitte erneut anmelden."),("flash.account_created","Owner password set.","Besitzer-Passwort festgelegt."),
     ("flash.setup_done","Setup complete. Guests can now connect via Bluetooth.","Einrichtung abgeschlossen. Gäste können sich jetzt per Bluetooth verbinden."),

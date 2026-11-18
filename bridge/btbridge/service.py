@@ -26,7 +26,7 @@ from .app import BridgeRuntime, RuntimeConfig
 from .config import ConfigStore
 from .core.controller import Config
 from .lms import discovery
-from .lms.client import LmsClient, LmsUnreachable, Observation
+from .lms.client import LmsClient, LmsUnreachable, Observation, _Resolver
 from .stream.server import redact
 from .system import SystemMonitor
 from .supervision import SessionJournal
@@ -57,15 +57,19 @@ def lms_url(host: str, port: int) -> str:
     return f"http://{h}:{port}"
 
 
-def local_ip_for(host: str, port: int) -> str:
-    """The local address the bridge would use to reach ``host`` (= what LMS/players must use to reach the stream). No packet is sent."""
+def local_ip_for(host: str, port: int, resolver: "_Resolver | None" = None, connect=None) -> str | None:
+    """The local address the bridge would use to reach ``host`` (= what LMS/players must use to reach the stream). No packet is sent.
+    ``None`` when there is no route yet (Wi-Fi not up, no DHCP lease): the caller must then not advertise anything - the old
+    fallback 127.0.0.1 sent every remote LMS an unreachable URL until the next restart (review H3). A host name is looked up
+    through ``resolver`` (bounded, cached) because a UDP connect would otherwise block in getaddrinfo."""
     try:
-        fam = socket.AF_INET6 if ":" in host else socket.AF_INET
+        target = resolver.address() if resolver is not None else host
+        fam = socket.AF_INET6 if ":" in target else socket.AF_INET
         with socket.socket(fam, socket.SOCK_DGRAM) as s:
-            s.connect((host, port))
+            (connect or (lambda sock, addr: sock.connect(addr)))(s, (target, port))
             return s.getsockname()[0]
-    except OSError:
-        return "127.0.0.1"
+    except (OSError, LmsUnreachable):
+        return None
 
 
 class LogBuffer:
@@ -134,11 +138,14 @@ class ApplianceService:
         self.access = None                              # LocalAccess (names, HTTPS, mDNS) - set by the appliance entry point
         c = self.store.all()
         rc = RuntimeConfig(lms_url=lms_url(c["lms_host"], c["lms_port"]) if c["lms_host"] else "http://127.0.0.1:9",
-                           advertise_host=self._advertise(c), stream_port=stream_port, stream_format=c["stream_format"],
+                           advertise_host="" if advertise_host == "auto" else advertise_host, stream_port=stream_port, stream_format=c["stream_format"],
                            icy_metadata=c["icy_metadata"], pairing_s=float(c["pairing_seconds"]))
         cc = Config(target_player=c["target_player"], audio_allowed=c["audio_allowed"], override_lms=c["override_lms"],
                     pause_strategy=c["pause_strategy"])
         self.runtime = BridgeRuntime(rc, cc, source=source, lms=self._lms_for(c), log=self.logs, token=self.store.secret("stream_token"))
+        self._resolvers: dict[tuple, _Resolver | None] = {}
+        if advertise_host == "auto":
+            self.runtime.advertise = self.stream_host           # per session: follows Wi-Fi coming up and DHCP changes
         self.journal = SessionJournal(data_dir)
         self.runtime.on_controller_event = self._journal_event
         self.source = source
@@ -216,10 +223,21 @@ class ApplianceService:
             return UnconfiguredLms()
         return self.lms_factory(lms_url(c["lms_host"], c["lms_port"]))
 
-    def _advertise(self, c: dict) -> str:
+    def stream_host(self) -> str | None:
+        """Host LMS and its players use to fetch the stream, computed per session (route toward the LMS host)."""
         if self.advertise_cfg != "auto":
             return self.advertise_cfg
-        return local_ip_for(c["lms_host"], c["lms_port"]) if c["lms_host"] else "127.0.0.1"
+        host, port = self.store.get("lms_host"), self.store.get("lms_port")
+        if not host:
+            return None
+        key = (host, port)
+        if key not in self._resolvers:
+            try:
+                socket.inet_pton(socket.AF_INET6 if ":" in host else socket.AF_INET, host)
+                self._resolvers = {key: None}                 # IP literal: nothing to look up
+            except OSError:
+                self._resolvers = {key: _Resolver(host, int(port))}
+        return local_ip_for(host, port, resolver=self._resolvers[key])
 
     def _apply(self, ch: dict) -> None:
         rt, ctl = self.runtime, self.runtime.controller
@@ -241,7 +259,6 @@ class ApplianceService:
         if "stream_format" in ch or "icy_metadata" in ch:
             rt.reconfigure_stream(ch.get("stream_format"), ch.get("icy_metadata"))
         if {"lms_host", "lms_port"} & set(ch) or ("target_player" in ch and (not c["target_player"] or isinstance(rt.lms, UnconfiguredLms))):
-            rt.rcfg.advertise_host = self._advertise(c)
             rt.set_lms(self._lms_for(c), c["target_player"] if "target_player" in ch else None)
         elif "target_player" in ch:
             ctl.set_target(c["target_player"])
@@ -392,6 +409,8 @@ class ApplianceService:
             degraded.append("not_configured")
         elif b["lyrion_reachability"] == "unreachable":
             degraded.append("lyrion_unreachable")
+        if b["blocked_reason"] == "stream_address_unavailable":
+            degraded.append("stream_address_unavailable")
         if self._thermal["state"] in ("warning", "critical"):
             degraded.append("thermal_" + self._thermal["state"])
         if self.mqtt and not self.mqtt.state().get("connected"):
