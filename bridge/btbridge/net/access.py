@@ -73,15 +73,14 @@ class LocalAccess:
         return self.mode != "proxy" and self.ctx is not None
 
     def _load_ctx(self) -> None:
+        """Build a NEW context and swap the reference (review L12): load_cert_chain on a context that live handshakes use is
+        not documented as thread-safe. The WebUI reads ``ctx`` per connection, so new handshakes use the new certificate and
+        open connections are unaffected; ``None`` (proxy mode) makes the HTTPS listener refuse every handshake."""
         crt, key = self.certs.server_paths(self.mode)
-        self._loaded = (self.mode, crt)
-        if self.ctx is None:
-            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-            ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-            ctx.load_cert_chain(crt, key)
-            self.ctx = ctx
-        else:
-            self.ctx.load_cert_chain(crt, key)           # new handshakes use the new certificate; open connections are unaffected
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+        ctx.load_cert_chain(crt, key)
+        self.ctx, self._loaded = ctx, (self.mode, crt)
 
     def ensure_certificates(self) -> str | None:
         """Make sure a valid certificate for the current names is loaded. Returns the renewal reason (or None)."""
@@ -207,7 +206,7 @@ class LocalAccess:
             from .certs import cert_info
             crt, _ = self.certs.server_paths(self.mode)
             srv = cert_info(crt) if self.mode != "proxy" and __import__("os").path.exists(crt) else None
-        except CertError:
+        except (CertError, AttributeError):                  # unreadable certificate: shown as missing, never a 500
             pass
         return {"mode": self.mode, "https_only": self.store.get("https_only"), "main_name": self.main_name(), "names": self.host_names(),
                 "mdns": self.mdns_name if self.mdns else None, "mdns_backend": self.mdns_backend, "http_port": self.http_port, "https_port": self.https_port,

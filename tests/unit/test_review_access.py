@@ -176,6 +176,24 @@ def test_an_unknown_certificate_error_is_translated_not_shown_raw(ui, monkeypatc
     assert msg.startswith("e:") and "error.cert" not in msg and "openssl" not in msg and "PEM routines" not in msg
 
 
+# ---------------------------------------------------------------- L12: TLS context swapped, never mutated; proxy mode serves no TLS
+def test_certificate_renewal_swaps_in_a_new_context(ui):
+    acc = ui.svc.access
+    old = acc.ctx
+    ui.c.post("/settings/access/renew")
+    assert acc.ctx is not None and acc.ctx is not old           # was: load_cert_chain on the live context
+    assert TlsClient(ui.tls_port, ui.ca).get("/healthz").status == 200
+
+
+def test_switching_to_proxy_mode_stops_serving_tls_and_back_again(ui):
+    ui.c.post("/settings/access/tls", {"tls_mode": "proxy", "trusted_proxies": "127.0.0.1/32", "https_only": ""})
+    assert ui.svc.store.get("tls_mode") == "proxy" and ui.svc.access.ctx is None
+    with pytest.raises((OSError, ssl.SSLError)):                # was: the old certificate kept being served
+        TlsClient(ui.tls_port, ui.ca).get("/healthz")
+    ui.c.post("/settings/access/tls", {"tls_mode": "local_ca", "trusted_proxies": "", "https_only": ""})
+    assert TlsClient(ui.web.tls_port, ui.ca).get("/healthz").status == 200
+
+
 # ---------------------------------------------------------------- M1: the TLS handshake runs per connection, with a timeout
 def test_idle_tcp_connection_does_not_block_https_for_others(ui):
     idle = socket.create_connection(("127.0.0.1", ui.tls_port))             # never starts a TLS handshake
