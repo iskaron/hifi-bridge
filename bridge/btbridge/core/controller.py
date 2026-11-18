@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from ..lms.client import LmsUnreachable, Observation
+from .bounded import BoundedList
 from .volume import VolumePolicy
 
 class StreamAddressUnavailable(Exception):
@@ -123,7 +124,7 @@ class Controller:
         self.next_start_attempt = 0.0
         self.saw_outage = False                        # LMS/player outage seen since session start
         self.stale_urls: list[tuple[str, str]] = []    # (player, url) releases deferred by an outage
-        self.events: list[tuple] = []                  # (clock, name, detail) audit trail
+        self.events: list[tuple] = BoundedList(2000)  # (clock, name, detail) audit trail (bounded: review M7)
         self._starting: _Start | None = None           # the start in flight (at most one)
         self._recheck = False                          # something asked for a start while one was in flight
         self.io_failures = 0                           # LMS calls that failed as unreachable (tick time budget)

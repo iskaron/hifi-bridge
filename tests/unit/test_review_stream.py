@@ -71,6 +71,45 @@ def test_bad_token_is_answered_and_closed_at_once(srv):
     assert data.startswith(b"HTTP/1.0 403") and time.monotonic() - t0 < 1.0
 
 
+def test_bounded_list_keeps_the_newest_items_and_list_semantics():
+    from btbridge.core.bounded import BoundedList
+    b = BoundedList(100)
+    for i in range(100_000):
+        b.append(i)
+    assert 100 <= len(b) <= 125 and b[-1] == 99_999 and b[-100:] == list(range(99_900, 100_000))
+    assert b[:3] == [b[0], b[1], b[2]] and isinstance(b[-50:], list)
+
+
+def test_long_running_audit_trails_are_bounded(srv):
+    """Review M7: controller events, runtime timeline, stream events, LMS command audit, MQTT command log."""
+    s, _, _ = srv
+    from fakes import Rig
+    from btbridge.app import BridgeRuntime, RuntimeConfig
+    from btbridge.core.controller import Config
+    from btbridge.lms.client import LmsClient
+    r = Rig()
+    for _ in range(100_000):
+        r.ctl._ev("x")
+        s._ev("y")
+    c = LmsClient("http://127.0.0.1:9")
+    for _ in range(100_000):
+        c._audit("play", "p", "u")
+        c.command_times.append((0.0, 0.0))
+    rt = BridgeRuntime(RuntimeConfig(stream_port=0), Config(), log=lambda m: None)
+    for _ in range(100_000):
+        rt._clog("z")
+    for lst in (r.ctl.events, s.events, c.commands_sent, c.command_times, rt.timeline, rt.controller.events):
+        assert len(lst) <= 5000, len(lst)
+
+
+def test_mqtt_command_log_is_bounded():
+    from test_mqtt import bridge
+    _, b = bridge()                                               # read-only default: every command is logged as ignored
+    for _ in range(20_000):
+        b._on_message("hifi-bridge/x/cmd/pairing", b"ON")
+    assert len(b.commands) <= 500
+
+
 def test_connections_beyond_the_cap_are_refused(srv):
     _, port, _ = srv
     hold = [socket.create_connection(("127.0.0.1", port)) for _ in range(4)]

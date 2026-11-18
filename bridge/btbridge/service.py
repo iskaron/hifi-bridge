@@ -558,7 +558,7 @@ class ApplianceService:
             "python": platform.python_version(), "platform": platform.platform(),
             "config": self.store.export_redacted(), "status": self.status(),
             "stream": dict(self.runtime.stream.stats), "lms_commands": [c[0] for c in getattr(self.runtime.lms, "commands_sent", [])][-50:],
-            "controller_events": [(round(t, 2), n, str(d)) for t, n, d in self.runtime.controller.events[-100:]],
+            "controller_events": [(round(t, 2), n, str(d)) for t, n, d in list(self.runtime.controller.events)[-100:]],
             "logs": [(round(t, 2), m) for t, m in self.logs.recent(300)], "faults": self.logs.faults(),
             "note": "stream token, password hash and other secrets are never included",
         }

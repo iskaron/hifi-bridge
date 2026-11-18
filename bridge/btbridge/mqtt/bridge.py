@@ -100,7 +100,8 @@ class MqttBridge:
             on_message=self._on_message, on_connect=self._on_connect, log=service.logs)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
-        self.commands: list[tuple[str, str, bool]] = []          # (command, value, executed)
+        from ..core.bounded import BoundedList
+        self.commands: list[tuple[str, str, bool]] = BoundedList(200)   # (command, value, executed)
         service.on_event(self._on_event)
 
     # ---- lifecycle ----

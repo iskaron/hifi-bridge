@@ -18,6 +18,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from .encoders import CONTENT_TYPES, FlacEncoder, WavEncoder, WAV_HEADER_LEN
 from .feeder import LiveFeeder
+from ..core.bounded import BoundedList
 from ..core.ring import PcmRing
 
 URL_RE = re.compile(r"^/s/([A-Za-z0-9_-]+)/([A-Za-z0-9_-]+)\.(wav|flac)$")
@@ -80,7 +81,7 @@ class StreamServer:
         self.title = ""
         self.httpd: ThreadingHTTPServer | None = None
         self.stats = {"connections": 0, "stale_rejected": 0, "bad_token": 0, "bytes_sent": 0, "ring_skips": 0}
-        self.events: list[tuple] = []        # (wall, event, detail) timing probes (tokens never recorded)
+        self.events: list[tuple] = BoundedList(1000)   # (wall, event, detail) timing probes (tokens never recorded)
         self._lock = threading.Lock()
         self._active = 0
 

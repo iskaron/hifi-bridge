@@ -107,8 +107,9 @@ class LmsClient:
             if u.scheme == "http" and host:              # https keeps the name (certificate check); LMS speaks plain http
                 self._resolver = _Resolver(host, u.port or 80, resolve, resolve_timeout, resolve_cache_s)
         self._netloc, self._path = u.netloc, u.path
-        self.commands_sent: list[tuple] = []     # audit trail of state-changing commands (tests assert on it)
-        self.command_times: list[tuple[float, float]] = []   # (wall before, wall after) per command: timing probe t_lms_command
+        from ..core.bounded import BoundedList
+        self.commands_sent: list[tuple] = BoundedList(1000)     # audit trail of state-changing commands (tests assert on it)
+        self.command_times: list[tuple[float, float]] = BoundedList(1000)   # (wall before, wall after): probe t_lms_command
 
     def _rpc(self, player: str, *cmd):
         body = json.dumps({"id": 1, "method": "slim.request", "params": [player, list(cmd)]}).encode()

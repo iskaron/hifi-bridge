@@ -8,6 +8,7 @@ import threading
 import time
 from dataclasses import dataclass
 
+from .core.bounded import BoundedList
 from .core.clock import SystemClock
 from .core.controller import Config, Controller, StreamAddressUnavailable
 from .core.fusion import MediaFusion
@@ -56,7 +57,7 @@ class BridgeRuntime:
         self.advertise = None                            # optional callable -> host for stream URLs, evaluated per session
         self.loop_ident: int | None = None               # control-loop thread (health: busy in a bounded LMS call != hung)
         self.on_controller_event = None                  # optional hook (service: crash-recovery journal)
-        self.timeline: list[tuple] = []         # (wall, event, detail) probes; no tokens
+        self.timeline: list[tuple] = BoundedList(2000)   # (wall, event, detail) probes; no tokens
 
     # -- logging (always redacted) -------------------------------------------
     def log(self, msg: str) -> None:
