@@ -68,3 +68,109 @@ def test_any_unexpected_mdns_error_degrades(tmp_path):
     acc, _ = _access(tmp_path, builtin_fail=ValueError("bad label"), mdns_backend="builtin")
     acc._start_mdns()
     assert acc.mdns is None and acc.mdns_backend == "unavailable"
+
+
+# ---------------------------------------------------------------- H6: torn certificate files heal instead of crash-looping
+def _certs(tmp_path, faults=None):
+    from btbridge.net.certs import CertManager
+    logs = []
+    cm = CertManager(str(tmp_path / "data"), "ab12cd34", log=logs.append, fault=(lambda k, d: faults.append((k, d))) if faults is not None else None)
+    return cm, logs
+
+
+@pytest.mark.parametrize("victim", ["ca_crt", "ca_key"])
+def test_truncated_ca_is_regenerated_with_a_new_fingerprint_and_a_fault(tmp_path, victim):
+    faults = []
+    cm, _ = _certs(tmp_path, faults)
+    old = cm.ensure_ca()["sha256"]
+    open(cm.p[victim], "w").close()                           # power cut: openssl wrote the file in place, never fsynced
+    assert cm.ca_info() is None or victim == "ca_key"         # an unreadable CA is no CA (no exception)
+    new = cm.ensure_ca()["sha256"]
+    assert new != old and faults and faults[0][0] == "certificate"
+    cm.issue_server(["hifi-bridge.local"])                    # the healed CA signs again
+
+
+def test_zero_length_server_key_is_reissued(tmp_path):
+    cm, _ = _certs(tmp_path)
+    cm.issue_server(["hifi-bridge.local"])
+    open(cm.p["srv_key"], "w").close()
+    assert cm.needs_renewal(["hifi-bridge.local"]) in ("key_mismatch", "unreadable")
+    assert cm.ensure_server(["hifi-bridge.local"])
+    import ssl
+    ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER).load_cert_chain(cm.p["srv_crt"], cm.p["srv_key"])
+
+
+@pytest.mark.parametrize("fail_at", [1, 2])
+def test_a_crash_between_the_write_steps_never_leaves_an_unusable_pair(tmp_path, monkeypatch, fail_at):
+    import os
+    import ssl
+    cm, _ = _certs(tmp_path)
+    cm.ensure_ca()
+    cm.issue_server(["hifi-bridge.local"])
+    real, n = os.replace, {"i": 0}
+
+    def crashing_replace(a, b):
+        n["i"] += 1
+        if n["i"] == fail_at:
+            raise OSError("power cut")
+        return real(a, b)
+    monkeypatch.setattr(os, "replace", crashing_replace)
+    with pytest.raises(OSError):
+        cm.issue_server(["hifi-bridge.local", "bridge.home.arpa"])
+    monkeypatch.setattr(os, "replace", real)
+    cm.ensure_server(["hifi-bridge.local", "bridge.home.arpa"])     # heals on the next check
+    ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER).load_cert_chain(cm.p["srv_crt"], cm.p["srv_key"])
+    assert cm.needs_renewal(["hifi-bridge.local", "bridge.home.arpa"]) is None
+
+
+def test_bootfiles_with_a_truncated_ca_still_writes_the_status_file(tmp_path):
+    from btbridge import bootfiles
+    d, b = tmp_path / "data", tmp_path / "boot"
+    b.mkdir()
+    bootfiles.run(str(d), str(b), iterations=1000, log=lambda m: None)
+    open(d / "certs" / "ca.crt", "w").close()
+    r = bootfiles.run(str(d), str(b), iterations=1000, log=lambda m: None)    # was: CertError, hifi-status.txt never written
+    status = (b / "hifi-status.txt").read_text()
+    assert r["ca_sha256"] in status and "setup code" in status
+
+
+def test_bootfiles_without_any_usable_ca_still_writes_the_status_file(tmp_path, monkeypatch):
+    from btbridge import bootfiles
+    from btbridge.net import certs
+    d, b = tmp_path / "data", tmp_path / "boot"
+    b.mkdir()
+
+    def no_openssl(*a, **k):
+        raise certs.CertError("openssl not available")
+    monkeypatch.setattr(certs, "_run", no_openssl)
+    r = bootfiles.run(str(d), str(b), iterations=1000, log=lambda m: None)
+    status = (b / "hifi-status.txt").read_text()
+    assert r["ca_sha256"] is None and "setup code" in status and "not available" in status
+
+
+def test_appliance_starts_and_heals_with_a_truncated_ca(tmp_path, monkeypatch):
+    import threading
+    from test_service import wait
+    from btbridge import appliance as AP
+    monkeypatch.setenv("NOTIFY_SOCKET", "")
+    import socket
+    d = tmp_path / "data"
+    with socket.socket() as x:
+        x.bind(("127.0.0.1", 0)); tls_port = str(x.getsockname()[1])
+    args = ["--data", str(d), "--http-port", "0", "--https-port", tls_port, "--stream-port", "0", "--no-mdns", "--source", "none",
+            "--thermal-path", "", "--advertise-host", "127.0.0.1", "--no-mqtt"]
+    from btbridge.net.certs import CertManager
+    from btbridge.config import ConfigStore
+    st = ConfigStore(str(d)); st.update({"instance_id": "ab12cd34"})
+    CertManager(str(d), "ab12cd34").issue_server(["hifi-bridge.local"])
+    open(d / "certs" / "ca.crt", "w").close()
+    done, info = threading.Event(), {}
+    t = threading.Thread(target=AP.run, args=(AP.parser().parse_args(args), None),
+                         kwargs={"ready": lambda s, u: info.update(svc=s, ui=u), "done": done}, daemon=True)
+    t.start()
+    assert wait(lambda: "svc" in info, t=20), "appliance.run did not come up"
+    try:
+        assert info["svc"].access.certs.ca_info() and info["svc"].access.tls_available()
+        assert info["ui"]._httpsd is not None
+    finally:
+        done.set(); t.join(10)
