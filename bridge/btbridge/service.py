@@ -163,6 +163,7 @@ class ApplianceService:
         self._threads: list[threading.Thread] = []
         self._last_key = None
         self.started_at = time.time()
+        self.started_mono = time.monotonic()           # uptime: not affected by the NTP jump after boot (no RTC; review L8)
         self.last_system: dict = {}
         self._thermal = {"state": "unknown", "temperature_c": None, "checked_at": None}
         self.watch_heartbeat = time.monotonic()
@@ -413,7 +414,7 @@ class ApplianceService:
         st = self.status()
         status = "failed" if not all(checks.values()) else ("degraded" if st["degraded"] else "ok")
         return {"status": status, "checks": checks, "degraded": st["degraded"], "version": __version__,
-                "uptime_s": int(time.time() - self.started_at)}
+                "uptime_s": int(time.monotonic() - self.started_mono)}
 
     # ------------------------------------------------------------------ status
     def instance_id(self) -> str:
@@ -468,7 +469,7 @@ class ApplianceService:
             "now_playing": rt.stream.title or None,
             "mqtt": self.mqtt.state() if self.mqtt else {"enabled": bool(self.store.get("mqtt_enabled")), "connected": False},
             "system": self.last_system,
-            "uptime_s": int(time.time() - self.started_at),
+            "uptime_s": int(time.monotonic() - self.started_mono),
         }
 
     @staticmethod

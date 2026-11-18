@@ -134,6 +134,42 @@ def test_wizard_lyrion_page_survives_a_malformed_discovery_answer(tmp_path):
         w.stop(); s.stop()
 
 
+# ---------------------------------------------------------------- L8: no wall clock for durations (a Pi has no RTC: NTP jumps)
+def test_an_ntp_jump_neither_logs_everyone_out_nor_breaks_uptime(tmp_path, monkeypatch):
+    from btbridge.webui.auth import Sessions
+    s = _svc(tmp_path)
+    sess = Sessions()
+    sid, _ = sess.create()
+    real = time.time
+    monkeypatch.setattr(time, "time", lambda: real() + 10 * 365 * 86400)     # boot at the last saved time, then NTP sync
+    assert sess.get(sid) is not None                                         # was: absolute lifetime exceeded -> mass logout
+    assert 0 <= s.status()["uptime_s"] < 60 and 0 <= s.health()["uptime_s"] < 60
+
+
+def test_respawn_log_is_bounded_and_uses_boot_time(tmp_path):
+    import os
+    import subprocess
+    from test_respawn import WRAPPER
+    log = tmp_path / "faults-respawn.log"
+    log.write_text("".join(f"old line {i}\n" for i in range(1000)))
+    env = dict(os.environ, HIFI_DATA=str(tmp_path), RESPAWN_MIN_S="1", RESPAWN_MAX_S="1", RESPAWN_HEALTHY_S="300",
+               RESPAWN_LOG_KEEP="50")
+    p = subprocess.Popen(["sh", WRAPPER, "sh", "-c", "exit 3"], env=env, stderr=subprocess.DEVNULL)
+    time.sleep(1.5)
+    p.terminate(); p.wait(timeout=5)
+    lines = log.read_text().splitlines()
+    assert len(lines) <= 50 and "exit=3" in lines[-1]                        # was: unbounded
+    src = open(WRAPPER).read()
+    assert "/proc/uptime" in src and "date +%s" not in src                    # durations from the boot clock
+
+
+def test_factory_reset_removes_the_respawn_log(tmp_path):
+    from btbridge import recovery
+    (tmp_path / "faults-respawn.log").write_text("x\n")
+    assert "faults-respawn.log" in recovery.factory_reset(str(tmp_path))
+    assert not (tmp_path / "faults-respawn.log").exists()
+
+
 # ---------------------------------------------------------------- L2: settings apply in the order they were saved, all or nothing
 def test_concurrent_updates_reach_listeners_in_the_order_they_were_stored(tmp_path):
     from btbridge.config import ConfigStore

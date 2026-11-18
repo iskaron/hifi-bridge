@@ -129,7 +129,8 @@ class RateLimiter:
 
 
 class Sessions:
-    def __init__(self, idle_s: float = 8 * 3600, absolute_s: float = 30 * 24 * 3600, clock=time.time):
+    def __init__(self, idle_s: float = 8 * 3600, absolute_s: float = 30 * 24 * 3600, clock=time.monotonic):
+        # monotonic: a Pi has no RTC, so the wall clock jumps at the NTP sync after boot (review L8: mass logouts)
         self.idle, self.absolute, self.clock = idle_s, absolute_s, clock
         self._s: dict[str, dict] = {}
         self._lock = threading.Lock()

@@ -24,7 +24,8 @@ import os
 import sys
 import time
 
-OWN_FILES = ("settings.json", "secrets.json", "session.json", "faults.jsonl", "setup-code.txt", "network.json", "provision-journal.json")
+OWN_FILES = ("settings.json", "secrets.json", "session.json", "faults.jsonl", "setup-code.txt", "network.json", "provision-journal.json",
+             "faults-respawn.log")
 OWN_CERT_FILES = ("ca.key", "ca.crt", "server.key", "server.crt", "custom.key", "custom.crt", "state.json")
 REQUEST_FILE, STATUS_FILE, JOURNAL = "hifi-recovery", "hifi-status.txt", "recovery-journal.json"
 ACTIONS = ("reset-owner-password", "factory-reset")
