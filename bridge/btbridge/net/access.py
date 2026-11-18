@@ -14,6 +14,19 @@ from .mdns import MdnsResponder
 
 RENEW_CHECK_S = 3600          # certificate validity check
 ADDRESS_CHECK_S = 60          # a new DHCP address triggers a re-issue (the certificate lists the device's IPs)
+LABEL_MAX = 63                # one DNS label (RFC 1035), in UTF-8 bytes
+
+
+def instance_name(device_name: str) -> str:
+    """DNS-SD instance name "Hi-Fi Bridge (<device name>)", shortened on a UTF-8 character boundary to fit one DNS label: the
+    schema limits the name to 32 characters, but 32 Cyrillic or umlaut characters are more than 63 bytes (review H5)."""
+    pre, post = "Hi-Fi Bridge (", ")"
+    full = f"{pre}{device_name}{post}"
+    if len(full.encode("utf-8")) <= LABEL_MAX:
+        return full
+    room = LABEL_MAX - len(f"{pre}\u2026{post}".encode("utf-8"))
+    short = device_name.encode("utf-8")[:room].decode("utf-8", "ignore").rstrip()
+    return f"{pre}{short}\u2026{post}"
 
 
 class LocalAccess:
@@ -105,7 +118,7 @@ class LocalAccess:
     def _make_mdns(self):
         """DECISIONS #49: Avahi when reachable (auto) or required (avahi); the built-in responder only as fallback (auto) or on request."""
         services = [("_https._tcp", self.https_port, {"path": "/"}), ("_http._tcp", self.http_port, {"path": "/"})]
-        args = (self.store.get("local_hostname"), f"Hi-Fi Bridge ({self.store.get('device_name')})", services)
+        args = (self.store.get("local_hostname"), instance_name(self.store.get("device_name")), services)
         backend = self.store.get("mdns_backend")
         if backend in ("auto", "avahi"):
             from .avahi import AvahiPublisher, AvahiUnavailable
@@ -128,8 +141,8 @@ class LocalAccess:
         try:
             self.mdns = self._make_mdns()
             self.mdns.start()
-        except OSError as e:
-            self.log(f"mdns not available: {e}")
+        except Exception as e:                           # mDNS is optional: any failure degrades, never aborts the start (review H5)
+            self.log(f"mdns not available: {type(e).__name__}: {e}")
             self.mdns, self.mdns_backend = None, "unavailable"
 
     def start(self) -> None:
