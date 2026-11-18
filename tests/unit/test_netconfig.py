@@ -173,9 +173,12 @@ def test_read_strict_rejects_symlinks_foreign_owner_open_permissions_and_huge_fi
     assert N.read_strict(p) is None
     N.write_private(p, N.defaults())
     assert N.parse(N.read_strict(p, owner_uid=os.getuid())) == N.defaults()
+    if os.getuid() == 0:                                                              # root-owned files are always accepted
+        os.chown(p, 4242, 4242)
+        assert N.read_strict(p, owner_uid=4242) is not None
     with pytest.raises(N.NetConfigError) as e:
-        N.read_strict(p, owner_uid=os.getuid() + 12345 if os.getuid() else 12345)
-    assert e.value.problems == (["file:wrong_owner"] if os.getuid() else e.value.problems)
+        N.read_strict(p, owner_uid=os.getuid() + 12345)
+    assert e.value.problems == ["file:wrong_owner"]
     os.chmod(p, 0o644)
     with pytest.raises(N.NetConfigError) as e:
         N.read_strict(p)
