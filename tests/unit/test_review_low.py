@@ -110,6 +110,30 @@ def test_fault_log_is_fsynced(tmp_path, monkeypatch):
     assert calls                                                            # was: rewritten without fsync
 
 
+# ---------------------------------------------------------------- L6: a malformed discovery answer never breaks the wizard
+def test_discovery_with_a_non_numeric_or_out_of_range_port_is_skipped(tmp_path):
+    answers = [{"address": "10.0.0.5", "JSON": "abc", "NAME": "Broken"}, {"address": "10.0.0.6", "JSON": "70000", "NAME": "Range"},
+               {"address": "10.0.0.7", "JSON": "9002", "NAME": "Good"}, {"address": "10.0.0.8", "NAME": "Default port"}]
+    s = _svc(tmp_path, discover=lambda timeout: answers)
+    out = s.discover_servers()                              # was: ValueError -> HTTP 500 on the wizard's Lyrion page
+    assert [(d["host"], d["port"]) for d in out] == [("10.0.0.7", 9002), ("10.0.0.8", 9000)]
+
+
+def test_wizard_lyrion_page_survives_a_malformed_discovery_answer(tmp_path):
+    from test_webui import Client, setup_account
+    from btbridge.webui.server import WebUI
+    s = _svc(tmp_path, discover=lambda timeout: [{"address": "10.0.0.5", "JSON": "x9000", "NAME": "Broken"}])
+    s.start()
+    w = WebUI(s, "127.0.0.1", 0); port = w.start()
+    try:
+        u = type("U", (), dict(svc=s, c=Client(port), code=open(s.auth.code_file).read().strip()))
+        setup_account(u)
+        assert u.c.post("/setup/bluetooth", {"device_name": "Wohnzimmer"}).status == 303
+        assert u.c.get("/setup/lyrion").status == 200
+    finally:
+        w.stop(); s.stop()
+
+
 # ---------------------------------------------------------------- L2: settings apply in the order they were saved, all or nothing
 def test_concurrent_updates_reach_listeners_in_the_order_they_were_stored(tmp_path):
     from btbridge.config import ConfigStore

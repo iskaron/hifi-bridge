@@ -530,12 +530,22 @@ class ApplianceService:
         self.store.update({"device_labels": labels})
 
     def discover_servers(self, timeout: float = 2.0) -> list[dict]:
+        """LMS servers answering the discovery broadcast. Answers come from the LAN (untrusted): one with a malformed port is
+        skipped instead of failing the wizard page (review L6)."""
         try:
-            return [{"host": d.get("address"), "port": int(d.get("JSON") or 9000), "name": d.get("NAME", ""), "version": d.get("VERS", "")}
-                    for d in self.discover(timeout=timeout)]
+            answers = self.discover(timeout=timeout)
         except OSError as e:
             self.logs(f"discovery failed: {e}")
             return []
+        out = []
+        for d in answers:
+            raw = str(d.get("JSON") or "9000").strip()
+            port = int(raw) if raw.isascii() and raw.isdigit() else 0
+            if not d.get("address") or not 0 < port < 65536:
+                self.logs(f"discovery: ignoring an answer with an unusable port ({raw[:20]!r})")
+                continue
+            out.append({"host": d.get("address"), "port": port, "name": d.get("NAME", ""), "version": d.get("VERS", "")})
+        return out
 
     def check_server(self, host: str, port: int) -> dict:
         try:
