@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.." || exit 1
 # shellcheck source=lib/common.sh
 . scripts/lib/common.sh
 hb_parse_quiet "$@"
-ENGINES="24.0.9 25.0.5 26.1.4 27.5.1 28.0.4 29.1.5"; COMPOSES="2.20.3 2.36.2"
+ENGINES="24.0.9 25.0.5 26.1.4 27.5.1 28.0.4 29.1.5"; COMPOSES="2.20.3 2.24.5 2.36.2"
 set -- "${HB_ARGS[@]+"${HB_ARGS[@]}"}"
 while [ $# -gt 0 ]; do case "$1" in --engines) ENGINES=$2; shift ;; --compose) COMPOSES=$2; shift ;; esac; shift; done
 hb_require --disk 6000 "the Docker-in-Docker sandboxes"

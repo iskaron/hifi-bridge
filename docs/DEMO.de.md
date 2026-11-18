@@ -10,7 +10,7 @@ Der Audiomonitor spielt die **Ausgabe der Squeezelite-Player hinter Lyrion** ab,
 Echte Bluetooth-Verbindungen, echte Telefone und ein Raspberry Pi sind damit **nicht** nachgewiesen (Hardware-Gate).
 
 ## Start
-Voraussetzungen: **Docker Engine ≥ 24.0 und Docker Compose (v2-Plugin) ≥ 2.20** sowie `make` (Begründung und Prüfung der Mindestversionen:
+Voraussetzungen: **Docker Engine ≥ 24.0 und Docker Compose (v2-Plugin) ≥ 2.20** (Engine 29+: Compose ≥ 2.24.5) sowie `make` (Begründung und Prüfung der Mindestversionen:
 [DOCKER_REQUIREMENTS.md](DOCKER_REQUIREMENTS.md), englisch). Keine Installation auf dem Rechner, keine privilegierten Container.
 `make demo` prüft vor dem Start Docker, Compose, Daemon, freien Speicher und Ports und nennt bei einem Mangel gefundene und benötigte
 Version sowie die Abhilfe (englisch, mit deutschem Hinweis). Der erste Start baut das Demo-Image (ca. 5 Minuten) und lädt Lyrion und

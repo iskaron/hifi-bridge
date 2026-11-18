@@ -1,10 +1,10 @@
 # Docker requirements (Engine and Compose)
 
-**Minimum: Docker Engine 24.0 and Docker Compose (v2 plugin, `docker compose`) 2.20.** Tested range: Engine 24.0.9 - 29.1.5, Compose 2.20.3 - 2.36.2
-(`reports/evidence/docker_version_matrix.log`). Older versions are **not supported** (they may work, nothing was verified below these
+**Minimum: Docker Engine 24.0 and Docker Compose (v2 plugin, `docker compose`) 2.20; Engine 29 and newer need Compose 2.24.5 or newer.** Tested range: Engine 24.0.9 - 29.1.5, Compose 2.20.3 - 2.36.2
+(`reports/evidence/docker_version_matrix*.log`). Older versions are **not supported** (they may work, nothing was verified below these
 numbers). Nothing else is needed on the host except `make` (optional: every script can be called directly) and, for `scripts/os_fetch_buildroot.sh`, `git`.
 
-Deutsch: Benötigt werden Docker Engine ab 24.0 und Docker Compose (v2-Plugin, `docker compose`) ab 2.20. Die Prüfung vor dem Start nennt gefundene und
+Deutsch: Benötigt werden Docker Engine ab 24.0 und Docker Compose (v2-Plugin, `docker compose`) ab 2.20 (Engine 29 und neuer: Compose ab 2.24.5). Die Prüfung vor dem Start nennt gefundene und
 benötigte Version und die Abhilfe; `make doctor` führt nur diese Prüfung aus.
 
 ## Why this changed (owner's test, 2026-11-18)
@@ -39,7 +39,23 @@ reachability (TCP 9000/3483, UDP 3483 discovery, broadcast, host-name lookups) i
 ## Matrix (Engine x Compose, 2026-11-18)
 Result of `scripts/test_docker_versions.sh` - see `reports/evidence/docker_version_matrix.log` (raw output).
 
-MATRIX_TABLE_PLACEHOLDER
+| Engine \ Compose | 2.20.3 | 2.24.5 | 2.36.2 |
+|---|---|---|---|
+| 24.0.9 | pass (rerun) | - | pass (rerun) |
+| 25.0.5 | pass | - | pass (rerun) |
+| 26.1.4 | pass | - | pass |
+| 27.5.1 | pass | - | pass |
+| 28.0.4 | pass | - | pass |
+| 29.1.5 | **fail**: `client version 1.43 is too old. Minimum supported API version is 1.44` | pass | pass |
+
+Each cell is two probes (topology + Compose features). The first run (`docker_version_matrix.log`) had two flaws in the *probes*, fixed and
+rerun (`docker_version_matrix_rerun.log`, 8/8 and 2/2 passed): the topology probe asserted "no default route" for the internal-only service,
+which is wrong on Engine 24 (see above), and used a single-shot HTTP responder twice (flaky in one cell). One result is a real finding:
+**Engine 29 refuses Compose releases that speak API 1.43 (2.20.3)**, so the minimum depends on the pairing: Engine 24-28 with Compose >= 2.20,
+**Engine 29 and newer with Compose >= 2.24.5** (the lowest release tried on Engine 29; the pre-flight check reports this combination).
+The owner's working combination (Engine 29.10.0 + Compose 5.7.2) is newer than anything tested here; the owner's failing one (25.0.2 + 2.24.5)
+is covered by Engine 25.0.5 + Compose 2.20.3/2.36.2 and Engine 29.1.5 + 2.24.5 and now works, which `scripts/test_entry_clean.sh` demonstrates
+from a fresh clone.
 
 ## Reproduce
 ```bash

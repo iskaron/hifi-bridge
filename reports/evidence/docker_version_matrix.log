@@ -162,3 +162,223 @@ compose 2.20.3
   ok   logs --tail
   ok   config --images (used to pull pinned images)
   ok   restart
+  ok   down -v --remove-orphans
+RESULT: PASS
+=== Engine 26.1.4 + Compose 2.36.2: topology
+engine 26.1.4 (API 1.45)  compose 2.36.2
+  ok   gateway's default route is on the non-internal network edge (172.29.250.x) (yes)
+  info internal-only service routes: 172.29.251.0/24 dev eth0 scope link  src 172.29.251.2 ; (Engine <= 24 adds a default route via the non-existent gateway; it leads nowhere, see the blocked checks below)
+  ok   host has NO IPv4 address on the internal network's bridge ()
+  ok   host has an address on edge (expected, normal bridge) (yes)
+  ok   host has an address on control (expected, normal bridge) (yes)
+  ok   port published to 127.0.0.1:18999 reaches the gateway (ok)
+  ok   internal service -> decoy host service 172.29.251.1:9000 (blocked)
+  ok   internal service -> decoy host service 172.29.251.254:9000 (blocked)
+  ok   POSITIVE CONTROL: service on a normal bridge reaches the same decoy via the host address 172.29.249.1:9000 (CONNECTED)
+  ok   internal service -> decoy host service 172.29.251.1:3483 (blocked)
+  ok   internal service -> decoy host service 172.29.251.254:3483 (blocked)
+  ok   POSITIVE CONTROL: service on a normal bridge reaches the same decoy via the host address 172.29.249.1:3483 (CONNECTED)
+RESULT: PASS
+=== Engine 26.1.4 + Compose 2.36.2: features
+compose 2.36.2
+  ok   config (anchors, merge keys, interpolation, profiles, healthcheck, depends_on conditions, name:)
+  ok   up -d --remove-orphans (service_completed_successfully, service_healthy)
+  ok   ps -q <service>
+  ok   ps -q --status running <service>
+  ok   health via docker inspect (healthy)
+  ok   --profile ha ps
+  ok   exec -T
+  ok   cp <service>:path
+  ok   --profile ha up -d <service>
+  ok   --profile ha stop
+  ok   logs --tail
+  ok   config --images (used to pull pinned images)
+  ok   restart
+  ok   down -v --remove-orphans
+RESULT: PASS
+      image docker:27.5.1-dind: present
+=== Engine 27.5.1 + Compose 2.20.3: topology
+engine 27.5.1 (API 1.47)  compose 2.20.3
+  ok   gateway's default route is on the non-internal network edge (172.29.250.x) (yes)
+  info internal-only service routes: 172.29.251.0/24 dev eth0 scope link  src 172.29.251.3 ; (Engine <= 24 adds a default route via the non-existent gateway; it leads nowhere, see the blocked checks below)
+  ok   host has NO IPv4 address on the internal network's bridge ()
+  ok   host has an address on edge (expected, normal bridge) (yes)
+  ok   host has an address on control (expected, normal bridge) (yes)
+  ok   port published to 127.0.0.1:18999 reaches the gateway (ok)
+  ok   internal service -> decoy host service 172.29.251.1:9000 (blocked)
+  ok   internal service -> decoy host service 172.29.251.254:9000 (blocked)
+  ok   POSITIVE CONTROL: service on a normal bridge reaches the same decoy via the host address 172.29.249.1:9000 (CONNECTED)
+  ok   internal service -> decoy host service 172.29.251.1:3483 (blocked)
+  ok   internal service -> decoy host service 172.29.251.254:3483 (blocked)
+  ok   POSITIVE CONTROL: service on a normal bridge reaches the same decoy via the host address 172.29.249.1:3483 (CONNECTED)
+RESULT: PASS
+=== Engine 27.5.1 + Compose 2.20.3: features
+compose 2.20.3
+  ok   config (anchors, merge keys, interpolation, profiles, healthcheck, depends_on conditions, name:)
+  ok   up -d --remove-orphans (service_completed_successfully, service_healthy)
+  ok   ps -q <service>
+  ok   ps -q --status running <service>
+  ok   health via docker inspect (healthy)
+  ok   --profile ha ps
+  ok   exec -T
+  ok   cp <service>:path
+  ok   --profile ha up -d <service>
+  ok   --profile ha stop
+  ok   logs --tail
+  ok   config --images (used to pull pinned images)
+  ok   restart
+  ok   down -v --remove-orphans
+RESULT: PASS
+=== Engine 27.5.1 + Compose 2.36.2: topology
+engine 27.5.1 (API 1.47)  compose 2.36.2
+  ok   gateway's default route is on the non-internal network edge (172.29.250.x) (yes)
+  info internal-only service routes: 172.29.251.0/24 dev eth0 scope link  src 172.29.251.3 ; (Engine <= 24 adds a default route via the non-existent gateway; it leads nowhere, see the blocked checks below)
+  ok   host has NO IPv4 address on the internal network's bridge ()
+  ok   host has an address on edge (expected, normal bridge) (yes)
+  ok   host has an address on control (expected, normal bridge) (yes)
+  ok   port published to 127.0.0.1:18999 reaches the gateway (ok)
+  ok   internal service -> decoy host service 172.29.251.1:9000 (blocked)
+  ok   internal service -> decoy host service 172.29.251.254:9000 (blocked)
+  ok   POSITIVE CONTROL: service on a normal bridge reaches the same decoy via the host address 172.29.249.1:9000 (CONNECTED)
+  ok   internal service -> decoy host service 172.29.251.1:3483 (blocked)
+  ok   internal service -> decoy host service 172.29.251.254:3483 (blocked)
+  ok   POSITIVE CONTROL: service on a normal bridge reaches the same decoy via the host address 172.29.249.1:3483 (CONNECTED)
+RESULT: PASS
+=== Engine 27.5.1 + Compose 2.36.2: features
+compose 2.36.2
+  ok   config (anchors, merge keys, interpolation, profiles, healthcheck, depends_on conditions, name:)
+  ok   up -d --remove-orphans (service_completed_successfully, service_healthy)
+  ok   ps -q <service>
+  ok   ps -q --status running <service>
+  ok   health via docker inspect (healthy)
+  ok   --profile ha ps
+  ok   exec -T
+  ok   cp <service>:path
+  ok   --profile ha up -d <service>
+  ok   --profile ha stop
+  ok   logs --tail
+  ok   config --images (used to pull pinned images)
+  ok   restart
+  ok   down -v --remove-orphans
+RESULT: PASS
+      image docker:28.0.4-dind: present
+=== Engine 28.0.4 + Compose 2.20.3: topology
+engine 28.0.4 (API 1.48)  compose 2.20.3
+  ok   gateway's default route is on the non-internal network edge (172.29.250.x) (yes)
+  info internal-only service routes: 172.29.251.0/24 dev eth0 scope link  src 172.29.251.1 ; (Engine <= 24 adds a default route via the non-existent gateway; it leads nowhere, see the blocked checks below)
+  ok   host has NO IPv4 address on the internal network's bridge ()
+  ok   host has an address on edge (expected, normal bridge) (yes)
+  ok   host has an address on control (expected, normal bridge) (yes)
+  ok   port published to 127.0.0.1:18999 reaches the gateway (ok)
+  ok   internal service -> decoy host service 172.29.251.1:9000 (blocked)
+  ok   internal service -> decoy host service 172.29.251.254:9000 (blocked)
+  ok   POSITIVE CONTROL: service on a normal bridge reaches the same decoy via the host address 172.29.249.1:9000 (CONNECTED)
+  ok   internal service -> decoy host service 172.29.251.1:3483 (blocked)
+  ok   internal service -> decoy host service 172.29.251.254:3483 (blocked)
+  ok   POSITIVE CONTROL: service on a normal bridge reaches the same decoy via the host address 172.29.249.1:3483 (CONNECTED)
+RESULT: PASS
+=== Engine 28.0.4 + Compose 2.20.3: features
+compose 2.20.3
+  ok   config (anchors, merge keys, interpolation, profiles, healthcheck, depends_on conditions, name:)
+  ok   up -d --remove-orphans (service_completed_successfully, service_healthy)
+  ok   ps -q <service>
+  ok   ps -q --status running <service>
+  ok   health via docker inspect (healthy)
+  ok   --profile ha ps
+  ok   exec -T
+  ok   cp <service>:path
+  ok   --profile ha up -d <service>
+  ok   --profile ha stop
+  ok   logs --tail
+  ok   config --images (used to pull pinned images)
+  ok   restart
+  ok   down -v --remove-orphans
+RESULT: PASS
+=== Engine 28.0.4 + Compose 2.36.2: topology
+engine 28.0.4 (API 1.48)  compose 2.36.2
+  ok   gateway's default route is on the non-internal network edge (172.29.250.x) (yes)
+  info internal-only service routes: 172.29.251.0/24 dev eth0 scope link  src 172.29.251.1 ; (Engine <= 24 adds a default route via the non-existent gateway; it leads nowhere, see the blocked checks below)
+  ok   host has NO IPv4 address on the internal network's bridge ()
+  ok   host has an address on edge (expected, normal bridge) (yes)
+  ok   host has an address on control (expected, normal bridge) (yes)
+  ok   port published to 127.0.0.1:18999 reaches the gateway (ok)
+  ok   internal service -> decoy host service 172.29.251.1:9000 (blocked)
+  ok   internal service -> decoy host service 172.29.251.254:9000 (blocked)
+  ok   POSITIVE CONTROL: service on a normal bridge reaches the same decoy via the host address 172.29.249.1:9000 (CONNECTED)
+  ok   internal service -> decoy host service 172.29.251.1:3483 (blocked)
+  ok   internal service -> decoy host service 172.29.251.254:3483 (blocked)
+  ok   POSITIVE CONTROL: service on a normal bridge reaches the same decoy via the host address 172.29.249.1:3483 (CONNECTED)
+RESULT: PASS
+=== Engine 28.0.4 + Compose 2.36.2: features
+compose 2.36.2
+  ok   config (anchors, merge keys, interpolation, profiles, healthcheck, depends_on conditions, name:)
+  ok   up -d --remove-orphans (service_completed_successfully, service_healthy)
+  ok   ps -q <service>
+  ok   ps -q --status running <service>
+  ok   health via docker inspect (healthy)
+  ok   --profile ha ps
+  ok   exec -T
+  ok   cp <service>:path
+  ok   --profile ha up -d <service>
+  ok   --profile ha stop
+  ok   logs --tail
+  ok   config --images (used to pull pinned images)
+  ok   restart
+  ok   down -v --remove-orphans
+RESULT: PASS
+      image docker:29.1.5-dind: present
+=== Engine 29.1.5 + Compose 2.20.3: topology
+engine 29.1.5 (API 1.52)  compose 2.20.3
+  FAIL up: Error response from daemon: client version 1.43 is too old. Minimum supported API version is 1.44, please upgrade your client to a newer version 
+RESULT: FAIL
+=== Engine 29.1.5 + Compose 2.20.3: features
+compose 2.20.3
+  ok   config (anchors, merge keys, interpolation, profiles, healthcheck, depends_on conditions, name:)
+  FAIL up -d: Error response from daemon: client version 1.43 is too old. Minimum supported API version is 1.44, please upgrade your client to a newer version 
+  ok   ps -q <service>
+  ok   ps -q --status running <service>
+  FAIL health: 
+error: no such object: Error response from daemon: client version 1.43 is too old. Minimum supported API version is 1.44, please upgrade your client to a newer version
+  FAIL ps: Error response from daemon: client version 1.43 is too old. Minimum supported API version is 1.44, please upgrade your client to a newer version
+  FAIL exec -T: Error response from daemon: client version 1.43 is too old. Minimum supported API version is 1.44, please upgrade your client to a newer version
+  FAIL cp: Error response from daemon: client version 1.43 is too old. Minimum supported API version is 1.44, please upgrade your client to a newer version
+  FAIL --profile: Error response from daemon: client version 1.43 is too old. Minimum supported API version is 1.44, please upgrade your client to a newer version
+  FAIL stop: Error response from daemon: client version 1.43 is too old. Minimum supported API version is 1.44, please upgrade your client to a newer version
+  FAIL logs: Error response from daemon: client version 1.43 is too old. Minimum supported API version is 1.44, please upgrade your client to a newer version
+  ok   config --images (used to pull pinned images)
+  FAIL restart: Error response from daemon: client version 1.43 is too old. Minimum supported API version is 1.44, please upgrade your client to a newer version
+  FAIL down: Error response from daemon: client version 1.43 is too old. Minimum supported API version is 1.44, please upgrade your client to a newer version
+RESULT: FAIL
+=== Engine 29.1.5 + Compose 2.36.2: topology
+engine 29.1.5 (API 1.52)  compose 2.36.2
+  ok   gateway's default route is on the non-internal network edge (172.29.250.x) (yes)
+  info internal-only service routes: 172.29.251.0/24 dev eth0 scope link  src 172.29.251.2 ; (Engine <= 24 adds a default route via the non-existent gateway; it leads nowhere, see the blocked checks below)
+  ok   host has NO IPv4 address on the internal network's bridge ()
+  ok   host has an address on edge (expected, normal bridge) (yes)
+  ok   host has an address on control (expected, normal bridge) (yes)
+  ok   port published to 127.0.0.1:18999 reaches the gateway (ok)
+  ok   internal service -> decoy host service 172.29.251.1:9000 (blocked)
+  ok   internal service -> decoy host service 172.29.251.254:9000 (blocked)
+  ok   POSITIVE CONTROL: service on a normal bridge reaches the same decoy via the host address 172.29.249.1:9000 (CONNECTED)
+  ok   internal service -> decoy host service 172.29.251.1:3483 (blocked)
+  ok   internal service -> decoy host service 172.29.251.254:3483 (blocked)
+  ok   POSITIVE CONTROL: service on a normal bridge reaches the same decoy via the host address 172.29.249.1:3483 (CONNECTED)
+RESULT: PASS
+=== Engine 29.1.5 + Compose 2.36.2: features
+compose 2.36.2
+  ok   config (anchors, merge keys, interpolation, profiles, healthcheck, depends_on conditions, name:)
+  ok   up -d --remove-orphans (service_completed_successfully, service_healthy)
+  ok   ps -q <service>
+  ok   ps -q --status running <service>
+  ok   health via docker inspect (healthy)
+  ok   --profile ha ps
+  ok   exec -T
+  ok   cp <service>:path
+  ok   --profile ha up -d <service>
+  ok   --profile ha stop
+  ok   logs --tail
+  ok   config --images (used to pull pinned images)
+  ok   restart
+  ok   down -v --remove-orphans
+RESULT: PASS
+docker version matrix: 19/24 probes passed

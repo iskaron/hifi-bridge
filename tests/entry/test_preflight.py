@@ -113,3 +113,11 @@ def test_demo_script_refuses_before_touching_anything_when_compose_is_old(fake):
     assert r.returncode == 2 and "Docker Compose is too old" in r.stderr
     verbs = [c for c in fake.calls() if c.startswith("docker compose") and " up" in c or c.startswith("docker build")]
     assert verbs == []                                                  # nothing was built or started
+
+
+def test_engine_29_needs_a_newer_compose_than_the_general_minimum(fake):
+    """Found by the Docker matrix: Engine 29.1.5 refuses Compose 2.20.3 ("client version 1.43 is too old")."""
+    bad = fake.run("hb_preflight --compose; echo rc=$?", FAKE_ENGINE="29.1.5", FAKE_COMPOSE="2.20.3")
+    assert "rc=2" in bad.stdout and "too old for Docker Engine 29.1.5" in bad.stderr and "2.24.5" in bad.stderr and "zu alt fuer Docker Engine" in bad.stderr
+    assert "rc=0" in fake.run("hb_preflight --compose; echo rc=$?", FAKE_ENGINE="29.1.5", FAKE_COMPOSE="2.24.5").stdout
+    assert "rc=0" in fake.run("hb_preflight --compose; echo rc=$?", FAKE_ENGINE="28.0.4", FAKE_COMPOSE="2.20.3").stdout

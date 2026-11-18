@@ -18,6 +18,9 @@ HB_ROOT=${HB_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 HB_MIN_ENGINE=${HB_MIN_ENGINE:-24.0}
 HB_MIN_COMPOSE=${HB_MIN_COMPOSE:-2.20}
 
+# Engine 29 refuses clients older than API 1.44; Compose releases before 2.24 speak API 1.43 (tests/entry/docker_matrix: Engine 29.1.5 + Compose 2.20.3 fails)
+HB_MIN_COMPOSE_FOR_ENGINE29=${HB_MIN_COMPOSE_FOR_ENGINE29:-2.24.5}
+
 HB_QUIET=${HB_QUIET:-0}                  # 1: only step lines, warnings and errors (CI); full logs stay in $HB_LOGDIR
 HB_HEARTBEAT=${HB_HEARTBEAT:-15}         # seconds of silence after which hb_run says that it is still working
 HB_START=$(date +%s)
@@ -199,6 +202,11 @@ hb_check_docker() {                                                  # $1 = "com
                "Docker Compose ist zu alt: gefunden $HB_COMPOSE_VERSION, benoetigt wird mindestens $HB_MIN_COMPOSE." \
                "upgrade the Compose plugin: install 'docker-compose-plugin' from Docker's apt repository (https://docs.docker.com/engine/install/) or update Docker Desktop. Check with: docker compose version" \
                "Compose-Plugin aktualisieren: 'docker-compose-plugin' aus Dockers apt-Repository installieren (https://docs.docker.com/engine/install/) bzw. Docker Desktop aktualisieren. Pruefen mit: docker compose version"
+  elif [ -n "$HB_ENGINE_VERSION" ] && hb_version_ge "$HB_ENGINE_VERSION" 29.0 && ! hb_version_ge "$HB_COMPOSE_VERSION" "$HB_MIN_COMPOSE_FOR_ENGINE29"; then
+    hb_problem "Docker Compose $HB_COMPOSE_VERSION is too old for Docker Engine $HB_ENGINE_VERSION: Engine 29 and newer need Compose $HB_MIN_COMPOSE_FOR_ENGINE29 or newer (older Compose speaks API 1.43, which Engine 29 refuses)." \
+               "Docker Compose $HB_COMPOSE_VERSION ist zu alt fuer Docker Engine $HB_ENGINE_VERSION: ab Engine 29 wird Compose $HB_MIN_COMPOSE_FOR_ENGINE29 oder neuer benoetigt." \
+               "upgrade the Compose plugin (docker-compose-plugin from Docker's apt repository, or Docker Desktop). Check with: docker compose version" \
+               "Compose-Plugin aktualisieren (docker-compose-plugin aus Dockers apt-Repository bzw. Docker Desktop). Pruefen mit: docker compose version"
   fi
 }
 

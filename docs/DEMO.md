@@ -15,7 +15,7 @@ What you hear in the audio monitor is the **output of the Squeezelite players be
 Nothing in this demo proves real Bluetooth, real phones or a Raspberry Pi: that is the hardware gate (`docs/HARDWARE_GATE_CHECKLIST.md`).
 
 ## 1. Start
-Requirements on the host: **Docker Engine >= 24.0 and Docker Compose (v2 plugin) >= 2.20**, `make`. Nothing is installed on the host; no
+Requirements on the host: **Docker Engine >= 24.0 and Docker Compose (v2 plugin) >= 2.20** (Engine 29+: Compose >= 2.24.5), `make`. Nothing is installed on the host; no
 privileged containers; no hardware is touched. Why these minimums and how they were verified: [DOCKER_REQUIREMENTS.md](DOCKER_REQUIREMENTS.md).
 `make demo` checks Docker, Compose, the daemon, free disk space and the ports **before** it starts or changes anything and, if something is
 missing, prints what it found, what is required and how to fix it (English, with a German hint). `make doctor` does only this check.
