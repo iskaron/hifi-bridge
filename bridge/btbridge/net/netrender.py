@@ -4,12 +4,14 @@
 * systemd-networkd ``.network`` files (Ethernet and Wi-Fi addresses: DHCP/static IPv4, SLAAC/DHCPv6/static/off IPv6, the hotspot address),
 * the nftables ruleset (default deny inbound; docs/NETWORK.md "Firewall").
 
-Injection safety: SSIDs are written in hexadecimal form (wpa_supplicant ``ssid=<hex>``, hostapd ``ssid2=<hex>``), so no SSID byte can end a
-line or a quoted string. Passwords are printable ASCII without line breaks by validation (``netconfig``); wpa_supplicant reads a quoted
-passphrase up to the LAST quote on the line, hostapd reads ``wpa_passphrase`` to the end of the line. Everything is rendered from a
-configuration that ``netconfig.validate`` accepted; these functions assume that.
+Injection safety: no SSID or password is ever written as text. SSIDs are hex (wpa_supplicant ``ssid=<hex>``, hostapd ``ssid2=<hex>``);
+passwords become the WPA2 pairwise master key (PBKDF2-HMAC-SHA1(password, SSID, 4096), hex: ``psk=``/``wpa_psk=``) and, for WPA3-SAE,
+``sae_password=<hex>``. (Found by the real wpa_supplicant in tests/net: it strips ``#`` comments outside quotes, so a quoted passphrase
+containing ``"`` or ``#`` was silently truncated.) Everything is rendered from a configuration that ``netconfig.validate`` accepted.
 """
 from __future__ import annotations
+
+import hashlib
 
 from .netconfig import HOTSPOT_ADDRESS, HOTSPOT_NETWORK
 
@@ -23,6 +25,11 @@ LYRION_DISCOVERY_PORT = 3483
 
 def _hex(s: str) -> str:
     return s.encode("utf-8").hex()
+
+
+def pmk(passphrase: str, ssid: str) -> str:
+    """IEEE 802.11i passphrase-to-PSK mapping (same result as ``wpa_passphrase``; checked against it in tests/net)."""
+    return hashlib.pbkdf2_hmac("sha1", passphrase.encode("ascii"), ssid.encode("utf-8"), 4096, 32).hex()
 
 
 def wpa_supplicant(wifi: dict, country: str, ctrl_dir: str = f"{RUN_DIR}/wpa") -> str:
@@ -41,7 +48,8 @@ def wpa_supplicant(wifi: dict, country: str, ctrl_dir: str = f"{RUN_DIR}/wpa") -
     if hexkey:                         # a raw 256-bit PSK cannot be used for WPA3-SAE (SAE needs the password)
         lines += [f"\tpsk={psk.lower()}", "\tkey_mgmt=WPA-PSK WPA-PSK-SHA256", "\tieee80211w=1"]
     else:                              # WPA2, WPA2/WPA3 transition and WPA3-only networks; protected management frames when offered
-        lines += [f'\tpsk="{psk}"', "\tkey_mgmt=WPA-PSK WPA-PSK-SHA256 SAE", "\tieee80211w=1"]
+        lines += [f"\tpsk={pmk(psk, wifi['ssid'])}", f"\tsae_password={_hex(psk)}", "\tkey_mgmt=WPA-PSK WPA-PSK-SHA256 SAE",
+                  "\tieee80211w=1"]
     lines += ["}", ""]
     return "\n".join(lines)
 
@@ -67,7 +75,7 @@ def hostapd(hotspot: dict, country: str, iface: str, ctrl_dir: str = f"{RUN_DIR}
         "wpa=2",
         "wpa_key_mgmt=WPA-PSK",
         "rsn_pairwise=CCMP",
-        f"wpa_passphrase={hotspot['psk']}",
+        f"wpa_psk={pmk(hotspot['psk'], hotspot['ssid'])}",
         "ap_isolate=1",                # hotspot clients cannot talk to each other
         f"max_num_sta={HOTSPOT_MAX_STATIONS}",
         "",

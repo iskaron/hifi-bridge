@@ -10,7 +10,9 @@ CFG = N.validate({"country": "DE", "wifi": {"ssid": 'Home "net"\nx', "psk": 'pa"
 def test_wpa_supplicant_uses_hex_ssid_wpa2_wpa3_and_pmf():
     conf = R.wpa_supplicant(CFG["wifi"], "DE")
     assert "ssid=" + 'Home "net"\nx'.encode().hex() in conf and "\nx" not in conf.split("network={")[1].split("psk")[0]
-    assert 'psk="pa"ss word#1"' in conf and "key_mgmt=WPA-PSK WPA-PSK-SHA256 SAE" in conf and "ieee80211w=1" in conf
+    assert "psk=" + R.pmk('pa"ss word#1', 'Home "net"\nx') in conf and "sae_password=" + 'pa"ss word#1'.encode().hex() in conf
+    assert 'pa"ss' not in conf and "word#1" not in conf                            # the password never appears as text
+    assert "key_mgmt=WPA-PSK WPA-PSK-SHA256 SAE" in conf and "ieee80211w=1" in conf
     assert "country=DE" in conf and "update_config=0" in conf and "scan_ssid=0" in conf
     hidden = R.wpa_supplicant({**CFG["wifi"], "hidden": True}, "DE")
     assert "scan_ssid=1" in hidden
@@ -21,10 +23,15 @@ def test_wpa_supplicant_uses_hex_ssid_wpa2_wpa3_and_pmf():
 def test_hostapd_is_wpa2_ccmp_with_isolation_and_country():
     conf = R.hostapd(CFG["hotspot"], "DE", "wlan0")
     for line in ("interface=wlan0", "driver=nl80211", "ssid2=" + "Hi-Fi Bridge 4F2A".encode().hex(), "country_code=DE", "ieee80211d=1",
-                 "channel=6", "wpa=2", "wpa_key_mgmt=WPA-PSK", "rsn_pairwise=CCMP", "wpa_passphrase=correct horse battery", "ap_isolate=1",
+                 "channel=6", "wpa=2", "wpa_key_mgmt=WPA-PSK", "rsn_pairwise=CCMP", "wpa_psk=" + R.pmk("correct horse battery", "Hi-Fi Bridge 4F2A"), "ap_isolate=1",
                  "ignore_broadcast_ssid=0"):
         assert line in conf.splitlines(), line
-    assert "wpa=1" not in conf and "TKIP" not in conf and "wep" not in conf.lower()
+    assert "wpa=1" not in conf and "TKIP" not in conf and "wep" not in conf.lower() and "correct horse" not in conf
+
+
+def test_pmk_matches_the_ieee_802_11i_test_vector():
+    # IEEE 802.11i-2004 Annex H.4.1: passphrase "password", SSID "IEEE"
+    assert R.pmk("password", "IEEE") == "f42c6fc52df0ebef9ebb4b90b38a5f902e83fe1b135a70e23aed762e9710a12e"
 
 
 def test_dnsmasq_serves_dhcp_only_without_dns_or_router():
