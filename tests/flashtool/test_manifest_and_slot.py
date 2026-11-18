@@ -53,6 +53,9 @@ def test_manifest_validation(change):
     assert M.load(M.dumps(MAN)) == MAN
     with pytest.raises(M.ManifestError):
         M.load(b"not json")
+    for not_an_object in (b"null", b"[1]", b'"x"'):                    # valid JSON, but not a manifest (was an AttributeError)
+        with pytest.raises(M.ManifestError, match="not a JSON object"):
+            M.load(not_an_object)
 
 
 def fat_image(tmp, fat_bits, size_mb):

@@ -92,3 +92,88 @@ def test_list_disks_for_macos_and_windows_via_the_runner():
     assert [d.name for d in D.list_disks("darwin", mac)] == ["disk4"] and calls[1] == ["diskutil", "info", "-plist", "disk4"]
     win = json.dumps({"Number": 2, "Size": 32 * GB, "BusType": "SD", "IsReadOnly": False}).encode()
     assert D.list_disks("windows", lambda argv: win)[0].label().startswith("PhysicalDrive2 - unknown model - 32.0 GB")
+
+
+# ---- review M11 (2026-11-18): nested holders and APFS (recorded outputs only) ----
+NESTED = {"blockdevices": [
+    {"name": "sda", "path": "/dev/sda", "type": "disk", "size": 128 * GB, "model": "Portable SSD", "serial": "S1", "tran": "usb",
+     "rm": False, "ro": False, "hotplug": True, "mountpoints": [None],
+     "children": [
+         {"name": "sda1", "path": "/dev/sda1", "type": "part", "mountpoints": ["/boot/efi"]},
+         {"name": "sda2", "path": "/dev/sda2", "type": "part", "mountpoints": [None],
+          "children": [{"name": "luks-root", "path": "/dev/mapper/luks-root", "type": "crypt", "mountpoints": [None],
+                        "children": [{"name": "vg-root", "path": "/dev/mapper/vg-root", "type": "lvm", "mountpoints": ["/"]},
+                                     {"name": "vg-home", "path": "/dev/mapper/vg-home", "type": "lvm", "mountpoints": ["/home"]}]}]}]},
+    {"name": "sdb", "path": "/dev/sdb", "type": "disk", "size": 64 * GB, "model": "USB Backup", "serial": "S2", "tran": "usb",
+     "rm": True, "ro": False, "hotplug": True, "mountpoints": [None],
+     "children": [{"name": "sdb1", "path": "/dev/sdb1", "type": "part", "mountpoints": ["/media/user/Backup"]}]},
+    {"name": "sdc", "path": "/dev/sdc", "type": "disk", "size": 32 * GB, "model": "Stick", "serial": "S3", "tran": "usb",
+     "rm": True, "ro": False, "hotplug": True, "mountpoints": [None],
+     "children": [{"name": "sdc1", "path": "/dev/sdc1", "type": "part", "mountpoints": ["[SWAP]"]}]},
+    {"name": "sdd", "path": "/dev/sdd", "type": "disk", "size": 32 * GB, "model": "Crypt stick", "serial": "S4", "tran": "usb",
+     "rm": True, "ro": False, "hotplug": True, "mountpoints": [None],
+     "children": [{"name": "sdd1", "path": "/dev/sdd1", "type": "part", "mountpoints": [None],
+                   "children": [{"name": "luks-x", "path": "/dev/mapper/luks-x", "type": "crypt", "mountpoints": [None]}]}]}]}
+
+
+def test_m11_nested_luks_lvm_root_is_the_system_disk_even_without_a_separate_efi_mount():
+    d = by(D.parse_lsblk(json.dumps(NESTED)))
+    assert "system_disk" in D.problems(d["sda"], GB) and set(d["sda"].mounts) == {"/boot/efi", "/", "/home"}
+    no_efi = json.loads(json.dumps(NESTED))
+    no_efi["blockdevices"][0]["children"] = no_efi["blockdevices"][0]["children"][1:]
+    sda = D.parse_lsblk(json.dumps(no_efi))[0]
+    assert sda.system and "system_disk" in D.problems(sda, GB)
+
+
+def test_m11_mounted_data_disk_is_offered_only_with_its_mounts_known_swap_and_stacked_devices_are_refused():
+    d = by(D.parse_lsblk(json.dumps(NESTED)))
+    assert D.problems(d["sdb"], GB) == [] and d["sdb"].mounts == ("/media/user/Backup",)      # the helper unmounts it before writing
+    assert "system_disk" in D.problems(d["sdc"], GB)                                           # active swap = the running system
+    assert D.problems(d["sdd"], GB) == ["in_use_by_volume_manager"] and d["sdd"].stacked      # an open LUKS/LVM/RAID holder
+    assert {x.name for x in D.eligible(list(d.values()), GB)} == {"sdb"}
+
+
+def mac_outputs(boot_on_external: bool):
+    physical = plistlib.dumps({"AllDisksAndPartitions": [
+        {"DeviceIdentifier": "disk0", "Partitions": [{"DeviceIdentifier": "disk0s1"}, {"DeviceIdentifier": "disk0s2"}]},
+        {"DeviceIdentifier": "disk4", "Partitions": [{"DeviceIdentifier": "disk4s1"}, {"DeviceIdentifier": "disk4s2"}]},
+        {"DeviceIdentifier": "disk6", "Partitions": [{"DeviceIdentifier": "disk6s1", "MountPoint": "/Volumes/BOOT"}]}]})
+    every = plistlib.dumps({"AllDisksAndPartitions": [
+        {"DeviceIdentifier": "disk0", "Partitions": []}, {"DeviceIdentifier": "disk4", "Partitions": []},
+        {"DeviceIdentifier": "disk3", "APFSPhysicalStores": [{"DeviceIdentifier": "disk0s2"}],
+         "APFSVolumes": [{"DeviceIdentifier": "disk3s1", "MountPoint": "/Volumes/Old Mac" if boot_on_external else "/System/Volumes/Data"}]},
+        {"DeviceIdentifier": "disk5", "APFSPhysicalStores": [{"DeviceIdentifier": "disk4s2"}],
+         "APFSVolumes": [{"DeviceIdentifier": "disk5s1", "MountPoint": "/System/Volumes/Data" if boot_on_external else "/Volumes/T7"},
+                         {"DeviceIdentifier": "disk5s2"}]},
+        {"DeviceIdentifier": "disk6", "Partitions": [{"DeviceIdentifier": "disk6s1", "MountPoint": "/Volumes/BOOT"}]}]})
+    info = {"disk0": {"TotalSize": 500 * GB, "Internal": True, "RemovableMedia": False, "WritableMedia": True, "BusProtocol": "Apple Fabric"},
+            "disk4": {"TotalSize": 128 * GB, "Internal": False, "RemovableMedia": False, "Ejectable": True, "WritableMedia": True,
+                      "BusProtocol": "USB", "MediaName": "Samsung T7"},
+            "disk6": {"TotalSize": 32 * GB, "Internal": False, "RemovableMedia": True, "WritableMedia": True, "BusProtocol": "Secure Digital"}}
+    root = {"ParentWholeDisk": "disk5" if boot_on_external else "disk3", "MountPoint": "/"}
+    return physical, every, {k: plistlib.dumps(v) for k, v in info.items()}, plistlib.dumps(root)
+
+
+@pytest.mark.parametrize("external_boot", [True, False])
+def test_m11_macos_boot_disk_behind_an_apfs_container_is_never_offered(external_boot):
+    physical, every, infos, root = mac_outputs(external_boot)
+    mac = by(D.parse_diskutil(physical, infos, every, root))
+    if external_boot:                                       # booted from the external USB SSD: it is the system disk
+        assert mac["disk4"].system and "system_disk" in D.problems(mac["disk4"], GB) and "/System/Volumes/Data" in mac["disk4"].mounts
+        assert not mac["disk0"].system
+    else:                                                   # the external SSD carries a mounted APFS volume: known, unmounted later
+        assert mac["disk0"].system and not mac["disk4"].system and mac["disk4"].mounts == ("/Volumes/T7",)
+    assert "disk6" in {d.name for d in D.eligible(list(mac.values()), GB)} and mac["disk6"].mounts == ("/Volumes/BOOT",)
+    calls = []
+
+    def runner(argv):
+        calls.append(argv)
+        if argv == D.COMMANDS["darwin"]:
+            return physical
+        if argv == D.DARWIN_ALL:
+            return every
+        return root if argv[-1] == "/" else infos[argv[-1]]
+    listed = by(D.list_disks("darwin", runner))
+    assert listed["disk4"].system == external_boot and ["diskutil", "info", "-plist", "/"] in calls
+    assert D.apfs_containers_on(every, "disk4") == ["disk5"] and D.apfs_containers_on(every, "disk6") == []
+    assert D.whole_disk("disk4s2") == "disk4" and D.whole_disk("disk12") == "disk12"

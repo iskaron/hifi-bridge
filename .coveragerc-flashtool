@@ -1,0 +1,12 @@
+# Coverage of the flash tool (scripts/run_flashtool.sh coverage). Line + branch.
+# The ONLY omitted file is the native Windows ctypes binding: it needs ctypes.WinDLL and cannot run in a Linux container. Its logic-free
+# wrappers are verified at the hardware gate (docs/HARDWARE_GATE_CHECKLIST.md G3); all logic that uses them is tested via a fake.
+[run]
+branch = True
+source = /work/flashtool/hififlash
+omit =
+    */hififlash/platforms/win32api.py
+
+[report]
+skip_empty = True
+show_missing = True

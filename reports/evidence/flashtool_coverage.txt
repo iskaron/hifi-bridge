@@ -1,0 +1,32 @@
+FAILED tests/flashtool/test_platforms.py::test_windows_adapter_locks_dismounts_writes_aligned_and_unlocks
+FAILED tests/flashtool/test_platforms.py::test_windows_failure_paths - Assert...
+3 failed, 92 passed in 39.88s
+Name                                         Stmts   Miss Branch BrPart  Cover   Missing
+----------------------------------------------------------------------------------------
+flashtool/hififlash/__init__.py                  1      0      0      0   100%
+flashtool/hififlash/__main__.py                 65      2     18      4    93%   52->55, 55->57, 64, 80
+flashtool/hififlash/boards.py                   12      0      0      0   100%
+flashtool/hififlash/catalog.py                 169      2     46      2    98%   119, 169->171, 213
+flashtool/hififlash/disks.py                    87      0     30      0   100%
+flashtool/hififlash/fatslot.py                  90      5     34      5    92%   43, 74->103, 79-80, 87, 101
+flashtool/hififlash/helper/__main__.py          42      1     10      1    96%   59
+flashtool/hififlash/helper/client.py           180      0     34      0   100%
+flashtool/hififlash/helper/protocol.py          92     13     32      7    84%   104, 107, 113, 115, 122, 125-126, 132-133, 135, 138-140
+flashtool/hififlash/helper/server.py           108      0     14      0   100%
+flashtool/hififlash/images.py                   63      0     14      0   100%
+flashtool/hififlash/keystore.py                 80      0     14      0   100%
+flashtool/hififlash/manifest.py                 73      1     22      1    98%   102
+flashtool/hififlash/platforms/__init__.py       18      0      8      0   100%
+flashtool/hififlash/platforms/blockio.py        37      0      6      0   100%
+flashtool/hififlash/platforms/darwin.py         23      0      2      0   100%
+flashtool/hififlash/platforms/linux.py          39      0     14      0   100%
+flashtool/hififlash/platforms/posixio.py        70      0     24      0   100%
+flashtool/hififlash/platforms/simulated.py      48      0      8      0   100%
+flashtool/hififlash/platforms/windows.py        80     47     18      0    36%   29-39, 42, 45-46, 49, 52, 55-61, 76, 79-91, 94-98, 101-106
+flashtool/hififlash/provision.py                30      0     10      1    98%   48->51
+flashtool/hififlash/trust.py                    16      0      0      0   100%
+flashtool/hififlash/writer.py                  124      1     40      1    99%   153
+----------------------------------------------------------------------------------------
+TOTAL                                         1547     72    398     22    94%
+
+1 empty file skipped.
