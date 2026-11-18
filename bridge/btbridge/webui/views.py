@@ -108,6 +108,23 @@ def static(ui, req):
     return r
 
 
+def duration_text(req, seconds: int) -> str:
+    """'5 minutes' / '90 seconds' in the UI language (the pairing window is configurable: 60-1800 s; review L9)."""
+    seconds = int(seconds)
+    if seconds % 60:
+        return req.t("duration.seconds", n=seconds)
+    return req.t("duration.minute") if seconds == 60 else req.t("duration.minutes", n=seconds // 60)
+
+
+CERT_ERRORS = ("expired", "key_mismatch", "name_not_covered", "openssl not available", "pem_format")
+
+
+def cert_err_text(req, e: Exception) -> str:
+    """Known certificate error codes have their own text; anything else (openssl's English stderr) gets a generic one."""
+    code = str(e).split(":")[0]
+    return req.t("error.cert." + (code if code in CERT_ERRORS else "invalid"))
+
+
 def err_text(req, e: Exception) -> str:
     if isinstance(e, SettingError):
         return req.t("error.setting", field=req.t("field." + e.key), reason=req.t("error." + e.code))
@@ -170,8 +187,8 @@ def wizard_steps(req, current: int) -> str:
 
 def lang_switch(req) -> str:
     t = req.t
-    btns = "".join(f'<button name="lang" value="{code}" class="chip"{" aria-pressed=true" if req.t.lang == code else ""}>{label}</button>'
-                   for code, label in (("de", "Deutsch"), ("en", "English")))
+    btns = "".join(f'<button name="lang" value="{code}" lang="{code}" class="chip"{" aria-pressed=true" if req.t.lang == code else ""}>'
+                   f'{label}</button>' for code, label in (("de", "Deutsch"), ("en", "English")))   # each label in its own language
     return f'<form class="langs" method="post" action="/lang" aria-label="{esc(t("field.language"))}">{btns}</form>'
 
 
@@ -362,7 +379,7 @@ def dashboard(req):
     pairing = (toggle_form(req, "/pairing/close", t("pairing.close"), "off", True,
                            f'<p class="countdown" data-remaining="{p["pairing_remaining_s"]}" data-name="{esc(p["name"])}" id="live-pairing">'
                            f'{esc(t("pairing.open_for", name=p["name"], seconds=p["pairing_remaining_s"]))}</p>')
-               if p["pairing_open"] else toggle_form(req, "/pairing/open", t("pairing.open"), "on", False,
+               if p["pairing_open"] else toggle_form(req, "/pairing/open", t("pairing.open", duration=duration_text(req, svc.store.get("pairing_seconds"))), "on", False,
                                                      f'<p class="help">{esc(t("pairing.help", name=p["name"]))}</p>'))
     degraded = "".join(f'<li>{esc(t("degraded." + d))}</li>' for d in st["degraded"])
     sysd = st["system"] or {}
@@ -424,7 +441,7 @@ def pairing_page(req):
     win = (toggle_form(req, "/pairing/close", t("pairing.close"), "off", True,
                        f'<input type="hidden" name="back" value="/pairing"><p class="countdown" data-remaining="{st["pairing_remaining_s"]}" data-name="{esc(st["name"])}" '
                        f'id="live-pairing">{esc(t("pairing.open_for", name=st["name"], seconds=st["pairing_remaining_s"]))}</p>')
-           if st["pairing_open"] else toggle_form(req, "/pairing/open", t("pairing.open"), "on", False,
+           if st["pairing_open"] else toggle_form(req, "/pairing/open", t("pairing.open", duration=duration_text(req, svc.store.get("pairing_seconds"))), "on", False,
                                                   f'<input type="hidden" name="back" value="/pairing"><p class="help">{esc(t("pairing.help", name=st["name"]))}</p>'))
     body = f"""<h1>{esc(t("nav.pairing"))}</h1><div class="grid two">
 <section class="card"><h2>{esc(t("pairing.window"))}</h2>{win}<p class="help">{esc(t("pairing.guest_hint", name=st["name"]))}</p></section>
@@ -706,15 +723,19 @@ def settings_access_custom(req):
     try:
         acc.install_custom(req.form.get("custom_cert_pem", ""), req.form.get("custom_key_pem", ""))
     except CertError as e:
-        return _srv().redirect("/settings/access", req.t("error.cert." + str(e).split(":")[0]), req.secure, error=True)
+        return _srv().redirect("/settings/access", cert_err_text(req, e), req.secure, error=True)
     return _srv().redirect("/settings/access", req.t("flash.cert_installed"), req.secure)
 
 
 def settings_access_renew(req):
+    from ..net.certs import CertError
     acc = req.ui.svc.access
     if acc is not None and acc.mode == "local_ca":
-        acc.certs.issue_server(acc.cert_names())
-        acc._load_ctx()
+        try:
+            acc.certs.issue_server(acc.cert_names())
+            acc._load_ctx()
+        except CertError as e:
+            return _srv().redirect("/settings/access", cert_err_text(req, e), req.secure, error=True)
     return _srv().redirect("/settings/access", req.t("flash.cert_renewed"), req.secure)
 
 

@@ -126,6 +126,32 @@ def test_pairing_countdown_carries_the_bluetooth_name_for_the_script(ui):
     assert ".brand strong" not in js and 'getAttribute("data-name")' in js
 
 
+# ---------------------------------------------------------------- L9: i18n gaps
+@pytest.mark.parametrize("seconds,en,de", [(300, "Allow pairing for 5 minutes", "Kopplung 5 Minuten erlauben"),
+                                           (60, "Allow pairing for 1 minute", "Kopplung 1 Minute erlauben"),
+                                           (90, "Allow pairing for 90 seconds", "Kopplung 90 Sekunden erlauben"),
+                                           (1800, "Allow pairing for 30 minutes", "Kopplung 30 Minuten erlauben")])
+def test_pairing_button_states_the_configured_duration(ui, seconds, en, de):
+    from test_webui import finish_wizard
+    finish_wizard(ui)
+    ui.svc.store.update({"pairing_seconds": seconds})
+    assert en in ui.c.get("/").body                          # was: always "5 minutes"
+    ui.svc.store.update({"language": "de"})
+    assert de in ui.c.get("/pairing").body
+
+
+def test_error_pages_are_bilingual(ui):
+    r = ui.c.req("POST", "/system", form={})
+    assert r.status == 405 and 'lang="de"' in r.body and 'lang="en"' in r.body
+    r = ui.c.post("/setup", {"code": "x"}, csrf=False, headers={"Origin": "http://evil.example"})
+    assert r.status == 403 and "Anfrage abgelehnt" in r.body and "Request refused" in r.body
+
+
+def test_language_chips_carry_their_language(ui):
+    body = ui.c.get("/setup").body
+    assert 'value="de" lang="de"' in body and 'value="en" lang="en"' in body
+
+
 def test_normal_login_post_still_works(ui):
     c = Client(ui.port)
     r = c.post("/setup", {"code": ui.code, "password": "a good long passphrase", "confirm": "a good long passphrase"}, csrf=False)

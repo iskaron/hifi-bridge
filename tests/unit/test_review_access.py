@@ -161,6 +161,21 @@ def test_builtin_responder_rate_limits_probing_after_15_conflicts_in_10_s():
     assert sleeps.count(5.0) >= 5                               # RFC 6762 s8.1: wait 5 s before each further probe
 
 
+# ---------------------------------------------------------------- L9: certificate errors are translated, never raw
+def test_an_unknown_certificate_error_is_translated_not_shown_raw(ui, monkeypatch):
+    import urllib.parse
+    from btbridge.net.certs import CertError
+
+    def broken(cert, key):
+        raise CertError("openssl x509 failed: unable to load certificate 140:error:0480006C:PEM routines")
+    monkeypatch.setattr(ui.svc.access, "install_custom", broken)
+    ui.c.cookies.pop("bab_flash", None)
+    r = ui.c.post("/settings/access/custom", {"custom_cert_pem": "x", "custom_key_pem": "y"})
+    assert r.status == 303 and r.getheader("Location") == "/settings/access"
+    msg = urllib.parse.unquote(ui.c.cookies.get("bab_flash", ""))
+    assert msg.startswith("e:") and "error.cert" not in msg and "openssl" not in msg and "PEM routines" not in msg
+
+
 # ---------------------------------------------------------------- M1: the TLS handshake runs per connection, with a timeout
 def test_idle_tcp_connection_does_not_block_https_for_others(ui):
     idle = socket.create_connection(("127.0.0.1", ui.tls_port))             # never starts a TLS handshake
