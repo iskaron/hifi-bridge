@@ -56,3 +56,38 @@ def test_a_stopped_mqtt_client_never_connects_afterwards():
     assert wait(lambda: c._stop.is_set(), t=2)
     release.set(); stopper.join(6)
     assert sock.sent == [] and sock.closed                  # was: CONNECT with the same client id after stop()
+
+
+# ---------------------------------------------------------------- L2: settings apply in the order they were saved, all or nothing
+def test_concurrent_updates_reach_listeners_in_the_order_they_were_stored(tmp_path):
+    from btbridge.config import ConfigStore
+    st = ConfigStore(str(tmp_path))
+    applied = []
+
+    def listener(ch):
+        if ch.get("device_name") == "A":
+            time.sleep(0.3)                                  # the first change is slow to apply
+        applied.append(ch["device_name"])
+    st.on_change(listener)
+    t1 = threading.Thread(target=st.update, args=({"device_name": "A"},)); t1.start()
+    time.sleep(0.1)
+    st.update({"device_name": "B"})
+    t1.join()
+    assert applied == ["A", "B"] and st.get("device_name") == applied[-1]   # was: B applied first, A last -> runtime != stored
+
+
+def test_mqtt_form_does_not_store_the_password_when_another_field_is_invalid(tmp_path):
+    from test_webui import Client, finish_wizard
+    from btbridge.webui.server import WebUI
+    s = _svc(tmp_path, discover=lambda timeout: [])
+    s.start()
+    w = WebUI(s, "127.0.0.1", 0); port = w.start()
+    try:
+        u = type("U", (), dict(svc=s, c=Client(port), code=open(s.auth.code_file).read().strip()))
+        finish_wizard(u)
+        r = u.c.post("/settings/mqtt", {"mqtt_host": "broker.lan", "mqtt_port": "99999", "mqtt_password": "new-secret"})
+        assert r.status == 303 and s.store.secret("mqtt_password") is None   # was: saved although the form was rejected
+        u.c.post("/settings/mqtt", {"mqtt_host": "broker.lan", "mqtt_port": "1883", "mqtt_password": "new-secret"})
+        assert s.store.secret("mqtt_password") == "new-secret"
+    finally:
+        w.stop(); s.stop()

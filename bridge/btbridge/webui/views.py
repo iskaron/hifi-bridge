@@ -627,11 +627,16 @@ def settings_access_get(req):
     return section_page(req, "access", inner)
 
 
-def _save(req, keys: tuple[str, ...], checkboxes: tuple[str, ...] = (), back: str = "/settings"):
+def _save(req, keys: tuple[str, ...], checkboxes: tuple[str, ...] = (), back: str = "/settings", before=None):
+    """Save a settings form all-or-nothing; ``before`` (e.g. storing a secret) runs only once every field validated."""
+    from ..config.schema import validate
     changes = {k: req.form.get(k, "") for k in keys if k in req.form}
     for k in checkboxes:
         changes[k] = req.form.get(k) == "on"
     try:
+        validate(changes)
+        if before is not None:
+            before()
         req.ui.svc.store.update(changes)
     except SettingError as e:
         return _srv().redirect(back, err_text(req, e), req.secure, error=True)
@@ -660,10 +665,9 @@ def settings_bluetooth(req):
 
 def settings_mqtt(req):
     pw = req.form.get("mqtt_password", "")
-    if pw:
-        req.ui.svc.store.set_secret("mqtt_password", pw)
+    store_pw = (lambda: req.ui.svc.store.set_secret("mqtt_password", pw)) if pw else None   # only after the form validated (L2)
     return _save(req, ("mqtt_host", "mqtt_port", "mqtt_username", "mqtt_base_topic", "mqtt_discovery_prefix", "mqtt_telemetry_s",
-                       "mqtt_ca_pem"), ("mqtt_enabled", "mqtt_tls"), back="/settings/mqtt")
+                       "mqtt_ca_pem"), ("mqtt_enabled", "mqtt_tls"), back="/settings/mqtt", before=store_pw)
 
 
 def settings_mqtt_controls(req):

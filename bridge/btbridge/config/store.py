@@ -98,6 +98,7 @@ class ConfigStore:
         self.settings_path = os.path.join(data_dir, "settings.json")
         self.secrets_path = os.path.join(data_dir, "secrets.json")
         self._lock = threading.RLock()
+        self._apply_lock = threading.RLock()            # one update (persist + listeners) at a time, in order (review L2)
         self._listeners: list[Callable[[dict], None]] = []
         raw = _load(self.settings_path, log) or {}
         if stored_version(raw) is None:
@@ -141,21 +142,24 @@ class ConfigStore:
             return {k: (dict(v) if isinstance(v, dict) else v) for k, v in self._settings.items()}
 
     def update(self, changes: dict) -> dict:
-        """Validate all changes first (all-or-nothing), persist, notify listeners with the keys that really changed."""
+        """Validate all changes first (all-or-nothing), persist, notify listeners with the keys that really changed.
+        Updates are serialised including their listeners, so the runtime applies them in the order they were stored (two
+        concurrent saves used to reach the listeners in reverse order: review L2). Reads never wait for this."""
         clean = validate(changes)
-        with self._lock:
-            changed = {k: v for k, v in clean.items() if self._settings.get(k) != v}
-            if not changed:
-                return {}
-            self._settings.update(changed)
-            for k in changed:
-                self._kept.pop(k, None)                 # an explicit change replaces a kept value
-            self._save_settings()
-        for fn in list(self._listeners):
-            try:
-                fn(dict(changed))
-            except Exception as e:                      # a listener must never break persistence
-                self.log(f"config listener error: {type(e).__name__}: {e}")
+        with self._apply_lock:
+            with self._lock:
+                changed = {k: v for k, v in clean.items() if self._settings.get(k) != v}
+                if not changed:
+                    return {}
+                self._settings.update(changed)
+                for k in changed:
+                    self._kept.pop(k, None)             # an explicit change replaces a kept value
+                self._save_settings()
+            for fn in list(self._listeners):
+                try:
+                    fn(dict(changed))
+                except Exception as e:                  # a listener must never break persistence
+                    self.log(f"config listener error: {type(e).__name__}: {e}")
         return changed
 
     def on_change(self, fn: Callable[[dict], None]) -> None:
