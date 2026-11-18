@@ -134,6 +134,7 @@ class ApplianceService:
         self.lms_factory, self.discover, self.advertise_cfg = lms_factory, discover, advertise_host
         self.monitor = monitor or SystemMonitor(data_dir=data_dir)
         self.mqtt_factory, self.mqtt = mqtt_factory, None
+        self.mqtt_failed = False                        # enabled but could not be started (shown as degraded)
         self.syslog = None
         self.access = None                              # LocalAccess (names, HTTPS, mDNS) - set by the appliance entry point
         c = self.store.all()
@@ -239,6 +240,13 @@ class ApplianceService:
                 self._resolvers = {key: _Resolver(host, int(port))}
         return local_ip_for(host, port, resolver=self._resolvers[key])
 
+    def _step(self, what: str, fn: Callable, *args) -> None:
+        """One independent part of applying settings: a failure is logged and the remaining parts still apply (review H4)."""
+        try:
+            fn(*args)
+        except Exception as e:
+            self.logs(f"{what} failed: {type(e).__name__}: {e}")
+
     def _apply(self, ch: dict) -> None:
         rt, ctl = self.runtime, self.runtime.controller
         c = self.store.all()
@@ -255,19 +263,19 @@ class ApplianceService:
             if "pause_strategy" in ch:
                 ctl.cfg.pause_strategy = ch["pause_strategy"]
         if "audio_allowed" in ch:
-            ctl.set_audio_allowed(ch["audio_allowed"])
+            self._step("audio permission", ctl.set_audio_allowed, ch["audio_allowed"])
         if "stream_format" in ch or "icy_metadata" in ch:
-            rt.reconfigure_stream(ch.get("stream_format"), ch.get("icy_metadata"))
+            self._step("stream reconfiguration", rt.reconfigure_stream, ch.get("stream_format"), ch.get("icy_metadata"))
         if {"lms_host", "lms_port"} & set(ch) or ("target_player" in ch and (not c["target_player"] or isinstance(rt.lms, UnconfiguredLms))):
-            rt.set_lms(self._lms_for(c), c["target_player"] if "target_player" in ch else None)
+            self._step("Lyrion server change", lambda: rt.set_lms(self._lms_for(c), c["target_player"] if "target_player" in ch else None))
         elif "target_player" in ch:
-            ctl.set_target(c["target_player"])
+            self._step("target change", ctl.set_target, c["target_player"])
         if any(k.startswith("mqtt_") for k in ch):
             self._restart_mqtt()
         if any(k.startswith("syslog_") for k in ch) or "device_name" in ch:
             self._restart_syslog()
         if self.access is not None and {"local_hostname", "mdns_enabled", "mdns_backend", "extra_hostnames", "tls_mode", "device_name"} & set(ch):
-            self.access.reconfigure(set(ch))
+            self._step("local access reconfiguration", self.access.reconfigure, set(ch))
         self._emit("settings_changed", {"keys": sorted(ch)})
 
     def _restart_syslog(self) -> None:
@@ -281,19 +289,33 @@ class ApplianceService:
             try:
                 self.syslog = RemoteSyslog(st.get("syslog_host"), st.get("syslog_port"), st.get("syslog_ca_pem"),
                                            hostname=(st.get("local_hostname") or "hifi-bridge"))
+                self.syslog.start()
             except ssl.SSLError as e:
+                self.syslog = None
                 self.logs(f"remote syslog: invalid CA certificate ({e})")
                 return
-            self.syslog.start()
+            except Exception as e:                       # an optional integration never aborts start or settings (review H4)
+                self.syslog = None
+                self.logs(f"remote syslog could not start: {type(e).__name__}: {e}")
+                return
             self.logs.forward = self.syslog.emit
 
     def _restart_mqtt(self) -> None:
         if self.mqtt:
-            self.mqtt.stop()
-            self.mqtt = None
+            old, self.mqtt = self.mqtt, None
+            try:
+                old.stop()
+            except Exception as e:
+                self.logs(f"MQTT stop failed: {type(e).__name__}: {e}")
+        self.mqtt_failed = False
         if self.mqtt_factory and self.store.get("mqtt_enabled") and self.store.get("mqtt_host"):
-            self.mqtt = self.mqtt_factory(self)
-            self.mqtt.start()
+            try:
+                m = self.mqtt_factory(self)
+                m.start()
+                self.mqtt = m
+            except Exception as e:                       # an optional integration never aborts start or settings (review H4)
+                self.mqtt_failed = True
+                self.logs(f"MQTT could not start: {type(e).__name__}: {e}")
 
     # ------------------------------------------------------------------ events
     def on_event(self, fn: Callable[[str, dict], None]) -> None:
@@ -413,7 +435,7 @@ class ApplianceService:
             degraded.append("stream_address_unavailable")
         if self._thermal["state"] in ("warning", "critical"):
             degraded.append("thermal_" + self._thermal["state"])
-        if self.mqtt and not self.mqtt.state().get("connected"):
+        if (self.mqtt and not self.mqtt.state().get("connected")) or (self.mqtt is None and self.mqtt_failed):
             degraded.append("mqtt_disconnected")
         headline = self._headline(b, degraded)
         return {

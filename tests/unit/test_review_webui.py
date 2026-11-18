@@ -65,6 +65,16 @@ def test_chunked_request_bodies_are_refused(ui):
     assert _status(resp) in (400, 411) and resp.count(b"HTTP/1.") == 1   # nothing of the body is parsed as a second request
 
 
+def test_mqtt_form_refuses_a_ca_with_markers_but_no_certificate(ui):
+    import urllib.parse
+    from test_webui import finish_wizard
+    finish_wizard(ui)
+    r = ui.c.post("/settings/mqtt", {"mqtt_host": "broker.lan", "mqtt_port": "8883", "mqtt_tls": "on", "mqtt_enabled": "on",
+                                      "mqtt_ca_pem": "-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----"})
+    assert r.status == 303 and "PEM" in urllib.parse.unquote(ui.c.cookies.get("bab_flash", ""))
+    assert ui.svc.store.get("mqtt_ca_pem") == "" and ui.svc.store.get("mqtt_enabled") is False
+
+
 def test_normal_login_post_still_works(ui):
     c = Client(ui.port)
     r = c.post("/setup", {"code": ui.code, "password": "a good long passphrase", "confirm": "a good long passphrase"}, csrf=False)

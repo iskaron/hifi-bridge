@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import ipaddress
 import re
+import ssl
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -81,10 +82,18 @@ def _netlist(v: str) -> str:
 
 
 def _pem_or_empty(v: str) -> str:
+    """Empty, or PEM CA certificate(s) that TLS really accepts: markers alone used to pass and then crashed the MQTT/syslog
+    start on every boot (review H4)."""
     v = v.strip()
-    if v and not (v.startswith("-----BEGIN CERTIFICATE-----") and v.rstrip().endswith("-----END CERTIFICATE-----")):
+    if not v:
+        return ""
+    if not (v.startswith("-----BEGIN CERTIFICATE-----") and v.rstrip().endswith("-----END CERTIFICATE-----")):
         raise ValueError("invalid_pem")
-    return v + "\n" if v else ""
+    try:
+        ssl.create_default_context(cadata=v)
+    except (ssl.SSLError, ValueError):
+        raise ValueError("invalid_pem") from None
+    return v + "\n"
 
 
 def _instance_id(v: str) -> str:
