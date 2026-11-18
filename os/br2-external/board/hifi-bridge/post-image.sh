@@ -1,6 +1,6 @@
 #!/bin/bash
 # Hi-Fi Bridge post-image step: card image via genimage + flash manifest (unsigned; signing is a separate offline release step,
-# docs/UPDATE_TRUST.md). PHASE-2B SKELETON: exercised in Docker with dummy firmware/kernel/rootfs (tests/os), not in a real build yet.
+# docs/UPDATE_TRUST.md). Exercised in Docker with dummy content (tests/os) and by every real build (scripts/os_build.sh); not booted.
 # Environment from Buildroot: BINARIES_DIR, BUILD_DIR, BR2_CONFIG.
 set -euo pipefail
 
@@ -14,6 +14,10 @@ cfg() { sed -n "s/^$1=//p" "$BR2_CONFIG" | sed 's/^"//; s/"$//'; }
 compat="$(cfg BR2_PACKAGE_HIFI_BRIDGE_COMPATIBLE)"
 [ -n "$compat" ] || { echo "post-image: BR2_PACKAGE_HIFI_BRIDGE_COMPATIBLE is empty" >&2; exit 1; }
 version="$(sed -n 's/^__version__ = "\(.*\)"/\1/p' "$REPO_DIR/bridge/btbridge/__init__.py")"
+# development images carry the variant in the file name (os-release and build-info.json carry it inside the image)
+variant="$(cfg BR2_PACKAGE_HIFI_BRIDGE_BUILD_VARIANT)"
+suffix=""
+[ -n "$variant" ] && [ "$variant" != release ] && suffix="-$variant"
 
 # the empty provisioning slot (fixed size, filled in place by the flash tool or by hand)
 python3 -m btbridge.provisioning placeholder > "${BINARIES_DIR}/hifi-provision.json"
@@ -34,7 +38,7 @@ rm -rf "${GENIMAGE_TMP}"
 genimage --rootpath "${ROOTPATH_TMP}" --tmppath "${GENIMAGE_TMP}" --inputpath "${BINARIES_DIR}" \
 	--outputpath "${BINARIES_DIR}" --config "${GENIMAGE_CFG}"
 
-img="${BINARIES_DIR}/hifi-bridge-${compat}-${version}.img"
+img="${BINARIES_DIR}/hifi-bridge-${compat}-${version}${suffix}.img"
 mv "${BINARIES_DIR}/sdcard.img" "$img"
 python3 -m hififlash.manifest build --image "$img" --compatible "$compat" --version "$version" --out "${img}.manifest.json"
 echo "post-image: $img (+ manifest; sign it offline before publishing)"

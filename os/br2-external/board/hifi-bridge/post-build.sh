@@ -1,6 +1,6 @@
 #!/bin/sh
 # Hi-Fi Bridge post-build step (Buildroot calls it with TARGET_DIR as $1 and BR2_CONFIG in the environment).
-# PHASE-2B SKELETON: exercised by tests/os with a fake target tree; not yet run inside a real Buildroot build.
+# Exercised by tests/os with a fake target tree and run by every real build (scripts/os_build.sh); nothing has been booted.
 #
 #  * update trust (P5, docs/UPDATE_TRUST.md): builds /etc/rauc/keyring.pem from the EXPLICIT choice in the configuration and records it in
 #    /etc/hifi-bridge/update-trust.json. Fails on: no choice, missing/non-CA certificate, any private key, unexpected extra input.
@@ -87,6 +87,57 @@ sed "s/@COMPATIBLE@/$compat/" "$BOARD_DIR/rauc/system.conf.in" > "$TARGET_DIR/et
 # rpi_arm64 keeps its environment in the file uboot.env on the boot FAT (CONFIG_ENV_IS_IN_FAT; size to be verified, gate item P3-1)
 echo "/boot/uboot.env 0x0000 0x4000" > "$TARGET_DIR/etc/fw_env.config"
 
+# ---------------------------------------------------------------- build identity (development vs. release)
+# Every image that is not an official release is a DEVELOPMENT build and is marked as such in os-release, build-info.json and the
+# image file name (post-image.sh). "release" requires official-only trust (an own CA in a release image would be a mix-up).
+variant="$(cfg BR2_PACKAGE_HIFI_BRIDGE_BUILD_VARIANT)"
+[ -n "$variant" ] || variant="development"
+case "$variant" in
+	development) ;;
+	release) [ "$mode" = "OFFICIAL" ] || die "build variant 'release' requires update trust 'official releases only' (have '$mode_lc')" ;;
+	*) die "build variant must be 'development' or 'release', not '$variant'" ;;
+esac
+version="$(sed -n 's/^__version__ = "\(.*\)"/\1/p' "$EXT_DIR/../../bridge/btbridge/__init__.py")"
+[ -n "$version" ] || die "cannot read the bridge version"
+br_version="$(sed -n 's/^VERSION=//p' "$TARGET_DIR/usr/lib/os-release" 2>/dev/null | tr -d '"')"
+if [ "$variant" = development ]; then
+	variant_name="Development build (not hardware-validated)"
+	pretty="Hi-Fi Bridge $version (development build, not hardware-validated)"
+else
+	variant_name="Release"
+	pretty="Hi-Fi Bridge $version"
+fi
+rm -f "$TARGET_DIR/usr/lib/os-release"
+mkdir -p "$TARGET_DIR/usr/lib"
+cat > "$TARGET_DIR/usr/lib/os-release" <<EOF
+NAME="Hi-Fi Bridge"
+ID=hifi-bridge
+ID_LIKE=buildroot
+VERSION="$version ($variant)"
+VERSION_ID=$version
+PRETTY_NAME="$pretty"
+VARIANT="$variant_name"
+VARIANT_ID=$variant
+IMAGE_ID=$compat
+IMAGE_VERSION=$version
+BUILDROOT_VERSION=${br_version:-unknown}
+HOME_URL="https://github.com/iskaron/hifi-bridge"
+EOF
+ln -sf ../usr/lib/os-release "$TARGET_DIR/etc/os-release"
+hw=false
+cat > "$TARGET_DIR/etc/hifi-bridge/build-info.json" <<EOF
+{
+  "format": "hifi-bridge-build/1",
+  "variant": "$variant",
+  "hardware_validated": $hw,
+  "version": "$version",
+  "compatible": "$compat",
+  "buildroot": "${br_version:-unknown}",
+  "update_trust": "$mode_lc",
+  "source_date_epoch": ${SOURCE_DATE_EPOCH:-null}
+}
+EOF
+
 # ---------------------------------------------------------------- mounts (P4) - uid/gid 990 = hifi-bridge (static, see hifi-bridge.mk)
 fstab="$TARGET_DIR/etc/fstab"
 touch "$fstab"
@@ -106,4 +157,4 @@ done
 mkdir -p "$TARGET_DIR/etc/systemd/system/data.mount.wants" "$TARGET_DIR/etc/systemd/system/local-fs.target.wants"
 ln -sf /usr/lib/systemd/system/hifi-bridge-growdata.service "$TARGET_DIR/etc/systemd/system/data.mount.wants/hifi-bridge-growdata.service"
 ln -sf /usr/lib/systemd/system/hifi-bridge-data.service "$TARGET_DIR/etc/systemd/system/local-fs.target.wants/hifi-bridge-data.service"
-echo "hifi-bridge post-build: update trust '$mode_lc', compatible '$compat'"
+echo "hifi-bridge post-build: $variant build $version, update trust '$mode_lc', compatible '$compat'"

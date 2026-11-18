@@ -20,6 +20,16 @@ define HIFI_BRIDGE_INSTALL_TARGET_CMDS
 		$(@D)/btbridge/ $(TARGET_DIR)/usr/lib/hifi-bridge/btbridge/
 endef
 
+# Bytecode for the read-only root: Python cannot write __pycache__ there and would recompile every imported module in memory at each
+# start. "unchecked-hash" pycs carry no source timestamp (reproducible); source and bytecode always come from the same image.
+# host-python3 is the same Python version as the target's (one python3 package in Buildroot).
+HIFI_BRIDGE_DEPENDENCIES += host-python3
+define HIFI_BRIDGE_COMPILE_PYC
+	$(HOST_DIR)/bin/python3 -m compileall -q --invalidation-mode unchecked-hash \
+		-s $(TARGET_DIR) -p / $(TARGET_DIR)/usr/lib/hifi-bridge/btbridge
+endef
+HIFI_BRIDGE_POST_INSTALL_TARGET_HOOKS += HIFI_BRIDGE_COMPILE_PYC
+
 define HIFI_BRIDGE_INSTALL_INIT_SYSTEMD
 	$(INSTALL) -D -m 0644 $(HIFI_BRIDGE_PACKAGING)/systemd/hifi-bridge.service \
 		$(TARGET_DIR)/usr/lib/systemd/system/hifi-bridge.service
