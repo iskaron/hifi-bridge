@@ -95,7 +95,8 @@ def make_sysfs(root, spec):
 
 def test_discover_by_type_not_by_name(tmp_path):
     make_sysfs(str(tmp_path), {"lo": ("772", ""), "end0": ("1", "phys"), "enx0011": ("1", "phys"), "docker0": ("1", "virtual"),
-                               "wlan0": ("1", "wifi"), "wlan1": ("1", "wifi"), "broken": ("1", "phys")})
+                               "wlan0": ("1", "wifi"), "wlan1": ("1", "wifi"), "broken": ("1", "phys"), 'ev"il': ("1", "phys"),
+                               "wl an": ("1", "wifi")})
     os.unlink(os.path.join(str(tmp_path), "broken", "type"))
     assert S.discover(str(tmp_path)) == (["end0", "enx0011"], "wlan0")
     assert S.discover(str(tmp_path / "missing")) == ([], None)

@@ -177,8 +177,8 @@ class Agent:
         if gid is not None and os.geteuid() == 0:
             os.chown(path, 0, gid)
             os.chown(self.run_dir, 0, gid)
-            os.chmod(self.run_dir, 0o750)
-        os.chmod(path, 0o660)
+            os.chmod(self.run_dir, 0o750)                       # nosec B103 - root:hifi-bridge; the bridge must reach the socket
+        os.chmod(path, 0o660)                                   # nosec B103 - root:hifi-bridge only; requests are uid-checked too
         s.listen(8)
         s.settimeout(0.5)
         self.sock = s

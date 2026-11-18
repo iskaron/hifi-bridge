@@ -23,6 +23,7 @@ WPA_UNIT, HOSTAPD_UNIT, DHCP_UNIT = "hifi-net-wpa@{}.service", "hifi-net-hostapd
 NETWORKD_DIR = "/run/systemd/network"
 OUR_NETWORKD = ("10-hifi-ethernet.network", "11-hifi-wifi.network")
 TIMESYNC_FLAG = "/run/systemd/timesync/synchronized"
+IFNAME = re.compile(r"[A-Za-z0-9_.-]{1,15}")
 _counter = itertools.count(1)
 
 
@@ -185,7 +186,7 @@ def discover(sysfs: str = "/sys/class/net") -> tuple[list[str], str | None]:
         return [], None
     for n in names:
         base = os.path.join(sysfs, n)
-        if n == "lo":
+        if n == "lo" or not IFNAME.fullmatch(n):            # names go into nft/hostapd/dnsmasq/networkd files: no quotes, no spaces
             continue
         if os.path.exists(os.path.join(base, "phy80211")) or os.path.isdir(os.path.join(base, "wireless")):
             wlan = wlan or n
