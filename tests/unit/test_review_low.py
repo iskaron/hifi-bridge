@@ -170,6 +170,23 @@ def test_factory_reset_removes_the_respawn_log(tmp_path):
     assert not (tmp_path / "faults-respawn.log").exists()
 
 
+# ---------------------------------------------------------------- L11: AVRCP player removed -> PCM rule again (HARDWARE-PENDING)
+def test_flowing_audio_counts_as_playing_after_the_avrcp_player_disappeared():
+    """UNIT/SIMULATED. Real phones' MediaPlayer1 lifecycle is unverified (docs/OPEN_QUESTIONS.md #2)."""
+    from btbridge.core.clock import FakeClock
+    from btbridge.core.fusion import MediaFusion
+    clk = FakeClock(); f = MediaFusion(clk)
+    f.on_transport("active"); f.on_avrcp("playing"); f.on_pcm()
+    assert f.playing()
+    f.on_avrcp(None)                                         # MediaPlayer1 removed (or an 'error' status) while audio flows
+    f.on_pcm()
+    assert f.playing()                                       # was: False for as long as the phone stayed connected
+    clk.advance(2.0)
+    assert not f.playing()                                   # PCM rule: no frames -> not playing
+    f.on_avrcp("paused"); f.on_pcm()
+    assert not f.playing()                                   # a real AVRCP status is authoritative again (notification filter)
+
+
 # ---------------------------------------------------------------- L2: settings apply in the order they were saved, all or nothing
 def test_concurrent_updates_reach_listeners_in_the_order_they_were_stored(tmp_path):
     from btbridge.config import ConfigStore
