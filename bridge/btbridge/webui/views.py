@@ -360,7 +360,7 @@ def dashboard(req):
     p = st["bluetooth"]
     allowed = st["bridge"]["audio_permission"] == "allowed"
     pairing = (toggle_form(req, "/pairing/close", t("pairing.close"), "off", True,
-                           f'<p class="countdown" data-remaining="{p["pairing_remaining_s"]}" id="live-pairing">'
+                           f'<p class="countdown" data-remaining="{p["pairing_remaining_s"]}" data-name="{esc(p["name"])}" id="live-pairing">'
                            f'{esc(t("pairing.open_for", name=p["name"], seconds=p["pairing_remaining_s"]))}</p>')
                if p["pairing_open"] else toggle_form(req, "/pairing/open", t("pairing.open"), "on", False,
                                                      f'<p class="help">{esc(t("pairing.help", name=p["name"]))}</p>'))
@@ -422,7 +422,7 @@ def pairing_page(req):
 <form method="post" action="/devices/remove" data-confirm="{esc(t("pairing.remove.confirm"))}">{csrf(req)}
 <input type="hidden" name="address" value="{esc(d["address"])}"><button class="danger small">{esc(t("pairing.remove"))}</button></form></li>""" for d in devs)
     win = (toggle_form(req, "/pairing/close", t("pairing.close"), "off", True,
-                       f'<input type="hidden" name="back" value="/pairing"><p class="countdown" data-remaining="{st["pairing_remaining_s"]}" '
+                       f'<input type="hidden" name="back" value="/pairing"><p class="countdown" data-remaining="{st["pairing_remaining_s"]}" data-name="{esc(st["name"])}" '
                        f'id="live-pairing">{esc(t("pairing.open_for", name=st["name"], seconds=st["pairing_remaining_s"]))}</p>')
            if st["pairing_open"] else toggle_form(req, "/pairing/open", t("pairing.open"), "on", False,
                                                   f'<input type="hidden" name="back" value="/pairing"><p class="help">{esc(t("pairing.help", name=st["name"]))}</p>'))

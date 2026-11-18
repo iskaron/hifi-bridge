@@ -110,6 +110,22 @@ def test_connections_beyond_the_cap_are_refused_not_queued(ui, monkeypatch):
         c.close()
 
 
+# ---------------------------------------------------------------- M6: the pairing countdown names the device, not the product
+def test_pairing_countdown_carries_the_bluetooth_name_for_the_script(ui):
+    import os
+    import re
+    from test_webui import finish_wizard
+    from btbridge.webui import views
+    finish_wizard(ui)                                                        # device name "Wohnzimmer"
+    ui.c.post("/pairing/open")
+    for path in ("/", "/pairing"):
+        body = ui.c.get(path).body
+        m = re.search(r'<p class="countdown"[^>]*>', body)
+        assert m and 'data-name="Wohnzimmer"' in m.group(0), (path, m and m.group(0))
+    js = open(os.path.join(views.STATIC_DIR, "app.js")).read()
+    assert ".brand strong" not in js and 'getAttribute("data-name")' in js
+
+
 def test_normal_login_post_still_works(ui):
     c = Client(ui.port)
     r = c.post("/setup", {"code": ui.code, "password": "a good long passphrase", "confirm": "a good long passphrase"}, csrf=False)
