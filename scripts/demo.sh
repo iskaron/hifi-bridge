@@ -1,17 +1,25 @@
 #!/usr/bin/env bash
 # Hi-Fi Bridge interactive demo (docs/DEMO.md). Host requirements: Docker with Compose, make. Nothing is installed on the host.
-#   scripts/demo.sh up | stop | status | logs [service] | reset | trust | recover | ha | ha-stop
-# Touches ONLY the compose project "hifi-demo" (its containers, networks and volumes) and the image hifi-demo:dev.
+#   scripts/demo.sh [-q] up | stop | status | logs [service] | reset | trust | recover | ha | ha-stop      (-q / HB_QUIET=1: step lines only)
+# Touches ONLY the compose project "hifi-demo" (its containers, networks and volumes) and the image hifi-demo:dev. Missing prerequisites
+# are reported before anything starts (docs/DOCKER_REQUIREMENTS.md); missing images are built or pulled with visible progress.
 set -euo pipefail
 # shellcheck disable=SC2016  # single-quoted commands are expanded INSIDE the containers on purpose
 cd "$(dirname "$0")/.."
+# shellcheck source=lib/common.sh
+. scripts/lib/common.sh
+hb_parse_quiet "$@"; set -- "${HB_ARGS[@]+"${HB_ARGS[@]}"}"
 DC=(docker compose -p "${DEMO_PROJECT:-hifi-demo}" -f demo/compose.yml)   # DEMO_PROJECT: only the stack test uses another one
 HOST=${DEMO_HOST:-127.0.0.1}
 P_HTTP=${DEMO_HTTP_PORT:-18080}; P_HTTPS=${DEMO_HTTPS_PORT:-18443}; P_CON=${DEMO_CONSOLE_PORT:-18100}; P_LMS=${DEMO_LMS_PORT:-19000}
 P_HA=${DEMO_HA_PORT:-18123}
 OUT=.demo                                       # host-side output (git-ignored): the verified device CA certificate
 
-need() { command -v docker >/dev/null || { echo "Docker is required."; exit 2; }; docker compose version >/dev/null 2>&1 || { echo "Docker Compose v2 is required."; exit 2; }; }
+need() { hb_require --compose; }
+health_of() {                                    # healthy / starting / unhealthy / none / "" (works with every Compose version)
+  local id; id=$("${DC[@]}" ps -q "$1" 2>/dev/null | head -n 1)
+  [ -n "$id" ] && docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$id" 2>/dev/null || true
+}
 running() { [ -n "$("${DC[@]}" ps -q --status running "$1" 2>/dev/null)" ]; }
 sheet_code() { "${DC[@]}" exec -T console sh -c 'cat /owner/owner-sheet.txt 2>/dev/null' | sed -n 's/^\(Einrichtungscode\|Setup code\): //p' | head -1; }
 
@@ -54,32 +62,35 @@ secrets_info() {
 
 case "${1:-}" in
   up)
-    need
+    hb_steps 5
+    hb_step "checking prerequisites (Docker Engine >= $HB_MIN_ENGINE, Compose >= $HB_MIN_COMPOSE, disk, ports)"
     mkdir -p "$OUT"
-    if ! running gateway; then                  # our own running demo holds these ports legitimately
-      busy=""
-      for p in "$P_HTTP" "$P_HTTPS" "$P_CON" "$P_LMS" "$P_HA"; do
-        (exec 3<>"/dev/tcp/127.0.0.1/$p") 2>/dev/null && busy="$busy $p"
-      done
-      if [ -n "$busy" ]; then
-        echo "Port(s) already in use on this computer:$busy"
-        echo "Choose others, e.g.: DEMO_HTTP_PORT=28080 DEMO_HTTPS_PORT=28443 DEMO_CONSOLE_PORT=28100 DEMO_LMS_PORT=29000 DEMO_HA_PORT=28123 make demo"
-        exit 3
-      fi
+    ports=""
+    if ! running gateway 2>/dev/null; then       # our own running demo holds these ports legitimately
+      ports="$P_HTTP $P_HTTPS $P_CON $P_LMS $P_HA"
     fi
-    "${DC[@]}" build -q
-    "${DC[@]}" up -d --remove-orphans
-    echo -n "Waiting for the bridge "
-    for _ in $(seq 120); do
-      [ "$("${DC[@]}" ps --format '{{.Health}}' hifi-bridge 2>/dev/null)" = "healthy" ] && break; echo -n "."; sleep 1
-    done; echo
+    hb_require --compose --disk 3000 "the demo images and their build cache" \
+      --ports "$ports" "choose others, e.g.: DEMO_HTTP_PORT=28080 DEMO_HTTPS_PORT=28443 DEMO_CONSOLE_PORT=28100 DEMO_LMS_PORT=29000 DEMO_HA_PORT=28123 make demo"
+    hb_step "images: build the demo image (first run: ~5 min of apt downloads), pull Lyrion and Mosquitto (~240 MB)"
+    hb_ensure_image hifi-demo:dev --always
+    hb_pull_compose_images demo/compose.yml
+    hb_step "starting the stack (project ${DEMO_PROJECT:-hifi-demo}: 8 containers on an internal network)"
+    hb_run "docker compose up" "${DC[@]}" up -d --remove-orphans
+    hb_step "waiting for the bridge to become healthy (usually 20-40 s)"
+    for i in $(seq 120); do
+      h=$(health_of hifi-bridge); [ "$h" = "healthy" ] && break
+      [ $((i % 10)) -eq 0 ] && hb_info "still waiting ($i s): hifi-bridge is ${h:-not created yet}"
+      sleep 1
+    done
+    [ "$h" = "healthy" ] || { hb_err "the bridge is not healthy after 120 s - see: make demo-logs SERVICE=hifi-bridge"; exit 1; }
+    hb_step "ready"
     urls; secrets_info
     echo; echo "  Next: open the bridge, enter the setup code, choose Lyrion server 'lms' and a room. Guide: docs/DEMO.md"
     ;;
   stop) need; "${DC[@]}" --profile ha stop ;;
   status)
     need
-    "${DC[@]}" --profile ha ps --format 'table {{.Service}}\t{{.State}}\t{{.Health}}'
+    "${DC[@]}" --profile ha ps
     urls; secrets_info
     echo; echo "  Resources:"
     mapfile -t ids < <("${DC[@]}" --profile ha ps -q)
@@ -126,12 +137,13 @@ case "${1:-}" in
     echo "SD-card recovery (docs/PROVISIONING.md, P8): request 'reset-owner-password' on the boot partition, then restart the device."
     "${DC[@]}" exec -T hifi-bridge sh -c 'printf "reset-owner-password\n" > /boot-demo/hifi-recovery'
     "${DC[@]}" restart hifi-bridge >/dev/null
-    for _ in $(seq 90); do [ "$("${DC[@]}" ps --format '{{.Health}}' hifi-bridge)" = healthy ] && break; sleep 1; done
+    for _ in $(seq 90); do [ "$(health_of hifi-bridge)" = healthy ] && break; sleep 1; done
     "${DC[@]}" exec -T hifi-bridge sh -c 'grep -E "recovery|setup code" /boot-demo/hifi-status.txt' | sed 's/^/  /'
     echo "Open http://$HOST:$P_HTTP and set a new owner password with this code. Settings and pairings are kept."
     ;;
   ha)
     need
+    hb_pull_compose_images demo/compose.yml --profile ha
     "${DC[@]}" --profile ha up -d homeassistant
     "${DC[@]}" exec -T console python3 -m hifidemo.hasetup
     secrets_info

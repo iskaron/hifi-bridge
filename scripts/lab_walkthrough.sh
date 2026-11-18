@@ -2,6 +2,9 @@
 # Phase-1 LAB walkthrough (formerly scripts/demo.sh): guest experience with a SIMULATED phone against the test lab. The interactive
 # product demo is `make demo` (scripts/demo.sh, docs/DEMO.md). Leaves the lab "demo" container running.
 set -euo pipefail
+# shellcheck source=lib/common.sh
+. "$(dirname "$0")/lib/common.sh"
+hb_require --compose
 cd "$(dirname "$0")/../docker"
 ../scripts/lab_up.sh >/dev/null
 docker rm -f demo >/dev/null 2>&1 || true

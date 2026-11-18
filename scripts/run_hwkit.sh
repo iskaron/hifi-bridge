@@ -3,6 +3,8 @@
 # results rules, CLI. Needs the lab image (scripts/lab_up.sh builds it) and builds btbridge-hwkit:dev on top.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-docker image inspect btbridge-lab:dev >/dev/null 2>&1 || (cd docker && docker compose build >/dev/null)
-docker build -q -f docker/Dockerfile.hwkit -t btbridge-hwkit:dev docker >/dev/null
+# shellcheck source=lib/common.sh
+. scripts/lib/common.sh
+hb_require
+hb_ensure_image btbridge-hwkit:dev --always     # builds btbridge-lab:dev first when it is missing
 docker run --rm -v "$PWD":/work -w /work btbridge-hwkit:dev python3 -m pytest -p no:cacheprovider tests/hwkit "$@"

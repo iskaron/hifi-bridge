@@ -2,6 +2,10 @@
 # Licence/package report per board from `make show-info` (Docker, no build). Output: reports/evidence/os_licenses_<board>.md
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
+# shellcheck source=lib/common.sh
+. scripts/lib/common.sh
+hb_require
+hb_ensure_images btbridge-os:dev
 [ -d .lab/buildroot/configs ] || scripts/os_fetch_buildroot.sh || exit 2
 docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -e BR2_DL_DIR=/tmp/dl -v "$PWD":/work -v "$PWD/.lab/buildroot":/buildroot:ro btbridge-os:dev bash -c '
 rc=0

@@ -4,7 +4,11 @@
 # In CI the checkout must have the full history (actions/checkout with fetch-depth: 0), otherwise only the last commit is scanned.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
+# shellcheck source=lib/common.sh
+. scripts/lib/common.sh
+hb_require
 IMAGE=ghcr.io/gitleaks/gitleaks:v8.24.3@sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055
+hb_ensure_pulled "$IMAGE" "secret scan of the repository history"
 commits=$(git rev-list --all --count)
 [ "$(git rev-parse --is-shallow-repository)" = "false" ] || { echo "secrets: shallow clone - fetch the full history first"; exit 2; }
 docker run --rm --network none --user "$(id -u):$(id -g)" -e HOME=/tmp \

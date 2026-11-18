@@ -100,8 +100,7 @@ hb_run() {
   local label=$1 rc t0; shift
   HB_PUMP_LOG=$(hb_logfile "$label"); export HB_PUMP_LOG
   t0=$(date +%s)
-  "$@" 2>&1 | hb_pump
-  rc=${PIPESTATUS[0]}
+  { "$@" 2>&1 | hb_pump; rc=${PIPESTATUS[0]}; } || true            # the group is exempt from errexit, so rc is always read
   if [ "$rc" -ne 0 ]; then
     hb_err "$label failed (exit $rc) after $(hb_duration $(( $(date +%s) - t0 ))). Last lines of its output:"
     tail -n 30 "$HB_PUMP_LOG" | sed 's/^/      | /' >&2
@@ -304,7 +303,7 @@ hb_build_image() {
   hb_info "building $name - ${reason:-$HB_I_WHY} (about $HB_I_MB MB)"
   # shellcheck disable=SC2086  # HB_BUILD_FLAGS is a list of flags on purpose
   HB_FILTER='^#[0-9]+ (\[|CACHED|ERROR)|^Step [0-9]+/|^ERROR|naming to|writing image|^Successfully' BUILDKIT_PROGRESS=plain \
-    hb_run "build $name" docker build $HB_BUILD_FLAGS "${args[@]}" -f "$HB_ROOT/$HB_I_FILE" -t "$name" "$HB_ROOT/$HB_I_CTX"
+    hb_run "build $name" docker build ${HB_BUILD_FLAGS:-} "${args[@]}" -f "$HB_ROOT/$HB_I_FILE" -t "$name" "$HB_ROOT/$HB_I_CTX"
 }
 
 # hb_ensure_image NAME [--always]: a missing image is built (after the project images it is built FROM); --always also refreshes an

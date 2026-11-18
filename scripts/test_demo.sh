@@ -6,6 +6,11 @@
 set -uo pipefail
 # shellcheck disable=SC2016,SC2317  # container-side expansion on purpose; cleanup() runs via trap
 cd "$(dirname "$0")/.." || exit 1
+# shellcheck source=lib/common.sh
+. scripts/lib/common.sh
+hb_require --compose --disk 6000 "the demo and browser images"
+hb_ensure_image hifi-demo:dev --always && hb_ensure_image btbridge-browser:dev || exit 2
+hb_pull_compose_images demo/compose.yml || exit 2
 export DEMO_HTTP_PORT=28080 DEMO_HTTPS_PORT=28443 DEMO_CONSOLE_PORT=28100 DEMO_LMS_PORT=29000 DEMO_HA_PORT=28123 \
        DEMO_SUBNET_DEMO=172.29.253.0/24 DEMO_SUBNET_EDGE=172.29.252.0/24
 P=hifi-demo-test
@@ -16,10 +21,8 @@ trap cleanup EXIT
 
 "${DC[@]}" down -v --remove-orphans >/dev/null 2>&1
 rm -rf "$STATE"; mkdir -p "$STATE" reports/screenshots measurements; chmod 0777 "$STATE"
-"${DC[@]}" build -q || exit 2
 "${DC[@]}" up -d >/dev/null 2>&1 || { "${DC[@]}" ps; exit 2; }
 for _ in $(seq 120); do [ "$("${DC[@]}" ps --format '{{.Health}}' hifi-bridge)" = healthy ] && break; sleep 1; done
-docker image inspect btbridge-browser:dev >/dev/null 2>&1 || (cd docker && docker compose --profile browser build -q browser) || exit 2
 
 NET=${P}_demo
 COMMON=(--rm --network "$NET" -v "$PWD":/work -v "${P}_owner":/owner:ro -v "${P}_mqtt-creds":/mqtt-creds:ro -w /work
@@ -29,15 +32,8 @@ BROWSER=(docker run "${COMMON[@]}" --ipc host btbridge-browser:dev python3 -m py
 CHAIN=(docker run "${COMMON[@]}" -e HOME=/tmp hifi-demo:dev python3 -m pytest -p no:cacheprovider -v)
 
 rc=0
-echo "### 0 isolation: the host has NO address on the demo network (checked before any packet is sent)"
-br="br-$(docker network inspect "$NET" --format '{{.Id}}' | cut -c1-12)"
-if ip -4 -o addr show "$br" 2>/dev/null | grep -q inet; then
-  echo "ABORT: the host has an IPv4 address on $br - demo containers could reach host services"; exit 3
-fi
-for c in hifi-bridge console wohnzimmer; do
-  "${DC[@]}" exec -T "$c" sh -c 'awk "NR>1 && \$2==\"00000000\"" /proc/net/route' | grep -q . && { echo "ABORT: $c has a default route"; exit 3; }
-done
-echo "ok: no host address on $br, no default route in the demo containers"
+echo "### 0 isolation: no route from the demo to the host or the LAN (scripts/check_isolation.sh; DECISIONS #71)"
+scripts/check_isolation.sh "$P" --allow-edge gateway || { echo "ABORT: the demo network is not isolated"; exit 3; }
 echo "### P7 CA trust proof BEFORE setup (flash tool; the one-time key is deleted when the owner password is set)"
 out=$("${DC[@]}" exec -T console python3 -m hififlash verify-device --url "http://hifi-bridge.local:$DEMO_HTTP_PORT" \
       --key-file /owner/trust.key --https "https://hifi-bridge.local:$DEMO_HTTPS_PORT" 2>&1); echo "$out"

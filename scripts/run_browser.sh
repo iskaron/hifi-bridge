@@ -3,9 +3,12 @@
 # Screenshots and the axe-core report land in reports/screenshots/.
 set -uo pipefail
 cd "$(dirname "$0")/.."  || exit 1
+# shellcheck source=lib/common.sh
+. scripts/lib/common.sh
+hb_require --compose
+hb_ensure_images btbridge-lab:dev btbridge-browser:dev
 scripts/lab_up.sh >/dev/null
 cd docker || exit 1
-docker compose --profile browser build -q browser >/dev/null
 docker compose --profile browser rm -sf appliance >/dev/null 2>&1
 docker volume rm -f btbridge-lab_appliance-data >/dev/null 2>&1
 docker compose --profile browser up -d appliance >/dev/null
