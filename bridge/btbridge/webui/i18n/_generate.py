@@ -114,6 +114,8 @@ for key,en,de in [("sys.health","Health","Zustand"),("sys.cpu","CPU","CPU"),("sy
 for s,(en,de) in {"ok":("normal","normal"),"warning":("warm","warm"),"critical":("too hot","zu heiß"),"unknown":("not available","nicht verfügbar")}.items(): k(f"thermal.{s}",en,de)
 for d,(en,de) in {"not_configured":("Setup is not finished.","Die Einrichtung ist nicht abgeschlossen."),"lyrion_unreachable":("The Lyrion server or player is not reachable.","Lyrion-Server oder Player sind nicht erreichbar."),
     "thermal_warning":("The device is getting warm.","Das Gerät wird warm."),"thermal_critical":("The device is too hot.","Das Gerät ist zu heiß."),"mqtt_disconnected":("MQTT broker not connected.","MQTT-Broker nicht verbunden."),
+    "pairing_adapter_error":("The Bluetooth adapter did not accept the last pairing change; the bridge keeps retrying.",
+                             "Der Bluetooth-Adapter hat die letzte Kopplungsänderung nicht übernommen; die Bridge versucht es weiter."),
     "stream_address_unavailable":("No network address for the stream yet: the bridge waits for the network before it starts playback.",
                                   "Noch keine Netzwerkadresse für den Stream: Die Bridge wartet auf das Netzwerk, bevor sie die Wiedergabe startet.")}.items(): k(f"degraded.{d}",en,de)
 # flashes + errors
@@ -169,6 +171,7 @@ for key,en,de in [("brand.device","Device","Gerät"),("brand.tagline","Bluetooth
     ("access.custom_help","Paste certificate (with chain) and key in PEM format. Used when “Own certificate” is selected.","Zertifikat (mit Kette) und Schlüssel im PEM-Format einfügen. Wird verwendet, wenn „Eigenes Zertifikat“ gewählt ist."),
     ("access.custom_install","Check and install","Prüfen und installieren"),
     ("flash.cert_installed","Certificate installed.","Zertifikat installiert."),("flash.cert_renewed","Certificate renewed.","Zertifikat erneuert."),
+    ("error.pairing_adapter","The Bluetooth adapter did not accept the change; the bridge keeps retrying.","Der Bluetooth-Adapter hat die Änderung nicht übernommen; die Bridge versucht es weiter."),
     ("error.https_only_needs_https","Open this page via HTTPS first – that proves your device trusts the certificate.","Öffnen Sie diese Seite zuerst über HTTPS – das zeigt, dass Ihr Gerät dem Zertifikat vertraut."),
     ("error.cert.pem_format","Certificate or key is not in PEM format.","Zertifikat oder Schlüssel ist nicht im PEM-Format."),
     ("error.cert.key_mismatch","The key does not belong to the certificate.","Der Schlüssel gehört nicht zum Zertifikat."),

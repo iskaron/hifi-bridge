@@ -387,12 +387,14 @@ def fmt(v, unit="") -> str:
 
 
 def pairing_open(req):
-    req.ui.svc.open_pairing()
+    if not req.ui.svc.open_pairing():
+        return _srv().redirect(safe_back(req, "/"), req.t("error.pairing_adapter"), req.secure, error=True)
     return _srv().redirect(safe_back(req, "/"), req.t("flash.pairing_opened"), req.secure)
 
 
 def pairing_close(req):
-    req.ui.svc.close_pairing()
+    if not req.ui.svc.close_pairing():
+        return _srv().redirect(safe_back(req, "/"), req.t("error.pairing_adapter"), req.secure, error=True)
     return _srv().redirect(safe_back(req, "/"), req.t("flash.pairing_closed"), req.secure)
 
 

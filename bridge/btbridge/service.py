@@ -437,6 +437,8 @@ class ApplianceService:
             degraded.append("thermal_" + self._thermal["state"])
         if (self.mqtt and not self.mqtt.state().get("connected")) or (self.mqtt is None and self.mqtt_failed):
             degraded.append("mqtt_disconnected")
+        if self.runtime.pairing.error:
+            degraded.append("pairing_adapter_error")
         headline = self._headline(b, degraded)
         return {
             "version": __version__,
@@ -475,11 +477,16 @@ class ApplianceService:
         return "connected"
 
     # ------------------------------------------------------------------ owner actions
-    def open_pairing(self) -> None:
-        self.runtime.pairing.open(); self.logs("pairing window opened")
+    def open_pairing(self) -> bool:
+        """False when the Bluetooth adapter refused the change (retried in the background, shown as degraded)."""
+        ok = self.runtime.pairing.open()
+        self.logs("pairing window opened" if ok else f"pairing window: the adapter refused to open ({self.runtime.pairing.error}); retrying")
+        return ok
 
-    def close_pairing(self) -> None:
-        self.runtime.pairing.close(); self.logs("pairing window closed")
+    def close_pairing(self) -> bool:
+        ok = self.runtime.pairing.close()
+        self.logs("pairing window closed" if ok else f"pairing window: the adapter refused to close ({self.runtime.pairing.error}); retrying")
+        return ok
 
     def set_audio_allowed(self, allowed: bool) -> None:
         self.store.update({"audio_allowed": allowed})
