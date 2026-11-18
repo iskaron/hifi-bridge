@@ -75,3 +75,23 @@ Scope: owner work package of 2026-11-18 (DECISIONS #73/#74).
   test after the lab is **recreated** - reproduced by force-recreating LMS + players: the first output cannot be aligned with the reference
   ("samples altered?", first audio at frame 190). Not seen in CI (cold LMS, fresh state, green) and not after a warm start: points at the
   lab's persisted LMS state in `.lab/`; analysed by a separate investigation (below).
+- Investigation of `test_end_to_end_bit_exact[wav]` after a lab recreate (harness issue, not the product):
+  - Evidence: the Squeezelite log of the failing session (`/captures/player1/squeezelite.log`, session of 22:28 UTC) shows the player
+    connecting and receiving `audg gainL: 3840` (about 6 % gain) from Lyrion's persisted prefs, and *no further gain change* at all
+    until the test stream (`audg 3840` again at stream start, and again 7 minutes later in the second run). So the player played at a
+    fraction of unity gain: the generator no longer matches the stored samples ("samples altered?"), which is exactly the analyser's
+    message. The sessions that passed show `audg 65536` right after the reset. The bridge's start sequence sends no volume command in
+    this test (its commands are `play`/`release`/`power_on`/`volume_delta` and the first phone volume value does not jump), so the
+    product is ruled out.
+  - Root cause: the lab's `reset()` assumed the volume command lands. Lyrion's persisted per-player volume (DECISIONS #47, kept in
+    `.lab/lms-config`) is applied when a player (re)connects, and a recreated Lyrion has no client objects before that (JSON-RPC to an
+    unconnected player is dropped: `RemoteDisconnected`). Nothing waited for the players, and nothing checked the gain the player
+    actually applied; the last suite leaves a low volume behind, so the first test after a recreate ran at it. The exact lost-command
+    interleaving could not be re-created afterwards (my first run rewrote the prefs to volume 100; about a dozen further recreate attempts with
+    a persisted volume of 6 passed), so the diagnosis is from the log evidence above, not from a re-played failure.
+  - Fix (`testkit/btkit/lab.py`): `Lab.reset()` first waits until Lyrion lists all four lab players as connected, then sends the usual
+    commands and confirms both Lyrion's `mixer volume == 100` **and the gain Squeezelite really applied** (last `audg` in its log
+    == 65536), retrying (with a 99 -> 100 nudge) up to 10 times and raising a clear error otherwise.
+  - Verification: persisted volume 6 on all players, then `docker compose up -d --force-recreate lms player1 player2 player3 legacy1`
+    and `scripts/run_integration.sh -k test_end_to_end_bit_exact` immediately: 3 of 3 runs green (2 passed each; the log shows `audg 36`
+    on connect followed by `audg 65536` from the reset), plus a warm run green.
