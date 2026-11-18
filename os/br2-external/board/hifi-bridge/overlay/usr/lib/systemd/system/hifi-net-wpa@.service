@@ -1,0 +1,22 @@
+# Client Wi-Fi on %I, started/stopped by hifi-netd only. Conflicts with the hotspot units: systemd itself never runs both (XOR).
+[Unit]
+Description=Hi-Fi Bridge client Wi-Fi on %I
+Conflicts=hifi-net-hostapd@%i.service hifi-net-dhcp@%i.service
+BindsTo=sys-subsystem-net-devices-%i.device
+After=sys-subsystem-net-devices-%i.device
+
+[Service]
+ExecStart=/usr/sbin/wpa_supplicant -i %I -D nl80211 -c /run/hifi-net/wpa_supplicant.conf
+Restart=on-failure
+RestartSec=2
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/run/hifi-net
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_PACKET AF_INET AF_INET6
+SystemCallArchitectures=native
+UMask=0077

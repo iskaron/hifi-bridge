@@ -1,0 +1,22 @@
+# Setup hotspot on %I (WPA2-PSK with the owner-known per-device password), started/stopped by hifi-netd only. Never together with the client.
+[Unit]
+Description=Hi-Fi Bridge setup hotspot on %I
+Conflicts=hifi-net-wpa@%i.service
+BindsTo=sys-subsystem-net-devices-%i.device
+After=sys-subsystem-net-devices-%i.device
+
+[Service]
+ExecStart=/usr/sbin/hostapd /run/hifi-net/hostapd.conf
+Restart=on-failure
+RestartSec=2
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/run/hifi-net
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_PACKET AF_INET AF_INET6
+SystemCallArchitectures=native
+UMask=0077
