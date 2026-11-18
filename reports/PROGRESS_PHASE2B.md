@@ -15,3 +15,9 @@ Scope: owner work package of 2026-11-18 (DECISIONS #73/#74).
   4. Flash tool GUI (PySide6, platform disk adapters, privileged helper, packaging preparation, LGPL).
   5. Entry points and demo (Docker/Compose minimum versions + pre-flight check, automatic image builds, progress output, demo loudness,
      clean-environment test, Lyrion isolation regression tests, pinned images).
+- Independent review of the existing product code (read-only; repro scripts run in `--network none` containers): 6 HIGH, 12 MEDIUM,
+  12 LOW findings, all HIGH reproduced except the Avahi half of H5 (code reading). Highlights: unauthenticated memory exhaustion via
+  `Content-Length: -1` (H1); a slow/unreachable Lyrion holds the controller lock long enough for the systemd watchdog to restart the bridge
+  in a loop (H2); the stream URL's address fixed at startup (H3); a bad MQTT CA or a long non-ASCII device name crash the start (H4/H5); a
+  power cut during CA creation leaves a permanent crash loop (H6). Flash-tool findings M11/M12 handed to the flash-tool stream; all others to
+  a sixth stream (review fixes, test-first).
