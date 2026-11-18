@@ -26,8 +26,9 @@ def test_track_renders_as_clean_stereo_44k1(track):
     assert len(pcm) == int(round(track.seconds * M.RATE)) * 4
     x = as_array(pcm)
     peak = np.abs(x).max()
-    assert 0.3 < peak <= 0.8                          # headroom, no clipping
-    assert np.sqrt(np.mean(x ** 2)) > 0.03            # music, not silence
+    assert 0.85 <= peak <= 0.9                        # -1 dBFS: loud but not clipping
+    rms_db = 20 * np.log10(np.sqrt(np.mean(x ** 2)))
+    assert -16.0 <= rms_db <= -11.0, rms_db           # loudness policy: the demo must not be quiet (was -17.8 dBFS before) nor harsh
     assert abs(x.mean()) < 0.01                       # no DC offset
     assert np.abs(x[0]).max() < 0.01 and np.abs(x[-1]).max() < 0.01   # faded in and out (no clicks at the ends)
     assert not np.array_equal(x[:, 0], x[:, 1])       # real stereo

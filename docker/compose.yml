@@ -85,7 +85,7 @@ services:
 
   # REAL Home Assistant for MQTT-discovery integration tests (profile "ha", scripts/run_homeassistant.sh). Fresh config per run.
   homeassistant:
-    image: ghcr.io/home-assistant/home-assistant:2026.11.1
+    image: ghcr.io/home-assistant/home-assistant:2026.11.1@sha256:6785d1eca68747a524c156faae1b139ed415c07357386ae6fe17291986e59e82
     profiles: ["ha"]
     networks: [lab]
     hostname: homeassistant
@@ -110,14 +110,14 @@ services:
       - syslog-out:/out
 
   mosquitto:
-    image: eclipse-mosquitto:2.0.20
+    image: eclipse-mosquitto:2.0.20@sha256:21421af7b32bf9ce508e9090c8eb13bb81f410ca778dc205506180a6f862d0eb
     networks: [lab]
     volumes:
       - ./mosquitto:/mosquitto/config:ro
     entrypoint: ["/bin/sh", "/mosquitto/config/start.sh"]
 
   lms:
-    image: lmscommunity/lyrionmusicserver:stable
+    image: lmscommunity/lyrionmusicserver:9.1.2@sha256:a8709abda8a80766274abeb44015189b7e050eb1a6372678dcb077eb8c3a1e21
     networks: [lab]
     volumes:
       - ./lms-config:/seed:ro

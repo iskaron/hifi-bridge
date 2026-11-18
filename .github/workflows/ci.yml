@@ -30,6 +30,7 @@ jobs:
         with:
           persist-credentials: false
       - run: scripts/run_static.sh
+      - run: scripts/run_entry_tests.sh
 
   unit:
     runs-on: ubuntu-24.04

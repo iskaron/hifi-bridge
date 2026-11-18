@@ -2,6 +2,9 @@
 # Fetch Buildroot at the pinned commit into .lab/buildroot (host filesystem, not versioned). Shallow; about 80 MB.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=lib/common.sh
+. scripts/lib/common.sh
+hb_require --tools git
 COMMIT=679b9ead7620bbf193620d1ebf56f53c1764d37a          # 2026.02.x LTS ("Update for 2026.02.3"), docs/PHASE2B_PLAN.md
 # Separate statements: with "mkdir && cd", a failing mkdir (e.g. .lab/ created by Docker as root) does not trigger set -e, and the
 # fetch/checkout below then ran in the PROJECT repository (found by a CI replay in a fresh clone, 2026-11-17).

@@ -1,0 +1,6 @@
+# Compose release binaries used by scripts/test_docker_versions.sh (downloaded from the project's releases, sha256 verified; also checked against
+# the release's own .sha256 asset on 2026-11-18). <version> <sha256 of docker-compose-linux-x86_64>
+2.20.3 f45e4cb687df8b48a57f656097ce7175fa8e8bef70be407b011e29ff663f475f
+2.24.5 94355be1d1d395040bbda1490f98d5c7627c30798a7955e1f2a78fda33a4b3e1
+2.33.1 3efda1ad6caed49dedd5644cadbf7e0c9cc3d74d8844ca5237b6a43ac1ef1a46
+2.36.2 9040bd35b2cc0783ce6c5de491de7e52e24d4137dbfc5de8a524f718fc23556c
