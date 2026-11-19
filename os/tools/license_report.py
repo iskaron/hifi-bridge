@@ -22,10 +22,13 @@ ALLOWED = {
 }
 # Explicitly reviewed non-standard licences (reason recorded)
 EXCEPTIONS = {
-    "rpi-firmware": "Raspberry Pi boot firmware binaries; Buildroot: BSD-3-Clause per boot/LICENCE.broadcom - text to be read in legal-info",
-    "brcmfmac_sdio-firmware-rpi": "PROPRIETARY Wi-Fi/Bluetooth chip firmware (LibreELEC repository, licence file LICENSE). Required for the "
-                                  "on-board radio. Redistribution terms NOT yet reviewed by a person - OPEN: read the LICENSE (legal-info) "
-                                  "before any public image release",
+    "rpi-firmware": "Raspberry Pi boot firmware binaries, boot/LICENCE.broadcom: binary redistribution without modification, only for "
+                    "Raspberry Pi devices, notice + disclaimer must accompany it (shipped in licenses/ on the FAT). Reviewed 2026-11-18, "
+                    "docs/IMAGE_LICENSING.md. The prebuilt DT overlays come from raspberrypi/linux@957fc9f9 (source offer needed)",
+    "brcmfmac_sdio-firmware-rpi": "Wi-Fi/Bluetooth chip firmware (Broadcom, Cypress, Synaptics EULAs in LICENSE + the Synaptics End-User "
+                                  "Software Tool License for the Zero 2 W Bluetooth files, which LICENSE lacks). Redistributable unmodified, "
+                                  "only for the chips, with the licence texts (shipped in licenses/ on the FAT). Reviewed 2026-11-18, "
+                                  "docs/IMAGE_LICENSING.md; export control + revocable Synaptics licence are owner decisions (G4)",
     "skeleton-init-common": "Buildroot's own skeleton files (Buildroot is GPL-2.0+); Buildroot marks them 'unknown'",
     "skeleton-init-systemd": "Buildroot's own skeleton files (Buildroot is GPL-2.0+); Buildroot marks them 'unknown'",
     "toolchain-external-bootlin": "pre-built Bootlin toolchain; on the target only its runtime libraries (glibc LGPL-2.1+, libgcc/libstdc++ "

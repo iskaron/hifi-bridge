@@ -1,0 +1,10 @@
+### make ota (compatible hifi-bridge-rpizero2w, version 0.3.0-dev, development signing key)
+      image btbridge-os:dev: present
+os_bundle: /out/hifi-bridge-hifi-bridge-rpizero2w-0.3.0-dev.raucb (77170127 bytes)
+os_bundle: output directory on this host: /home/olm/bluetooth-audio-bridge/.lab/br-out/rpizero2w_64/ota
+### rauc info with the image s keyring (1 certificate(s): O=Hi-Fi Bridge development, OU=temporary, not for release, CN=Hi-Fi Bridge DEV update CA a8324dbd)
+PASS accepted by the image keyring (bundle compatible hifi-bridge-rpizero2w)
+PASS bundle compatible = image compatible (hifi-bridge-rpizero2w)
+     version 0.3.0-dev | image sha256 d24f5bcd32a6067049a196eb016c71a2710bf40825c67b32ddfcee77ec20b8ee
+PASS a foreign-signed bundle is refused
+bundle size: 77170127 bytes

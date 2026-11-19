@@ -6,8 +6,9 @@ cd "$(dirname "$0")/.." || exit 1
 . scripts/lib/common.sh
 hb_require
 hb_ensure_images btbridge-os:dev
-[ -d .lab/buildroot/configs ] || scripts/os_fetch_buildroot.sh || exit 2
-docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -e BR2_DL_DIR=/tmp/dl -v "$PWD":/work -v "$PWD/.lab/buildroot":/buildroot:ro btbridge-os:dev bash -c '
+LAB="${HIFI_LAB:-$PWD/.lab}"
+[ -d "$LAB/buildroot/configs" ] || scripts/os_fetch_buildroot.sh || exit 2
+docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -e BR2_DL_DIR=/tmp/dl -v "$PWD":/work -v "$LAB/buildroot":/buildroot:ro btbridge-os:dev bash -c '
 rc=0
 for b in rpi3_64 rpi4_64 rpizero2w_64; do
   O=/tmp/out-$b

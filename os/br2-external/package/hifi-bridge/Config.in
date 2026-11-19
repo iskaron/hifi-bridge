@@ -16,6 +16,16 @@ config BR2_PACKAGE_HIFI_BRIDGE_COMPATIBLE
 	  Must be identical to the official image of the same board if
 	  official update bundles shall be accepted (docs/UPDATE_TRUST.md).
 
+config BR2_PACKAGE_HIFI_BRIDGE_BUILD_VARIANT
+	string "build variant"
+	default "development"
+	help
+	  "development" for every image that is not an official release
+	  (the default; such images are NOT hardware-validated). Only the
+	  release process sets "release", and only together with official
+	  update trust. Recorded in /usr/lib/os-release (VARIANT_ID), in
+	  /etc/hifi-bridge/build-info.json and in the image file name.
+
 choice
 	prompt "Accepted update signatures (explicit)"
 	default BR2_PACKAGE_HIFI_BRIDGE_UPDATE_TRUST_UNSET

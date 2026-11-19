@@ -10,8 +10,9 @@ cd "$(dirname "$0")/.." || exit 1
 hb_require
 hb_ensure_images btbridge-os:dev
 MODE="${1:-check}"
-[ -d .lab/buildroot/configs ] || scripts/os_fetch_buildroot.sh || exit 2
-docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -e BR2_DL_DIR=/tmp/dl -e MODE="$MODE" -v "$PWD":/work -v "$PWD/.lab/buildroot":/buildroot:ro btbridge-os:dev bash -c '
+LAB="${HIFI_LAB:-$PWD/.lab}"
+[ -d "$LAB/buildroot/configs" ] || scripts/os_fetch_buildroot.sh || exit 2
+docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -e BR2_DL_DIR=/tmp/dl -e MODE="$MODE" -v "$PWD":/work -v "$LAB/buildroot":/buildroot:ro btbridge-os:dev bash -c '
 set -uo pipefail
 EXT=/work/os/br2-external; rc=0
 for pair in rpi3_64:raspberrypi3_64 rpi4_64:raspberrypi4_64 rpizero2w_64:raspberrypizero2w_64; do

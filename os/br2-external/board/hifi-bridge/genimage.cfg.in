@@ -3,6 +3,8 @@
 image boot.vfat {
 	vfat {
 		label = "HIFIBOOT"
+		# constant volume serial and label time (Buildroot's mkfs.vfat draws them at random / from the clock; found by two clean builds)
+		extraargs = "--invariant"
 		files = {
 #BOOT_FILES#
 		}
@@ -14,6 +16,9 @@ image data.ext4 {
 	ext4 {
 		label = "hifi-data"
 		use-mke2fs = true
+		# fixed UUID and hash seed: otherwise every build differs (mounted by partition, never by UUID; docs/IMAGE_BUILD.md)
+		fs-timestamp = "#FS_TIMESTAMP#"
+		extraargs = "-U 3f6c2a91-7d4e-4b8a-a1c5-92e0d7b46f13 -E hash_seed=3f6c2a91-7d4e-4b8a-a1c5-92e0d7b46f13"
 	}
 	size = 64M
 }
@@ -21,6 +26,8 @@ image data.ext4 {
 image sdcard.img {
 	hdimage {
 		partition-table-type = "mbr"
+		# every partition starts on a 4 MiB boundary (SD erase-block size; without it genimage starts the FAT at sector 1)
+		align = 4M
 	}
 
 	partition boot {
