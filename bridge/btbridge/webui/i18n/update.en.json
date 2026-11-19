@@ -1,5 +1,7 @@
 {
  "bak.error.bad_request": "The upload was not understood.",
+ "bak.error.crypto_failed": "The encryption step failed; nothing was changed.",
+ "bak.error.crypto_unavailable": "Encryption is not available on this system (openssl missing).",
  "bak.error.generic": "The backup could not be processed ({code}).",
  "bak.error.invalid_file": "This is not a valid backup file.",
  "bak.error.invalid_settings": "The backup contains invalid settings; nothing was changed",

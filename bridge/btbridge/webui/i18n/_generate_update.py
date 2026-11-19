@@ -194,7 +194,9 @@ for c, en, de in [
         ("bad_request", "The upload was not understood.", "Der Upload wurde nicht verstanden."),
         ("truncated", "The upload was incomplete.", "Der Upload war unvollständig."),
         ("timeout", "The upload took too long.", "Der Upload hat zu lange gedauert."),
-        ("too_large", "The file is too large for a backup.", "Die Datei ist zu groß für eine Sicherung.")]:
+        ("too_large", "The file is too large for a backup.", "Die Datei ist zu groß für eine Sicherung."),
+        ("crypto_unavailable", "Encryption is not available on this system (openssl missing).", "Verschlüsselung ist auf diesem System nicht verfügbar (openssl fehlt)."),
+        ("crypto_failed", "The encryption step failed; nothing was changed.", "Der Verschlüsselungsschritt ist fehlgeschlagen; nichts wurde geändert.")]:
     k(f"bak.error.{c}", en, de)
 
 if __name__ == "__main__":

@@ -302,7 +302,7 @@ def test_export_with_secrets_needs_matching_strong_passphrase(u):
     u.c.post("/settings/backup/export", {"include_secrets": "on", "passphrase": "short", "confirm": "short"})
     assert "at least 10" in flash(u)
     r = u.c.post("/settings/backup/export", {"include_secrets": "on", "passphrase": "long enough pass", "confirm": "long enough pass"})
-    assert json.loads(r.body)["secrets"]["cipher"] == "hmac-sha256-ctr" and u.svc.store.secret("stream_token") not in r.body
+    assert json.loads(r.body)["secrets"]["cipher"] == "aes-256-ctr" and u.svc.store.secret("stream_token") not in r.body
 
 
 def import_file(u, raw: bytes, passphrase=""):

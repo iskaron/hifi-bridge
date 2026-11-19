@@ -1,5 +1,7 @@
 {
  "bak.error.bad_request": "Der Upload wurde nicht verstanden.",
+ "bak.error.crypto_failed": "Der Verschlüsselungsschritt ist fehlgeschlagen; nichts wurde geändert.",
+ "bak.error.crypto_unavailable": "Verschlüsselung ist auf diesem System nicht verfügbar (openssl fehlt).",
  "bak.error.generic": "Die Sicherung konnte nicht verarbeitet werden ({code}).",
  "bak.error.invalid_file": "Das ist keine gültige Sicherungsdatei.",
  "bak.error.invalid_settings": "Die Sicherung enthält ungültige Einstellungen; nichts wurde geändert",

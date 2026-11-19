@@ -110,15 +110,27 @@ The snapshots contain copies of `secrets.json` (owner password hash, stream toke
 a pending restore request, the update state and any bundle. If the snapshot cannot be written (e.g. full disk), nothing is installed.
 
 ## 7. Configuration backup
-`/settings/backup` exports a JSON file (`format: hifi-bridge-backup`, `format_version: 1`, `app_version`, `settings_schema`, `settings`,
-`secrets`). Imports from older format versions are migrated (registered upgrade functions); newer ones are refused ("update first").
+`/settings/backup` exports a JSON file (`format: hifi-bridge-backup`, `format_version: 2`, `app_version`, `settings_schema`, `settings`,
+`secrets`). Imports from older supported format versions are migrated (registered upgrade functions); newer ones are refused ("update
+first"). Version 1 (an own keystream construction) existed only on the unmerged development branch, never on a device, and is refused.
 * **Secrets are excluded by default** (`secrets: null`); the page lists what must be set again.
 * **Optionally included, encrypted** with an owner passphrase (≥ 10 characters): only the owner password hash, the stream token and the
   MQTT password. Never: the device CA key (DECISIONS #57), session keys, setup codes, trust keys, an own TLS key.
-* Encryption with the standard library only (DECISIONS #26): scrypt (n=2^14, r=8, p=1) → 32-byte encryption key + 32-byte MAC key;
-  keystream HMAC-SHA256(key, nonce‖counter); tag HMAC-SHA256 over the canonical JSON of the whole file (encrypt-then-MAC). The tag is
-  checked before anything is decrypted; a wrong passphrase and a modified file are indistinguishable on purpose. KDF parameters in the file
-  are bounded (no CPU/memory bomb). **This construction needs a review** (proposed decision, section 11).
+* Cryptography (DECISIONS #50: OpenSSL, no own cryptography):
+  * `hashlib.scrypt` (n=2^14, r=8, p=1, random 16-byte salt per file) → 64 bytes: 32 bytes of encryption key material and an independent
+    32-byte MAC key.
+  * **AES-256-CTR via the openssl CLI** (`openssl enc -aes-256-ctr -pbkdf2 -iter 1 -md sha256 -nosalt -pass fd:N`). The key material
+    reaches openssl **only through an inherited pipe** - never on the command line, in the environment or in a file (`-K`/`-iv` were
+    rejected because they put the key into argv). openssl derives key + IV from it with one PBKDF2 round: the input is already 256 bits
+    of scrypt output, unique per file, so neither salt nor stretching is needed there and (key, IV) never repeat.
+  * Encrypt-then-MAC: tag = HMAC-SHA256(MAC key, canonical header ‖ ciphertext); the header is the whole file except ciphertext and tag
+    (format version, settings, KDF parameters, cipher names). The tag is compared in constant time **before** openssl decrypts anything;
+    a wrong passphrase and a modified file are indistinguishable on purpose. KDF parameters in the file are bounded (no CPU/memory bomb).
+  * `openssl cms -pwri_password` was not needed: `enc` with `-pass fd:N` keeps all key material off the command line.
+  * Tests against the real openssl 3.0 of the lab image: round trip, an independent decryption with the openssl command itself, wrong
+    passphrase, tampering with header/salt/KDF parameters/ciphertext/tag/truncation (openssl is never called), a correctly tagged foreign
+    payload, a process check (a wrapper records `/proc/self/cmdline` and `environ` of the openssl process: neither passphrase nor key
+    material appears), and openssl missing/failing/hanging.
 * Restore validates everything first (format, every setting) and changes nothing if anything is wrong; settings unknown to this version are
   skipped and listed; restored secrets are applied at once (new stream token, MQTT reconnect); a restored owner password ends all sessions.
 

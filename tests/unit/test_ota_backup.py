@@ -1,9 +1,10 @@
-"""UNIT (real ConfigStore in a temporary directory): configuration backup export/import, explicit secrets handling, tamper detection,
-format versioning and migration."""
+"""UNIT (real ConfigStore in a temporary directory, REAL openssl CLI of the lab image): configuration backup export/import, explicit
+secrets handling, AES-256-CTR via `openssl enc` with the key material only on a pipe, encrypt-then-MAC tamper detection, format
+versioning and migration."""
 import base64
-import hashlib
-import hmac
 import json
+import os
+import stat
 
 import pytest
 
@@ -28,10 +29,21 @@ def target(tmp_path):
     return ConfigStore(str(tmp_path / "b"))
 
 
+def secret_doc(store):
+    return json.loads(B.export(store, include_secrets=True, passphrase=PASS))
+
+
+def script(tmp_path, name, body):
+    p = tmp_path / name
+    p.write_text("#!/bin/sh\n" + body)
+    p.chmod(p.stat().st_mode | stat.S_IEXEC)
+    return str(p)
+
+
 def test_default_export_contains_no_secret_at_all(store):
     raw = B.export(store, version="0.4.0", clock=lambda: 1000)
     doc = json.loads(raw)
-    assert doc["format"] == B.FORMAT and doc["format_version"] == 1 and doc["app_version"] == "0.4.0" and doc["created"] == 1000
+    assert doc["format"] == B.FORMAT and doc["format_version"] == 2 and doc["app_version"] == "0.4.0" and doc["created"] == 1000
     assert doc["secrets"] is None and doc["settings"]["device_name"] == "Wohnzimmer"
     assert "instance_id" not in doc["settings"] and "setup_complete" not in doc["settings"]
     text = raw.decode()
@@ -39,11 +51,14 @@ def test_default_export_contains_no_secret_at_all(store):
         assert secret not in text
 
 
-def test_encrypted_export_hides_the_secrets_and_restores_them(store, target):
+def test_round_trip_through_real_openssl(store, target):
     raw = B.export(store, include_secrets=True, passphrase=PASS)
-    for secret in ("pbkdf2$hash", "mqtt-secret", store.secret("stream_token")):
+    doc = json.loads(raw)
+    s = doc["secrets"]
+    assert s["cipher"] == "aes-256-ctr" and s["openssl"] == B.OPENSSL_MODE and s["kdf"] == "scrypt" and s["n"] == 2 ** 14
+    assert "nonce" not in s and len(base64.b64decode(s["salt"])) == 16 and len(base64.b64decode(s["tag"])) == 32
+    for secret in ("pbkdf2$hash", "mqtt-secret", store.secret("stream_token"), "never-exported", store.secret("session_key")):
         assert secret not in raw.decode()
-    assert "never-exported" not in raw.decode() and store.secret("session_key") not in raw.decode()
     p = B.plan(B.parse(raw), PASS)
     assert p["secrets"] == {"admin_password_hash": "pbkdf2$hash", "mqtt_password": "mqtt-secret", "stream_token": store.secret("stream_token")}
     res = B.apply(target, p)
@@ -51,6 +66,21 @@ def test_encrypted_export_hides_the_secrets_and_restores_them(store, target):
     assert target.secret("mqtt_password") == "mqtt-secret" and target.secret("admin_password_hash") == "pbkdf2$hash"
     assert res["secrets"] == ["admin_password_hash", "mqtt_password", "stream_token"] and "device_name" in res["changed"]
     assert target.secret("trust_key") is None
+    raw2 = B.export(store, include_secrets=True, passphrase=PASS)                 # fresh salt -> fresh keys, different ciphertext
+    assert json.loads(raw2)["secrets"]["ciphertext"] != s["ciphertext"]
+
+
+def test_the_ciphertext_is_standard_aes_256_ctr(store):
+    """Independent check: decrypting with the openssl CLI's own command (key material derived here) gives the secrets back."""
+    import subprocess
+    s = secret_doc(store)["secrets"]
+    enc, _ = B._keys(PASS, base64.b64decode(s["salt"]), s["n"], s["r"], s["p"])
+    r, w = os.pipe()
+    os.write(w, enc.hex().encode() + b"\n"); os.close(w)
+    out = subprocess.run(["openssl", "enc", "-d", "-aes-256-ctr", "-pbkdf2", "-iter", "1", "-md", "sha256", "-nosalt", "-pass", f"fd:{r}"],
+                         input=base64.b64decode(s["ciphertext"]), capture_output=True, pass_fds=(r,), check=True).stdout
+    os.close(r)
+    assert json.loads(out)["mqtt_password"] == "mqtt-secret"
 
 
 def test_secret_backup_needs_the_right_passphrase(store):
@@ -63,20 +93,71 @@ def test_secret_backup_needs_the_right_passphrase(store):
         B.export(store, include_secrets=True, passphrase="short")
 
 
-@pytest.mark.parametrize("field", ["settings", "ciphertext", "created", "kdf_n"])
-def test_tampering_with_any_part_is_detected(store, field):
-    doc = json.loads(B.export(store, include_secrets=True, passphrase=PASS))
+@pytest.mark.parametrize("field", ["settings", "created", "format_version_header", "kdf_n", "salt", "ciphertext", "tag", "truncated"])
+def test_tampering_with_header_ciphertext_or_tag_is_detected_before_decryption(store, field, monkeypatch):
+    doc = secret_doc(store)
+    s = doc["secrets"]
+    flip = lambda b64, i=0: base64.b64encode(bytes(x ^ (1 if j == i else 0) for j, x in enumerate(base64.b64decode(b64)))).decode()
     if field == "settings":
         doc["settings"]["lms_host"] = "evil.example"
-    elif field == "ciphertext":
-        ct = bytearray(base64.b64decode(doc["secrets"]["ciphertext"])); ct[0] ^= 1
-        doc["secrets"]["ciphertext"] = base64.b64encode(bytes(ct)).decode()
     elif field == "created":
         doc["created"] += 1
+    elif field == "format_version_header":
+        doc["app_version"] = "9.9.9"
+    elif field == "kdf_n":
+        s["n"] = 2 ** 15
+    elif field == "salt":
+        s["salt"] = flip(s["salt"])
+    elif field == "ciphertext":
+        s["ciphertext"] = flip(s["ciphertext"], 3)
+    elif field == "tag":
+        s["tag"] = flip(s["tag"], 31)
     else:
-        doc["secrets"]["n"] = 2 ** 15
+        s["ciphertext"] = base64.b64encode(base64.b64decode(s["ciphertext"])[:-4]).decode()
+    calls = []
+    monkeypatch.setattr(B, "_openssl", lambda *a: calls.append(a))
     with pytest.raises(B.BackupError, match="wrong_passphrase"):
         B.plan(B.parse(json.dumps(doc).encode()), PASS)
+    assert calls == []                                                      # openssl never saw the modified ciphertext
+
+
+def test_truncated_file_is_not_a_backup(store):
+    raw = B.export(store, include_secrets=True, passphrase=PASS)
+    with pytest.raises(B.BackupError, match="invalid_file"):
+        B.parse(raw[:-40])
+
+
+def test_key_material_never_on_the_command_line_or_in_the_environment(store, tmp_path, monkeypatch):
+    """Process-list check: a wrapper records what the openssl process itself sees (/proc/self/cmdline, /proc/self/environ)."""
+    log = tmp_path / "proc.log"
+    wrapper = script(tmp_path, "openssl", f'tr "\\0" " " < /proc/$$/cmdline >> {log}; echo >> {log}; tr "\\0" "\\n" < /proc/$$/environ >> {log}\n'
+                                          f'ls /proc/$$/fd >> {log}\nexec openssl "$@"\n')
+    monkeypatch.setattr(B, "OPENSSL", wrapper)
+    doc = secret_doc(store)
+    B.plan(B.parse(json.dumps(doc).encode()), PASS)
+    seen = log.read_text()
+    s = doc["secrets"]
+    enc, mac = B._keys(PASS, base64.b64decode(s["salt"]), s["n"], s["r"], s["p"])
+    assert "-pass fd:" in seen and "aes-256-ctr" in seen
+    for secret in (PASS, enc.hex(), mac.hex(), enc.hex().upper()):
+        assert secret not in seen
+    assert not any(n.startswith("tmp") for n in os.listdir(tmp_path) if n not in ("openssl", "proc.log"))   # no key file left behind
+
+
+def test_openssl_missing_failing_or_hanging(store, tmp_path, monkeypatch):
+    monkeypatch.setattr(B.shutil, "which", lambda name: None)
+    with pytest.raises(B.BackupError, match="crypto_unavailable"):
+        B.export(store, include_secrets=True, passphrase=PASS)
+    monkeypatch.setattr(B, "OPENSSL", str(tmp_path / "no-such-openssl"))
+    with pytest.raises(B.BackupError, match="crypto_unavailable"):
+        B.export(store, include_secrets=True, passphrase=PASS)
+    monkeypatch.setattr(B, "OPENSSL", script(tmp_path, "failing", "exit 3\n"))
+    with pytest.raises(B.BackupError, match="crypto_failed"):
+        B.export(store, include_secrets=True, passphrase=PASS)
+    monkeypatch.setattr(B, "OPENSSL", script(tmp_path, "hanging", "exec sleep 5\n"))
+    monkeypatch.setattr(B, "OPENSSL_TIMEOUT", 0.3)
+    with pytest.raises(B.BackupError, match="crypto_failed: timeout"):
+        B.export(store, include_secrets=True, passphrase=PASS)
 
 
 def test_a_settings_only_backup_restores_without_touching_secrets(store, target):
@@ -105,11 +186,11 @@ def test_invalid_settings_refuse_the_whole_restore(store, target):
 
 @pytest.mark.parametrize("raw,code", [
     (b"\xff\xfe", "invalid_file"), (b"[1]", "wrong_format"), (b'{"format": "other"}', "wrong_format"),
-    (b'{"format": "hifi-bridge-backup", "format_version": "1"}', "wrong_format"),
-    (b'{"format": "hifi-bridge-backup", "format_version": 0}', "wrong_format"),
-    (b'{"format": "hifi-bridge-backup", "format_version": 2}', "too_new"),
-    (b'{"format": "hifi-bridge-backup", "format_version": 1, "settings": []}', "invalid_file"),
-    (b'{"format": "hifi-bridge-backup", "format_version": 1, "settings": {}, "secrets": "x"}', "invalid_file"),
+    (b'{"format": "hifi-bridge-backup", "format_version": "2"}', "wrong_format"),
+    (b'{"format": "hifi-bridge-backup", "format_version": 1, "settings": {}, "secrets": null}', "wrong_format"),   # pre-release format
+    (b'{"format": "hifi-bridge-backup", "format_version": 3}', "too_new"),
+    (b'{"format": "hifi-bridge-backup", "format_version": 2, "settings": []}', "invalid_file"),
+    (b'{"format": "hifi-bridge-backup", "format_version": 2, "settings": {}, "secrets": "x"}', "invalid_file"),
     (b" " * (B.MAX_BACKUP + 1), "invalid_file"),
 ])
 def test_malformed_files(raw, code):
@@ -118,35 +199,35 @@ def test_malformed_files(raw, code):
     assert e.value.code == code
 
 
-@pytest.mark.parametrize("change", [{"kdf": "pbkdf2"}, {"n": "x"}, {"n": 3}, {"n": 2 ** 20}, {"r": 99}, {"salt": "***"}, {"p": None}])
+@pytest.mark.parametrize("change", [{"kdf": "pbkdf2"}, {"cipher": "aes-128-cbc"}, {"openssl": "enc-other"}, {"n": "x"}, {"n": 3},
+                                    {"n": 2 ** 20}, {"r": 99}, {"salt": "***"}, {"p": None}])
 def test_unusable_secret_parameters(store, change):
-    doc = json.loads(B.export(store, include_secrets=True, passphrase=PASS))
+    doc = secret_doc(store)
     doc["secrets"].update(change)
     with pytest.raises(B.BackupError, match="invalid_file"):
         B.decrypt(doc, PASS)
 
 
-def test_correctly_tagged_garbage_is_refused(store):
-    doc = json.loads(B.export(store, include_secrets=True, passphrase=PASS))
+@pytest.mark.parametrize("payload", [b"not json", b"[1, 2]"])
+def test_correctly_tagged_foreign_payload_is_refused(store, payload):
+    doc = secret_doc(store)
     s = doc["secrets"]
-    salt, nonce = base64.b64decode(s["salt"]), base64.b64decode(s["nonce"])
-    enc, mac = B._keys(PASS, salt, s["n"], s["r"], s["p"])
-    ct = B._stream(enc, nonce, b"not json")
+    enc, mac = B._keys(PASS, base64.b64decode(s["salt"]), s["n"], s["r"], s["p"])
+    ct = B._openssl(False, enc, payload)
     s["ciphertext"] = base64.b64encode(ct).decode()
-    s["tag"] = base64.b64encode(hmac.new(mac, B._header(doc) + nonce + ct, hashlib.sha256).digest()).decode()
+    s["tag"] = base64.b64encode(B._tag(mac, doc, ct)).decode()
     with pytest.raises(B.BackupError, match="invalid_file"):
         B.decrypt(doc, PASS)
 
 
 def test_older_format_versions_are_migrated(store, monkeypatch):
     doc = json.loads(B.export(store))
-    doc["format_version"] = 1
     doc["settings"]["old_name"] = doc["settings"].pop("device_name")
 
-    def v1_to_v2(d):
+    def v2_to_v3(d):
         d["settings"]["device_name"] = d["settings"].pop("old_name")
-        return {**d, "format_version": 2}
-    monkeypatch.setattr(B, "FORMAT_VERSION", 2)
-    monkeypatch.setitem(B.MIGRATIONS, 1, v1_to_v2)
+        return {**d, "format_version": 3}
+    monkeypatch.setattr(B, "FORMAT_VERSION", 3)
+    monkeypatch.setitem(B.MIGRATIONS, 2, v2_to_v3)
     p = B.plan(B.parse(json.dumps(doc).encode()))
     assert p["settings"]["device_name"] == "Wohnzimmer" and p["skipped"] == []
