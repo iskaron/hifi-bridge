@@ -24,8 +24,18 @@ addStrings({
   },
 });
 const M = { ctx: null, node: null, abort: null, room: null, state: null, lastT: null, levels: [0, 0] };
-window.monitorStats = { latencyMs: null, bufferMs: null, outputMs: null, underruns: 0, frames: 0, peak: 0, engine: null };
+window.monitorStats = { limiter: "soft knee 0.6 -> 0.98", latencyMs: null, bufferMs: null, outputMs: null, underruns: 0, frames: 0, peak: 0, engine: null };
 
+// Linear up to 0.6 of full scale, then a smooth tanh knee towards 0.98: no makeup gain (unlike DynamicsCompressorNode), no added latency.
+function softLimiterCurve() {
+  const n = 4097, c = new Float32Array(n), t = 0.6, k = 0.38;
+  for (let i = 0; i < n; i++) {
+    const x = (2 * i) / (n - 1) - 1, a = Math.abs(x);
+    c[i] = a <= t ? x : Math.sign(x) * (t + k * Math.tanh((a - t) / k));
+  }
+  return c;
+}
+const DEFAULT_GAIN = "4";                              // +12 dB: the rooms start at Lyrion volume 75 (-12.5 dB); see docs/DEMO.md "Loudness"
 function playerFor(room) { return ((M.state && M.state.players) || []).find((p) => p.name === room); }
 function selectedRoom() { const r = document.querySelector('input[name="room"]:checked'); return r ? r.value : null; }
 
@@ -46,7 +56,11 @@ async function startListening() {
     M.node = fallbackPlayer(M.ctx, 250, 800);
     window.monitorStats.engine = "ScriptProcessor";
   }
-  if (!M.gain) { M.gain = M.ctx.createGain(); M.gain.connect(M.ctx.destination); }
+  if (!M.gain) {                                     // listening level -> soft limiter -> speakers: a high level never clips hard
+    M.gain = M.ctx.createGain();
+    M.limiter = M.ctx.createWaveShaper(); M.limiter.curve = softLimiterCurve(); M.limiter.oversample = "none";
+    M.gain.connect(M.limiter); M.limiter.connect(M.ctx.destination);
+  }
   M.gain.gain.value = Number(document.getElementById("gain").value);
   M.node.connect(M.gain);
   M.abort = new AbortController();
@@ -150,9 +164,9 @@ async function refresh() { try { M.state = await api("/api/state"); render(); } 
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("listen").addEventListener("click", () => (M.node ? stopListening() : startListening()));
   const g = document.getElementById("gain"), gv = document.getElementById("gainv");
-  g.value = store.get("hifi-demo-gain", "2");
+  g.value = store.get("hifi-demo-gain-v2", DEFAULT_GAIN);
   const showGain = () => { gv.textContent = Math.round(100 * Number(g.value)) + " %"; if (M.gain) M.gain.gain.value = Number(g.value); };
-  g.addEventListener("input", () => { store.set("hifi-demo-gain", g.value); showGain(); });
+  g.addEventListener("input", () => { store.set("hifi-demo-gain-v2", g.value); showGain(); });
   showGain();
   document.getElementById("radio").addEventListener("click", () => { const p = playerFor(selectedRoom()); if (p) lms("/api/lms/radio", { player: p.id }); });
   document.getElementById("stop").addEventListener("click", () => { const p = playerFor(selectedRoom()); if (p) lms("/api/lms/stop", { player: p.id }); });

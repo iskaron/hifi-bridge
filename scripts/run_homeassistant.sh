@@ -3,6 +3,10 @@
 # the lab runner. Prints the HA log lines that mention MQTT warnings/errors about our discovery payloads.
 set -uo pipefail
 cd "$(dirname "$0")/.."  || exit 1
+# shellcheck source=lib/common.sh
+. scripts/lib/common.sh
+hb_require --compose
+hb_ensure_images btbridge-lab:dev
 scripts/lab_up.sh >/dev/null
 cd docker || exit 1
 docker compose --profile ha rm -sf homeassistant >/dev/null 2>&1

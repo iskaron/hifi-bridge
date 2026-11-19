@@ -204,3 +204,87 @@ Do not turn measurements into artificial requirements. Ask for an explicit decis
 ## Owner clarification, 2026-11-15: development host has no physical audio hardware
 
 Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardware, sound cards, physical players or live LMS hosts. Build an actual in-Docker LMS and headless players, inject simulated phone Bluetooth audio through a replaceable adapter, and label the measured and unmeasured parts rigorously. Physical radio and device testing is a separate later-stage validation, not a phase-1 blocker.
+
+## Phase 2b - software completion and hardware readiness (owner, 2026-11-18)
+73. **Hardware-gate exception for software only:** the owner allows the software implementation of phase 2b (flash tool GUI, network
+    management, OTA/update management, review and coverage work) **and complete internal Buildroot development builds** before gate G1 is
+    passed. The exception covers software development, builds and hardware-free tests only. **All hardware gates (G1-G4) stay open**;
+    no simulated, emulated or build-only result counts as hardware validation. Images built under this exception are internal,
+    non-hardware-validated development artefacts and are never published (no release, no tag, no upload).
+74. **Findings of the owner's personal demo test (2026-11-18)** are in scope: Docker/Compose minimum versions with a pre-flight check, entry
+    scripts that build missing project images themselves, visible progress output, demo loudness (without changing the product audio
+    engine without reason), clean-environment tests of the entry points, isolation regression tests against production Lyrion servers,
+    reproducibly pinned Lyrion images.
+
+## Implementation decisions of package 1 - review fixes (reversible engineering rules; 2026-11-18)
+75. **No LMS call under the controller's state lock.** The controller takes a snapshot under the lock, calls LMS without it and
+    revalidates under the lock afterwards (server, target, phone and session unchanged); a superseded start removes exactly the item it
+    started, by URL. Status reads never wait for LMS I/O; the LMS host name is resolved in a worker with a 2 s timeout and cached 60 s.
+    Health treats a loop waiting in an LMS call as busy and only a call over 60 s as hung (review H2, docs/SERVICE_SUPERVISION.md).
+76. **Settings survive a downgrade:** the configuration store keeps unknown keys, values and secrets verbatim and never lowers
+    `schema_version`; only undecodable content counts as corrupt, an I/O error is reported instead of resetting the device (review M8;
+    needed for OTA rollback).
+77. **Bare local host names are accepted** by the Host check (e.g. `http://hifi-bridge/` through a router's search domain); single-label
+    names cannot be rebound through public DNS. Extends #35 (review M9).
+
+## Implementation decisions of package 2 - demo and entry points (reversible; 2026-11-18)
+78. **Docker minimums: Engine 24.0 + Compose 2.20; Engine >= 29 needs Compose >= 2.24.5** (Engine 29 refuses API 1.43 clients). Determined
+    by validating the compose files with static Compose binaries 2.20.3-2.36.2 and by running the demo topology in disposable dind
+    sandboxes on Engine 24.0.9-29.1.5 (docs/DOCKER_REQUIREMENTS.md, reports/evidence/docker_version_matrix*.log). `gw_priority` (Compose
+    >= 2.33, the cause of the owner's failure) is no longer used: Docker puts the gateway's default route on the only non-internal network
+    on every tested engine; isolation unchanged (#71). A pre-flight check (`make doctor`, run by every entry point) names the detected and
+    required versions and how to upgrade, before anything is started.
+79. **Entry scripts share `scripts/lib/common.sh`:** an image registry (Dockerfile, context, build args, dependencies) builds missing project
+    images in dependency order and pulls third-party images itself; step counters, elapsed time, filtered build output and a heartbeat after
+    15 s of silence; `-q`/`HB_QUIET=1` for CI; full logs under `/tmp/hifi-bridge-logs-<uid>/`.
+80. **Reproducible images:** every third-party image is pinned by exact tag **and** manifest-list digest in `docker/image-pins.txt`
+    (Lyrion 9.1.2 instead of `stable`); a static test rejects unpinned or moving references; pins are updated deliberately with
+    `scripts/image_pins.sh` (docs/IMAGE_PINS.md). Resolves OPEN_QUESTIONS #48.
+81. **Demo loudness (demo only, product audio engine unchanged):** rooms start at volume 75 (Lyrion's default 50 = -25 dB), generated audio
+    at -13.6 dBFS RMS / -1 dBFS peak with a soft limiter, monitor default gain 4 behind a soft-knee limiter. Measured at the Wohnzimmer DAC:
+    -42.1 → -25.7 dBFS RMS. Resolves OPEN_QUESTIONS #49.
+82. **Isolation against production Lyrion servers is regression-tested** statically (every network internal + `inhibit_ipv4` except the
+    gateway's `edge`; no host networking, `extra_hosts`, Docker socket; Lyrion only as `lms`) and at runtime (`scripts/check_isolation.sh`:
+    no host address, TCP 9000/3483, UDP discovery and broadcast to host addresses fail), with a positive and a negative control.
+
+## Implementation decisions of package 3 - network management (reversible; 2026-11-18; details docs/NETWORK.md)
+83. **Privilege boundary:** a small root agent `hifi-netd` accepts six JSON requests (`status`, `trial`, `confirm`, `revert`, `scan`,
+    `hostname`) on `/run/hifi-net/agent.sock` (0660 root:hifi-bridge, SO_PEERCRED: root or the bridge's uid, ≤ 4 KiB). No request carries
+    configuration: the bridge owns `network.json` (0600); the agent reads it strictly (no symlinks, owner, mode, size), checks its SHA-256
+    against the request id, validates it again and never writes the bridge's data. An invalid file means Ethernet + DHCP only.
+84. **Hotspot policy:** only with owner-known hotspot credentials + a regulatory country + no working Ethernet uplink (P6, #56). Opens 60 s
+    after the configured Wi-Fi fails, or 15 s after start without configured Wi-Fi; retries the Wi-Fi after 2 min, 5 min, then every
+    10 min, never while a phone is connected to the hotspot and only if a scan sees the network; closes after Ethernet returns and 30 s idle.
+    Client Wi-Fi and hotspot are mutually exclusive, also enforced by systemd `Conflicts=` between the units.
+85. **Owner network changes are trials:** a change that affects the connection the owner may be using must be confirmed on the page within
+    3 min, otherwise it is rolled back automatically; a failed Wi-Fi attempt rolls back at once; after a power cut the last confirmed
+    configuration applies. SD-card/console recovery `network-reset` forgets client Wi-Fi and fixed addresses (keeps country and hotspot).
+86. **Hotspot network:** 10.42.0.1/24, WPA2-PSK/CCMP, client isolation, ≤ 8 stations, dnsmasq DHCP only (no router, no DNS - no captive-portal
+    emulation); WPA3-SAE for the hotspot only after hardware test N-4.
+87. **No SSID or password as text in daemon configuration files** (WPA2 PMK hex, SAE password hex, hostapd `wpa_psk` hex, SSIDs hex) -
+    found by the real-tool test: wpa_supplicant strips `#` outside quotes, so a passphrase containing `"` or `#` was silently truncated.
+88. **V1 scope:** one saved client Wi-Fi network; open, WEP, WPA1 and enterprise networks are not supported.
+89. **OS stack:** systemd-networkd + timesyncd + hostnamed + nftables (inet, default deny inbound/forward; LAN: WebUI 80/443, stream 8090,
+    mDNS, DHCP/ND replies, Lyrion discovery replies, rate-limited ICMP; hotspot clients: DHCP + WebUI only); base firewall loaded before
+    `network-pre.target`; Avahi host name follows `local_hostname` through the agent; wait-online `--any --timeout=15`; the time-sync clock
+    file persists on the data partition (no RTC).
+
+## Implementation decisions of package 4 - OTA update management (reversible; 2026-11-19; details docs/OTA.md)
+90. **RAUC access:** the bridge talks to RAUC over D-Bus; our policy allows only root and `hifi-bridge` (upstream allows every local user).
+    "Restart now" creates an empty file in `/run/hifi-bridge-ota`; a root `hifi-bridge-reboot.path`/`.service` reacts to it and reads no
+    input. No other root helper.
+91. **Mark-good only from the health check** (`hifi-bridge-health.service`: `/data` mounted, state writable, loopback `/healthz` ok or
+    degraded, RAUC reachable); upstream's unconditional `rauc-mark-good.service` is masked. A failed first boot of a new slot: `mark-bad` +
+    reboot to the previous slot; a failure on an established slot does not reboot (U-Boot's boot-count falls back after three boots).
+    Manual rollback (`mark-active other`) only when the other slot is bootable and its version is known.
+92. **Staging requires RAUC's signature check (`InspectBundle`, keyring, codeSigning) and the manager's own compatible check** - real
+    RAUC 1.13 does not compare the compatible during inspection; payload integrity is enforced by dm-verity at install time.
+93. **Pre-update snapshot** of settings, secrets, network configuration and certificates before every install (no install without it);
+    restored **only on the owner's request** (ConfigStore keeps newer settings across a rollback, #76); factory reset removes snapshots.
+94. **Configuration backup:** versioned JSON; secrets excluded by default; optionally the owner password hash, stream token and MQTT
+    password are encrypted with an owner passphrase - scrypt (salted, per file) → AES-256-CTR via the openssl CLI (key material only through
+    an inherited pipe, never argv/environment/files) + encrypt-then-MAC HMAC-SHA256 checked before decryption (#50: no own cryptography; a
+    first self-built keystream was rejected in review). The device CA key and sessions are never exported.
+95. **Official update source:** release assets are accepted only from `<official repository>/releases/download/`; the update check is
+    manual and never installs (#10); it works only once releases are public (OPEN_QUESTIONS #45). `make ota` (`scripts/os_bundle.sh`) builds
+    bundles with throw-away development keys and refuses certificates without codeSigning or keys tracked by git.

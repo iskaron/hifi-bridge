@@ -149,6 +149,8 @@ def test_02_dashboard_live_updates_accessibility_tree_and_pairing(chromium):
     expect(cd).to_be_visible()
     first = cd.inner_text(); time.sleep(2.2)
     assert cd.inner_text() != first, "countdown should tick"
+    ticked = cd.inner_text()                                                    # review M6: guests must be told the DEVICE name
+    assert "Wohnzimmer" in ticked and "Hi-Fi Bridge" not in ticked, ticked
     shot(page, "06-pairing-open-mobile-light")
     page.get_by_role("button", name="Stop pairing").click()
     ctx.close()
@@ -160,7 +162,7 @@ def test_03_settings_overview_and_sections_on_a_phone(chromium):
     ctx, page = new_page(chromium, errors, storage_state=STATE["storage"], **MOBILE)
     page.goto(BASE + "/settings")
     links = page.locator(".settings-list a")
-    assert links.count() == 8
+    assert links.count() == 11                                                  # incl. Network, Software update, Backup
     no_overflow(page); axe_ok(page, "settings"); shot(page, "07-settings-overview-mobile-light")
     for name, path in (("access", "/settings/access"), ("mqtt", "/settings/mqtt"), ("lyrion", "/settings/lyrion"), ("logging", "/settings/logging")):
         page.goto(BASE + path)

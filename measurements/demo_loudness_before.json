@@ -1,0 +1,43 @@
+{
+ "at_volume": {
+  "100": {
+   "mixer_volume_reported": 100,
+   "peak_dbfs": -3.1,
+   "rms_dbfs": -16.5
+  },
+  "50": {
+   "mixer_volume_reported": 50,
+   "peak_dbfs": -28.8,
+   "rms_dbfs": -42.1
+  },
+  "75": {
+   "mixer_volume_reported": 75,
+   "peak_dbfs": -15.4,
+   "rms_dbfs": -29.8
+  }
+ },
+ "initial_lyrion_volume": 50,
+ "room": "Wohnzimmer",
+ "source_radio_show": {
+  "peak_dbfs": -3.1,
+  "rms_dbfs": -17.7
+ },
+ "source_tracks": {
+  "abendlicht": {
+   "peak_dbfs": -3.1,
+   "rms_dbfs": -17.8
+  },
+  "kaffeehaus": {
+   "peak_dbfs": -3.1,
+   "rms_dbfs": -18.2
+  },
+  "morgenstunde": {
+   "peak_dbfs": -3.1,
+   "rms_dbfs": -18.4
+  },
+  "nordlicht": {
+   "peak_dbfs": -3.1,
+   "rms_dbfs": -17.7
+  }
+ }
+}

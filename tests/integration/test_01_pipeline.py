@@ -46,7 +46,7 @@ def test_end_to_end_bit_exact_and_startup_probes(lab, fmt):
         res = A.integrity(cap)
         p = probes(lab, rt, sim, cap)
         print("PROBES", p, "INTEGRITY", {k: res.get(k) for k in ("blocks", "matched", "mismatched", "jumps")})
-        assert res["blocks"] > 80
+        assert res["blocks"] > 80, res
         assert res["mismatched"] <= 1, res                    # only the tail block at stop may differ
         assert all(d == 0 for _, d in res["jumps"]), res      # no lost or repeated frames
         assert p["t_first_lms_output"] is not None

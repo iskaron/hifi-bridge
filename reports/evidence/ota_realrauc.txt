@@ -1,0 +1,26 @@
+# update management with the real RAUC service - 2026-11-19T06:27:24Z - label INTEGRATION (Docker, no device, no loop device)
+rauc: rauc 1.13
+dbus-daemon: D-Bus Message Bus Daemon 1.16.2
+fw_setenv: 0.3.5-0.1+b2
+jeepney: 0.9.0
+============================= test session starts ==============================
+platform linux -- Python 3.13.5, pytest-8.3.5, pluggy-1.5.0 -- /usr/bin/python3
+rootdir: /work
+configfile: pytest.ini
+collecting ... collected 12 items
+
+tests/ota/test_rauc_real.py::test_properties_slots_and_primary PASSED    [  8%]
+tests/ota/test_rauc_real.py::test_mark_writes_the_u_boot_environment PASSED [ 16%]
+tests/ota/test_rauc_real.py::test_inspect_verifies_signature_and_purpose_but_not_compatible PASSED [ 25%]
+tests/ota/test_rauc_real.py::test_manager_stages_only_signed_bundles_for_this_board PASSED [ 33%]
+tests/ota/test_rauc_real.py::test_install_failure_keeps_the_device_on_its_slot PASSED [ 41%]
+tests/ota/test_rauc_real.py::test_rauc_restart_is_survived PASSED        [ 50%]
+tests/ota/test_rauc_real.py::test_manual_slot_switch_and_cancel_with_real_rauc PASSED [ 58%]
+tests/ota/test_rauc_real.py::test_health_check_marks_the_booted_slot_good PASSED [ 66%]
+tests/ota/test_rauc_real.py::test_policy_allows_only_root_and_the_bridge_user PASSED [ 75%]
+tests/ota/test_rauc_real.py::test_upstream_policy_alone_would_let_anyone_in PASSED [ 83%]
+tests/ota/test_rauc_real.py::test_bundle_script_is_reproducible_and_creates_development_keys_once PASSED [ 91%]
+tests/ota/test_rauc_real.py::test_bundle_script_refuses_a_certificate_without_codesigning PASSED [100%]
+
+============================== 12 passed in 5.64s ==============================
+ota exit code: tests=0

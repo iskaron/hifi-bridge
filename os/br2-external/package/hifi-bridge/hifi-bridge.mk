@@ -16,7 +16,7 @@ HIFI_BRIDGE_PACKAGING = $(BR2_EXTERNAL_HIFI_BRIDGE_PATH)/../../packaging
 
 define HIFI_BRIDGE_INSTALL_TARGET_CMDS
 	mkdir -p $(TARGET_DIR)/usr/lib/hifi-bridge
-	rsync -a --delete --exclude '__pycache__' --exclude '*.pyc' --exclude '_generate.py' \
+	rsync -a --delete --exclude '__pycache__' --exclude '*.pyc' --exclude '_generate*.py' \
 		$(@D)/btbridge/ $(TARGET_DIR)/usr/lib/hifi-bridge/btbridge/
 endef
 

@@ -6,3 +6,9 @@ language: DE
 audiodir: ''
 playlistdir: /playlist
 autorescan: 0
+_client:02:00:00:00:01:01:
+  volume: 75
+_client:02:00:00:00:01:02:
+  volume: 75
+_client:02:00:00:00:01:03:
+  volume: 75

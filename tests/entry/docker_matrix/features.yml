@@ -1,0 +1,45 @@
+# Every Compose feature that demo/compose.yml, docker/compose.yml and scripts/demo.sh rely on, in miniature (scripts/test_docker_versions.sh).
+name: hifi-entry-features
+x-base: &base
+  image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+  networks: [demo]
+  restart: unless-stopped
+  init: false
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+services:
+  once:
+    <<: *base
+    restart: "no"
+    command: ["sh", "-c", "true"]
+  srv:
+    <<: *base
+    command: ["sh", "-c", "while true; do printf 'HTTP/1.0 200 OK\\r\\n\\r\\nok' | nc -l -p 8000; done"]
+    depends_on:
+      once:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "sh", "-c", "true"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+      start_period: 1s
+  dep:
+    <<: *base
+    command: ["sleep", "infinity"]
+    depends_on:
+      srv:
+        condition: service_healthy
+    environment:
+      - "LINKS={\"a\":\"http://${DEMO_HOST:-127.0.0.1}:${PORT:-1}\"}"
+  opt:
+    <<: *base
+    profiles: ["ha"]
+    command: ["sleep", "infinity"]
+networks:
+  demo:
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.inhibit_ipv4: "true"
+    ipam:
+      config: [{subnet: 172.29.248.0/24}]

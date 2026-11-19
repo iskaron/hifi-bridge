@@ -77,6 +77,13 @@ that was not tested.
 - [ ] P3-6 Power cut during the boot-count write (right after power-on, 10×): the device boots.
 - [ ] P3-7 Firmware/DTB on the shared boot partition: decide and test how they are updated (not A/B today, see PHASE2B_PLAN risks).
 - [ ] P3-8 Alternative per board if U-Boot fails: firmware `tryboot`/`autoboot.txt` (Pi 4 first). Record which mechanism each board uses.
+- [ ] P3-9 The WebUI flow end to end (docs/OTA.md): upload → install with progress → "Restart now" → `hifi-bridge-health.service` marks B
+  good → "Update completed". A bridge that fails in B (e.g. `/healthz` 503) → `mark-bad` + `FailureAction=reboot` → A, page shows
+  "rolled back". Time from "Restart now" until the page is back.
+- [ ] P3-10 A bundle whose payload was changed after signing passes `InspectBundle` (verified in Docker) but is refused by dm-verity
+  during `rauc install` on the device; the device stays on its slot.
+- [ ] P3-11 On the image: the D-Bus policy (`de.pengutronix.rauc-hifi-bridge.conf`) refuses RAUC to other users; the reboot path unit
+  and `/run/hifi-bridge-ota` work; `rauc-mark-good.service` is masked; a full data partition during an upload gives a clear error.
 
 **Update trust (P5)**
 - [ ] P5-1 An image built with `official` refuses a development-signed bundle **on the device** (`rauc install` fails with a signature error).
@@ -93,6 +100,7 @@ that was not tested.
   testable without lab equipment; record the limitation).
 - [ ] P6-4 Card **without** provisioning file: no hotspot ever; Ethernet works; `hifi-status.txt` shows a one-time setup code.
 - [ ] P6-5 Power cut 5× during first boot: the device still ends up provisioned, and the file is overwritten.
+- [ ] N-1 … N-11 Network management on the device (client Wi-Fi variants, hotspot with phones, AP-mode scan, WPA3 AP, captive-portal behaviour, regulatory domain, interface names, nftables modules, persistent clock, host name via Avahi, 2.4 GHz coexistence): list and procedure in docs/NETWORK.md section 11.
 - [ ] P7-1 Flash-tool trust proof against the real device. Then a phone shows a lock after installing the CA, and the fingerprint matches the
   tool's.
 

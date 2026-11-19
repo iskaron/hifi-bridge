@@ -3,6 +3,10 @@
 # Report: reports/evidence/coverage.txt. Hardware-only paths stay uncovered by design (listed in docs/TEST_COVERAGE.md).
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
+# shellcheck source=lib/common.sh
+. scripts/lib/common.sh
+hb_require --compose
+hb_ensure_images btbridge-lab:dev btbridge-os:dev
 WITH_INT=0; [ "${1:-}" = "--integration" ] && WITH_INT=1
 [ $WITH_INT -eq 1 ] && scripts/lab_up.sh >/dev/null
 cd docker || exit 1

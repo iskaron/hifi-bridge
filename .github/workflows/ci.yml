@@ -30,6 +30,7 @@ jobs:
         with:
           persist-credentials: false
       - run: scripts/run_static.sh
+      - run: scripts/run_entry_tests.sh
 
   unit:
     runs-on: ubuntu-24.04
@@ -85,6 +86,29 @@ jobs:
           persist-credentials: false
       - run: (cd docker && docker compose build -q && docker build -q -f Dockerfile.avahi -t btbridge-avahi:dev .)
       - run: scripts/test_mdns.sh
+
+  network:
+    # network management with the REAL tools (nft, dnsmasq, hostapd, wpa_supplicant, systemd-networkd, avahi) in disposable
+    # containers; the radio itself is SIMULATED (docs/NETWORK.md)
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          persist-credentials: false
+      - run: scripts/run_net.sh
+
+  ota:
+    # update management against the REAL RAUC 1.13 D-Bus service (throw-away keys per run, file-backed boot environment; no slot write)
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          persist-credentials: false
+      - run: scripts/run_ota.sh
 
   os-and-flashtool:
     # phase-2b preparation: Buildroot defconfig resolution + licence policy (no image build), RAUC trust matrix, card layout,

@@ -1,0 +1,11 @@
+# Real network tools for the network-management checks (scripts/run_net.sh, tests/net): the generated wpa_supplicant/hostapd/dnsmasq/
+# networkd/nftables files are parsed and applied by the real programs inside disposable containers (own network namespaces, never the
+# host's). No Wi-Fi hardware exists here: hostapd/wpa_supplicant are checked up to their driver initialisation; mac80211_hwsim would
+# need a host kernel module and is deliberately not used.
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3 python3-pytest python3-jeepney python3-coverage nftables dnsmasq-base hostapd wpasupplicant iw iproute2 busybox \
+      systemd systemd-resolved dbus avahi-daemon procps \
+ && rm -rf /var/lib/apt/lists/*
+ENV PYTHONPATH=/work/bridge:/work/testkit PYTHONDONTWRITEBYTECODE=1
+WORKDIR /work

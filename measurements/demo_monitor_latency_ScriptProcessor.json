@@ -1,13 +1,18 @@
 {
+ "browser_output": {
+  "default_gain": 4,
+  "peak": 0.783,
+  "rms_dbfs": -13.8
+ },
  "buffer_ms_last": 222,
  "engine": "ScriptProcessor",
  "label": "MEASURED in headless Chromium in Docker (no sound card: output latency as reported by the browser)",
  "latency_ms": {
-  "max": 279,
-  "median": 272,
-  "min": 270
+  "max": 272,
+  "median": 269,
+  "min": 263
  },
  "output_ms_reported": 50,
- "peak": 0.04,
+ "peak": 0.213,
  "underruns": 0
 }

@@ -1,0 +1,18 @@
+# Root side of the owner-confirmed restart: removes the request (so the next boot does not restart again) and asks systemd to reboot.
+# It takes no input: the request file's content is not read. Verified with systemd-analyze only.
+[Unit]
+Description=Hi-Fi Bridge restart requested by the owner
+Documentation=file:///usr/share/doc/hifi-bridge/OTA.md
+
+[Service]
+Type=oneshot
+ExecStart=/bin/rm -f /run/hifi-bridge-ota/reboot-request
+ExecStart=/bin/systemctl --no-block reboot
+NoNewPrivileges=yes
+PrivateNetwork=yes
+RestrictAddressFamilies=AF_UNIX
+ProtectHome=yes
+PrivateTmp=yes
+LockPersonality=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
