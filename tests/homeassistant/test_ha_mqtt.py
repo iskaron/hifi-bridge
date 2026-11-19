@@ -147,7 +147,8 @@ def test_04_enabling_one_control_swaps_entities_and_removes_the_stale_one(ha, da
 def test_05_all_controls_enabled_work_from_home_assistant(ha, data_dir, thermal):
     svc = start(data_dir, thermal, mqtt_allow_pairing=True, mqtt_allow_audio=True, mqtt_allow_test=True)
     try:
-        m = ha.wait(lambda: (lambda x: x if {"Pairing window", "Bridge playback", "Test tone"} <= set(x) else None)(ha.entity_map(DEV, svc.instance_id())), 40)
+        # wait until the entities are AVAILABLE, not just registered: a command sent while HA still shows them unavailable can be lost
+        m = wait_online(ha, svc, ["Pairing window", "Bridge playback", "Test tone"])
         assert m and m["Test tone"].startswith("button.") and m["Bridge playback"].startswith("switch.")
         ha.service("switch", "turn_off", {"entity_id": m["Bridge playback"]})
         assert ha.wait(lambda: svc.store.get("audio_allowed") is False, 10)
