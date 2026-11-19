@@ -53,7 +53,7 @@
 [manager]	WARNING	Test in comment: see is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: appliance is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: py is not a test name or id, ignoring
-Run started:2026-11-18 23:15:07.605854
+Run started:2026-11-19 05:50:20.305140
 
 Test results:
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -216,6 +216,79 @@ Test results:
    Severity: Low   Confidence: High
    CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
    More Info: https://bandit.readthedocs.io/en/1.8.6/blacklists/blacklist_imports.html#b404-import-subprocess
+   Location: bridge/btbridge/ota/backup.py:41:0
+40	import shutil
+41	import subprocess
+42	import time
+
+--------------------------------------------------
+>> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
+   Location: bridge/btbridge/ota/backup.py:91:15
+90	    try:
+91	        proc = subprocess.Popen([exe, *OPENSSL_ENC, "-d" if decrypt else "-e", "-pass", f"fd:{r}"], stdin=subprocess.PIPE,
+92	                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, pass_fds=(r,), env={"PATH": "/usr/bin:/bin", "LC_ALL": "C"})
+93	    except OSError as e:
+
+--------------------------------------------------
+>> Issue: [B107:hardcoded_password_default] Possible hardcoded password: ''
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b107_hardcoded_password_default.html
+   Location: bridge/btbridge/ota/backup.py:122:0
+121	
+122	def export(store, include_secrets: bool = False, passphrase: str = "", version: str = __version__, clock=time.time) -> bytes:
+123	    from ..config.store import SCHEMA_VERSION
+124	    settings = {k: v for k, v in store.all().items() if k not in EXCLUDED}
+125	    doc = {"format": FORMAT, "format_version": FORMAT_VERSION, "created": int(clock()), "app_version": version,
+126	           "settings_schema": SCHEMA_VERSION, "device_name": settings.get("device_name", ""), "settings": settings, "secrets": None}
+127	    if include_secrets:
+128	        if len(passphrase) < MIN_PASSPHRASE:
+129	            raise BackupError("weak_passphrase")
+130	        plain = json.dumps({k: store.secret(k) for k in EXPORTED_SECRETS if store.secret(k)}, sort_keys=True).encode("utf-8")
+131	        salt = os.urandom(16)
+132	        enc, mac = _keys(passphrase, salt, **SCRYPT)
+133	        doc["secrets"] = {"kdf": "scrypt", **SCRYPT, "salt": _b64(salt), "cipher": CIPHER, "openssl": OPENSSL_MODE}
+134	        ct = _openssl(False, enc, plain)
+135	        doc["secrets"]["ciphertext"] = _b64(ct)
+136	        doc["secrets"]["tag"] = _b64(_tag(mac, doc, ct))
+137	    return (json.dumps(doc, indent=1, sort_keys=True) + "\n").encode("utf-8")
+138	
+
+--------------------------------------------------
+>> Issue: [B107:hardcoded_password_default] Possible hardcoded password: ''
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b107_hardcoded_password_default.html
+   Location: bridge/btbridge/ota/backup.py:189:0
+188	
+189	def plan(doc: dict, passphrase: str = "") -> dict:
+190	    """Everything that a restore would do, fully validated; raises BackupError before anything is changed."""
+191	    from ..config import SETTINGS, SettingError, validate
+192	    settings, skipped, invalid = {}, [], []
+193	    for k, v in doc["settings"].items():
+194	        if k in EXCLUDED:
+195	            continue
+196	        if k not in SETTINGS:
+197	            skipped.append(k)                            # from a newer release: reported, not applied
+198	            continue
+199	        try:
+200	            settings.update(validate({k: v}))
+201	        except SettingError:
+202	            invalid.append(k)
+203	    if invalid:
+204	        raise BackupError("invalid_settings", ", ".join(sorted(invalid)))
+205	    return {"settings": settings, "skipped": sorted(skipped), "secrets": decrypt(doc, passphrase),
+206	            "had_secrets": bool(doc.get("secrets")), "app_version": str(doc.get("app_version", "")), "created": doc.get("created")}
+207	
+
+--------------------------------------------------
+>> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/blacklists/blacklist_imports.html#b404-import-subprocess
    Location: bridge/btbridge/stream/encoders.py:5:0
 4	import struct
 5	import subprocess
@@ -283,19 +356,19 @@ Test results:
 --------------------------------------------------
 
 Code scanned:
-	Total lines of code: 9557
+	Total lines of code: 11626
 	Total lines skipped (#nosec): 0
 	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 6
 
 Run metrics:
 	Total issues (by severity):
 		Undefined: 0
-		Low: 21
+		Low: 25
 		Medium: 0
 		High: 0
 	Total issues (by confidence):
 		Undefined: 0
 		Low: 0
-		Medium: 0
-		High: 21
+		Medium: 2
+		High: 23
 Files skipped (0):

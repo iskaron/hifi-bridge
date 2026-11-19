@@ -105,6 +105,12 @@ mkdir -p "$wants"
 for u in hifi-bridge-boot.service hifi-bridge.service hifi-firewall.service hifi-netd.service; do
 	ln -sf "/usr/lib/systemd/system/$u" "$wants/$u"
 done
+for u in hifi-bridge-health.service hifi-bridge-reboot.path; do	# updates: confirm/roll back after boot, owner-confirmed restart
+	ln -sf "/usr/lib/systemd/system/$u" "$wants/$u"
+done
+# updates (docs/OTA.md section 4): the slot is marked good ONLY by hifi-bridge-health.service after its checks. Upstream RAUC's
+# rauc-mark-good.service would mark every boot good unconditionally and defeat the rollback, so it is masked (harmless if absent).
+ln -sf /dev/null "$TARGET_DIR/etc/systemd/system/rauc-mark-good.service"
 mkdir -p "$TARGET_DIR/etc/systemd/system/data.mount.wants" "$TARGET_DIR/etc/systemd/system/local-fs.target.wants"
 ln -sf /usr/lib/systemd/system/hifi-bridge-growdata.service "$TARGET_DIR/etc/systemd/system/data.mount.wants/hifi-bridge-growdata.service"
 ln -sf /usr/lib/systemd/system/hifi-bridge-data.service "$TARGET_DIR/etc/systemd/system/local-fs.target.wants/hifi-bridge-data.service"

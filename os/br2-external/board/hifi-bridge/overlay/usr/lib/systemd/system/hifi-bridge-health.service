@@ -1,0 +1,50 @@
+# Post-boot health check (docs/OTA.md section 4): marks the booted RAUC slot good on every healthy boot (resets U-Boot's attempt counter);
+# on the FIRST boot of a new slot a failed check marks it bad and exits 1, and FailureAction=reboot returns to the previous slot.
+# Unprivileged: RAUC is reached over D-Bus (policy de.pengutronix.rauc-hifi-bridge.conf), the bridge over 127.0.0.1.
+# Verified with systemd-analyze only; the boot-count path on a board is gate item G2 P3-3/P3-4.
+[Unit]
+Description=Hi-Fi Bridge post-boot health check (confirm the update slot or roll back)
+Documentation=file:///usr/share/doc/hifi-bridge/OTA.md
+After=hifi-bridge.service dbus.service data.mount
+Wants=hifi-bridge.service
+RequiresMountsFor=/var/lib/hifi-bridge
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/python3 -m btbridge.ota.health --data /var/lib/hifi-bridge --healthz http://127.0.0.1:80/healthz --data-mount /data --timeout 300
+Environment=PYTHONPATH=/usr/lib/hifi-bridge PYTHONUNBUFFERED=1
+# the check gives up after 300 s by itself; this only catches a hang
+TimeoutStartSec=420
+FailureAction=reboot
+User=hifi-bridge
+Group=hifi-bridge
+ReadWritePaths=/var/lib/hifi-bridge
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+UMask=0077
+MemoryMax=64M
+
+[Install]
+WantedBy=multi-user.target

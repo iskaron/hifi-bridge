@@ -57,3 +57,9 @@ reports/screenshots/*.png
 !reports/screenshots/net-05-addresses-mobile-light.png
 !reports/screenshots/net-06-hotspot-desktop-dark.png
 !reports/screenshots/net-07-network-desktop-light-de.png
+!reports/screenshots/upd-01-update-mobile-light.png
+!reports/screenshots/upd-02-staged-mobile-light.png
+!reports/screenshots/upd-03-installing-mobile-light.png
+!reports/screenshots/upd-04-restart-desktop-dark.png
+!reports/screenshots/upd-05-backup-mobile-light.png
+!reports/screenshots/upd-06-update-desktop-light-de.png
