@@ -1,6 +1,6 @@
 {
  "_hwkit_silent_retries": 0,
- "_node_ready_after_s": 0.05,
+ "_node_ready_after_s": 0.06,
  "_stand_in_reloads": 0,
  "_version": "0.3.65",
  "auto_choice": {
@@ -63,13 +63,13 @@
    "--latency-msec=20"
   ],
   "bit_exact": true,
-  "bytes": 878472,
-  "consecutive_pairs": 219617,
+  "bytes": 874944,
+  "consecutive_pairs": 218735,
   "dropped_frames": 0,
   "drops": 0,
-  "first_index": 22529,
+  "first_index": 24577,
   "foreign_frames": 0,
-  "frames": 219618,
+  "frames": 218736,
   "garbage_prefix_frames": 0,
   "header": null,
   "headerless": true,
@@ -78,7 +78,7 @@
   "label": "INTEGRATION real PipeWire tools + SIMULATED source node (module-pipe-source); not BlueZ",
   "leading_silence_frames": 0,
   "offset": 0,
-  "payload_frames": 219618,
+  "payload_frames": 218736,
   "repeats": 0,
   "trailing_silence_frames": 0
  },
@@ -99,31 +99,31 @@
    "-"
   ],
   "bit_exact": true,
-  "bytes": 878472,
-  "consecutive_pairs": 196042,
+  "bytes": 874944,
+  "consecutive_pairs": 218735,
   "dropped_frames": 0,
   "drops": 0,
-  "first_index": 312833,
+  "first_index": 317953,
   "foreign_frames": 0,
-  "frames": 219618,
+  "frames": 218736,
   "garbage_prefix_frames": 0,
   "header": null,
   "headerless": true,
-  "inserted_silence_frames": 23552,
-  "inserted_silence_runs": 23,
+  "inserted_silence_frames": 0,
+  "inserted_silence_runs": 0,
   "label": "INTEGRATION real PipeWire tools + SIMULATED source node (module-pipe-source); not BlueZ",
   "leading_silence_frames": 0,
   "offset": 0,
-  "payload_frames": 219618,
+  "payload_frames": 218736,
   "repeats": 0,
   "trailing_silence_frames": 0
  },
  "restart": {
   "chunks_before": 98,
-  "chunks_while_node_missing": 1,
+  "chunks_while_node_missing": 0,
   "mic_frames_total": 0,
   "resume_asserted": false,
-  "resumed_pattern_frames": 90846,
+  "resumed_pattern_frames": 94374,
   "starts": 8,
   "tool": "parec"
  },
@@ -138,7 +138,7 @@
    "--raw"
   ],
   "bytes": 194040,
-  "mic_frames": 42366
+  "mic_frames": 48510
  },
  "risk_fallback_pw-cat": {
   "argv": [
@@ -155,6 +155,6 @@
    "-"
   ],
   "bytes": 522144,
-  "mic_frames": 114152
+  "mic_frames": 130536
  }
 }
