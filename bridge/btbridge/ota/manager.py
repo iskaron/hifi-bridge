@@ -167,6 +167,23 @@ def snapshot_meta(ota_dir: str, bootname: str) -> dict | None:
 RESTORE_REQUEST = "restore-request.json"
 
 
+def forget_owner_data(data_dir: str) -> list[str]:
+    """Factory reset (recovery.factory_reset): the snapshots hold copies of settings and SECRETS of the previous owner; they, a pending
+    restore request, the update state and any bundle go. Kept: slots.json and health.json (which version is in which slot - device facts)."""
+    ota = os.path.join(data_dir, "ota")
+    removed = []
+    snaps = os.path.join(ota, "snapshots")
+    if os.path.isdir(snaps):
+        shutil.rmtree(snaps)
+        removed.append("ota/snapshots/")
+    for name in (RESTORE_REQUEST, "state.json", BUNDLE, BUNDLE + ".part", BUNDLE + ".part.json", BUNDLE + ".upload"):
+        p = os.path.join(ota, name)
+        if os.path.isfile(p):
+            os.unlink(p)
+            removed.append(f"ota/{name}")
+    return removed
+
+
 def restorable_snapshot(ota_dir: str, bootname: str | None, version: str) -> dict | None:
     """The snapshot this exact version took on this slot before an update, if any (only that one fits this version's code)."""
     meta = snapshot_meta(ota_dir, bootname) if bootname else None
@@ -496,7 +513,11 @@ class UpdateManager:
             if props.get("Operation") != "idle":
                 raise UpdateError("busy", "rauc")
             booted = props.get("BootSlot")
-            take_snapshot(self.data_dir, self.ota_dir, booted, self.version, SCHEMA_VERSION, self.clock)
+            try:                                               # never install without the snapshot of the current data
+                take_snapshot(self.data_dir, self.ota_dir, booted, self.version, SCHEMA_VERSION, self.clock)
+            except OSError as e:
+                self._set_error("snapshot_failed", f"{type(e).__name__}: {e}")
+                raise UpdateError("snapshot_failed", type(e).__name__) from None
             try:
                 while self.rauc.completed() is not None:       # drop stale signals
                     pass

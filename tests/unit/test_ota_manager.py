@@ -172,6 +172,15 @@ def test_install_preconditions(env):
         env.m.install()
 
 
+def test_no_install_without_the_snapshot(env, monkeypatch):
+    upload(env.m, env.rauc)
+    monkeypatch.setattr(M, "take_snapshot", lambda *a, **k: (_ for _ in ()).throw(OSError(28, "No space left on device")))
+    with pytest.raises(UpdateError, match="snapshot_failed"):
+        env.m.install()
+    i = env.m.info()
+    assert env.rauc.installs == [] and i["phase"] == "staged" and i["error"]["code"] == "snapshot_failed"
+
+
 def test_failed_install_keeps_the_bundle_for_a_retry(env):
     env.rauc.plan = {"result": 1, "error": "Failed mounting bundle: Failed to open /dev/loop-control"}
     i = install(env)
@@ -547,6 +556,18 @@ def test_restore_needs_a_snapshot_of_this_version(env):
     install(env)
     with pytest.raises(UpdateError, match="busy"):
         env.m.request_snapshot_restore()                                 # an installed update waits for its restart
+
+
+def test_factory_reset_removes_the_snapshots_with_the_previous_owners_secrets(env):
+    from btbridge.recovery import factory_reset
+    downgrade_scenario(env)
+    env.make().request_snapshot_restore()
+    (env.data / "ota" / "slots.json").write_text('{"B": {"version": "0.4.0"}}')
+    upload(env.make(), env.rauc)
+    removed = factory_reset(str(env.data))
+    assert {"ota/snapshots/", "ota/restore-request.json", "ota/state.json", "ota/bundle.raucb"} <= set(removed)
+    assert not (env.data / "ota" / "snapshots").exists() and (env.data / "ota" / "slots.json").exists()
+    assert M.forget_owner_data(str(env.data)) == []                     # idempotent
 
 
 def test_snapshot_replaces_an_older_one(env, tmp_path):

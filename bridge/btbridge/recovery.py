@@ -81,6 +81,8 @@ def factory_reset(data_dir: str) -> list[str]:
         if name.startswith(("settings.json.corrupt-", "secrets.json.corrupt-")):
             os.unlink(os.path.join(data_dir, name))
             removed.append(name)
+    from .ota.manager import forget_owner_data             # pre-update snapshots hold copies of the secrets (docs/OTA.md section 6)
+    removed += forget_owner_data(data_dir)
     return removed
 
 

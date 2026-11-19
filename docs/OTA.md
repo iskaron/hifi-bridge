@@ -80,6 +80,7 @@ the owner then confirms the restart.
 |---|---|---|
 | bundle not signed by the keyring / signer without codeSigning / damaged or truncated file / not a bundle | refused at verification, file deleted, "not signed by a key this device trusts, or damaged" + RAUC's message | REAL RAUC + UNIT |
 | bundle for another board (`compatible`) | refused at verification by the manager | REAL RAUC + UNIT |
+| the pre-update snapshot cannot be written | nothing is installed, "The current settings could not be saved first" | UNIT |
 | not enough space on the data partition (upload or download) | refused before a byte is stored, "Not enough free space" | UNIT |
 | upload too large / chunked / bad Content-Length / no session / wrong CSRF / cross-origin | refused before the body is read, connection closed | UNIT (real HTTP) |
 | upload interrupted / too slow (overall deadline 60 s + 64 KiB/s) | partial file deleted, "incomplete" / "took too long" | UNIT (real HTTP) |
@@ -104,6 +105,9 @@ lowers `schema_version` (DECISIONS #75-#77), so returning to the newer version l
 **only an owner action** ("Restore snapshot and restart" on the backup page): the request names the snapshot; at the next start
 `prepare_data()` applies it before the configuration is loaded - only if it was taken by exactly the running version on the booted slot.
 Rule for future releases: an incompatible data change must raise the settings `schema_version` and migrate.
+The snapshots contain copies of `secrets.json` (owner password hash, stream token, MQTT password): they are protected like the originals
+(data partition, 0700/0600) and **removed by a factory reset** (`recovery.factory_reset` → `ota.manager.forget_owner_data`), together with
+a pending restore request, the update state and any bundle. If the snapshot cannot be written (e.g. full disk), nothing is installed.
 
 ## 7. Configuration backup
 `/settings/backup` exports a JSON file (`format: hifi-bridge-backup`, `format_version: 1`, `app_version`, `settings_schema`, `settings`,

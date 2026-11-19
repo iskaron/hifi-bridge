@@ -92,6 +92,7 @@
  "upd.error.rollback_unavailable": "Keine andere startfähige Version vorhanden.",
  "upd.error.signature_invalid": "Abgelehnt: Das Paket ist nicht mit einem vertrauten Schlüssel signiert oder beschädigt.",
  "upd.error.size_mismatch": "Der Download hat die falsche Größe.",
+ "upd.error.snapshot_failed": "Die aktuellen Einstellungen konnten nicht vorher gesichert werden, daher wurde nichts installiert.",
  "upd.error.timeout": "Der Upload hat zu lange gedauert.",
  "upd.error.too_large": "Das Paket ist zu groß.",
  "upd.error.too_many_parts": "Der Upload wurde nicht verstanden.",

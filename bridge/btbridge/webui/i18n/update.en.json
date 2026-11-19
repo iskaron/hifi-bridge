@@ -92,6 +92,7 @@
  "upd.error.rollback_unavailable": "No other bootable version is available.",
  "upd.error.signature_invalid": "Refused: the bundle is not signed by a key this device trusts, or it is damaged.",
  "upd.error.size_mismatch": "The download has the wrong size.",
+ "upd.error.snapshot_failed": "The current settings could not be saved first, so nothing was installed.",
  "upd.error.timeout": "The upload took too long.",
  "upd.error.too_large": "The bundle is too large.",
  "upd.error.too_many_parts": "The upload was not understood.",
