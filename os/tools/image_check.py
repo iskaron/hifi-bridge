@@ -401,6 +401,9 @@ def check_network_and_misc(r, root):
     wifi = glob.glob(os.path.join(root, "usr/lib/firmware/brcm/brcmfmac*"))
     r.facts["radio_firmware"] = sorted(os.path.basename(p) for p in bt + wifi)
     r.add("network.radio-firmware", bool(bt) and bool(wifi), f"{len(bt)} Bluetooth + {len(wifi)} Wi-Fi firmware files")
+    duid = os.path.join(root, "etc/systemd/networkd.conf.d/hifi-bridge.conf")
+    r.add("network.dhcp-duid-link-layer", os.path.isfile(duid) and open(duid).read().count("DUIDType=link-layer") == 2,
+          "networkd DHCPv4/DHCPv6 DUID from the MAC address (stable despite the transient machine id)")
     mid = os.path.join(root, "etc/machine-id")
     content = open(mid).read().strip() if os.path.isfile(mid) else None
     r.facts["machine_id"] = "absent" if content is None else ("empty" if content == "" else "SET")

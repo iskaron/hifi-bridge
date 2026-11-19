@@ -202,6 +202,7 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 76. **Partition sizes (cannot change after the first flash):** the images use 256 MiB slots; rootfs uses ~185 MiB, leaving ~70 MiB for
     future updates. Recommendation (reports/evidence/os_size_plan.md): slot 384 MiB, boot 64 MiB, data at least 448 MiB -> **2 GB minimum
     card**; the tight alternative is 224/16/144 MiB -> 1 GB card. Owner decision needed before the first release image.
-77. **machine-id on a read-only `/etc`:** `/etc/machine-id` is empty, so each boot gets a transient id; networkd derives its DHCP DUID from
-    it, so DHCPv6 leases (and DHCPv4 with a DUID-based client id) may change on every boot. Proposed fix: `DUIDType=link-layer` in
-    networkd.conf (package 7); a persistent id under `/data` would be the alternative.
+77. ~~machine-id on a read-only `/etc`~~ **fixed** (networkd drop-in `DUIDType=link-layer`, image check `network.dhcp-duid-link-layer`; in
+    images built after 2026-11-19, the package-6 evidence images predate it). Original finding: `/etc/machine-id` is empty, so each boot gets a transient id; networkd derives its DHCP DUID from
+    it, so DHCPv6 leases (and DHCPv4 with a DUID-based client id) may change on every boot. Open only: whether other users of the
+    machine id (journal directory names, D-Bus) need a persistent id under `/data`.
