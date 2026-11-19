@@ -124,6 +124,9 @@ def main(argv=None) -> int:
     rauc = RaucClient(bus=a.dbus)
     try:
         return run(a.data, rauc, a.healthz, a.data_mount, a.timeout, a.interval, log=lambda m: print(m, flush=True))
+    except Exception as e:                                     # a bug in the checker itself must not reboot the device (exit 1 would);
+        print(f"health: check could not run ({type(e).__name__}: {e}); slot not confirmed", flush=True)    # boot-count still applies
+        return 0
     finally:
         rauc.close()
 

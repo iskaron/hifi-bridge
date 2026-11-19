@@ -1,6 +1,6 @@
 # Hi-Fi Bridge - developer entry points. Host requirements: Docker with Compose v2 and make. Everything runs in containers.
 # Host requirements: Docker Engine >= 24.0 with Compose >= 2.20 and make (docs/DOCKER_REQUIREMENTS.md); `make doctor` checks them.
-.PHONY: help doctor entry-test demo demo-stop demo-status demo-logs demo-reset demo-trust demo-recover demo-ha demo-ha-stop demo-test test-all
+.PHONY: help ota doctor entry-test demo demo-stop demo-status demo-logs demo-reset demo-trust demo-recover demo-ha demo-ha-stop demo-test test-all
 
 help:
 	@echo "make doctor        check Docker/Compose versions, disk, ports and images; changes nothing"
@@ -16,6 +16,8 @@ help:
 	@echo "make entry-test     tests of the entry scripts, compose isolation rules and image pins (no daemon needed)"
 	@echo "(HB_QUIET=1 make demo prints step lines only, for CI)"
 	@echo "make test-all      every test suite (scripts/run_all.sh)"
+	@echo "make ota ROOTFS=output/images/rootfs.ext4 COMPATIBLE=hifi-bridge-rpi3 [VERSION=x] [CERT=.. KEY=..]"
+	@echo "                   signed RAUC update bundle (development keys in .keys/ unless CERT/KEY are given; docs/OTA.md)"
 
 doctor:
 	@scripts/doctor.sh
@@ -43,3 +45,5 @@ demo-test:
 	@scripts/run_demo_tests.sh -q && scripts/test_demo.sh
 test-all:
 	@scripts/run_all.sh
+ota:
+	@scripts/os_bundle.sh --rootfs "$(ROOTFS)" --compatible "$(COMPATIBLE)" $(if $(VERSION),--version "$(VERSION)") $(if $(OUT),--out "$(OUT)") $(if $(CERT),--cert "$(CERT)" --key "$(KEY)")

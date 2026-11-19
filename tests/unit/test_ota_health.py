@@ -152,6 +152,12 @@ def test_data_dir_not_writable(tmp_path, hz):
     assert res == {"data_mounted": True, "data_writable": False, "bridge": True, "rauc": True}
 
 
+def test_a_crash_of_the_checker_never_reboots(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(H, "run", lambda *a, **k: 1 / 0)
+    assert H.main(["--data", str(tmp_path), "--dbus", "unix:path=/nonexistent"]) == 0
+    assert "could not run (ZeroDivisionError" in capsys.readouterr().out
+
+
 def test_main_with_no_bus(tmp_path, capsys):
     assert H.main(["--data", str(tmp_path), "--healthz", "http://127.0.0.1:9/x", "--data-mount", "", "--timeout", "0",
                    "--dbus", "unix:path=/nonexistent"]) == 0
