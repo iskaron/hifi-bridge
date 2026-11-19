@@ -140,3 +140,8 @@ Scope: owner work package of 2026-11-18 (DECISIONS #73/#74).
   into CI (job `flashtool`) and the full run (+ package build). DECISIONS #96-#99, OPEN_QUESTIONS #68-#72. 22 screenshots `flashtool-*.png`.
 - Full run (`reports/evidence/full_run_pkg5_flashtool.log`): all suites green incl. integration 55/55, flash tool + package, OS 127; only
   mDNS red (host environment, green in CI).
+- Package 5 CI: GitHub Actions run 44504983152 on `897a502` - **17/17 green** (new job `flashtool`).
+
+### Package 6 - Buildroot images (in progress)
+- Opus agent resumed on `wip/os` (4 commits + saved WIP; Pi 3 B+ had been built once). Task: merge the network/OTA OS changes, build all
+  three boards one at a time, image checks, SBOM, licences, sizes.

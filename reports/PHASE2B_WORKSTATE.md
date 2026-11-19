@@ -30,8 +30,8 @@ Review findings for package 1: `reports/REVIEW_PHASE2B_EXISTING_CODE.md`; repro 
 | 2 | Demo and entry points | **done** (CI run 44372722429: 14/14 green) | `46483a0` |
 | 3 | Network management | **done** (CI run 44420917417: 15/15 green) | `926e945` |
 | 4 | OTA update management | **done** (CI run 44483643387: 16/16 green) | `e8a95ff` |
-| 5 | Flash tool GUI | **done** | `1e8c7c5` |
-| 6 | Buildroot images | pending (resume `wip/os`; rebuild all three boards after packages 3/4 are merged) | |
+| 5 | Flash tool GUI | **done** (CI run 44504983152: 17/17 green) | `1e8c7c5` |
+| 6 | Buildroot images | in progress (Opus agent resumed on `wip/os`) | |
 | 7 | Final QA, coverage, screenshots, handoff | pending | |
 
 ## Notes
