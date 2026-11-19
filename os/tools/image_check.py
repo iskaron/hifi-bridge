@@ -417,6 +417,9 @@ def sizes(r, root, boot_dir, image, rootfs_img, file_list):
         s["rootfs_ext4_used_bytes"] = (g["Block count"] - g["Free blocks"]) * g["Block size"]
         s["rootfs_ext4_free_bytes"] = g["Free blocks"] * g["Block size"]
         s["rootfs_inodes_used"] = g["Inode count"] - g["Free inodes"]
+        feats = (re.search(r"^Filesystem features:\s+(.*)$", d, re.M) or [None, ""])[1].split()
+        r.add("rootfs.ext4-layout", "has_journal" not in feats and g["Block size"] == 4096 and "64bit" not in feats,
+              f"read-only slot image: 4 KiB blocks, no journal, no 64bit (features: {' '.join(feats)})")
     kern = os.path.join(root, "boot/Image")
     s["kernel_image_bytes"] = os.path.getsize(kern) if os.path.isfile(kern) else 0
     s["kernel_modules_bytes"] = sum(tree_size(m) for m in glob.glob(os.path.join(root, "usr/lib/modules/*")))
