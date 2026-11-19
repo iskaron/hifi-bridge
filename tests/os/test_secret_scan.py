@@ -99,6 +99,17 @@ def test_login_credentials_in_shadow(tmp_path, tools, shadow, rule):
     assert res.returncode == 1 and [f["rule"] for f in findings(tmp_path)] == [rule]
 
 
+def test_wifi_rule_ignores_program_source_but_not_configuration(tmp_path, tools):
+    """Found by the first real image check: `psk = net.get("psk")` in btbridge/provisioning.py is code, not a passphrase."""
+    r = clean_tree(tmp_path)
+    (r / "usr/lib/x").mkdir(parents=True)
+    (r / "usr/lib/x/prov.py").write_text('def f(net):\n    psk = net.get("psk")\n    psk = network_password_value\n')
+    (r / "etc/hostapd-code.conf").write_text('wpa_passphrase=$(cat /run/secret)\n')
+    assert run("--tree", r).returncode == 0
+    (r / "etc/hostapd.conf").write_text("wpa_passphrase=RealPassphrase99\n")
+    assert run("--tree", r).returncode == 1
+
+
 def test_password_field_in_passwd_and_suspicious_names(tmp_path, tools):
     r = clean_tree(tmp_path)
     (r / "etc/passwd").write_text("root:abc123hash:0:0::/root:/bin/sh\n")

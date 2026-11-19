@@ -39,8 +39,10 @@ CONTENT_RULES = [
 # only in small text files (configuration), never in binaries: too many false positives there
 TEXT_RULES = [
     ("bearer-token", re.compile(rb"(?i)authorization:\s*bearer\s+[A-Za-z0-9._~+/-]{20,}")),
-    ("wifi-psk", re.compile(rb"(?m)^\s*(?:psk|wpa_passphrase|wpa_psk|sae_password)\s*=\s*\"?[^\s\"#]{8,}")),
+    ("wifi-psk", re.compile(rb"(?m)^\s*(?:psk|wpa_passphrase|wpa_psk|sae_password)\s*=\s*\"?[^\s\"#()]{8,}\"?\s*$")),
 ]
+# program sources assign variables with these names (psk = net.get("psk")); the Wi-Fi rule is for configuration files only
+SOURCE_SUFFIXES = (".py", ".sh", ".lua", ".pl")
 SUSPICIOUS_NAMES = [
     ("ssh-host-key", "*/ssh_host_*_key"), ("ssh-host-key", "*/dropbear_*_host_key"), ("ssh-authorized-keys", "*/authorized_keys*"),
     ("ssh-user-key", "*/id_rsa"), ("ssh-user-key", "*/id_ecdsa"), ("ssh-user-key", "*/id_ed25519"), ("ssh-user-key", "*/id_dsa"),
@@ -57,8 +59,8 @@ def fp(match: bytes) -> str:
     return hashlib.sha256(match).hexdigest()[:12]
 
 
-def scan_bytes(data: bytes, text: bool):
-    rules = CONTENT_RULES + (TEXT_RULES if text else [])
+def scan_bytes(data: bytes, text: bool, source: bool = False):
+    rules = CONTENT_RULES + ([r for r in TEXT_RULES if not (source and r[0] == "wifi-psk")] if text else [])
     for name, rx in rules:
         for m in rx.finditer(data):
             yield name, m.start(), m.end(), fp(m.group(0))
@@ -123,12 +125,12 @@ def scan_tree(root: str):
                 head = fh.read(4096)
                 text = st.st_size <= TEXT_LIMIT and is_text(head)
                 fh.seek(0)
-                for rule, off, f in scan_stream(fh, text):
+                for rule, off, f in scan_stream(fh, text, rel.endswith(SOURCE_SUFFIXES)):
                     findings.append((rule, rel, f"offset {off} sha256:{f}"))
     return findings, stats
 
 
-def scan_stream(fh, text: bool):
+def scan_stream(fh, text: bool, source: bool = False):
     """Chunked scan; the last OVERLAP bytes are carried over so a secret across a chunk border is still found. A match that lies
     wholly inside the carried-over tail was already reported; one rule + offset is reported once."""
     pos, prev, seen = 0, b"", set()
@@ -137,7 +139,7 @@ def scan_stream(fh, text: bool):
         if not chunk:
             break
         data, base = prev + chunk, pos - len(prev)
-        for rule, start, end, f in scan_bytes(data, text):
+        for rule, start, end, f in scan_bytes(data, text, source):
             if end <= len(prev) or (rule, base + start) in seen:
                 continue
             seen.add((rule, base + start))

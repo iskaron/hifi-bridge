@@ -37,6 +37,9 @@ def test_development_build_is_marked_everywhere(tmp_path, tools):
     info = json.loads((t / "etc" / "hifi-bridge" / "build-info.json").read_text())
     assert info["variant"] == "development" and info["hardware_validated"] is False and info["update_trust"] == "own"
     assert info["source_date_epoch"] == 1770000000 and info["compatible"] == "hifi-bridge-rpi3"
+    # stock units the product does not use are masked (found by the first real image check)
+    for u in ("wpa_supplicant.service", "avahi-dnsconfd.service", "rauc-mark-good.service"):
+        assert (t / "etc/systemd/system" / u).is_symlink() and str((t / "etc/systemd/system" / u).readlink()) == "/dev/null"
 
 
 def test_missing_variant_defaults_to_development(tmp_path, tools):
@@ -61,3 +64,17 @@ def test_unknown_variant_is_refused(tmp_path, tools):
     dev = make_ca(tmp_path, "dev")
     r, _ = run(tmp_path, "nightly", own=dev["ca"])
     assert r.returncode != 0 and "must be 'development' or 'release'" in r.stderr
+
+
+def test_update_trust_json_stays_valid_with_commas_and_quotes_in_the_ca_subject(tmp_path, tools):
+    """Found by the first real image check: RFC 2253 renders a comma in a name as a backslash escape, which broke the JSON."""
+    d = tmp_path / "ca"
+    d.mkdir()
+    key, pem = d / "ca.key", d / "ca.pem"
+    sh("openssl", "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-nodes", "-keyout", str(key), "-out", str(pem),
+       "-days", "2", "-subj", '/O=Dev "Lab"/OU=temporary, not for release/CN=dev CA', "-addext", "basicConstraints=critical,CA:TRUE")
+    r, t = run(tmp_path, "development", own=str(pem))
+    assert r.returncode == 0, r.stderr
+    trust = json.loads((t / "etc" / "hifi-bridge" / "update-trust.json").read_text())
+    subj = trust["certificates"][0]["subject"]
+    assert "OU=temporary\\, not for release" in subj and 'O=Dev \\"Lab\\"' in subj, subj

@@ -52,6 +52,7 @@ def test_layout_boot_a_b_data_and_slot(built_image):
     assert pt["label"] == "dos" and [p["type"] for p in pt["partitions"]] == ["c", "83", "83", "83"]
     a, bslot = pt["partitions"][1], pt["partitions"][2]
     assert a["size"] == bslot["size"] and pt["partitions"][0].get("bootable") is True
+    assert all(p["start"] * 512 % (4 << 20) == 0 for p in pt["partitions"])      # SD erase-block alignment
     boot_off = pt["partitions"][0]["start"] * 512
     listing = sh("mdir", "-b", "-i", f"{img}@@{boot_off}", "::").stdout
     for f in ("boot.scr", "u-boot.bin", "config.txt", "hifi-provision.json", "bcm2710-rpi-3-b-plus.dtb", "overlays", "licenses"):

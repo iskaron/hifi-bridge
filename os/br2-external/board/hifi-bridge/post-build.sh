@@ -47,7 +47,8 @@ json_entries=""
 add_ca() {	# $1 role, $2 file
 	check_ca "$1" "$2"
 	cat "$2" >> "$keyring"
-	subj=$("$OPENSSL" x509 -in "$2" -noout -subject -nameopt RFC2253 | sed 's/^subject=//; s/"/\\"/g')
+	# JSON string: escape backslashes first (RFC 2253 writes "\\," for a comma in a name), then quotes
+	subj=$("$OPENSSL" x509 -in "$2" -noout -subject -nameopt RFC2253 | sed 's/^subject=//; s/\\/\\\\/g; s/"/\\"/g')
 	fp=$("$OPENSSL" x509 -in "$2" -noout -fingerprint -sha256 | sed 's/^.*=//')
 	[ -n "$json_entries" ] && json_entries="$json_entries,"
 	json_entries="$json_entries
@@ -162,6 +163,14 @@ done
 # updates (docs/OTA.md section 4): the slot is marked good ONLY by hifi-bridge-health.service after its checks. Upstream RAUC's
 # rauc-mark-good.service would mark every boot good unconditionally and defeat the rollback, so it is masked (harmless if absent).
 ln -sf /dev/null "$TARGET_DIR/etc/systemd/system/rauc-mark-good.service"
+# Stock units that Buildroot's presets enable but the product does not use (found by the first real image check):
+#  * wpa_supplicant.service (D-Bus mode, root): Wi-Fi is run only by hifi-netd through hifi-net-wpa@<if> (docs/NETWORK.md); a second
+#    supplicant is attack surface and could fight over the interface. Masked, so D-Bus activation cannot start it either.
+#  * avahi-dnsconfd.service: would take DNS servers announced over mDNS by any host on the LAN into the resolver configuration.
+for u in wpa_supplicant.service avahi-dnsconfd.service; do
+	rm -f "$TARGET_DIR/etc/systemd/system/multi-user.target.wants/$u"
+	ln -sf /dev/null "$TARGET_DIR/etc/systemd/system/$u"
+done
 mkdir -p "$TARGET_DIR/etc/systemd/system/data.mount.wants" "$TARGET_DIR/etc/systemd/system/local-fs.target.wants"
 ln -sf /usr/lib/systemd/system/hifi-bridge-growdata.service "$TARGET_DIR/etc/systemd/system/data.mount.wants/hifi-bridge-growdata.service"
 ln -sf /usr/lib/systemd/system/hifi-bridge-data.service "$TARGET_DIR/etc/systemd/system/local-fs.target.wants/hifi-bridge-data.service"

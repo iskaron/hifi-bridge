@@ -24,6 +24,8 @@ image data.ext4 {
 image sdcard.img {
 	hdimage {
 		partition-table-type = "mbr"
+		# every partition starts on a 4 MiB boundary (SD erase-block size; without it genimage starts the FAT at sector 1)
+		align = 4M
 	}
 
 	partition boot {

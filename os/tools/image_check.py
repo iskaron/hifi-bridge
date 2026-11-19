@@ -59,7 +59,7 @@ def sh(*argv, check=False):
 def cfg_values(path):
     vals = {}
     for line in open(path):
-        m = re.match(r'^(BR2_[A-Z0-9_]+)=(.*)$', line.strip())
+        m = re.match(r'^([A-Z][A-Z0-9_]+)=(.*)$', line.strip())          # Buildroot (BR2_*) and U-Boot (CONFIG_*) .config
         if m:
             vals[m.group(1)] = m.group(2).strip('"')
     return vals
@@ -221,7 +221,7 @@ def check_partitions(r, image, rootfs_img, slot_a):
     if len(parts) == 4:
         r.add("layout.slots-equal", parts[1]["size"] == parts[2]["size"], f"slot size {parts[1]['size'] * sec} bytes")
         r.add("layout.boot-flag", parts[0].get("bootable") is True, "boot partition active")
-        r.add("layout.aligned-1mib", all(p["start"] * sec % (1 << 20) == 0 for p in parts),
+        r.add("layout.aligned-4mib", all(p["start"] * sec % (4 << 20) == 0 for p in parts),
               "partition starts (bytes): " + ", ".join(str(p["start"] * sec) for p in parts))
     if rootfs_img and slot_a:
         same = filecmp_hash(rootfs_img) == filecmp_hash(slot_a)
@@ -336,6 +336,10 @@ def check_units(r, root, units):
     mg = os.path.join(root, "etc/systemd/system/rauc-mark-good.service")
     r.add("units.rauc-mark-good-masked", os.path.islink(mg) and os.readlink(mg) == "/dev/null",
           "rauc-mark-good masked: only hifi-bridge-health.service marks a slot good (docs/OTA.md section 4)")
+    for u in ("wpa_supplicant.service", "avahi-dnsconfd.service"):
+        p = os.path.join(root, "etc/systemd/system", u)
+        r.add(f"units.masked-{u}", os.path.islink(p) and os.readlink(p) == "/dev/null" and not is_enabled(units, u),
+              f"stock {u} masked (Wi-Fi only via hifi-netd; no DNS from mDNS announcements)")
     templ = [u for u in ("hifi-net-wpa@.service", "hifi-net-hostapd@.service", "hifi-net-dhcp@.service")
              if any(x.startswith(u.split("@")[0] + "@") for v in units.values() for x in v)]
     r.add("units.net-templates-not-at-boot", not templ, "Wi-Fi client/hotspot/DHCP instances are started by hifi-netd only")
