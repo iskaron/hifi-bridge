@@ -32,7 +32,7 @@ Review findings for package 1: `reports/REVIEW_PHASE2B_EXISTING_CODE.md`; repro 
 | 4 | OTA update management | **done** (CI run 44483643387: 16/16 green) | `e8a95ff` |
 | 5 | Flash tool GUI | **done** (CI run 44504983152: 17/17 green) | `1e8c7c5` |
 | 6 | Buildroot images | merged; full run + CI pending | 3 boards BUILD-VERIFIED, 89/89 image checks each |
-| 7 | Final QA, coverage, screenshots, handoff | pending | |
+| 7 | Final QA, coverage, screenshots, handoff | in progress: 7a independent review (Opus quality-reviewer, read-only -> reports/REVIEW_PHASE2B_NEW_CODE.md); then 7b fixes + coverage + mDNS + demo, 7c docs/screenshots/final run/handoff | |
 
 ## Notes
 * Never touch the owner's demo (`hifi-demo`) or the shared lab (`btbridge-lab`) except through the documented scripts by the coordinator.
