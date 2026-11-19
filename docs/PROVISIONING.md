@@ -54,7 +54,18 @@ can be secrets.
 3. **Scrub:** overwrite the whole file **in place** with the placeholder (same length), then `fsync` the file and the directory. The name
    stays, so the slot remains.
 
-## 4. Evaluation of secrets on the FAT boot partition (review requirement)
+### First setup without a working home network (review N-1, package 7b-1)
+A card written **without** the home Wi-Fi password (recommended in section 4) or with a mistyped one, and no Ethernet: the device opens
+its setup hotspot (name and password from the card; `hifi-status.txt` names it and `http://10.42.0.1/`).
+1. Join the hotspot with the phone, open `http://10.42.0.1/`, enter the setup code and choose the owner password (as always).
+2. The wizard's Lyrion step cannot find a server behind the hotspot (it has no uplink by design). That step
+   links to **Settings → Network**, which is reachable before the wizard is finished (same login, CSRF and origin checks as every other
+   page; every other settings page still waits for the wizard). Join the home Wi-Fi there (or correct its password).
+3. The hotspot closes; connect the phone to the home Wi-Fi, open the device again (its name or the address the router shows), log in,
+   and press **Keep** in the "Keep the new network settings?" banner, which the wizard pages show too, within 3 minutes - otherwise
+   the change is undone and the hotspot returns. Then continue the wizard (Lyrion server, player).
+
+
 | Aspect | Finding | Measure |
 |---|---|---|
 | **Residual data in the file system** | Deleting a file on FAT only marks the directory entry; the clusters keep the data. | We do **not** delete; we overwrite the same bytes in place. On vfat an in-place write of the same length does not reallocate clusters. **Assumption, to be verified on a Pi** (gate item P6-3): read the raw card afterwards and search for the secret. |

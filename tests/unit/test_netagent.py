@@ -333,7 +333,9 @@ def test_agent_unreachable(root):
         svc.save(N.validate({"country": "DE", "wifi": WIFI}))
     assert not os.path.exists(svc.pending_path)
     N.write_private(svc.pending_path, N.defaults())
-    assert svc.confirm() is False and svc.revert() is False and svc.scan() is False
+    assert svc.confirm() is None and os.path.exists(svc.pending_path)             # "could not tell"
+    assert svc.revert() is None and not os.path.exists(svc.pending_path)          # never reached the agent: nothing to keep
+    assert svc.scan() is False
     svc.apply_hostname()
     assert any("host name not applied" in m for m in logs)
 
@@ -434,3 +436,294 @@ def test_main_entry_point(root, monkeypatch):
     monkeypatch.setattr(grp, "getgrgid", lambda g: NS(gr_gid=g))
     assert A.main(["--bridge-user", "hifi-bridge", "--bridge-data", data, "--run-dir", run]) == 0
     assert os.path.exists(os.path.join(run, A.SOCKET_NAME))
+
+
+# ---------------------------------------------------------------- review N-2 / N-3: trial consistency between bridge and agent
+class StaleStatusAgent:
+    """Fake agent: the status answer is computed BEFORE save() and delivered after it (the watch thread or a page load raced the save)."""
+
+    def __init__(self):
+        self.trial, self.taken, self.release = None, threading.Event(), threading.Event()
+
+    def available(self):
+        return True
+
+    def call(self, op, **kw):
+        if op == "status":
+            snap = {"state": "connected", "trial": self.trial, "interfaces": []}
+            self.taken.set()
+            self.release.wait(5)
+            return snap
+        if op == "trial":
+            self.trial = {"id": kw["id"], "state": "pending"}
+            return {"result": "pending"}
+        if op == "confirm":
+            ok = bool(self.trial and self.trial["id"] == kw["id"])
+            self.trial["state"] = "confirmed"
+            return {"ok": ok}
+        raise AssertionError(op)
+
+
+def test_a_status_answer_older_than_a_save_never_deletes_the_new_pending_file(root):
+    """Review N-2: the old answer (no trial) was applied after save() and deleted the new trial's pending file -> 'Keep' failed and the
+    agent rolled the change back after 3 minutes."""
+    data = os.path.join(root, "d"); os.makedirs(data)
+    agent = StaleStatusAgent()
+    svc = C.NetworkService(data, agent, log=lambda m: None)
+    t = threading.Thread(target=svc.status)
+    t.start()
+    agent.taken.wait(5)
+    threading.Timer(0.2, agent.release.set).start()                    # delivered while save() holds the lock
+    assert svc.save(N.validate({"country": "DE", "wifi": WIFI}))["result"] == "pending"
+    t.join(5)
+    assert os.path.exists(svc.pending_path)
+    assert svc.confirm() is True and N.load(svc.cfg_path)["wifi"]["ssid"] == "Home" and not os.path.exists(svc.pending_path)
+    svc.status()                                                       # a fresh answer: in sync, nothing left to do
+    assert N.load(svc.cfg_path)["wifi"]["ssid"] == "Home"
+
+
+class SlowSystem(SimulatedNetworkSystem):
+    """SIMULATED radio whose selected actions block until released (stands for a 20 s `iw scan` or a 30 s `systemctl`)."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.slow: set = set()
+        self.entered, self.go = threading.Event(), threading.Event()
+
+    def _block(self, name):
+        if name in self.slow:
+            self.entered.set()
+            assert self.go.wait(10)
+
+    def hotspot(self, hs, country):
+        self._block("hotspot")
+        return super().hotspot(hs, country)
+
+    def radio_off(self):
+        self._block("radio_off")
+        super().radio_off()
+
+
+def dead_agent(r):
+    """The agent process is gone: its socket path exists, nobody listens (connect fails: the request never reaches anyone)."""
+    import socket
+    r.agent.stop()
+    os.unlink(r.path)
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.bind(r.path)
+    return s
+
+
+class SlowRig(Rig):
+    def __init__(self, root, cfg=None, timeout=5.0):
+        self.root, self.clock, self.logs = root, Clock(), []
+        self.data, self.run = os.path.join(root, "d"), os.path.join(root, "r")
+        os.makedirs(self.data, mode=0o700); os.makedirs(self.run, mode=0o700)
+        if cfg is not None:
+            N.write_private(os.path.join(self.data, N.FILE_NAME), cfg)
+        self.sys = SlowSystem(clock=self.clock, connect_s=3.0)
+        self.agent = A.Agent(self.sys, self.data, os.getuid(), self.run, clock=self.clock, log=self.logs.append)
+        self.agent.start()
+        self.path = self.agent.bind(None)
+        threading.Thread(target=self.agent.serve, daemon=True).start()
+        self.secrets = []
+        self.svc = C.NetworkService(self.data, C.AgentClient(self.path, timeout=timeout), log=self.logs.append, secrets=self.secrets)
+
+    def slow_tick(self, action, seconds):
+        """Start one tick (after `seconds` of fake time) that blocks inside the system action `action`; returns the tick thread."""
+        self.sys.slow.add(action)
+        self.clock.t += seconds
+        t = threading.Thread(target=self.agent.tick, daemon=True)
+        t.start()
+        assert self.sys.entered.wait(5)
+        return t
+
+    def close(self):
+        self.sys.go.set()
+        self.agent.stop()
+
+
+def test_status_answers_at_once_while_a_tick_runs_a_slow_system_action(root):
+    """Review N-3: the agent held its lock across scan/systemctl (up to 20/30 s): every status (page load, watch thread) waited behind."""
+    import time
+    r = SlowRig(root, N.validate({"country": "DE", "hotspot": HOTSPOT}))
+    try:
+        r.advance(10)
+        tick = r.slow_tick("hotspot", 6)                               # the hotspot opens: stop units, scan, start units ...
+        t0 = time.monotonic()
+        st = r.svc.status()
+        assert time.monotonic() - t0 < 0.5 and st["state"] == "off" and st["busy"] is True       # last consistent state
+        r.sys.go.set()
+        tick.join(5)
+        st = r.svc.status()
+        assert st["state"] == "hotspot" and st["busy"] is False
+    finally:
+        r.close()
+
+
+def ethernet_back_while_hotspot(root, timeout):
+    """Hotspot running, Ethernet comes back: the closing tick blocks in radio_off; meanwhile the owner adds Wi-Fi from Ethernet."""
+    r = SlowRig(root, N.validate({"country": "DE", "hotspot": HOTSPOT}), timeout=timeout)
+    r.advance(16)
+    assert r.svc.status()["state"] == "hotspot"
+    r.sys.ethernet_link = True
+    r.advance(1)
+    tick = r.slow_tick("radio_off", 31)
+    return r, tick
+
+
+def test_client_timeout_after_the_agent_took_the_trial_keeps_the_file_and_the_next_poll_promotes_it(root):
+    """Review N-3: on a client timeout the bridge deleted the pending file although the agent applied the change -> the agent ran a
+    'confirmed' configuration that network.json did not have (lost at the next agent start; the page showed the old one)."""
+    r, tick = ethernet_back_while_hotspot(root, timeout=0.3)
+    try:
+        with pytest.raises(C.AgentUnavailable) as e:
+            r.svc.save(N.validate({"country": "DE", "hotspot": HOTSPOT, "wifi": WIFI}))
+        assert e.value.sent is True and os.path.exists(r.svc.pending_path)
+        st = r.svc.status()                                            # the agent is still busy, the trial waits for it
+        assert st["busy"] is True and st["trial_request"] == r.svc._pending_id() and os.path.exists(r.svc.pending_path)
+        assert r.svc.config()["wifi"]["ssid"] == "Home"
+        r.sys.go.set()
+        tick.join(5)
+        for _ in range(100):                                           # the agent now applies the trial
+            if r.agent.manager.trial is not None:
+                break
+            threading.Event().wait(0.02)
+        st = r.svc.status()
+        assert st["trial"]["state"] == "confirmed" and st["trial_request"] is None
+        assert not os.path.exists(r.svc.pending_path) and N.load(r.svc.cfg_path)["wifi"]["ssid"] == "Home"
+        assert r.agent.manager.cfg["wifi"]["ssid"] == "Home"                       # agent and network.json agree
+    finally:
+        r.close()
+
+
+def test_client_timeout_and_then_an_agent_restart_drops_the_file(root):
+    r, tick = ethernet_back_while_hotspot(root, timeout=0.3)
+    try:
+        with pytest.raises(C.AgentUnavailable):
+            r.svc.save(N.validate({"country": "DE", "hotspot": HOTSPOT, "wifi": WIFI}))
+        assert os.path.exists(r.svc.pending_path)
+        r.agent.stop()                                                 # the agent restarts before it applied the trial
+        new = A.Agent(SimulatedNetworkSystem(ethernet=True), r.data, os.getuid(), r.run, log=lambda m: None)
+        new.start()
+        new.bind(None)
+        threading.Thread(target=new.serve, daemon=True).start()
+        try:
+            st = r.svc.status()
+            assert st["trial"] is None and st["trial_request"] is None
+            assert not os.path.exists(r.svc.pending_path) and N.load(r.svc.cfg_path)["wifi"] is None      # both: the old config
+            assert new.manager.cfg["wifi"] is None
+        finally:
+            new.stop()
+    finally:
+        r.close()
+
+
+def test_a_request_that_never_reached_the_agent_drops_the_file(root):
+    r = SlowRig(root, N.validate({"country": "DE", "hotspot": HOTSPOT}))
+    try:
+        dead = dead_agent(r)
+        with pytest.raises(C.AgentUnavailable) as e:
+            r.svc.save(N.validate({"country": "DE", "hotspot": HOTSPOT, "wifi": WIFI}))
+        assert e.value.sent is False and not os.path.exists(r.svc.pending_path)
+        dead.close()
+    finally:
+        r.close()
+
+
+def test_confirm_and_undo_timeouts_keep_the_pending_file_until_the_agent_answers(root):
+    r = SlowRig(root, N.validate({"country": "DE", "hotspot": HOTSPOT}), timeout=0.3)
+    try:
+        r.advance(16)
+        assert r.svc.save(N.validate({"country": "DE", "hotspot": HOTSPOT, "wifi": WIFI}))["result"] == "pending"
+        r.advance(4)
+        assert r.svc.status()["state"] == "connected"
+        r.agent.lock.acquire()                                         # a slow tick holds the agent
+        try:
+            assert r.svc.confirm() is None and os.path.exists(r.svc.pending_path)     # "could not tell", file kept
+            assert r.svc.revert() is None and os.path.exists(r.svc.pending_path)
+        finally:
+            r.agent.lock.release()
+        for _ in range(100):                                           # both late requests are processed in order
+            if r.agent.manager.trial.state != "pending":
+                break
+            threading.Event().wait(0.02)
+        r.svc.status()
+        trial = r.agent.manager.trial
+        if trial.state == "confirmed":
+            assert N.load(r.svc.cfg_path)["wifi"]["ssid"] == "Home"
+        else:
+            assert trial.state == "rolled_back" and N.load(r.svc.cfg_path)["wifi"] is None
+        assert not os.path.exists(r.svc.pending_path)
+    finally:
+        r.close()
+
+
+def test_an_undo_that_never_reached_the_agent_drops_the_file(root):
+    r = SlowRig(root, N.validate({"country": "DE", "hotspot": HOTSPOT}))
+    try:
+        r.advance(16)
+        r.svc.save(N.validate({"country": "DE", "hotspot": HOTSPOT, "wifi": WIFI}))
+        dead = dead_agent(r)
+        assert r.svc.revert() is None and not os.path.exists(r.svc.pending_path)
+        assert r.svc.confirm() is False                                # nothing pending any more
+        dead.close()
+    finally:
+        r.close()
+
+
+def test_a_second_save_while_the_first_still_waits_wins_and_the_first_is_refused(root):
+    """The owner saves again while the agent is still busy with the first, unanswered change: the newest pending file is kept, the
+    older request is refused by the agent (its file is gone: 'mismatch') and only the newest change is applied."""
+    r = SlowRig(root, N.validate({"country": "DE", "hotspot": HOTSPOT}), timeout=0.3)
+    try:
+        r.sys.ethernet_link = True
+        r.advance(2)
+        r.agent.lock.acquire()                                         # a slow tick holds the agent
+        try:
+            for cfg in ({"country": "DE", "hotspot": HOTSPOT, "wifi": WIFI},
+                        {"country": "DE", "hotspot": HOTSPOT, "wifi": {"ssid": "Gartenhaus", "psk": "garden-pass-1"}}):
+                with pytest.raises(C.AgentUnavailable):
+                    r.svc.save(N.validate(cfg))
+            second = r.svc._pending_id()
+            assert r.svc.status()["trial_request"] == second and r.svc._pending_id() == second
+        finally:
+            r.agent.lock.release()
+        for _ in range(100):
+            if r.agent.manager.trial is not None and r.agent._applying is None:
+                break
+            threading.Event().wait(0.02)
+        r.svc.status()
+        assert r.agent.manager.trial.id == second and r.agent.manager.cfg["wifi"]["ssid"] == "Gartenhaus"
+        assert N.load(r.svc.cfg_path)["wifi"]["ssid"] == "Gartenhaus" and not os.path.exists(r.svc.pending_path)
+    finally:
+        r.close()
+
+
+def test_the_diagnostics_bundle_never_contains_the_neighbours_wifi_names(root):
+    """Review N-12: owners share the bundle with support; the scan list (SSIDs, signal, channel of every network in range) stays on the
+    page, the bundle only gets how many networks were seen. The device's own SSIDs stay."""
+    import pathlib
+
+    from test_service import fake_tree
+
+    from btbridge.service import ApplianceService
+    r = Rig(root, N.validate({"country": "DE", "hotspot": HOTSPOT, "wifi": {"ssid": "Gartenhaus", "psk": "wrong-pass-123"}}))
+    tree = pathlib.Path(root) / "tree"
+    tree.mkdir()
+    svc = ApplianceService(os.path.join(root, "app"), source=None, stream_port=0, monitor=fake_tree(tree), echo=None, auth_iterations=1000)
+    try:
+        r.advance(70)                                                  # the Wi-Fi never connects (wrong password) -> hotspot + scan
+        st = r.svc.status()
+        assert st["state"] == "hotspot" and {"Home", "Nachbar 5G", "Cafe Gast"} <= {n["ssid"] for n in st["scan"]["results"]}
+        svc.network = r.svc
+        bundle = svc.diagnostics_bundle()
+        text = json.dumps(bundle)
+        for foreign in ("Home", "Nachbar 5G", "Cafe Gast"):
+            assert foreign not in text, foreign
+        scan = bundle["network"]["status"]["scan"]
+        assert "results" not in scan and scan["count"] == len(st["scan"]["results"])
+        assert "Gartenhaus" in text and HOTSPOT["ssid"] in text                    # the device's own networks
+        assert r.svc.status()["scan"]["results"]                                   # the page keeps the list
+    finally:
+        svc.stop(); r.close()

@@ -104,6 +104,21 @@ def test_upload_verifies_and_stages_then_install_and_restart(u):
     assert u.reboots == [1] and "Restarting" in u.c.get("/settings/update").body
 
 
+@pytest.mark.parametrize("lang,text", [("en", "The device did not restart"), ("de", "Das Gerät hat nicht neu gestartet")])
+def test_a_restart_that_never_happens_offers_the_restart_again_with_guidance(u, lang, text):
+    """Review N-10: 'rebooting' used to stay forever (update.js reloaded into the same wait) when the restart helper never acted."""
+    u.svc.store.update({"language": lang})
+    stage(u)
+    u.c.post("/settings/update/install")
+    u.svc.ota._thread.join(5)
+    u.c.post("/settings/update/reboot")
+    assert 'data-phase="rebooting"' in u.c.get("/settings/update").body
+    u.svc.ota.reboot_wait_s = 0
+    page = u.c.get("/settings/update").body
+    assert 'data-phase="installed"' in page and text in page and 'action="/settings/update/reboot"' in page
+    assert json.loads(u.c.get("/api/update").body)["error"] == "reboot_timeout"
+
+
 def test_owner_declines_the_restart(u):
     stage(u)
     u.c.post("/settings/update/install")
@@ -351,6 +366,34 @@ def test_import_settings_only_and_errors(u):
     assert "not understood" in flash(u)
 
 
+@pytest.mark.parametrize("lang,text", [("en", "This is not a valid backup file."), ("de", "Das ist keine gültige Sicherungsdatei.")])
+def test_import_with_kdf_parameters_above_the_memory_limit_is_an_invalid_file(u, lang, text):
+    """Review N-9: such a file used to raise ValueError inside scrypt -> HTTP 500. Now: the normal refusal, nothing changed."""
+    u.svc.store.update({"language": lang})
+    raw = u.c.post("/settings/backup/export", {"include_secrets": "on", "passphrase": "long enough pass", "confirm": "long enough pass"}).body
+    doc = json.loads(raw)
+    doc["secrets"].update(n=2 ** 16, r=16)
+    u.svc.store.update({"device_name": "Changed"})
+    r = import_file(u, json.dumps(doc).encode(), "long enough pass")
+    assert r.status == 303 and r.getheader("Location") == "/settings/backup" and text in flash(u)
+    assert u.svc.store.get("device_name") == "Changed"
+
+
+@pytest.mark.parametrize("lang,text", [("en", "could not be restored (storage error)"),
+                                       ("de", "konnte nicht wiederhergestellt werden (Speicherfehler)")])
+def test_a_failed_snapshot_restore_is_shown_on_the_backup_and_update_pages(u, monkeypatch, lang, text):
+    """Review N-4: the restore at the start failed (here: ENOSPC while copying); the owner sees it on both pages, in both languages."""
+    from btbridge.config.store import SCHEMA_VERSION
+    from btbridge.ota import manager as M
+    u.svc.store.update({"language": lang})
+    M.take_snapshot(u.svc.store.dir, u.svc.ota.ota_dir, "A", "0.3.0", SCHEMA_VERSION)
+    M.atomic_json(u.svc.ota.ota_dir + "/" + M.RESTORE_REQUEST, {"slot": "A", "created": M.snapshot_meta(u.svc.ota.ota_dir, "A")["created"]})
+    monkeypatch.setattr(M.shutil, "copy2", lambda *a, **k: (_ for _ in ()).throw(OSError(28, "No space left on device")))
+    assert M.prepare_data(u.svc.store.dir, version="0.3.0", bootname="A", log=lambda m: None) == "failed"
+    for path in ("/settings/backup", "/settings/update"):
+        assert text in u.c.get(path).body, path
+
+
 def test_import_socket_error(u, monkeypatch):
     monkeypatch.setattr(views_update, "parse_multipart", lambda *a, **k: (_ for _ in ()).throw(OSError("reset")))
     import_file(u, b"{}")
@@ -430,7 +473,7 @@ def test_truncated_backup_upload(u):
 
 def test_unknown_error_codes_have_a_generic_text(u):
     req = type("R", (), {"t": i18n.Translator("en")})()
-    assert views_update._err(req, "brand_new_code") == "The update step failed (brand_new_code)."
+    assert views_update._err(req, "brand_new_code").startswith("The update step failed (brand_new_code). Try again")
 
 
 # ---------------------------------------------------------------- i18n

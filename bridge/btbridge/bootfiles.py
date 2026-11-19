@@ -3,8 +3,10 @@ test Pi). Order matters:
 
 1. recovery request (P8) - exactly once, power-cut safe (``btbridge.recovery``);
 2. provisioning file (P6) - validated, applied idempotently, scrubbed (``btbridge.provisioning``);
-3. local CA (P7) - created on the device if missing; the private key never leaves the data partition;
-4. ``hifi-status.txt`` - non-secret status for the owner: name, CA fingerprint, results of 1 and 2. A one-time setup code appears ONLY
+3. an owner-requested settings snapshot restore (``ota.manager.prepare_data``, docs/OTA.md section 6) - here, because the network agent
+   ``hifi-netd`` (ordered after this unit) reads ``network.json`` and the host name only at its start (review N-4);
+4. local CA (P7) - created on the device if missing; the private key never leaves the data partition;
+5. ``hifi-status.txt`` - non-secret status for the owner: name, CA fingerprint, results of 1 and 2. A one-time setup code appears ONLY
    when the device generated it itself (no provisioning, or after a password reset) and no owner password exists yet.
 
     python3 -m btbridge.bootfiles --data /var/lib/hifi-bridge --boot /boot
@@ -41,6 +43,8 @@ def run(data_dir: str, boot_dir: str, iterations: int | None = None, log=print) 
     os.makedirs(data_dir, mode=0o700, exist_ok=True)
     out = {"recovery": recovery.boot_request(data_dir, boot_dir)}
     out["provisioning"] = provisioning.consume(boot_dir, data_dir, iterations, log=log)
+    from .ota.manager import prepare_data
+    out["restore"] = prepare_data(data_dir, log=log)                  # never raises
     store = ConfigStore(data_dir)
     iid = store.get("instance_id")
     if not iid:
@@ -60,6 +64,9 @@ def run(data_dir: str, boot_dir: str, iterations: int | None = None, log=print) 
              "Device CA: not available yet (HTTPS starts once it could be created; see the diagnostics page)"]
     if out["recovery"] in ("reset-owner-password", "factory-reset", "network-reset"):
         lines.append(f"Recovery request processed: {out['recovery']}")
+    if out["restore"] in ("restored", "failed"):
+        lines.append("Settings snapshot restored as requested" if out["restore"] == "restored" else
+                     "Settings snapshot restore FAILED - the current settings were kept (see the update page)")
     lines += network_lines(data_dir)
     prov = out["provisioning"]
     if prov["result"] == "applied":

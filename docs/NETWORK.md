@@ -14,6 +14,9 @@ real Wi-Fi radio or with real phones.** The hardware items are listed in section
   stays in **Settings → Secure access** (`local_hostname`); the network page shows it.
 * No lock-out: every change that affects the connection the owner may be using must be confirmed on the page within **3 minutes**, or it
   is undone automatically. A wrong Wi-Fi password is undone as soon as the attempt fails. Last resort: the SD-card `network-reset`.
+* **Before the setup wizard is finished** the network pages (and `/api/network`) are reachable for the logged-in owner, the wizard's
+  Lyrion step links to them, and the wizard pages show the confirm banner of a pending change: a device that only has its setup
+  hotspot can join the home Wi-Fi first (review N-1; flow in docs/PROVISIONING.md section 3).
 
 ## 2. Architecture and privilege boundary
 ```
@@ -83,6 +86,17 @@ stateDiagram-v2
    `confirmed`. After a power cut or agent restart the agent starts from `network.json`, i.e. the last confirmed configuration.
    (Remaining window: a power cut in the milliseconds between the agent's `confirm` and the bridge's rename keeps the previous
    configuration - the safe direction.)
+6. Consistency between bridge and agent (review N-2/N-3, package 7b-1):
+   * A status answer whose request started before the last `save()` ended is never used to judge the pending file (generation
+     counter): an old answer cannot delete the pending file of a trial that started meanwhile.
+   * The agent's lock covers the state machine **and** the system actions it starts (`iw scan` up to 20 s, `systemctl` up to 30 s).
+     `status` waits for it at most 0.25 s; otherwise it answers with the last consistent snapshot plus `busy: true`, so pages and the
+     5 s watch never hang behind a slow action. Trial/confirm/undo still wait for the lock (they must be serialised with it).
+   * A request that reached the agent but got no answer within the client's 15 s keeps the pending file: the page says the device
+     did not answer in time (reload and confirm if asked); the next status decides by trial id. The agent reports a received but not
+     yet applied trial as `trial_request`, which also keeps the file. Only a request that never reached the agent (connection
+     refused), or an agent that does not know the trial (restarted, rolled back, superseded), removes it. Confirm/undo without an
+     answer return "unknown" and keep the file for the same reason.
 
 “Affects a path in use” = Ethernet change with carrier; Wi-Fi/country change while the client is connected; hotspot/Wi-Fi/country change
 while the hotspot runs.
@@ -122,6 +136,9 @@ three boards) builds `nf_tables`, `nf_conntrack`, `nft_ct`, `nft_limit` as modul
   diagnostics (`netconfig.redact` → `password_set: true`), MQTT and logs never contain them; the passwords are added to the log redaction
   list as defence in depth. Problems are reported as `field:reason` without values. Tests scan every page, the status, the diagnostics
   bundle and the logs for the passwords.
+* Neighbours' networks: the Wi-Fi scan list (names, signal, channel of every network in range) is shown on the network page only; the
+  diagnostics bundle, which owners share with support, contains just the number of networks seen (review N-12). The device's own
+  network names (configured Wi-Fi, hotspot) stay in it.
 
 ## 8. Host name, mDNS, addresses
 * `local_hostname` (owner setting, validated label) is applied by the agent as the transient system host name (`hostnamectl`; DHCP sends

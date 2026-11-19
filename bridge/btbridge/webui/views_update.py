@@ -381,6 +381,9 @@ def backup_get(req):
             snap = f'<p>{esc(t("bak.snapshot.requested"))}</p>'
         else:
             snap = f'<p class="help">{esc(t("bak.snapshot.none"))}</p>'
+        e = i.get("error") or {}
+        if e.get("code") == "restore_failed":                  # review N-4: a failed restore at the start is reported here too
+            snap = f'<p class="error" role="alert">{esc(_err(req, "restore_failed", e.get("detail") or ""))}</p>' + snap
         snap = f'<section class="card"><h2>{esc(t("bak.snapshot"))}</h2><p class="help">{esc(t("bak.snapshot.help"))}</p>{snap}</section>'
     return _page(req, "bak.title", export + imp + snap)
 

@@ -14,11 +14,17 @@ decisions through ``netsys.LinuxSystem``. The bridge talks to it over a UNIX str
 One JSON object per connection, at most 4 KiB, only from uid 0 or the bridge's uid (SO_PEERCRED). The agent never writes into the
 bridge's data directory; the bridge promotes or deletes its pending file after the agent's answer.
 
+Locking (review N-3): ``lock`` serialises the state machine AND the system actions it triggers, which can take seconds (``iw scan`` up to
+20 s, ``systemctl`` up to 30 s). ``status`` never waits for it longer than STATUS_WAIT_S: it then answers with the last consistent
+snapshot (taken at the end of every locked step) and ``busy: true``. ``trial_request`` names a trial the agent has received but not yet
+applied, so the bridge keeps that pending file (it may have given up waiting for the answer).
+
     python3 -m btbridge.net.netagent --bridge-data /var/lib/hifi-bridge --bridge-user hifi-bridge
 """
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import re
@@ -37,6 +43,7 @@ MAX_REQUEST = 4096
 OPS = ("status", "trial", "confirm", "revert", "scan", "hostname")
 _ID = re.compile(r"[0-9a-f]{64}")
 _LABEL = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?")
+STATUS_WAIT_S = 0.25
 
 
 def peer_uid(conn: socket.socket) -> int | None:
@@ -52,7 +59,10 @@ class Agent:
                  clock: Callable[[], float] = time.monotonic, log: Callable[[str], None] = print):
         self.system, self.data, self.uid, self.run_dir, self.log = system, bridge_data, bridge_uid, run_dir, log
         self.manager = manager or NetworkManager(system, clock, log)
-        self.lock = threading.RLock()
+        self.lock = threading.RLock()                           # state machine + system actions (held for seconds at times)
+        self._snap_lock = threading.Lock()                      # never held across anything slow
+        self._snapshot = self.manager.status()
+        self._applying: str | None = None
         self.config_error: list[str] | None = None
         self.hostname: str | None = None
         self._stop = threading.Event()
@@ -88,6 +98,13 @@ class Agent:
         self.apply_hostname()
         with self.lock:
             self.manager.load(cfg)
+            self._publish()
+
+    def _publish(self) -> None:
+        """Called with ``lock`` held, at the end of every step: the consistent state that ``status`` serves while the lock is busy."""
+        st = self.manager.status()
+        with self._snap_lock:
+            self._snapshot = st
 
     # ---- requests
     def handle(self, req) -> dict:
@@ -100,25 +117,46 @@ class Agent:
             return self.status()
         if op == "hostname":
             return {"hostname": self.apply_hostname()}
-        with self.lock:
-            if op == "scan":
-                self.manager.request_scan()
-                return {"ok": True}
-            if op == "confirm":
-                return {"ok": self.manager.confirm(req["id"])}
-            if op == "revert":
-                return {"ok": self.manager.revert()}
-            try:
-                cfg, raw = self.read_config(netconfig.PENDING_NAME)
-            except netconfig.NetConfigError as e:
-                return {"error": "invalid", "problems": e.problems}
-            if raw is None or netconfig.digest(raw) != req["id"]:
-                return {"error": "mismatch"}
-            return {"result": self.manager.begin_trial(cfg, req["id"])}
+        if op != "trial":
+            with self.lock:
+                if op == "scan":
+                    self.manager.request_scan()
+                    reply = {"ok": True}
+                elif op == "confirm":
+                    reply = {"ok": self.manager.confirm(req["id"])}
+                else:
+                    reply = {"ok": self.manager.revert()}
+                self._publish()
+                return reply
+        with self._snap_lock:
+            self._applying = req["id"]                           # visible in status while the trial waits for the lock
+        try:
+            with self.lock:
+                try:
+                    cfg, raw = self.read_config(netconfig.PENDING_NAME)
+                except netconfig.NetConfigError as e:
+                    return {"error": "invalid", "problems": e.problems}
+                if raw is None or netconfig.digest(raw) != req["id"]:
+                    return {"error": "mismatch"}
+                result = self.manager.begin_trial(cfg, req["id"])
+                self._publish()
+                return {"result": result}
+        finally:
+            with self._snap_lock:
+                if self._applying == req["id"]:
+                    self._applying = None
 
     def status(self) -> dict:
-        with self.lock:
-            st = self.manager.status()
+        busy = not self.lock.acquire(timeout=STATUS_WAIT_S)
+        if not busy:
+            try:
+                self._publish()
+            finally:
+                self.lock.release()
+        with self._snap_lock:
+            st = copy.deepcopy(self._snapshot)
+            st["trial_request"] = self._applying
+        st["busy"] = busy
         ifs = self.system.interfaces()
         roles = {n: "ethernet" for n in self.system.eth}
         if self.system.wlan:
@@ -139,6 +177,7 @@ class Agent:
         with self.lock:
             self.manager.tick(obs)
             mode = None if self._scanning else self.manager.scan_request()
+            self._publish()
         if mode:
             self._scanning = True
             threading.Thread(target=self._scan, args=(mode,), daemon=True, name="net-scan").start()
@@ -152,6 +191,7 @@ class Agent:
         finally:
             with self.lock:
                 self.manager.scan_done(results)
+                self._publish()
             self._scanning = False
 
     def loop(self, interval: float = 1.0) -> None:

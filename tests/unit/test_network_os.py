@@ -65,3 +65,13 @@ def test_units_packages_and_mounts_are_wired():
     avahi = read(BOARD, "overlay", "etc", "avahi", "avahi-daemon.conf")
     assert "publish-workstation=no" in avahi and "enable-reflector=no" in avahi and "host-name=" not in avahi
     assert "FallbackNTP=" in read(BOARD, "overlay", "etc", "systemd", "timesyncd.conf.d", "hifi-bridge.conf")
+
+
+def test_snapshot_restore_runs_in_the_boot_step_before_the_network_agent():
+    """Review N-4: hifi-netd reads network.json and local_hostname only at its start, so an owner-requested snapshot restore is applied
+    by hifi-bridge-boot.service (bootfiles), which the agent is ordered after; the boot step must see rauc.slot= in /proc/cmdline."""
+    netd = unit("hifi-netd.service")
+    assert re.search(r"^After=.*\bhifi-bridge-boot\.service\b", netd, re.M)
+    boot = read(REPO, "packaging", "systemd", "hifi-bridge-boot.service")
+    assert re.search(r"^Before=.*\bhifi-bridge\.service\b", boot, re.M) and "ProtectProc=invisible" in boot
+    assert not re.search(r"^ProcSubset=pid", boot, re.M)                # would hide /proc/cmdline

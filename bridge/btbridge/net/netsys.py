@@ -14,6 +14,7 @@ import re
 import socket
 import struct
 import subprocess
+import threading
 from typing import Callable
 
 from . import netconfig, netlink, netrender
@@ -32,7 +33,9 @@ class CtrlError(OSError):
 
 
 class CtrlClient:
-    """wpa_supplicant/hostapd control interface: requests and unsolicited events ('<N>EVENT') on one UNIX datagram socket."""
+    """wpa_supplicant/hostapd control interface: requests and unsolicited events ('<N>EVENT') on one UNIX datagram socket.
+    Thread-safe (review N-7): the agent's tick (ATTACH/STATUS/events) and its status request (SIGNAL_POLL) share one client; one lock
+    serialises every request/reply pair, the event drain and closing, so a reply is never taken by the other thread."""
 
     def __init__(self, path: str, local_dir: str, timeout: float = 2.0):
         self.path, self.timeout = path, timeout
@@ -40,6 +43,7 @@ class CtrlClient:
         self.sock: socket.socket | None = None
         self.queued: list[str] = []
         self.attached = False
+        self._lock = threading.RLock()
 
     def _open(self) -> socket.socket:
         if self.sock is None:
@@ -66,50 +70,54 @@ class CtrlClient:
             pass
 
     def close(self) -> None:
-        if self.sock is not None:
-            self.sock.close()
-            self.sock = None
-        self.attached = False
-        self._unlink()
+        with self._lock:
+            if self.sock is not None:
+                self.sock.close()
+                self.sock = None
+            self.attached = False
+            self._unlink()
 
     def request(self, cmd: str) -> str:
-        s = self._open()
-        try:
-            s.send(cmd.encode())
-            while True:
-                data = s.recv(65536).decode("utf-8", "replace")
-                if re.match(r"<\d>", data):
-                    self.queued.append(data)
-                    continue
-                return data
-        except OSError as e:
-            self.close()
-            raise CtrlError(f"control request failed: {e}") from None
+        with self._lock:
+            s = self._open()
+            try:
+                s.send(cmd.encode())
+                while True:
+                    data = s.recv(65536).decode("utf-8", "replace")
+                    if re.match(r"<\d>", data):
+                        self.queued.append(data)
+                        continue
+                    return data
+            except OSError as e:
+                self.close()
+                raise CtrlError(f"control request failed: {e}") from None
 
     def attach(self) -> bool:
-        if not self.attached:
-            self.attached = self.request("ATTACH").strip() == "OK"
-        return self.attached
+        with self._lock:
+            if not self.attached:
+                self.attached = self.request("ATTACH").strip() == "OK"
+            return self.attached
 
     def events(self) -> list[str]:
-        out, self.queued = self.queued, []
-        s = self.sock
-        if s is None:
+        with self._lock:
+            out, self.queued = self.queued, []
+            s = self.sock
+            if s is None:
+                return out
+            s.setblocking(False)
+            try:
+                while True:
+                    data = s.recv(65536).decode("utf-8", "replace")
+                    if re.match(r"<\d>", data):
+                        out.append(data)
+            except (BlockingIOError, InterruptedError):
+                pass
+            except OSError:
+                self.close()
+            finally:
+                if self.sock is not None:
+                    self.sock.settimeout(self.timeout)
             return out
-        s.setblocking(False)
-        try:
-            while True:
-                data = s.recv(65536).decode("utf-8", "replace")
-                if re.match(r"<\d>", data):
-                    out.append(data)
-        except (BlockingIOError, InterruptedError):
-            pass
-        except OSError:
-            self.close()
-        finally:
-            if self.sock is not None:
-                self.sock.settimeout(self.timeout)
-        return out
 
 
 def kv(text: str) -> dict[str, str]:

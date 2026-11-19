@@ -78,6 +78,6 @@ capture tool choice (`adapters/bluez/pcm.choose_capture`), trend history in the 
 
 ## Phase-2b preparation additions (2026-11-16)
 * Device: `provisioning.py` (format `hifi-bridge-provision/1`, shared with the flash tool), `trustproof.py` (P7 HMAC proof, shared),
-  `bootfiles.py` (recovery → provisioning → CA → status, run by `hifi-bridge-boot.service`), journaled `recovery.py`, `/trust/proof`.
+  `bootfiles.py` (recovery → provisioning → snapshot restore → CA → status, run by `hifi-bridge-boot.service`), journaled `recovery.py`, `/trust/proof`.
 * `os/br2-external`: Buildroot skeleton (docs/PHASE2B_PLAN.md, os/README.md).
 * `flashtool/hififlash`: flash tool core (docs/FLASH_TOOL.md). It depends on `btbridge.provisioning` and `btbridge.trustproof` only.

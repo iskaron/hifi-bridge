@@ -340,3 +340,61 @@ def test_observe_rediscovers_a_late_wifi_interface(short_tmp):
     assert s.wlan is None and s.observe().wifi_present is False
     make_sysfs(s.sysfs, {"wlan0": ("1", "wifi")})
     assert s.observe().wifi_present is True and s.wlan == "wlan0"
+
+
+def test_one_control_client_used_by_two_threads_never_mixes_up_replies(short_tmp):
+    """Review N-7: the agent's tick (ATTACH/STATUS/events) and its status request (SIGNAL_POLL) share one CtrlClient. Unserialised,
+    a STATUS reply was consumed as SIGNAL_POLL and vice versa ('Wi-Fi connection lost', missing signal) and one thread closed the
+    socket under the other."""
+    import time
+    path = os.path.join(short_tmp, "wlan0")
+    srv = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+    srv.bind(path)
+    srv.settimeout(0.2)
+    stop = threading.Event()
+
+    def serve():                                              # like wpa_supplicant: answers after a moment, sometimes an event first
+        n = 0
+        while not stop.is_set():
+            try:
+                data, peer = srv.recvfrom(4096)
+            except socket.timeout:
+                continue
+            except OSError:                                   # closed at the end of the test
+                return
+            n += 1
+            time.sleep(0.0003)
+            if n % 7 == 0:
+                srv.sendto(b"<3>CTRL-EVENT-SCAN-RESULTS ", peer)
+            reply = {"STATUS": b"wpa_state=COMPLETED\nssid=x\n", "SIGNAL_POLL": b"RSSI=-50\nFREQUENCY=2412\n"}.get(data.decode(), b"OK\n")
+            srv.sendto(reply, peer)
+    threading.Thread(target=serve, daemon=True).start()
+    c = S.CtrlClient(path, short_tmp, timeout=2.0)
+    bad, errors = [], []
+
+    def tick():
+        for _ in range(1000):
+            try:
+                c.attach()
+                if S.kv(c.request("STATUS")).get("wpa_state") != "COMPLETED":
+                    bad.append("STATUS")
+                c.events()
+            except S.CtrlError as e:
+                errors.append(e)
+
+    def status():
+        for _ in range(1000):
+            try:
+                if "RSSI" not in S.kv(c.request("SIGNAL_POLL")):
+                    bad.append("SIGNAL_POLL")
+            except S.CtrlError as e:
+                errors.append(e)
+    try:
+        threads = [threading.Thread(target=tick), threading.Thread(target=status)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(60)
+        assert bad == [] and errors == []
+    finally:
+        stop.set(); c.close(); srv.close()

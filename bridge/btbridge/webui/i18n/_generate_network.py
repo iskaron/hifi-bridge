@@ -21,6 +21,17 @@ for s, en, de in [("connected", "Wi-Fi connected", "WLAN verbunden"), ("connecti
                   ("unmanaged", "Managed by the host system", "Vom Host-System verwaltet"),
                   ("agent_unreachable", "Network service not reachable", "Netzwerkdienst nicht erreichbar")]:
     k("net.state." + s, en, de)
+k("net.setup.back", "Back to the setup", "Zurück zur Einrichtung")
+k("net.setup.link", "Network settings", "Netzwerkeinstellungen")
+k("net.setup.hint", "Not connected to your home network yet – for example only to the device's setup hotspot, or no Ethernet cable? "
+  "Then no Lyrion server can be found. Set up the network first; the setup continues here afterwards.",
+  "Noch nicht mit Ihrem Heimnetz verbunden – zum Beispiel nur mit dem Einrichtungs-Hotspot des Geräts, oder ohne Ethernet-Kabel? "
+  "Dann kann kein Lyrion-Server gefunden werden. Richten Sie zuerst das Netzwerk ein; danach geht die Einrichtung hier weiter.")
+k("net.setup.note", "The setup is not finished yet. After joining your home Wi-Fi, connect your phone to the same Wi-Fi, open the device's "
+  "page again (its name or the address your router shows), confirm the new network settings and continue with the setup.",
+  "Die Einrichtung ist noch nicht abgeschlossen. Verbinden Sie nach dem Wechsel ins Heim-WLAN Ihr Telefon mit demselben WLAN, öffnen "
+  "Sie die Seite des Geräts erneut (sein Name oder die Adresse, die Ihr Router anzeigt), bestätigen Sie die neuen Netzwerkeinstellungen "
+  "und setzen Sie die Einrichtung fort.")
 k("net.wifi", "Wi-Fi network", "WLAN")
 k("net.last_problem", "Last problem", "Letztes Problem")
 k("net.fallback", "Setup hotspot", "Einrichtungs-Hotspot")
@@ -70,6 +81,14 @@ k("net.trial.rolled_back", "Previous network settings restored", "Vorherige Netz
 k("net.trial.had_address", "The device had reached the new network as {addresses} – try that address next time.",
   "Das Gerät war im neuen Netz als {addresses} erreichbar – versuchen Sie beim nächsten Mal diese Adresse.")
 k("net.trial.kept", "Network settings kept.", "Netzwerkeinstellungen behalten.")
+k("net.busy", "The network service did not answer in time – the device may still be applying the change. Reload this page in a moment: "
+  "if “Keep the new network settings?” appears, confirm it.",
+  "Der Netzwerkdienst hat nicht rechtzeitig geantwortet – das Gerät übernimmt die Änderung eventuell noch. Laden Sie diese Seite gleich "
+  "neu: Erscheint „Neue Netzwerkeinstellungen behalten?“, bestätigen Sie sie.")
+k("net.agent_unreachable.help", "The network service of the device is not reachable, so nothing was changed. Wait a minute and reload this "
+  "page; if it stays like this, restart the device (unplug it briefly). The current network settings stay in effect.",
+  "Der Netzwerkdienst des Geräts ist nicht erreichbar, daher wurde nichts geändert. Warten Sie eine Minute und laden Sie die Seite neu; "
+  "bleibt es so, starten Sie das Gerät neu (kurz vom Strom trennen). Die aktuellen Netzwerkeinstellungen bleiben wirksam.")
 k("net.trial.undone", "Change undone.", "Änderung rückgängig gemacht.")
 k("net.trial.too_late", "There is no change waiting for confirmation (it may have been undone already).",
   "Keine Änderung wartet auf Bestätigung (sie wurde eventuell schon zurückgesetzt).")
@@ -167,7 +186,22 @@ for r, en, de in [("invalid", "invalid", "ungültig"), ("required_iso_3166_alpha
                   ("same_as_wifi", "must differ from the Wi-Fi network name", "muss sich vom WLAN-Namen unterscheiden"),
                   ("not_json", "unreadable", "nicht lesbar"), ("mismatch", "changed meanwhile – please try again", "zwischenzeitlich geändert – bitte erneut versuchen"),
                   ("unknown_field", "unknown entry", "unbekannter Eintrag"), ("not_an_object", "invalid", "ungültig"),
-                  ("permissions_too_open", "wrong file permissions", "falsche Dateirechte")]:
+                  ("permissions_too_open", "wrong file permissions", "falsche Dateirechte"),
+                  # review N-11: reachable codes of the agent's strict file check and of its replies, each with the next step
+                  ("unreadable", "could not be read – save again; if this repeats, restart the device",
+                   "konnte nicht gelesen werden – bitte erneut speichern; wiederholt sich das, das Gerät neu starten"),
+                  ("wrong_owner", "belongs to the wrong user – save again; if this repeats, restart the device",
+                   "gehört dem falschen Benutzer – bitte erneut speichern; wiederholt sich das, das Gerät neu starten"),
+                  ("not_a_regular_file", "is not a regular file – save again; if this repeats, restart the device",
+                   "ist keine normale Datei – bitte erneut speichern; wiederholt sich das, das Gerät neu starten"),
+                  ("too_large", "too large – reload the page and save again",
+                   "zu groß – bitte die Seite neu laden und erneut speichern"),
+                  ("unsupported", "format not supported by this version – save the settings again on this page",
+                   "Format wird von dieser Version nicht unterstützt – bitte die Einstellungen auf dieser Seite erneut speichern"),
+                  ("bad_request", "request not understood – reload the page and try again",
+                   "Anfrage nicht verstanden – bitte die Seite neu laden und erneut versuchen"),
+                  ("forbidden", "refused by the network service – restart the device",
+                   "vom Netzwerkdienst abgelehnt – bitte das Gerät neu starten")]:
     k("net.err." + r, en, de)
 k("net.saved", "Network settings saved.", "Netzwerkeinstellungen gespeichert.")
 k("net.saved_pending", "New network settings are active – please confirm them.", "Neue Netzwerkeinstellungen sind aktiv – bitte bestätigen.")

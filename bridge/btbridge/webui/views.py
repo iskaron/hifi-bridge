@@ -178,11 +178,13 @@ def toggle_form(req, action: str, label: str, value: str, pressed: bool, extra: 
 
 # ============================================================== setup wizard
 def wizard_steps(req, current: int) -> str:
+    from . import views_network
     t = req.t
     names = ["wizard.step.account", "wizard.step.bluetooth", "wizard.step.lyrion", "wizard.step.target", "wizard.step.finish"]
     items = "".join(f'<li class="{"done" if i < current else ("current" if i == current else "")}"'
                     f'{" aria-current=step" if i == current else ""}><span>{i + 1}</span>{esc(t(n))}</li>' for i, n in enumerate(names))
-    return f'<ol class="steps" aria-label="{esc(t("wizard.progress"))}">{items}</ol>'
+    banner = views_network.pending_banner(req) if current else ""       # a network change made during the setup (review N-1)
+    return f'{banner}<ol class="steps" aria-label="{esc(t("wizard.progress"))}">{items}</ol>'
 
 
 def lang_switch(req) -> str:
@@ -256,6 +258,7 @@ def setup_bluetooth_post(req):
 
 
 def setup_lyrion_get(req):
+    from . import views_network
     t, svc = req.t, req.ui.svc
     found = svc.discover_servers(timeout=1.5)
     opts = "".join(f"""<form method="post" action="/setup/lyrion" class="server">{csrf(req)}
@@ -267,7 +270,7 @@ def setup_lyrion_get(req):
 <h2>{esc(t("wizard.lyrion.manual"))}</h2><form method="post" action="/setup/lyrion" class="stack inline">{csrf(req)}
 <label>{esc(t("field.lms_host"))}<input name="lms_host" value="{esc(svc.store.get("lms_host"))}" required spellcheck="false" autocapitalize="off"></label>
 <label class="port">{esc(t("field.lms_port"))}<input name="lms_port" value="{esc(svc.store.get("lms_port"))}" inputmode="numeric" required></label>
-<button class="primary">{esc(t("wizard.lyrion.connect"))}</button></form></section>"""
+<button class="primary">{esc(t("wizard.lyrion.connect"))}</button></form>{views_network.setup_hint(req)}</section>"""
     return page(req.ui, req, t("wizard.lyrion.title"), body, wizard=True)
 
 

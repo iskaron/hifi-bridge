@@ -90,8 +90,11 @@ def run(a, source, ready: Callable[[ApplianceService, WebUI], None] | None = Non
         except OSError as e:                                  # e.g. a root-owned /boot/firmware on stock Pi OS: report, keep running
             print(f"boot files NOT processed ({type(e).__name__}: {e}) - the bridge starts without them", file=sys.stderr, flush=True)
     if getattr(a, "updates", "none") == "rauc":                 # an owner-requested settings snapshot, BEFORE the configuration loads
-        from .ota.manager import prepare_data
-        prepare_data(a.data, log=lambda m: print(m, flush=True))
+        from .ota import manager as ota_manager                 # (normally already done by the boot step, before hifi-netd: then a no-op)
+        try:
+            ota_manager.prepare_data(a.data, log=lambda m: print(m, flush=True))
+        except Exception as e:                                # review N-4: never keep the WebUI down (restart loop)
+            print(f"snapshot restore step failed ({type(e).__name__}: {e}) - the bridge starts without it", file=sys.stderr, flush=True)
     svc = ApplianceService(a.data, source=source, stream_port=a.stream_port, advertise_host=a.advertise_host,
                            monitor=SystemMonitor(proc=a.proc_root, thermal=a.thermal_path or None, data_dir=a.data),
                            mqtt_factory=None if a.no_mqtt else MqttBridge)

@@ -43,7 +43,8 @@ SNAPSHOT_DIRS = ("certs",)
 PERSISTENT = ("idle", "staged", "installing", "installed", "rebooting", "switching", "confirming")
 REBOOT_PHASES = ("installed", "switching")
 MONITOR_S = 0.5
-RAUC_GONE_S = 120.0                     # RAUC unreachable this long during an installation -> interrupted
+RAUC_GONE_S = 120.0                     # RAUC unreachable or unusable this long during an installation -> interrupted
+REBOOT_WAIT_S = 300.0                   # "rebooting" on the same boot this long: the restart never happened -> back, with guidance
 
 
 class UpdateError(Exception):
@@ -96,6 +97,16 @@ def booted_slot_from_cmdline(path: str = "/proc/cmdline") -> str | None:
     except OSError:
         return None
     return m.group(1) if m else None
+
+
+def progress_of(props: dict) -> dict:
+    """RAUC's Progress (percentage, message, depth) for the page; a malformed value shows 0 % instead of ending the monitor."""
+    pr = props.get("Progress")
+    try:
+        pct, msg = int(pr[0]), str(pr[1])
+    except (TypeError, ValueError, IndexError, KeyError):
+        pct, msg = 0, ""
+    return {"done": max(0, min(100, pct)), "total": 100, "message": msg[:200]}
 
 
 def empty_state() -> dict:
@@ -191,45 +202,80 @@ def restorable_snapshot(ota_dir: str, bootname: str | None, version: str) -> dic
 
 
 def prepare_data(data_dir: str, version: str = __version__, bootname: str | None = None, log: Callable[[str], None] = print) -> str:
-    """Startup step BEFORE the configuration is loaded: apply an OWNER-REQUESTED snapshot restore (never automatic). The request names
-    the snapshot (slot, version, creation time); it is applied only if that snapshot still exists and belongs to the running version on
-    the booted slot. The request file is removed afterwards; a power cut in between repeats the (idempotent) copy.
-    Returns none | restored | mismatch."""
+    """Boot step BEFORE anything reads the data (``bootfiles``, i.e. ``hifi-bridge-boot.service``, which ``hifi-netd`` and the bridge are
+    ordered after - review N-4; the bridge calls it again as a no-op fallback): apply an OWNER-REQUESTED snapshot restore (never
+    automatic). The request names the snapshot (slot, version, creation time); it is applied only if that snapshot still exists and
+    belongs to the running version on the booted slot. All files are copied first and swapped in only when every copy succeeded; the
+    request file is removed afterwards; a power cut in between repeats the (idempotent) restore.
+    Never raises (a failure must not stop the start, or every restart would repeat it): returns none | restored | mismatch | deferred
+    (the booted slot is not known here; the request stays for a later step) | failed (logged, recorded as the error ``restore_failed``
+    for the update/backup pages, request dropped, nothing changed)."""
     ota_dir = os.path.join(data_dir, "ota")
     req_path = os.path.join(ota_dir, RESTORE_REQUEST)
-    req = load_json(req_path)
-    if req is None and not os.path.exists(req_path):
-        return "none"
-    bootname = bootname or booted_slot_from_cmdline()
-    meta = restorable_snapshot(ota_dir, bootname, version)
-    if not isinstance(req, dict) or not meta or req.get("slot") != bootname or req.get("created") != meta.get("created"):
+    try:
+        req = load_json(req_path)
+        if req is None and not os.path.exists(req_path):
+            return "none"
+        bootname = bootname or booted_slot_from_cmdline()
+        if bootname is None:
+            log("update: snapshot restore deferred (the booted slot is not known in this step)")
+            return "deferred"
+        meta = restorable_snapshot(ota_dir, bootname, version)
+        if not isinstance(req, dict) or not meta or req.get("slot") != bootname or req.get("created") != meta.get("created"):
+            os.unlink(req_path)
+            log("update: snapshot restore request ignored (it does not match this version and slot)")
+            return "mismatch"
+        _restore_snapshot(data_dir, os.path.join(ota_dir, "snapshots", bootname))
+        with StateFile(ota_dir).edit() as st:
+            st["restored"] = {"at": time.time(), "version": version, "snapshot_created": meta.get("created")}
         os.unlink(req_path)
-        log("update: snapshot restore request ignored (it does not match this version and slot)")
-        return "mismatch"
-    snap = os.path.join(ota_dir, "snapshots", bootname)
-    for name in SNAPSHOT_FILES:
-        src, dst = os.path.join(snap, name), os.path.join(data_dir, name)
-        if os.path.isfile(src):
-            tmp = dst + ".restore"
-            shutil.copy2(src, tmp)
-            os.replace(tmp, dst)
-        elif os.path.isfile(dst):
-            os.unlink(dst)                                     # did not exist when the snapshot was taken
-    for name in SNAPSHOT_DIRS:
-        src, dst = os.path.join(snap, name), os.path.join(data_dir, name)
-        if os.path.isdir(src):
-            tmp = dst + ".restore"
-            shutil.rmtree(tmp, ignore_errors=True)
-            shutil.copytree(src, tmp)
-            shutil.rmtree(dst, ignore_errors=True)
-            os.replace(tmp, dst)
-    _fsync_dir(data_dir)
-    with StateFile(ota_dir).edit() as st:
-        st["restored"] = {"at": time.time(), "version": version, "snapshot_created": meta.get("created")}
-    os.unlink(req_path)
-    _fsync_dir(ota_dir)
+        _fsync_dir(ota_dir)
+    except Exception as e:                                     # ENOSPC, EIO on the card, a damaged snapshot, ...
+        detail = f"{type(e).__name__}: {e}"
+        log(f"update: snapshot restore FAILED ({detail}) - the device starts with its current settings")
+        try:
+            with StateFile(ota_dir).edit() as st:
+                st["error"] = {"code": "restore_failed", "detail": detail[:500], "at": time.time()}
+            os.unlink(req_path)
+        except Exception as e2:
+            log(f"update: could not record the failed restore ({type(e2).__name__}: {e2})")
+        return "failed"
     log(f"update: restored the settings snapshot of version {version} as requested by the owner")
     return "restored"
+
+
+def _restore_snapshot(data_dir: str, snap: str) -> None:
+    """Copy everything next to its target first; only when every copy succeeded, swap the copies in (a failing copy changes nothing)."""
+    swaps: list[tuple[str | None, str]] = []                   # (staged copy, or None = delete the target; target)
+    try:
+        for name in (*SNAPSHOT_FILES, *SNAPSHOT_DIRS):
+            src, dst = os.path.join(snap, name), os.path.join(data_dir, name)
+            tmp = dst + ".restore"
+            if name in SNAPSHOT_DIRS and os.path.isdir(src):
+                shutil.rmtree(tmp, ignore_errors=True)
+                swaps.append((tmp, dst))                       # registered first: a partial copy is cleaned up as well
+                shutil.copytree(src, tmp)
+            elif name in SNAPSHOT_FILES and os.path.isfile(src):
+                swaps.append((tmp, dst))
+                shutil.copy2(src, tmp)
+            elif name in SNAPSHOT_FILES and os.path.isfile(dst):
+                swaps.append((None, dst))                      # did not exist when the snapshot was taken
+    except BaseException:
+        for tmp, _ in swaps:
+            if tmp and os.path.isdir(tmp):
+                shutil.rmtree(tmp, ignore_errors=True)
+            elif tmp:
+                with contextlib.suppress(OSError):
+                    os.unlink(tmp)
+        raise
+    for tmp, dst in swaps:
+        if tmp is None:
+            os.unlink(dst)
+        else:
+            if os.path.isdir(tmp):
+                shutil.rmtree(dst, ignore_errors=True)
+            os.replace(tmp, dst)
+    _fsync_dir(data_dir)
 
 
 # ------------------------------------------------------------------------------------------------ boot reconciliation
@@ -291,7 +337,7 @@ class UpdateManager:
                  reboot: Callable[[], None] | None = None, current_boot: Callable[[], str] = boot_id,
                  free: Callable[[str], int] | None = None, log: Callable[[str], None] = print, clock: Callable[[], float] = time.time,
                  download_opts: dict | None = None, monitor_s: float = MONITOR_S, rauc_gone_s: float = RAUC_GONE_S,
-                 max_bundle: int = MAX_BUNDLE):
+                 max_bundle: int = MAX_BUNDLE, reboot_wait_s: float = REBOOT_WAIT_S):
         self.data_dir, self.rauc, self.version, self.log, self.clock = data_dir, rauc, version, log, clock
         self.ota_dir = os.path.join(data_dir, "ota")
         self.state = StateFile(self.ota_dir)
@@ -300,7 +346,7 @@ class UpdateManager:
         self.reboot_fn = reboot or RebootRequest()
         self.current_boot, self.free = current_boot, free
         self.download_opts = download_opts or {}
-        self.monitor_s, self.rauc_gone_s, self.max_bundle = monitor_s, rauc_gone_s, max_bundle
+        self.monitor_s, self.rauc_gone_s, self.max_bundle, self.reboot_wait_s = monitor_s, rauc_gone_s, max_bundle, reboot_wait_s
         self._lock = threading.RLock()
         self._busy: str | None = None                          # transient phase: downloading | verifying | uploading
         self._progress = {"done": 0, "total": 0}
@@ -329,10 +375,11 @@ class UpdateManager:
                         "boot_status": s.get("boot-status", "unknown"), "version": version,
                         "installed": s.get("installed.timestamp")})
         return {"available": True, "compatible": props.get("Compatible"), "booted": booted, "operation": props.get("Operation"),
-                "last_error": props.get("LastError"), "progress": list(props.get("Progress") or (0, "", 0)), "slots": out,
+                "last_error": props.get("LastError"), "progress": progress_of(props), "slots": out,
                 "primary": primary}
 
     def info(self) -> dict:
+        self._reboot_timeout()
         st = self.state.read()
         rv = self._rauc_view()
         other = next((s for s in rv.get("slots", []) if not s["booted"]), None)
@@ -351,13 +398,37 @@ class UpdateManager:
 
     # ---------------------------------------------------------------- helpers
     def _set_error(self, code: str, detail: str = "") -> None:
-        """Record the error, THEN leave a transient phase (so the UI never sees 'idle' without the error)."""
-        with self.state.edit() as st:
-            st["error"] = {"code": code, "detail": detail[:500], "at": self.clock()}
-        self._busy = None
+        """Record the error, THEN leave a transient phase (so the UI never sees 'idle' without the error). A storage error while
+        recording never keeps the transient phase (review N-10): the caller's UpdateError still tells the owner."""
+        try:
+            with self.state.edit() as st:
+                st["error"] = {"code": code, "detail": detail[:500], "at": self.clock()}
+        except OSError as e:
+            self.log(f"update: could not record the error {code} ({type(e).__name__}: {e})")
+        finally:
+            self._busy = None
         self.log(f"update: {code}{(' - ' + detail) if detail else ''}")
 
+    def _reboot_timeout(self) -> None:
+        """Review N-10: the owner confirmed the restart but nothing restarted (same boot, REBOOT_WAIT_S later; e.g. the root restart
+        helper did not act). Go back to the phase before, with an error that tells the owner what to do. A real restart changes the
+        boot id and is reconciled at the next bridge start instead."""
+        if self.state.read()["phase"] != "rebooting":          # cheap check first: no file lock on every page load
+            return
+        with self.state.edit() as st:
+            inst = st.get("install") or {}
+            rb = inst.get("reboot") or {}
+            since = rb.get("at", inst.get("finished_at") or inst.get("started_at") or 0)
+            if (st["phase"] != "rebooting" or rb.get("boot_id", inst.get("boot_id")) != self.current_boot()
+                    or self.clock() - since < self.reboot_wait_s):
+                return
+            st["phase"] = rb.get("from") if rb.get("from") in REBOOT_PHASES else ("switching" if inst.get("kind") == "switch" else "installed")
+            inst.pop("reboot", None)
+            st["error"] = {"code": "reboot_timeout", "detail": "", "at": self.clock()}
+        self.log("update: the requested restart did not happen - waiting for the owner again")
+
     def _require_idle(self, allowed=("idle", "staged")) -> dict:
+        self._reboot_timeout()
         if self._busy:
             raise UpdateError("busy", self._busy)
         st = self.state.read()
@@ -422,7 +493,10 @@ class UpdateManager:
         except Exception as e:                                  # never leave the manager stuck in "downloading"
             self._set_error("download_failed", f"{type(e).__name__}: {e}")
             return
-        self._verify(self.bundle_path, "download", asset["name"])
+        try:
+            self._verify(self.bundle_path, "download", asset["name"])
+        except UpdateError:                                     # already recorded for the page; nobody waits for this thread
+            pass
 
     def cancel_download(self) -> None:
         self._cancel.set()
@@ -461,16 +535,39 @@ class UpdateManager:
         if not os.path.exists(tmp) or os.path.getsize(tmp) == 0:
             self.abort_upload("no_file")
             raise UpdateError("no_file")
-        with self.state.edit() as st:
-            st["staged"], st["phase"] = None, "idle"
-        if os.path.exists(self.bundle_path):
-            os.unlink(self.bundle_path)
-        os.replace(tmp, self.bundle_path)
+        try:
+            with self.state.edit() as st:
+                st["staged"], st["phase"] = None, "idle"
+            if os.path.exists(self.bundle_path):
+                os.unlink(self.bundle_path)
+            os.replace(tmp, self.bundle_path)
+        except OSError as e:                                    # review N-10: never stay in "uploading"
+            try:
+                self.abort_upload("upload_failed", f"{type(e).__name__}: {e}")
+            except OSError:
+                self._busy = None
+            raise UpdateError("upload_failed", type(e).__name__) from None
         return self._verify(self.bundle_path, "upload", os.path.basename(name or "")[:120])
 
     # ---------------------------------------------------------------- verification (RAUC's signature check + our compatible check)
     def _verify(self, path: str, origin: str, name: str) -> dict:
+        """Transient phase 'verifying'; whatever happens, the manager leaves it (review N-10)."""
         self._busy = "verifying"
+        try:
+            return self._verify_bundle(path, origin, name)
+        except UpdateError:
+            raise
+        except Exception as e:                                  # storage error, malformed RAUC answer, ...
+            try:
+                self._remove_bundle()
+            except OSError:
+                pass
+            self._set_error("verify_failed", f"{type(e).__name__}: {e}")
+            raise UpdateError("verify_failed", type(e).__name__) from None
+        finally:
+            self._busy = None
+
+    def _verify_bundle(self, path: str, origin: str, name: str) -> dict:
         try:
             props = self.rauc.properties()
             info = self.rauc.inspect(path)
@@ -493,7 +590,6 @@ class UpdateManager:
                   "verified_at": self.clock()}
         with self.state.edit() as st:
             st["phase"], st["staged"], st["error"] = "staged", staged, None
-        self._busy = None
         self.log(f"update: bundle {staged['version']} verified by RAUC ({origin})")
         return staged
 
@@ -539,35 +635,45 @@ class UpdateManager:
             self._thread.start()
 
     def _monitor(self) -> None:
+        """Watch RAUC until the installation ends. The thread never dies silently (review N-5): RAUC unreachable, a RAUC error reply
+        (RaucError) or anything unexpected counts as "RAUC not usable"; after rauc_gone_s the installation is reported as interrupted,
+        so the page leaves "installing" and every action is possible again."""
         gone_since = None
         while True:
             try:
-                result = self.rauc.completed()
-                props = self.rauc.properties()
+                if self._monitor_step():
+                    return
                 gone_since = None
-            except RaucUnavailable:
+            except Exception as e:
+                why = "RAUC was not reachable" if isinstance(e, RaucUnavailable) else f"{type(e).__name__}: {e}"
                 gone_since = gone_since or self.clock()
                 if self.clock() - gone_since > self.rauc_gone_s:
-                    self._finish(None, "RAUC was not reachable during the installation")
+                    try:
+                        self._finish(None, f"{why} during the installation")
+                    except Exception as e2:                    # e.g. the data partition cannot be written
+                        self.log(f"update: could not record the end of the installation ({type(e2).__name__}: {e2})")
                     return
-                time.sleep(self.monitor_s)
-                continue
-            pct, msg, _ = props.get("Progress") or (0, "", 0)
-            self._progress = {"done": int(pct), "total": 100, "message": msg}
-            if result is not None:
-                self._finish(result, props.get("LastError") or "")
-                return
-            if props.get("Operation") != "installing":         # idle without our Completed: finished while we were not looking,
-                time.sleep(self.monitor_s)                     # or RAUC was restarted; give a late signal a moment to arrive
-                try:
-                    result = self.rauc.completed()
-                except RaucUnavailable:
-                    result = None
-                if result is None and self._primary_bootname() == (self.state.read().get("install") or {}).get("to_slot"):
-                    result = 0                                 # RAUC activates the new slot only after a complete installation
-                self._finish(result, props.get("LastError") or "")
-                return
             time.sleep(self.monitor_s)
+
+    def _monitor_step(self) -> bool:
+        """One look at RAUC; True when the installation has ended (and was recorded)."""
+        result = self.rauc.completed()
+        props = self.rauc.properties()
+        self._progress = progress_of(props)
+        if result is not None:
+            self._finish(result, str(props.get("LastError") or ""))
+            return True
+        if props.get("Operation") != "installing":             # idle without our Completed: finished while we were not looking,
+            time.sleep(self.monitor_s)                         # or RAUC was restarted; give a late signal a moment to arrive
+            try:
+                result = self.rauc.completed()
+            except (RaucUnavailable, RaucError):
+                result = None
+            if result is None and self._primary_bootname() == (self.state.read().get("install") or {}).get("to_slot"):
+                result = 0                                     # RAUC activates the new slot only after a complete installation
+            self._finish(result, str(props.get("LastError") or ""))
+            return True
+        return False
 
     def _primary_bootname(self) -> str | None:
         try:
@@ -628,12 +734,15 @@ class UpdateManager:
         with self._lock:
             st0 = self._require_idle(REBOOT_PHASES)
             with self.state.edit() as st:
-                st["phase"] = "rebooting"
+                st["phase"], st["error"] = "rebooting", None
+                if st.get("install"):                          # for the "restart did not happen" timeout (review N-10)
+                    st["install"]["reboot"] = {"at": self.clock(), "boot_id": self.current_boot(), "from": st0["phase"]}
             try:
                 self.reboot_fn()
             except OSError as e:                               # no restart helper (e.g. not on the image): stay where we were
                 with self.state.edit() as st:
                     st["phase"] = st0["phase"]
+                    (st.get("install") or {}).pop("reboot", None)
                 raise UpdateError("reboot_unavailable", type(e).__name__) from None
             self.log("update: restart requested by the owner")
 

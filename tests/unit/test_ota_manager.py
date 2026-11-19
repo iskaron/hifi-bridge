@@ -660,3 +660,327 @@ def test_monitor_tolerates_errors_while_deciding(env, monkeypatch):
     env.m.install()
     wait(lambda: env.m.state.read()["phase"] != "installing")
     assert env.m.info()["error"]["code"] == "install_interrupted"
+
+
+# ---------------------------------------------------------------- review N-5 / N-10: the manager never stays stuck
+def start_hanging_install(env, **kw):
+    env.m = env.make(**kw)
+    env.rauc.plan = {"hang": True}
+    upload(env.m, env.rauc)
+    env.m.install()
+    assert env.m.info()["phase"] == "installing"
+
+
+def actions_possible_again(env):
+    i = env.m.info()
+    assert i["phase"] == "staged" and i["error"]["code"] == "install_interrupted"
+    env.m.discard()                                                     # not "busy" any more
+    assert env.m.info()["phase"] == "idle"
+
+
+@pytest.mark.parametrize("where", ["completed", "properties"])
+def test_a_rauc_error_reply_during_the_install_ends_as_interrupted(env, monkeypatch, where):
+    """Review N-5: a D-Bus error that is not 'service gone' (RaucError) used to end the monitor thread: 'installing' forever."""
+    start_hanging_install(env, rauc_gone_s=0.05)
+    monkeypatch.setattr(env.rauc, where, lambda: (_ for _ in ()).throw(M.RaucError("org.freedesktop.DBus.Error.LimitsExceeded")))
+    wait(lambda: env.m.state.read()["phase"] != "installing")
+    env.m._thread.join(5)
+    assert "LimitsExceeded" in env.m.state.read()["error"]["detail"] and not env.m._thread.is_alive()
+    monkeypatch.undo()
+    actions_possible_again(env)
+
+
+def test_a_short_rauc_error_burst_does_not_end_the_install(env, monkeypatch):
+    start_hanging_install(env)
+    calls = {"n": 0}
+    real = env.rauc.properties
+
+    def flaky():
+        calls["n"] += 1
+        if 2 <= calls["n"] <= 4:
+            raise M.RaucError("org.freedesktop.DBus.Error.NoReply")
+        return real()
+    monkeypatch.setattr(env.rauc, "properties", flaky)
+    wait(lambda: calls["n"] > 5)
+    env.rauc.plan, env.rauc._polls = {"result": 0}, 0
+    wait(lambda: env.m.state.read()["phase"] == "installed")
+
+
+@pytest.mark.parametrize("progress", [(42, "Copying image"), "garbage", (None, None, None), 17])
+def test_a_malformed_progress_value_never_stops_the_install(env, monkeypatch, progress):
+    real = env.rauc.properties
+
+    def props():
+        p = real()
+        p["Progress"] = progress
+        return p
+    monkeypatch.setattr(env.rauc, "properties", props)
+    assert install(env)["phase"] == "installed"
+
+
+def test_an_unexpected_exception_in_the_monitor_ends_as_interrupted(env, monkeypatch):
+    start_hanging_install(env, rauc_gone_s=0.05)
+    monkeypatch.setattr(env.rauc, "completed", lambda: (_ for _ in ()).throw(RuntimeError("bug")))
+    wait(lambda: env.m.state.read()["phase"] != "installing")
+    env.m._thread.join(5)
+    assert "RuntimeError" in env.m.state.read()["error"]["detail"]
+    monkeypatch.undo()
+    actions_possible_again(env)
+
+
+def test_the_monitor_logs_when_even_the_final_state_cannot_be_written(env, monkeypatch):
+    logs = []
+    start_hanging_install(env, rauc_gone_s=0.05, log=logs.append)
+    env.rauc.down = True
+    monkeypatch.setattr(env.m, "_finish", lambda *a: (_ for _ in ()).throw(OSError(5, "Input/output error")))
+    env.m._thread.join(5)
+    assert not env.m._thread.is_alive() and any("could not record the end of the installation" in m for m in logs)
+
+
+def test_a_storage_error_while_verifying_returns_to_idle_with_an_error(env, monkeypatch):
+    """Review N-10: an OSError in _verify left the transient phase 'verifying' set until the bridge restarted."""
+    p = env.m.begin_upload(3)
+    open(p, "wb").write(b"abc")
+    env.rauc.bundles[env.m.bundle_path] = {"compatible": C, "version": "0.4.0"}
+    real = os.path.getsize
+    monkeypatch.setattr(M.os.path, "getsize", lambda path: real(path) if path != env.m.bundle_path else
+                        (_ for _ in ()).throw(OSError(5, "Input/output error")))
+    with pytest.raises(UpdateError, match="verify_failed"):
+        env.m.finish_upload("x.raucb")
+    monkeypatch.undo()
+    i = env.m.info()
+    assert i["phase"] == "idle" and i["error"]["code"] == "verify_failed" and not os.path.exists(env.m.bundle_path)
+    upload(env.m, env.rauc)                                             # not "busy"
+    assert env.m.info()["phase"] == "staged"
+
+
+def test_a_malformed_inspect_answer_returns_to_idle_with_an_error(env, monkeypatch):
+    p = env.m.begin_upload(3)
+    open(p, "wb").write(b"abc")
+    monkeypatch.setattr(env.rauc, "inspect", lambda path: ["not", "a", "dict"])
+    with pytest.raises(UpdateError, match="verify_failed"):
+        env.m.finish_upload("x.raucb")
+    assert env.m.info()["phase"] == "idle" and env.m.info()["error"]["code"] == "verify_failed"
+
+
+def test_a_storage_error_while_finishing_the_upload_returns_to_idle(env, monkeypatch):
+    p = env.m.begin_upload(3)
+    open(p, "wb").write(b"abc")
+    real = os.replace
+    monkeypatch.setattr(M.os, "replace", lambda a, b: real(a, b) if b != env.m.bundle_path else
+                        (_ for _ in ()).throw(OSError(28, "No space left on device")))
+    with pytest.raises(UpdateError, match="upload_failed"):
+        env.m.finish_upload("x.raucb")
+    monkeypatch.undo()
+    i = env.m.info()
+    assert i["phase"] == "idle" and i["error"]["code"] == "upload_failed" and not os.path.exists(p)
+    assert env.m.begin_upload(3)                                        # not "busy"
+
+
+def test_an_unrecordable_error_still_frees_the_manager(env, monkeypatch):
+    logs = []
+    m = env.make(log=logs.append)
+    p = m.begin_upload(3)
+    open(p, "wb").write(b"abc")
+    monkeypatch.setattr(m.state, "edit", lambda: (_ for _ in ()).throw(OSError(5, "Input/output error")))
+    with pytest.raises(UpdateError, match="upload_failed"):
+        m.finish_upload("x.raucb")
+    assert m._busy is None and any("could not record the error upload_failed" in x for x in logs)
+
+
+def test_a_download_whose_verification_fails_does_not_kill_the_thread_silently(env, monkeypatch):
+    m = env.make()
+
+    class D:
+        def __init__(self, *a, **k):
+            pass
+
+        def run(self):
+            open(m.bundle_path, "wb").write(b"x")
+    monkeypatch.setattr(M, "Download", D)
+    with m.state.edit() as st:
+        st["check"] = {"status": "update_available", "latest": {"version": "0.4.0", "asset": {"name": "b.raucb", "size": 1,
+                                                                                            "url": "https://x/b.raucb"}}}
+    errors = []
+    monkeypatch.setattr(M.threading, "excepthook", errors.append)
+    m.start_download()
+    m._thread.join(5)
+    assert m.info()["phase"] == "idle" and m.info()["error"]["code"] == "signature_invalid" and errors == []
+
+
+class Wall:
+    def __init__(self):
+        self.t = 1_800_000_000.0
+
+    def __call__(self):
+        return self.t
+
+
+@pytest.mark.parametrize("before", ["installed", "switching"])
+def test_a_restart_that_never_happens_returns_to_the_previous_phase(env, before):
+    """Review N-10: 'rebooting' had no way out when the restart helper never acted (same boot, no reboot)."""
+    clock = Wall()
+    env.m = env.make(clock=clock)
+    if before == "installed":
+        install(env)
+    else:
+        env.rauc.slot["rootfs.1"].update({"boot-status": "good", "bundle.version": "0.2.0"})
+        env.m.rollback()
+    env.m.request_reboot()
+    clock.t += M.REBOOT_WAIT_S - 1
+    assert env.m.info()["phase"] == "rebooting"
+    with pytest.raises(UpdateError, match="busy"):
+        env.m.request_reboot()
+    clock.t += 2
+    i = env.m.info()
+    assert i["phase"] == before and i["error"]["code"] == "reboot_timeout" and i["reboot_required"]
+    env.m.request_reboot()                                              # the owner can try again
+    assert env.reboots == [1, 1] and env.m.info()["phase"] == "rebooting"
+
+
+def test_a_real_restart_is_never_mistaken_for_a_timeout(env):
+    clock = Wall()
+    env.m = env.make(clock=clock)
+    install(env)
+    env.m.request_reboot()
+    env.boot.id = "boot-2"                                              # the device did restart (bridge still sees the old state)
+    clock.t += M.REBOOT_WAIT_S + 1
+    assert env.m.info()["phase"] == "rebooting"                         # reconcile at the bridge start decides, not the timeout
+    reboot_into(env, "B")
+    assert env.m.info()["phase"] == "confirming"
+
+
+def test_a_rebooting_state_without_a_restart_record_times_out_from_the_install(env):
+    clock = Wall()
+    env.m = env.make(clock=clock)
+    install(env)
+    with env.m.state.edit() as st:                                      # state written by an older release
+        st["phase"] = "rebooting"
+    clock.t += M.REBOOT_WAIT_S + 1
+    assert env.m.info()["phase"] == "installed"
+
+
+def test_storage_errors_while_cleaning_up_never_keep_a_transient_phase(env, monkeypatch):
+    real_unlink, real_replace, real_getsize = os.unlink, os.replace, os.path.getsize
+    bundle = env.m.bundle_path
+    monkeypatch.setattr(M.os, "unlink", lambda p: (_ for _ in ()).throw(OSError(5, "Input/output error")) if p.startswith(bundle)
+                        else real_unlink(p))
+    monkeypatch.setattr(M.os, "replace", lambda a, b: (_ for _ in ()).throw(OSError(5, "Input/output error")) if b == bundle
+                        else real_replace(a, b))
+    open(env.m.begin_upload(3), "wb").write(b"abc")
+    with pytest.raises(UpdateError, match="upload_failed"):
+        env.m.finish_upload("x.raucb")                                  # the partial upload cannot even be deleted
+    assert env.m._busy is None
+    monkeypatch.setattr(M.os, "replace", real_replace)
+    monkeypatch.setattr(M.os.path, "getsize", lambda p: (_ for _ in ()).throw(OSError(5, "Input/output error")) if p == bundle
+                        else real_getsize(p))
+    open(env.m.begin_upload(3), "wb").write(b"abc")
+    with pytest.raises(UpdateError, match="verify_failed"):
+        env.m.finish_upload("x.raucb")                                  # the unverified bundle cannot be deleted
+    assert env.m._busy is None and env.m.info()["error"]["code"] == "verify_failed"
+
+
+def test_a_restart_request_with_an_incomplete_state_record(env):
+    with env.m.state.edit() as st:                                      # "installed" without an install record (hand-edited / foreign)
+        st["phase"], st["install"] = "installed", None
+    env.m.request_reboot()
+    assert env.reboots == [1] and env.m.info()["phase"] == "rebooting"
+
+
+# ---------------------------------------------------------------- review N-4: snapshot restore before hifi-netd, failures do not loop
+def restore_scenario(tmp_path, monkeypatch):
+    """The snapshot holds Wi-Fi 'Home' and host name 'wohnzimmer'; afterwards the owner changed both; then requested the restore."""
+    from btbridge import __version__
+    from btbridge.config import ConfigStore
+    from btbridge.net import netconfig as N
+    data = tmp_path / "data"
+    store = ConfigStore(str(data))
+    store.update({"local_hostname": "wohnzimmer"})
+    N.write_private(str(data / N.FILE_NAME), N.validate({"country": "DE", "wifi": {"ssid": "Home", "psk": "wifi-secret-123"}}))
+    M.take_snapshot(str(data), str(data / "ota"), "A", __version__, SCHEMA_VERSION)
+    meta = M.snapshot_meta(str(data / "ota"), "A")
+    store.update({"local_hostname": "kueche"})
+    N.write_private(str(data / N.FILE_NAME), N.validate({"country": "DE", "wifi": {"ssid": "Gartenhaus", "psk": "garden-pass-1"}}))
+    M.atomic_json(str(data / "ota" / M.RESTORE_REQUEST), {"slot": "A", "created": meta["created"]})
+    monkeypatch.setattr(M, "booted_slot_from_cmdline", lambda path="/proc/cmdline": "A")
+    return data
+
+
+def test_the_boot_step_restores_the_snapshot_before_the_network_agent_reads_it(tmp_path, monkeypatch):
+    """hifi-netd starts After=hifi-bridge-boot.service and reads network.json and local_hostname only at its start: the restore must
+    therefore happen in the boot step, not in the bridge (which starts after the agent)."""
+    from btbridge import bootfiles
+    from btbridge.net import netagent as A
+    from btkit.sim_net import SimulatedNetworkSystem
+    data = restore_scenario(tmp_path, monkeypatch)
+    boot = tmp_path / "boot"
+    boot.mkdir()
+    logs = []
+    r = bootfiles.run(str(data), str(boot), iterations=1000, log=logs.append)
+    assert r["restore"] == "restored" and not (data / "ota" / M.RESTORE_REQUEST).exists()
+    system = SimulatedNetworkSystem()
+    agent = A.Agent(system, str(data), os.getuid(), str(tmp_path), log=lambda m: None)
+    agent.start()                                                         # what hifi-netd does next in the boot order
+    assert agent.manager.cfg["wifi"]["ssid"] == "Home" and agent.hostname == "wohnzimmer" and system.hostnames == ["wohnzimmer"]
+    assert "Wi-Fi network: 'Home'" in (boot / "hifi-status.txt").read_text()
+    assert prepare_data(str(data), log=lambda m: None) == "none"         # the bridge's own call afterwards changes nothing
+
+
+def test_a_failing_restore_changes_nothing_records_the_error_and_drops_the_request(tmp_path, monkeypatch):
+    data = restore_scenario(tmp_path, monkeypatch)
+    before = {p: (data / p).read_bytes() for p in ("settings.json", "network.json")}
+    real = M.shutil.copy2
+
+    def failing(src, dst, **kw):
+        if "network.json" in str(src):
+            raise OSError(28, "No space left on device")
+        return real(src, dst, **kw)
+    monkeypatch.setattr(M.shutil, "copy2", failing)
+    logs = []
+    assert prepare_data(str(data), log=logs.append) == "failed"
+    assert {p: (data / p).read_bytes() for p in before} == before        # all or nothing: settings.json untouched too
+    assert not (data / "ota" / M.RESTORE_REQUEST).exists()               # no repeat at every start (restart loop)
+    assert not list(data.glob("*.restore")) and any("restore FAILED" in m for m in logs)
+    st = StateFile(str(data / "ota")).read()
+    assert st["error"]["code"] == "restore_failed" and "restored" not in st
+
+
+def test_a_failing_restore_never_stops_the_start_even_if_nothing_can_be_written(tmp_path, monkeypatch):
+    data = restore_scenario(tmp_path, monkeypatch)
+    monkeypatch.setattr(M.shutil, "copy2", lambda *a, **k: (_ for _ in ()).throw(OSError(5, "Input/output error")))
+    monkeypatch.setattr(M.os, "unlink", lambda p: (_ for _ in ()).throw(OSError(5, "Input/output error")))
+    monkeypatch.setattr(M, "atomic_json", lambda *a: (_ for _ in ()).throw(OSError(5, "Input/output error")))
+    logs = []
+    assert prepare_data(str(data), log=logs.append) == "failed"
+    assert any("restore FAILED" in m for m in logs) and any("could not record" in m for m in logs)
+
+
+def test_without_a_known_boot_slot_the_request_waits(tmp_path, monkeypatch):
+    data = restore_scenario(tmp_path, monkeypatch)
+    monkeypatch.setattr(M, "booted_slot_from_cmdline", lambda path="/proc/cmdline": None)
+    assert prepare_data(str(data), log=lambda m: None) == "deferred"
+    assert (data / "ota" / M.RESTORE_REQUEST).exists()                   # e.g. /proc/cmdline hidden: the next step may know the slot
+
+
+def test_a_restore_failing_in_the_middle_of_a_directory_copy_leaves_no_partial_copies(tmp_path, monkeypatch):
+    data = restore_scenario(tmp_path, monkeypatch)
+    (data / "certs").mkdir()
+    (data / "certs" / "ca.crt").write_text("current CA")
+    from btbridge import __version__
+    meta = M.snapshot_meta(str(data / "ota"), "A")
+    snap = data / "ota" / "snapshots" / "A"
+    (snap / "certs").mkdir()
+    (snap / "certs" / "ca.crt").write_text("snapshot CA")
+    if (snap / "secrets.json").exists():
+        (snap / "secrets.json").unlink()                                  # the snapshot had none: the restore would delete it
+    (data / "secrets.json").write_text('{"stream_token": "current"}')
+    real = M.shutil.copytree
+
+    def half(src, dst, **kw):
+        real(src, dst, **kw)                                              # the copy exists, then the disk fails
+        raise OSError(5, "Input/output error")
+    monkeypatch.setattr(M.shutil, "copytree", half)
+    before = (data / "network.json").read_bytes()
+    assert prepare_data(str(data), version=__version__, log=lambda m: None) == "failed" and meta
+    assert (data / "network.json").read_bytes() == before and (data / "certs" / "ca.crt").read_text() == "current CA"
+    assert (data / "secrets.json").read_text() == '{"stream_token": "current"}' and not list(data.glob("*.restore"))
