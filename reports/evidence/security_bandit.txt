@@ -57,7 +57,7 @@
 [manager]	WARNING	Test in comment: checked is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: https is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: only is not a test name or id, ignoring
-Run started:2026-11-19 10:10:15.843249
+Run started:2026-11-19 19:08:51.940783
 
 Test results:
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -241,52 +241,52 @@ Test results:
    Severity: Low   Confidence: Medium
    CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
    More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b107_hardcoded_password_default.html
-   Location: bridge/btbridge/ota/backup.py:122:0
-121	
-122	def export(store, include_secrets: bool = False, passphrase: str = "", version: str = __version__, clock=time.time) -> bytes:
-123	    from ..config.store import SCHEMA_VERSION
-124	    settings = {k: v for k, v in store.all().items() if k not in EXCLUDED}
-125	    doc = {"format": FORMAT, "format_version": FORMAT_VERSION, "created": int(clock()), "app_version": version,
-126	           "settings_schema": SCHEMA_VERSION, "device_name": settings.get("device_name", ""), "settings": settings, "secrets": None}
-127	    if include_secrets:
-128	        if len(passphrase) < MIN_PASSPHRASE:
-129	            raise BackupError("weak_passphrase")
-130	        plain = json.dumps({k: store.secret(k) for k in EXPORTED_SECRETS if store.secret(k)}, sort_keys=True).encode("utf-8")
-131	        salt = os.urandom(16)
-132	        enc, mac = _keys(passphrase, salt, **SCRYPT)
-133	        doc["secrets"] = {"kdf": "scrypt", **SCRYPT, "salt": _b64(salt), "cipher": CIPHER, "openssl": OPENSSL_MODE}
-134	        ct = _openssl(False, enc, plain)
-135	        doc["secrets"]["ciphertext"] = _b64(ct)
-136	        doc["secrets"]["tag"] = _b64(_tag(mac, doc, ct))
-137	    return (json.dumps(doc, indent=1, sort_keys=True) + "\n").encode("utf-8")
-138	
+   Location: bridge/btbridge/ota/backup.py:125:0
+124	
+125	def export(store, include_secrets: bool = False, passphrase: str = "", version: str = __version__, clock=time.time) -> bytes:
+126	    from ..config.store import SCHEMA_VERSION
+127	    settings = {k: v for k, v in store.all().items() if k not in EXCLUDED}
+128	    doc = {"format": FORMAT, "format_version": FORMAT_VERSION, "created": int(clock()), "app_version": version,
+129	           "settings_schema": SCHEMA_VERSION, "device_name": settings.get("device_name", ""), "settings": settings, "secrets": None}
+130	    if include_secrets:
+131	        if len(passphrase) < MIN_PASSPHRASE:
+132	            raise BackupError("weak_passphrase")
+133	        plain = json.dumps({k: store.secret(k) for k in EXPORTED_SECRETS if store.secret(k)}, sort_keys=True).encode("utf-8")
+134	        salt = os.urandom(16)
+135	        enc, mac = _keys(passphrase, salt, **SCRYPT)
+136	        doc["secrets"] = {"kdf": "scrypt", **SCRYPT, "salt": _b64(salt), "cipher": CIPHER, "openssl": OPENSSL_MODE}
+137	        ct = _openssl(False, enc, plain)
+138	        doc["secrets"]["ciphertext"] = _b64(ct)
+139	        doc["secrets"]["tag"] = _b64(_tag(mac, doc, ct))
+140	    return (json.dumps(doc, indent=1, sort_keys=True) + "\n").encode("utf-8")
+141	
 
 --------------------------------------------------
 >> Issue: [B107:hardcoded_password_default] Possible hardcoded password: ''
    Severity: Low   Confidence: Medium
    CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
    More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b107_hardcoded_password_default.html
-   Location: bridge/btbridge/ota/backup.py:189:0
-188	
-189	def plan(doc: dict, passphrase: str = "") -> dict:
-190	    """Everything that a restore would do, fully validated; raises BackupError before anything is changed."""
-191	    from ..config import SETTINGS, SettingError, validate
-192	    settings, skipped, invalid = {}, [], []
-193	    for k, v in doc["settings"].items():
-194	        if k in EXCLUDED:
-195	            continue
-196	        if k not in SETTINGS:
-197	            skipped.append(k)                            # from a newer release: reported, not applied
+   Location: bridge/btbridge/ota/backup.py:192:0
+191	
+192	def plan(doc: dict, passphrase: str = "") -> dict:
+193	    """Everything that a restore would do, fully validated; raises BackupError before anything is changed."""
+194	    from ..config import SETTINGS, SettingError, validate
+195	    settings, skipped, invalid = {}, [], []
+196	    for k, v in doc["settings"].items():
+197	        if k in EXCLUDED:
 198	            continue
-199	        try:
-200	            settings.update(validate({k: v}))
-201	        except SettingError:
-202	            invalid.append(k)
-203	    if invalid:
-204	        raise BackupError("invalid_settings", ", ".join(sorted(invalid)))
-205	    return {"settings": settings, "skipped": sorted(skipped), "secrets": decrypt(doc, passphrase),
-206	            "had_secrets": bool(doc.get("secrets")), "app_version": str(doc.get("app_version", "")), "created": doc.get("created")}
-207	
+199	        if k not in SETTINGS:
+200	            skipped.append(k)                            # from a newer release: reported, not applied
+201	            continue
+202	        try:
+203	            settings.update(validate({k: v}))
+204	        except SettingError:
+205	            invalid.append(k)
+206	    if invalid:
+207	        raise BackupError("invalid_settings", ", ".join(sorted(invalid)))
+208	    return {"settings": settings, "skipped": sorted(skipped), "secrets": decrypt(doc, passphrase),
+209	            "had_secrets": bool(doc.get("secrets")), "app_version": str(doc.get("app_version", "")), "created": doc.get("created")}
+210	
 
 --------------------------------------------------
 >> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
@@ -410,7 +410,7 @@ Test results:
 --------------------------------------------------
 
 Code scanned:
-	Total lines of code: 15034
+	Total lines of code: 15037
 	Total lines skipped (#nosec): 0
 	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 7
 
