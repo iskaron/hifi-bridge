@@ -1,4 +1,4 @@
-# update management with the real RAUC service - 2026-11-19T00:41:52Z - label INTEGRATION (Docker, no device, no loop device)
+# update management with the real RAUC service - 2026-11-19T05:50:09Z - label INTEGRATION (Docker, no device, no loop device)
 rauc: rauc 1.13
 dbus-daemon: D-Bus Message Bus Daemon 1.16.2
 fw_setenv: 0.3.5-0.1+b2
@@ -22,5 +22,5 @@ tests/ota/test_rauc_real.py::test_upstream_policy_alone_would_let_anyone_in PASS
 tests/ota/test_rauc_real.py::test_bundle_script_is_reproducible_and_creates_development_keys_once PASSED [ 91%]
 tests/ota/test_rauc_real.py::test_bundle_script_refuses_a_certificate_without_codesigning PASSED [100%]
 
-============================== 12 passed in 5.43s ==============================
+============================== 12 passed in 5.74s ==============================
 ota exit code: tests=0
