@@ -14,6 +14,8 @@
 #   HIFI_OS_OUT     output directory (default: $HIFI_LAB/br-out/<board>)
 #   HIFI_OS_JOBS    BR2_JLEVEL (default 3)    HIFI_OS_CPUS (default 3)    HIFI_OS_MEM (default 8g)
 #   HIFI_OS_MIN_FREE_GB   refuse to start below this much free space on the output filesystem (default 40)
+#   HIFI_OS_REBUILD "pkg ..."   `make <pkg>-dirclean` before building (after a configuration change of an already built package;
+#                   Buildroot does not notice those by itself)
 #
 # Results: $OUT/images/hifi-bridge-<compatible>-<version>-development.img (+ .manifest.json), $OUT/legal-info/, $OUT/hifi/
 # (show-info.json, sbom.cdx.json, licences.md, build-times.tsv, logs/). Check them with scripts/os_check_image.sh <board>.
@@ -56,7 +58,7 @@ name="hifi-os-build-$BOARD"
 docker rm -f "$name" >/dev/null 2>&1 || true
 set +e
 docker run --rm --name "$name" --cpus="$CPUS" --memory="$MEM" -u "$(id -u):$(id -g)" -e HOME=/tmp \
-	-e BOARD="$BOARD" -e JOBS="$JOBS" -e STEPS="$STEPS" \
+	-e BOARD="$BOARD" -e JOBS="$JOBS" -e STEPS="$STEPS" -e REBUILD="${HIFI_OS_REBUILD:-}" \
 	-v "$REPO":/work:ro -v "$LAB/buildroot":/buildroot:ro -v "$OUT":/out -v "$LAB/br-dl":/dl -v "$LAB/br-ccache":/ccache \
 	-v "$LAB/dev-update-ca/ca.pem":/devca/ca.pem:ro \
 	btbridge-os:dev bash -c '
@@ -82,6 +84,7 @@ configure() {
 }
 build() {
 	# local package: re-sync the bridge sources from the working tree on every build
+	for p in $REBUILD; do make -C $O $p-dirclean; done
 	if ls $O/build/hifi-bridge-*/.stamp_target_installed >/dev/null 2>&1; then make -C $O hifi-bridge-rebuild; fi
 	make -C $O
 }

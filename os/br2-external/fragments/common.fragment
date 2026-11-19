@@ -90,6 +90,8 @@ BR2_PACKAGE_HOST_UBOOT_TOOLS=y
 BR2_PACKAGE_HOST_UBOOT_TOOLS_BOOT_SCRIPT=y
 BR2_PACKAGE_HOST_UBOOT_TOOLS_BOOT_SCRIPT_SOURCE="$(BR2_EXTERNAL_HIFI_BRIDGE_PATH)/board/hifi-bridge/uboot/boot.cmd"
 BR2_PACKAGE_HOST_E2FSPROGS=y
+# post-image.sh runs btbridge.provisioning with Buildroot's host Python; btbridge.config imports ssl (found by the first merged build)
+BR2_PACKAGE_HOST_PYTHON3_SSL=y
 # product
 BR2_PACKAGE_HIFI_BRIDGE=y
 BR2_ROOTFS_OVERLAY="$(BR2_EXTERNAL_HIFI_BRIDGE_PATH)/board/hifi-bridge/overlay"
