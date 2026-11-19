@@ -640,6 +640,8 @@ class UpdateManager:
             meta = info["snapshot"]
             if not meta:
                 raise UpdateError("no_snapshot")
+            if info["restore_requested"]:
+                raise UpdateError("busy", "restore already requested")
             atomic_json(os.path.join(self.ota_dir, RESTORE_REQUEST), {"slot": meta["slot"], "version": meta["version"],
                                                                       "created": meta["created"], "requested": self.clock()})
             self.log(f"update: owner requested the settings snapshot of {meta['version']}; restarting")

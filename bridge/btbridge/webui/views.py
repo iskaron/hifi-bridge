@@ -493,7 +493,7 @@ def select(req, key, value, choices, help_key: str | None = None) -> str:
     return f'<label>{esc(t("field." + key))}<select name="{key}"{desc}>{opts}</select></label>{helptext}'
 
 
-SECTIONS = ("lyrion", "playback", "bluetooth", "access", "mqtt", "logging", "appearance", "security", "network")
+SECTIONS = ("lyrion", "playback", "bluetooth", "access", "mqtt", "logging", "appearance", "security", "network", "update", "backup")
 
 
 def section_summary(req, name: str) -> str:
@@ -519,6 +519,9 @@ def section_summary(req, name: str) -> str:
     if name == "network":
         from .views_network import summary
         return summary(req)
+    if name in ("update", "backup"):
+        from .views_update import summary as update_summary
+        return update_summary(req, name)
     return t("summary.security")
 
 
@@ -959,7 +962,8 @@ def api_diagnostics(req):
 
 def routes(ui):
     from .views_network import routes as network_routes
-    return network_routes(ui) | {
+    from .views_update import routes as update_routes
+    return network_routes(ui) | update_routes(ui) | {
         ("GET", "/setup"): setup_get, ("POST", "/setup"): setup_post, ("POST", "/lang"): lang_post,
         ("GET", "/setup/bluetooth"): setup_bluetooth_get, ("POST", "/setup/bluetooth"): setup_bluetooth_post,
         ("GET", "/setup/lyrion"): setup_lyrion_get, ("POST", "/setup/lyrion"): setup_lyrion_post,

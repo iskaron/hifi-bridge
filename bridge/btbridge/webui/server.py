@@ -68,10 +68,8 @@ class Request:
         self.t = Translator(self.lang)
         self.flash = self.cookies.get("bab_flash")
 
-    def read_form(self) -> None:
-        """Parse the request body. Before any session or CSRF check, so it is strict: only one plain decimal Content-Length of at
-        most MAX_BODY bytes is accepted (a negative length used to read until EOF: review H1); chunked bodies are refused, and a
-        short body ends with the connection's socket timeout instead of blocking a thread."""
+    def content_length(self, limit: int) -> int:
+        """The validated body length: exactly one plain decimal Content-Length of at most ``limit`` bytes; chunked bodies refused."""
         if self.h.headers.get("Transfer-Encoding") is not None:
             raise BodyError(411, "chunked request bodies are not supported")
         values = self.h.headers.get_all("Content-Length") or []
@@ -81,8 +79,15 @@ class Request:
         if not value.isascii() or not value.isdigit() or len(value) > 12:
             raise BodyError(400, "malformed Content-Length")
         n = int(value)
-        if n > MAX_BODY:
+        if n > limit:
             raise BodyError(413, "body too large")
+        return n
+
+    def read_form(self) -> None:
+        """Parse the request body. Before any session or CSRF check, so it is strict: only one plain decimal Content-Length of at
+        most MAX_BODY bytes is accepted (a negative length used to read until EOF: review H1); chunked bodies are refused, and a
+        short body ends with the connection's socket timeout instead of blocking a thread."""
+        n = self.content_length(MAX_BODY)
         raw = self.h.rfile.read(n) if n else b""
         if len(raw) != n:
             raise BodyError(400, "truncated body")
@@ -298,6 +303,9 @@ class WebUI:
         if method == "POST":
             if not same_origin(req.h.headers, req.host):
                 return error_page(403, req.lang)
+            stream_limit = getattr(handler, "stream_body", None)
+            if stream_limit is not None:
+                return self._route_stream(req, handler, stream_limit)
             try:
                 req.read_form()
             except BodyError as e:
@@ -322,6 +330,29 @@ class WebUI:
                 and not req.path.startswith(("/setup", "/api/", "/logout")) and req.path not in WIZARD_ACTIONS:
             return redirect("/setup/bluetooth")                 # finish the wizard first
         return handler(req)
+
+    def _route_stream(self, req: Request, handler, limit: int) -> Response:
+        """POST handlers that read their own large body (the update bundle and backup uploads; ``@streamed(limit)``).
+        Everything is checked BEFORE a single body byte is read: an authenticated session, the CSRF token (``X-CSRF-Token`` header or
+        the ``csrf`` query parameter of the form's action, because the body is not parsed here), a finished setup and a valid
+        Content-Length within the handler's own limit. The global MAX_BODY limit stays unchanged for every other route. Any refusal
+        closes the connection, so the unread body is never parsed as a next request."""
+        api = req.path.startswith("/api/")
+        if req.session is None:
+            resp = json_response({"error": "unauthenticated"}, 401) if api else redirect("/login")
+        elif not self.svc.auth.sessions.check_csrf(req.sid, req.h.headers.get("X-CSRF-Token") or (req.query.get("csrf") or [""])[-1]):
+            resp = json_response({"error": "csrf"}, 403) if api else redirect("/login", req.t("flash.session_expired"), req.secure)
+        elif not self.svc.store.get("setup_complete"):
+            resp = redirect("/setup/bluetooth")
+        else:
+            try:
+                req.body_length = req.content_length(limit)
+            except BodyError as e:
+                resp = error_page(e.status, req.lang)
+            else:
+                resp = handler(req)
+        resp.close = True
+        return resp
 
     def _send(self, h: BaseHTTPRequestHandler, r: Response, req: Request | None = None) -> None:
         try:

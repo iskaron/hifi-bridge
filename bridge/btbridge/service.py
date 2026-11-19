@@ -145,6 +145,7 @@ class ApplianceService:
         self.syslog = None
         self.access = None                              # LocalAccess (names, HTTPS, mDNS) - set by the appliance entry point
         self.network = None                             # net.netclient.NetworkService - set by the appliance entry point
+        self.ota = None                                 # ota.manager.UpdateManager (RAUC) - set by the appliance entry point
         c = self.store.all()
         rc = RuntimeConfig(lms_url=lms_url(c["lms_host"], c["lms_port"]) if c["lms_host"] else "http://127.0.0.1:9",
                            advertise_host="" if advertise_host == "auto" else advertise_host, stream_port=stream_port, stream_format=c["stream_format"],
@@ -570,6 +571,17 @@ class ApplianceService:
         r = self.runtime.diagnostic_test()
         self.logs(f"diagnostic test: {r}")
         return r
+
+    def apply_restored_secrets(self, keys) -> None:
+        """A backup restore wrote these secrets to the store: use them now (docs/OTA.md section 7)."""
+        if "stream_token" in keys:
+            tok = self.store.secret("stream_token")
+            self.logs.secrets.append(tok)
+            self.runtime.rotate_token(tok)
+        if "mqtt_password" in keys:
+            self._restart_mqtt()
+        if "admin_password_hash" in keys:
+            self.auth.sessions.destroy_all()            # the restored password applies; everyone logs in again
 
     def rotate_stream_token(self) -> None:
         new = secrets.token_urlsafe(24)
