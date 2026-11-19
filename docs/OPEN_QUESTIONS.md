@@ -179,3 +179,14 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 66. Payload integrity of an uploaded bundle is checked only at install time by dm-verity (RAUC's inspection accepts a payload byte changed
     after signing). Acceptable, or additionally hash the payload against a signed checksum before staging?
 67. One large upload occupies one of the 64 WebUI connection slots for its duration. Acceptable for V1?
+
+## Added by package 5 - flash tool (2026-11-19)
+68. **Reverse-DNS namespace** for the polkit action and app IDs: currently `io.github.iskaron.hifibridge` (action
+    `io.github.iskaron.hifibridge.flash.write`). Keep, or a project domain?
+69. **Code-signing certificates** for Windows (Authenticode) and macOS (Developer ID + notarisation): who obtains them and at what cost? Without
+    them Windows SmartScreen and macOS Gatekeeper warn or block.
+70. Should the elevated helper also verify the manifest **signature** itself? Today it checks the image hash against the manifest the GUI
+    verified (the image is the user's choice either way).
+71. Installing the device CA on the owner's computer: the tool saves the verified certificate and shows the fingerprint; there is no
+    automatic installation into OS or browser trust stores. Enough for V1?
+72. Is an AppImage wanted for Linux? It conflicts with polkit's exact-executable-path rule (today: tarball + `install.sh`).

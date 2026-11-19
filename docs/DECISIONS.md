@@ -288,3 +288,24 @@ Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardwar
 95. **Official update source:** release assets are accepted only from `<official repository>/releases/download/`; the update check is
     manual and never installs (#10); it works only once releases are public (OPEN_QUESTIONS #45). `make ota` (`scripts/os_bundle.sh`) builds
     bundles with throw-away development keys and refuses certificates without codeSigning or keys tracked by git.
+
+## Implementation decisions of package 5 - flash tool (reversible; 2026-11-19; details docs/FLASH_TOOL.md)
+96. **Privilege separation:** the PySide6 GUI runs as the normal user (refuses root) and has no write logic; one elevated helper run per
+    write job (no Qt) validates the request strictly (whole-disk paths only, absolute non-device image path, manifest, slot-sized
+    provisioning), enumerates disks again itself, requires the same identity (path + size + serial), applies the full policy, unmounts/locks,
+    opens exclusively, checks the opened size, writes, reads back with the OS cache bypassed and invalidates the card on any failure.
+    Elevation: Linux `pkexec` with a polkit action for exactly the helper path (administrator password every time); macOS `osascript ... with
+    administrator privileges`; Windows UAC (`requireAdministrator` only on the helper). macOS/Windows helpers connect back to 127.0.0.1 and must
+    present a 256-bit one-time token from a 0600 file - never on a command line. End of input from the GUI cancels and invalidates.
+97. **Disk safety (review M11/M12):** mounts are collected from the whole device tree (LUKS/LVM, swap counts as a system mount); disks held by an
+    open volume manager are refused; macOS resolves the boot disk via `diskutil info -plist /` and APFS physical stores; mounted volumes are
+    unmounted by the helper and re-checked. Read-back bypasses the cache (Linux `BLKFLSBUF` + `POSIX_FADV_DONTNEED`, macOS `/dev/rdiskN` +
+    `F_NOCACHE`, Windows unbuffered write-through I/O); the existing read-back evidence is labelled SIMULATED.
+98. **Trust in images:** an official image needs the built-in official key (none exists yet → official images are shown untrusted, OPEN_QUESTIONS
+    #38); a custom publisher key is trusted only after explicit addition with fingerprint confirmation and is shown as CUSTOM everywhere; an
+    untrusted manifest is refused before the image is downloaded. Provisioning reuses the device's validators (no duplicate rules); the
+    owner sheet never contains the trust key or the home Wi-Fi password.
+99. **Packaging / LGPL:** PyInstaller one-folder build (Qt libraries as separate, replaceable files; no one-file bundle); the package ships the
+    LGPL-3.0/GPL texts itself because the PySide6/shiboken6 6.12 wheels contain none, plus third-party notices with a relinking note, source
+    links and a 3-year source offer; the About dialog shows the LGPL notice and "About Qt". Linux package built and smoke-tested in Docker;
+    Windows (Inno Setup, UAC manifest) and macOS (.app, notarisation) prepared only. No signing keys in the repository.
