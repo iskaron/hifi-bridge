@@ -23,6 +23,7 @@ scripts/lab_up.sh >/dev/null
   echo "### HWKIT";         scripts/run_hwkit.sh -q                                   ; H=$?
   echo "### MDNS";          scripts/test_mdns.sh                                      ; M=$?
   echo "### NETWORK";       scripts/run_net.sh                                        ; NET=$?
+  echo "### OTA (real RAUC)"; scripts/run_ota.sh                                      ; OTA=$?
   echo "### SYSLOG";        scripts/test_syslog.sh -q                                 ; SY=$?
   echo "### PYTHON 3.14";   scripts/run_py314.sh                                      ; PY=$?
   echo "### SECURITY";      scripts/run_security.sh                                   ; SEC=$?
@@ -32,5 +33,5 @@ scripts/lab_up.sh >/dev/null
   echo "### DEMO (unit)";   scripts/run_demo_tests.sh -q                              ; DU=$?
   echo "### DEMO (stack)";  scripts/test_demo.sh                                      ; DS=$?
   echo "### BROWSER";       scripts/run_browser.sh -q                                 ; B=$?
-  echo "exit codes: static=$S entry=$EN unit=$U integration=$I outage_lms=$O1 outage_player=$O2 pipewire=$P hwkit=$H mdns=$M network=$NET syslog=$SY py314=$PY security=$SEC secrets=$SECR os=$OS homeassistant=$HA demo_unit=$DU demo_stack=$DS browser=$B"
+  echo "exit codes: static=$S entry=$EN unit=$U integration=$I outage_lms=$O1 outage_player=$O2 pipewire=$P hwkit=$H mdns=$M network=$NET ota=$OTA syslog=$SY py314=$PY security=$SEC secrets=$SECR os=$OS homeassistant=$HA demo_unit=$DU demo_stack=$DS browser=$B"
 } 2>&1 | tee "$LOG"
