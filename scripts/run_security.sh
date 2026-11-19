@@ -7,8 +7,8 @@ cd "$(dirname "$0")/.." || exit 1
 . scripts/lib/common.sh
 hb_require
 hb_ensure_images btbridge-security:dev
-docker run --rm -v "$PWD":/w:ro btbridge-security:dev bandit -q -r bridge/btbridge -f txt > reports/evidence/security_bandit.txt 2>&1
-docker run --rm -v "$PWD":/w:ro btbridge-security:dev bandit -q -r bridge/btbridge -ll; rc=$?
+docker run --rm -v "$PWD":/w:ro btbridge-security:dev bandit -q -r bridge/btbridge flashtool/hififlash -f txt > reports/evidence/security_bandit.txt 2>&1
+docker run --rm -v "$PWD":/w:ro btbridge-security:dev bandit -q -r bridge/btbridge flashtool/hififlash -ll; rc=$?
 grep -A4 "Total issues (by severity)" reports/evidence/security_bandit.txt
 echo "bandit medium/high gate: rc=$rc"
 exit $rc

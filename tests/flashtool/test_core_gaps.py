@@ -95,3 +95,12 @@ def test_module_entry_points(monkeypatch, module, argv, code):
     with pytest.raises(SystemExit) as e:
         runpy.run_module(module, run_name="__main__", alter_sys=True)
     assert e.value.code == code
+
+
+def test_trust_calls_accept_only_http_and_https():
+    from hififlash import trust as FT
+    for bad in ("file:///etc/passwd", "ftp://x", "hifi-bridge.local", None):
+        with pytest.raises(ValueError, match="must start with"):
+            FT.fetch_verified_ca(bad, b"k" * 32, opener=lambda *a, **k: (_ for _ in ()).throw(AssertionError("opened")))
+    with pytest.raises(ValueError, match="https://"):
+        FT.check_https("http://hifi-bridge.local", b"")
