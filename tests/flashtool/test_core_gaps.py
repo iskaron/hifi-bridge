@@ -86,6 +86,11 @@ def test_plain_owner_sheet_without_hotspot():
 
 @pytest.mark.parametrize("module,argv,code", [("hififlash.helper", ["--version"], 0), ("hififlash.manifest", [], 2), ("hififlash", [], 2)])
 def test_module_entry_points(monkeypatch, module, argv, code):
+    import os
+
+    def fake_exit(rc):                                         # the helper ends with os._exit (no finalisation), see run_and_exit
+        raise SystemExit(rc)
+    monkeypatch.setattr(os, "_exit", fake_exit)
     monkeypatch.setattr(sys, "argv", [module] + argv)
     with pytest.raises(SystemExit) as e:
         runpy.run_module(module, run_name="__main__", alter_sys=True)

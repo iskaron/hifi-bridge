@@ -80,12 +80,14 @@ class WindowsAdapter:
         for m in disk.mounts:                                          # "E:\\" -> \\.\E:
             h = self.k32.CreateFile("\\\\.\\" + m[:2], GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, OPEN_EXISTING, 0)
             handles.append(h)
-            for attempt in range(LOCK_ATTEMPTS):
+            attempt = 0
+            while True:                                                # Explorer or an indexer may hold the volume for a moment
                 try:
                     self.k32.DeviceIoControl(h, FSCTL_LOCK_VOLUME, None, 0)
                     break
                 except OSError:
-                    if attempt == LOCK_ATTEMPTS - 1:
+                    attempt += 1
+                    if attempt == LOCK_ATTEMPTS:
                         raise OSError(32, f"volume {m[:2]} is in use (close Explorer windows and programs using the card)") from None
                     self.sleep(0.25)
             self.k32.DeviceIoControl(h, FSCTL_DISMOUNT_VOLUME, None, 0)

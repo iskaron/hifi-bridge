@@ -126,13 +126,16 @@ def test_build_manifest_from_an_image_and_the_cli(tmp_path, capsys):
     assert M.main(["build", "--image", str(img2), "--compatible", "c", "--version", "1", "--out", str(out)]) == 1
 
 
-def raw_fat(tmp, *mkfs_args, files=(), delete=()):
-    """An MBR image with one FAT12 partition made with the given mkfs.vfat options, the given files copied in and some deleted."""
+def raw_fat(tmp, *mkfs_args, files=(), delete=(), fill_root=False):
+    """An MBR image with one FAT12 partition made with the given mkfs.vfat options, the given files copied in and some deleted
+    (``fill_root``: as many files as the root directory has entries - mkfs.vfat enforces its own minimum)."""
     img, part = tmp / "raw.img", tmp / "rawp.img"
     with open(img, "wb") as fh:
         fh.truncate(9 * 1024 ** 2)
     subprocess.run(["sfdisk", "-q", str(img)], input="label: dos\n2048,,c\n", text=True, check=True)
     sh("mkfs.vfat", "-F", "12", *mkfs_args, "-C", str(part), str(8 * 1024 - 1024))
+    if fill_root:
+        files = [f"F{i}.TXT" for i in range(struct.unpack_from("<H", part.read_bytes()[:512], 17)[0])]
     for n in files:
         (tmp / n).write_bytes(b"x" * 100)
         sh("mcopy", "-i", str(part), str(tmp / n), f"::{n}")
@@ -147,7 +150,7 @@ def test_fat_edge_cases_label_deleted_entries_full_root_short_chain_and_not_fat(
     img = raw_fat(tmp_path, "-n", "HIFIBOOT", files=("A.TXT", "B.TXT", "C.TXT"), delete=("A.TXT",))
     assert find_file(file_reader(str(img)), "C.TXT")[1] == 100                  # skips the volume label and the deleted entry
     full = tmp_path / "full"; full.mkdir()
-    img2 = raw_fat(full, "-r", "16", "-n", "", files=[f"F{i}.TXT" for i in range(16)])
+    img2 = raw_fat(full, "-r", "16", "-n", "", fill_root=True)
     with pytest.raises(SlotError, match="not found"):                           # every root entry used: the scan ends without a 0 entry
         find_file(file_reader(str(img2)), "NOPE.TXT")
     off, _ = find_file(file_reader(str(img)), "C.TXT")

@@ -424,6 +424,8 @@ class DiskPage(Page):
         row.addStretch(1)
         self.lay.addLayout(row)
         self.list = QListWidget()
+        self.list.setWordWrap(True)
+        self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.bind(self.list, "disk.list", "setAccessibleName")
         self.lay.addWidget(self.list, 1)
         self.details = QLabel()

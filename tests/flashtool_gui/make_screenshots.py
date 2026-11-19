@@ -79,6 +79,7 @@ def run(out: str, mode: str, lang: str, full: bool) -> list[str]:
                 shots.append(shoot(win, out, "5-confirm", mode, lang))
             win.next()
             wait(lambda: win.index == 6)
+            win.ctx.state.ca_der = b"simulated"                       # as after a successful (here: simulated) verification
             p[6].trust_status = ("trust.ok", {"fingerprint": "3F:A2:…:9C (simulated)"}, "ok")
             p[6].refresh()
             shots.append(shoot(win, out, "7-done", mode, lang))

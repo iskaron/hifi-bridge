@@ -9,6 +9,7 @@ It never takes a disk, image or option from the command line: everything comes i
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import socket
 import sys
@@ -55,5 +56,15 @@ def main(argv=None, stdin=None, stdout=None, platform: str = sys.platform, conne
         return serve(rfile, wfile, adapter, plat)
 
 
+def run_and_exit() -> None:
+    """Process entry (also of the packaged executable). After the session, the cancel watcher may still block in a read of stdin;
+    a normal interpreter shutdown then aborts ("could not acquire lock for stdin", found by the package smoke test). The result has been
+    reported and flushed at that point, so the process ends without finalisation."""
+    rc = main()
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(rc)
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    run_and_exit()

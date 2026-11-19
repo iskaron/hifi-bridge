@@ -18,6 +18,9 @@ echo "### pyinstaller (one-folder)"
 pyinstaller --noconfirm --clean --log-level WARN --distpath "$OUT/dist" --workpath /tmp/pyi-work "$REPO/flashtool/packaging/hifi-bridge-flash.spec"
 echo "### licences"
 python3 "$REPO/flashtool/packaging/collect_licenses.py" "$APP/licenses"
+for f in LGPL-3.0.txt GPL-3.0.txt THIRD_PARTY_NOTICES.txt LICENSE-hifi-bridge.txt; do test -s "$APP/licenses/$f"; done
+grep -q "LGPL-3.0" "$APP/licenses/THIRD_PARTY_NOTICES.txt"
+ls "$APP"/_internal/PySide6/Qt/lib/libQt6Core.so.6 >/dev/null   # Qt stays a separate, replaceable shared library
 echo "### desktop integration"
 cp "$REPO/flashtool/packaging/linux/hifi-bridge-flash.desktop" "$REPO/flashtool/packaging/linux/io.github.iskaron.hifibridge.flash.policy" \
    "$REPO/flashtool/packaging/linux/install.sh" "$APP/"

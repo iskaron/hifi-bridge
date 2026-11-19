@@ -14,6 +14,7 @@ from importlib import metadata
 
 BUNDLED = ("PySide6", "PySide6_Essentials", "shiboken6", "cryptography", "cffi", "pycparser")
 LICENCE_FILE = re.compile(r"(^|/)(licen[cs]e|copying|notice|authors)[^/]*$|(^|/)licenses?/", re.I)
+COMMON_LICENSES = "/usr/share/common-licenses"
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 NOTICE = """Hi-Fi Bridge flash tool - third-party notices
@@ -56,9 +57,11 @@ def main(argv=None) -> int:
     os.makedirs(out, exist_ok=True)
     others = []
     for name in BUNDLED:
-        files = dist_files(name)
-        if not files:
+        try:
+            metadata.distribution(name)
+        except metadata.PackageNotFoundError:
             continue
+        files = dist_files(name)
         version = metadata.version(name)
         lic = metadata.metadata(name).get("License-Expression") or metadata.metadata(name).get("License") or "see files"
         others.append(f"{name} {version}: {lic.splitlines()[0][:120]}")
@@ -67,6 +70,13 @@ def main(argv=None) -> int:
                 dst = os.path.join(out, name, os.path.basename(rel))
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                 shutil.copyfile(src, dst)
+    # The PySide6/shiboken6 wheels carry NO licence texts (only "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only" in their metadata), so
+    # the package ships the texts itself - from the build system's common licences (Debian base-files).
+    for src, dst in (("LGPL-3", "LGPL-3.0.txt"), ("GPL-3", "GPL-3.0.txt"), ("GPL-2", "GPL-2.0.txt")):
+        path = os.path.join(COMMON_LICENSES, src)
+        if not os.path.isfile(path):
+            raise SystemExit(f"missing {path}: the Qt/PySide6 licence texts must be shipped")
+        shutil.copyfile(path, os.path.join(out, dst))
     py_licence = os.path.join(sysconfig.get_paths()["stdlib"], "LICENSE.txt")
     if os.path.isfile(py_licence):
         shutil.copyfile(py_licence, os.path.join(out, "Python-LICENSE.txt"))

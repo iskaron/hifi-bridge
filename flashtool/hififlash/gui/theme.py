@@ -53,7 +53,7 @@ def palette(t: dict) -> QPalette:
 
 def stylesheet(t: dict) -> str:
     return f"""
-QWidget {{ color: {t['ink']}; font-size: 10.5pt; }}
+QWidget {{ color: {t['ink']}; }}
 QMainWindow, QDialog, #page {{ background: {t['bg']}; }}
 #header {{ background: {t['surface']}; border-bottom: 1px solid {t['line']}; }}
 #brand {{ color: {t['ink']}; }}
@@ -95,6 +95,10 @@ QToolTip {{ background: {t['raised']}; color: {t['ink']}; border: 1px solid {t['
 
 def apply(app, mode: str) -> dict:
     t = tokens_for(mode, app)
+    f = app.font()                         # base size via the font, NOT the style sheet (a QSS font-size would override the serif headings)
+    f.setFamilies(SANS)
+    f.setPointSizeF(10.5)
+    app.setFont(f)
     app.setPalette(palette(t))
     app.setStyleSheet(stylesheet(t))
     return t
