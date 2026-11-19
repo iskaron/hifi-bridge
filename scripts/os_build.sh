@@ -14,6 +14,7 @@
 #   HIFI_OS_OUT     output directory (default: $HIFI_LAB/br-out/<board>)
 #   HIFI_OS_JOBS    BR2_JLEVEL (default 3)    HIFI_OS_CPUS (default 3)    HIFI_OS_MEM (default 8g)
 #   HIFI_OS_MIN_FREE_GB   refuse to start below this much free space on the output filesystem (default 40)
+#   HIFI_OS_CCACHE=0    build without the shared ccache (reproducibility check: every object compiled again)
 #   HIFI_OS_REBUILD "pkg ..."   `make <pkg>-dirclean` before building (after a configuration change of an already built package;
 #                   Buildroot does not notice those by itself)
 #
@@ -58,7 +59,7 @@ name="hifi-os-build-$BOARD"
 docker rm -f "$name" >/dev/null 2>&1 || true
 set +e
 docker run --rm --name "$name" --cpus="$CPUS" --memory="$MEM" -u "$(id -u):$(id -g)" -e HOME=/tmp \
-	-e BOARD="$BOARD" -e JOBS="$JOBS" -e STEPS="$STEPS" -e REBUILD="${HIFI_OS_REBUILD:-}" \
+	-e BOARD="$BOARD" -e JOBS="$JOBS" -e STEPS="$STEPS" -e REBUILD="${HIFI_OS_REBUILD:-}" -e CCACHE="${HIFI_OS_CCACHE:-1}" \
 	-v "$REPO":/work:ro -v "$LAB/buildroot":/buildroot:ro -v "$OUT":/out -v "$LAB/br-dl":/dl -v "$LAB/br-ccache":/ccache \
 	-v "$LAB/dev-update-ca/ca.pem":/devca/ca.pem:ro \
 	btbridge-os:dev bash -c '
@@ -73,14 +74,16 @@ step() {	# name command...
 	[ $r = ok ]
 }
 configure() {
-	cat $EXT/configs/hifi_bridge_${BOARD}_defconfig $EXT/fragments/dev-build.fragment > /tmp/merged
+	cp $EXT/fragments/dev-build.fragment /tmp/dev.fragment
+	if [ "$CCACHE" = 0 ]; then sed -i "/^BR2_CCACHE/d" /tmp/dev.fragment; echo "# BR2_CCACHE is not set" >> /tmp/dev.fragment; fi
+	cat $EXT/configs/hifi_bridge_${BOARD}_defconfig /tmp/dev.fragment > /tmp/merged
 	echo "BR2_JLEVEL=$JOBS" >> /tmp/merged
 	make -s -C $B O=$O BR2_EXTERNAL=$EXT BR2_DEFCONFIG=/tmp/merged defconfig
 	# an unmet dependency would silently drop a dev-build line (same rule as scripts/os_defconfigs.sh)
 	while IFS= read -r l; do
 		[[ "$l" =~ ^BR2_ ]] || continue
 		grep -qxF "$l" $O/.config || { echo "configure: dropped by Kconfig: $l" >&2; return 1; }
-	done < $EXT/fragments/dev-build.fragment
+	done < /tmp/dev.fragment
 }
 build() {
 	# local package: re-sync the bridge sources from the working tree on every build
