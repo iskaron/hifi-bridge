@@ -473,7 +473,7 @@ def test_truncated_backup_upload(u):
 
 def test_unknown_error_codes_have_a_generic_text(u):
     req = type("R", (), {"t": i18n.Translator("en")})()
-    assert views_update._err(req, "brand_new_code") == "The update step failed (brand_new_code)."
+    assert views_update._err(req, "brand_new_code").startswith("The update step failed (brand_new_code). Try again")
 
 
 # ---------------------------------------------------------------- i18n

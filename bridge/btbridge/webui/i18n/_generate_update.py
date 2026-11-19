@@ -115,7 +115,9 @@ k("upd.cancelled", "The device stays on the current version.", "Das Gerät bleib
 k("upd.live.restarting", "Restarting … waiting for the device.", "Neustart … warte auf das Gerät.")
 k("upd.live.back", "The device is back.", "Das Gerät ist wieder da.")
 k("upd.live.uploading", "Uploading … {pct} %", "Wird hochgeladen … {pct} %")
-k("upd.error.generic", "The update step failed ({code}).", "Der Update-Schritt ist fehlgeschlagen ({code}).")
+k("upd.error.generic", "The update step failed ({code}). Try again; if it fails again, restart the device and look at the diagnostics page.",
+  "Der Update-Schritt ist fehlgeschlagen ({code}). Versuchen Sie es erneut; schlägt er wieder fehl, starten Sie das Gerät neu und sehen "
+  "Sie auf der Diagnoseseite nach.")
 for c, en, de in [
         ("busy", "Another update step is in progress.", "Ein anderer Update-Schritt läuft gerade."),
         ("snapshot_failed", "The current settings could not be saved first, so nothing was installed.", "Die aktuellen Einstellungen konnten nicht vorher gesichert werden, daher wurde nichts installiert."),
@@ -124,7 +126,9 @@ for c, en, de in [
         ("too_large", "The bundle is too large.", "Das Paket ist zu groß."),
         ("signature_invalid", "Refused: the bundle is not signed by a key this device trusts, or it is damaged.", "Abgelehnt: Das Paket ist nicht mit einem vertrauten Schlüssel signiert oder beschädigt."),
         ("wrong_compatible", "Refused: the bundle is for a different board.", "Abgelehnt: Das Paket ist für eine andere Platine."),
-        ("rauc_unavailable", "The update service (RAUC) is not reachable.", "Der Update-Dienst (RAUC) ist nicht erreichbar."),
+        ("rauc_unavailable", "The update service (RAUC) is not reachable. Wait a minute and try again; if it stays unreachable, restart "
+         "the device.", "Der Update-Dienst (RAUC) ist nicht erreichbar. Warten Sie eine Minute und versuchen Sie es erneut; bleibt er "
+         "unerreichbar, starten Sie das Gerät neu."),
         ("no_file", "No bundle was received.", "Es wurde kein Paket empfangen."),
         ("no_update", "Check for updates first.", "Bitte zuerst nach Updates suchen."),
         ("no_source", "No official update source.", "Keine offizielle Update-Quelle."),
@@ -193,7 +197,9 @@ k("bak.snapshot.confirm", "Replace the current settings with the snapshot and re
 k("bak.snapshot.requested", "The snapshot is restored at the restart.", "Der Schnappschuss wird beim Neustart wiederhergestellt.")
 k("bak.snapshot.none", "No snapshot of the running version exists.", "Es gibt keinen Schnappschuss der laufenden Version.")
 k("bak.snapshot.started", "Restoring the snapshot: the device restarts.", "Schnappschuss wird wiederhergestellt: Das Gerät startet neu.")
-k("bak.error.generic", "The backup could not be processed ({code}).", "Die Sicherung konnte nicht verarbeitet werden ({code}).")
+k("bak.error.generic", "The backup could not be processed ({code}). Check that you chose a backup file of this device and try again.",
+  "Die Sicherung konnte nicht verarbeitet werden ({code}). Prüfen Sie, ob Sie eine Sicherungsdatei dieses Geräts gewählt haben, und "
+  "versuchen Sie es erneut.")
 for c, en, de in [
         ("invalid_file", "This is not a valid backup file.", "Das ist keine gültige Sicherungsdatei."),
         ("wrong_format", "This file is not a Hi-Fi Bridge backup.", "Diese Datei ist keine Hi-Fi-Bridge-Sicherung."),
@@ -208,7 +214,13 @@ for c, en, de in [
         ("timeout", "The upload took too long.", "Der Upload hat zu lange gedauert."),
         ("too_large", "The file is too large for a backup.", "Die Datei ist zu groß für eine Sicherung."),
         ("crypto_unavailable", "Encryption is not available on this system (openssl missing).", "Verschlüsselung ist auf diesem System nicht verfügbar (openssl fehlt)."),
-        ("crypto_failed", "The encryption step failed; nothing was changed.", "Der Verschlüsselungsschritt ist fehlgeschlagen; nichts wurde geändert.")]:
+        ("crypto_failed", "The encryption step failed; nothing was changed.", "Der Verschlüsselungsschritt ist fehlgeschlagen; nichts wurde geändert."),
+        # review N-11: multipart errors of the import, shown raw (generic text with a code) before
+        ("too_many_parts", "The upload was not understood (too many form fields). Reload the page and choose the backup file again.",
+         "Der Upload wurde nicht verstanden (zu viele Formularfelder). Laden Sie die Seite neu und wählen Sie die Sicherungsdatei erneut."),
+        ("field_too_large", "The upload was not understood (a form field is too large). Reload the page and choose the backup file again.",
+         "Der Upload wurde nicht verstanden (ein Formularfeld ist zu groß). Laden Sie die Seite neu und wählen Sie die Sicherungsdatei "
+         "erneut.")]:
     k(f"bak.error.{c}", en, de)
 
 if __name__ == "__main__":

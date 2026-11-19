@@ -186,7 +186,22 @@ for r, en, de in [("invalid", "invalid", "ungültig"), ("required_iso_3166_alpha
                   ("same_as_wifi", "must differ from the Wi-Fi network name", "muss sich vom WLAN-Namen unterscheiden"),
                   ("not_json", "unreadable", "nicht lesbar"), ("mismatch", "changed meanwhile – please try again", "zwischenzeitlich geändert – bitte erneut versuchen"),
                   ("unknown_field", "unknown entry", "unbekannter Eintrag"), ("not_an_object", "invalid", "ungültig"),
-                  ("permissions_too_open", "wrong file permissions", "falsche Dateirechte")]:
+                  ("permissions_too_open", "wrong file permissions", "falsche Dateirechte"),
+                  # review N-11: reachable codes of the agent's strict file check and of its replies, each with the next step
+                  ("unreadable", "could not be read – save again; if this repeats, restart the device",
+                   "konnte nicht gelesen werden – bitte erneut speichern; wiederholt sich das, das Gerät neu starten"),
+                  ("wrong_owner", "belongs to the wrong user – save again; if this repeats, restart the device",
+                   "gehört dem falschen Benutzer – bitte erneut speichern; wiederholt sich das, das Gerät neu starten"),
+                  ("not_a_regular_file", "is not a regular file – save again; if this repeats, restart the device",
+                   "ist keine normale Datei – bitte erneut speichern; wiederholt sich das, das Gerät neu starten"),
+                  ("too_large", "too large – reload the page and save again",
+                   "zu groß – bitte die Seite neu laden und erneut speichern"),
+                  ("unsupported", "format not supported by this version – save the settings again on this page",
+                   "Format wird von dieser Version nicht unterstützt – bitte die Einstellungen auf dieser Seite erneut speichern"),
+                  ("bad_request", "request not understood – reload the page and try again",
+                   "Anfrage nicht verstanden – bitte die Seite neu laden und erneut versuchen"),
+                  ("forbidden", "refused by the network service – restart the device",
+                   "vom Netzwerkdienst abgelehnt – bitte das Gerät neu starten")]:
     k("net.err." + r, en, de)
 k("net.saved", "Network settings saved.", "Netzwerkeinstellungen gespeichert.")
 k("net.saved_pending", "New network settings are active – please confirm them.", "Neue Netzwerkeinstellungen sind aktiv – bitte bestätigen.")
