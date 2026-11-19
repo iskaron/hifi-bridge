@@ -262,7 +262,7 @@ class ImagePage(Page):
         self.reload.clicked.connect(self.load)
         self.verify.clicked.connect(self.run_verify)
         self.cancel.clicked.connect(lambda: self.task and self.task.cancel.set())
-        self.list.currentRowChanged.connect(lambda _: self.changed.emit())
+        self.list.currentRowChanged.connect(lambda _: self._buttons())
 
     # -- helpers
     def _mode(self) -> None:
@@ -280,7 +280,7 @@ class ImagePage(Page):
         m, s = self.paths["manifest"].text().strip(), self.paths["signature"]
         if m and not s.text().strip() and os.path.isfile(m + ".sig"):
             s.setText(m + ".sig")
-        self.changed.emit()
+        self._buttons()
 
     def _set_status(self, key: str, state: str = "", **kw) -> None:
         self.status = (key, kw, state)
@@ -310,6 +310,9 @@ class ImagePage(Page):
         else:
             self.result.setText(self.tr(key, **kw))
         set_state(self.result, state)
+        self._buttons()
+
+    def _buttons(self) -> None:
         busy = self.busy()
         for w in (self.verify, self.reload, self.official, self.custom, self.list, *self.paths.values()):
             w.setEnabled(not busy)
@@ -329,8 +332,9 @@ class ImagePage(Page):
         return bool(self.state.image and self.state.image.board == self.state.board) and not self.busy()
 
     def enter(self) -> None:
-        if self.state.image is None:
-            self.status = ("image.none", {}, "")
+        if self.state.image is None and not self.busy():
+            n = len(self._visible_entries())
+            self.status = (("image.loaded" if n else "image.none_for_board") if self.entries else "image.none", {"count": n}, "")
         if self.official.isChecked() and not self.entries and not self.busy():
             self.load()
         self.refresh()

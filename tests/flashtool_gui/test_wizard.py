@@ -43,11 +43,11 @@ def choose_card(qtbot, win, name="sdcard"):
     assert win.index == 3
 
 
-def provision(qtbot, win, country="DE", wifi=("Home", "wifi-secret-123")):
+def provision(qtbot, win, country="DE", wifi=("Home", "wifi-secret-123"), host="wohnzimmer"):
     page = win.pages[3]
     page.country.setCurrentIndex(page.country.findData(country))
     page.name.setText("Wohnzimmer")
-    page.host.setText("wohnzimmer")
+    page.host.setText(host)
     if wifi:
         page.wifi.setChecked(True)
         page.ssid.setText(wifi[0])
@@ -142,11 +142,12 @@ def test_trust_failures_and_a_bad_address(qtbot, win, env):
     pick_board(qtbot, win)
     verified_official(qtbot, win)
     choose_card(qtbot, win)
-    provision(qtbot, win, wifi=None)
+    provision(qtbot, win, wifi=None, host="")
     confirm_and_write(qtbot, win)
     qtbot.waitUntil(lambda: win.index == 6, timeout=TIMEOUT)
     done = win.pages[6]
-    assert "hifi-bridge.local" == done.address.text() and "Ethernet" in done.sheet.toPlainText()
+    assert "hifi-bridge.local" == done.address.text() and "on a device in the same network" in done.sheet.toPlainText()
+    assert "Wi-Fi" not in done.sheet.toPlainText().split("First start")[0]
     done.address.setText("evil host/; rm")
     qtbot.mouseClick(done.verify, Qt.MouseButton.LeftButton)
     assert "Enter a host name" in done.status.text()
@@ -267,6 +268,8 @@ def test_successful_write_after_a_close_request_closes_the_window(qtbot, win, en
 def test_back_navigation_and_board_change_drops_the_image(qtbot, win, env):
     pick_board(qtbot, win)
     verified_official(qtbot, win)
+    assert not win.back_btn.isEnabled() or not win.pages[2].busy()               # no Back while the card list is loading
+    qtbot.waitUntil(lambda: win.back_btn.isEnabled(), timeout=TIMEOUT)
     qtbot.mouseClick(win.back_btn, Qt.MouseButton.LeftButton)
     qtbot.mouseClick(win.back_btn, Qt.MouseButton.LeftButton)
     assert win.index == 0
