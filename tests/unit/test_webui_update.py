@@ -104,6 +104,21 @@ def test_upload_verifies_and_stages_then_install_and_restart(u):
     assert u.reboots == [1] and "Restarting" in u.c.get("/settings/update").body
 
 
+@pytest.mark.parametrize("lang,text", [("en", "The device did not restart"), ("de", "Das Gerät hat nicht neu gestartet")])
+def test_a_restart_that_never_happens_offers_the_restart_again_with_guidance(u, lang, text):
+    """Review N-10: 'rebooting' used to stay forever (update.js reloaded into the same wait) when the restart helper never acted."""
+    u.svc.store.update({"language": lang})
+    stage(u)
+    u.c.post("/settings/update/install")
+    u.svc.ota._thread.join(5)
+    u.c.post("/settings/update/reboot")
+    assert 'data-phase="rebooting"' in u.c.get("/settings/update").body
+    u.svc.ota.reboot_wait_s = 0
+    page = u.c.get("/settings/update").body
+    assert 'data-phase="installed"' in page and text in page and 'action="/settings/update/reboot"' in page
+    assert json.loads(u.c.get("/api/update").body)["error"] == "reboot_timeout"
+
+
 def test_owner_declines_the_restart(u):
     stage(u)
     u.c.post("/settings/update/install")

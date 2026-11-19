@@ -39,6 +39,7 @@ idle ──download/upload──> verifying ──RAUC InspectBundle ok + compat
 installing ──Completed(0)──> installed ──owner: restart──> rebooting ──new slot boots──> confirming ──health ok──> idle "updated"
 installing ──Completed(≠0) / RAUC gone──> staged + error              installed ──owner: keep current──> idle "cancelled"
 rebooting/confirming ──previous slot boots (boot-count or failed health)──> idle "rolled_back"
+rebooting ──no restart within 5 min (same boot)──> installed/switching + "did not restart"
 idle ──owner: previous version──> switching ──restart──> confirming ──health ok──> idle "switched"
 ```
 * Nothing is downloaded or installed without an owner action (DECISIONS #10). The check only reports.
@@ -89,6 +90,9 @@ the owner then confirms the restart.
 | installation fails (RAUC `Completed(1)`) | bundle kept for a retry, RAUC's `LastError` shown, slot order unchanged | REAL RAUC (fails at the mount step in Docker) + UNIT |
 | RAUC daemon restarts during the installation (no `Completed`) | "interrupted"; if RAUC had activated the new slot it counts as installed | UNIT (fault injection) |
 | RAUC unreachable > 120 s during the installation | "interrupted" | UNIT |
+| RAUC answers with an error reply (not "service gone"), or something unexpected fails in the monitor, for > 120 s | "interrupted", every action possible again (review N-5; a short burst is tolerated) | UNIT |
+| RAUC reports a malformed `Progress` value | shown as 0 %, the installation continues | UNIT |
+| storage error or malformed RAUC answer while verifying / finishing an upload | bundle deleted, "could not be checked (storage error)" / "upload failed", back to idle (review N-10) | UNIT |
 | bridge restarts while RAUC still installs | monitoring resumes | UNIT |
 | bridge was down when RAUC finished | reconciled from RAUC's primary slot | UNIT |
 | power cut during the installation | previous slot boots (RAUC deactivates the target before writing); "interrupted", bundle kept | UNIT (reconcile) - **device: G2 P3-5** |
@@ -96,6 +100,7 @@ the owner then confirms the restart.
 | new slot fails the health check / does not boot | rollback (section 4) | UNIT - **device: G2 P3-4** |
 | update check: repository private (404), rate limit, offline, bad answer | "not publicly reachable" (OPEN_QUESTIONS #45), "too many requests", "not reachable", "unexpected answer" | UNIT |
 | restart helper missing (development system) | "cannot restart itself here", state unchanged | UNIT, BROWSER |
+| restart confirmed, but nothing restarts (the root helper did not act) | after 5 min on the same boot (`REBOOT_WAIT_S`) back to "installed"/"switching" with "The device did not restart" and what to do; "Restart now" is offered again (review N-10). `update.js` reloads after 180 s, so the page shows it at the second reload at the latest | UNIT |
 
 ## 6. Pre-update snapshot and downgrades
 Before each installation the manager copies `settings.json`, `secrets.json`, `network.json` and `certs/` to

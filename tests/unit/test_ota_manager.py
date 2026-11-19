@@ -660,3 +660,228 @@ def test_monitor_tolerates_errors_while_deciding(env, monkeypatch):
     env.m.install()
     wait(lambda: env.m.state.read()["phase"] != "installing")
     assert env.m.info()["error"]["code"] == "install_interrupted"
+
+
+# ---------------------------------------------------------------- review N-5 / N-10: the manager never stays stuck
+def start_hanging_install(env, **kw):
+    env.m = env.make(**kw)
+    env.rauc.plan = {"hang": True}
+    upload(env.m, env.rauc)
+    env.m.install()
+    assert env.m.info()["phase"] == "installing"
+
+
+def actions_possible_again(env):
+    i = env.m.info()
+    assert i["phase"] == "staged" and i["error"]["code"] == "install_interrupted"
+    env.m.discard()                                                     # not "busy" any more
+    assert env.m.info()["phase"] == "idle"
+
+
+@pytest.mark.parametrize("where", ["completed", "properties"])
+def test_a_rauc_error_reply_during_the_install_ends_as_interrupted(env, monkeypatch, where):
+    """Review N-5: a D-Bus error that is not 'service gone' (RaucError) used to end the monitor thread: 'installing' forever."""
+    start_hanging_install(env, rauc_gone_s=0.05)
+    monkeypatch.setattr(env.rauc, where, lambda: (_ for _ in ()).throw(M.RaucError("org.freedesktop.DBus.Error.LimitsExceeded")))
+    wait(lambda: env.m.state.read()["phase"] != "installing")
+    env.m._thread.join(5)
+    assert "LimitsExceeded" in env.m.state.read()["error"]["detail"] and not env.m._thread.is_alive()
+    monkeypatch.undo()
+    actions_possible_again(env)
+
+
+def test_a_short_rauc_error_burst_does_not_end_the_install(env, monkeypatch):
+    start_hanging_install(env)
+    calls = {"n": 0}
+    real = env.rauc.properties
+
+    def flaky():
+        calls["n"] += 1
+        if 2 <= calls["n"] <= 4:
+            raise M.RaucError("org.freedesktop.DBus.Error.NoReply")
+        return real()
+    monkeypatch.setattr(env.rauc, "properties", flaky)
+    wait(lambda: calls["n"] > 5)
+    env.rauc.plan, env.rauc._polls = {"result": 0}, 0
+    wait(lambda: env.m.state.read()["phase"] == "installed")
+
+
+@pytest.mark.parametrize("progress", [(42, "Copying image"), "garbage", (None, None, None), 17])
+def test_a_malformed_progress_value_never_stops_the_install(env, monkeypatch, progress):
+    real = env.rauc.properties
+
+    def props():
+        p = real()
+        p["Progress"] = progress
+        return p
+    monkeypatch.setattr(env.rauc, "properties", props)
+    assert install(env)["phase"] == "installed"
+
+
+def test_an_unexpected_exception_in_the_monitor_ends_as_interrupted(env, monkeypatch):
+    start_hanging_install(env, rauc_gone_s=0.05)
+    monkeypatch.setattr(env.rauc, "completed", lambda: (_ for _ in ()).throw(RuntimeError("bug")))
+    wait(lambda: env.m.state.read()["phase"] != "installing")
+    env.m._thread.join(5)
+    assert "RuntimeError" in env.m.state.read()["error"]["detail"]
+    monkeypatch.undo()
+    actions_possible_again(env)
+
+
+def test_the_monitor_logs_when_even_the_final_state_cannot_be_written(env, monkeypatch):
+    logs = []
+    start_hanging_install(env, rauc_gone_s=0.05, log=logs.append)
+    env.rauc.down = True
+    monkeypatch.setattr(env.m, "_finish", lambda *a: (_ for _ in ()).throw(OSError(5, "Input/output error")))
+    env.m._thread.join(5)
+    assert not env.m._thread.is_alive() and any("could not record the end of the installation" in m for m in logs)
+
+
+def test_a_storage_error_while_verifying_returns_to_idle_with_an_error(env, monkeypatch):
+    """Review N-10: an OSError in _verify left the transient phase 'verifying' set until the bridge restarted."""
+    p = env.m.begin_upload(3)
+    open(p, "wb").write(b"abc")
+    env.rauc.bundles[env.m.bundle_path] = {"compatible": C, "version": "0.4.0"}
+    real = os.path.getsize
+    monkeypatch.setattr(M.os.path, "getsize", lambda path: real(path) if path != env.m.bundle_path else
+                        (_ for _ in ()).throw(OSError(5, "Input/output error")))
+    with pytest.raises(UpdateError, match="verify_failed"):
+        env.m.finish_upload("x.raucb")
+    monkeypatch.undo()
+    i = env.m.info()
+    assert i["phase"] == "idle" and i["error"]["code"] == "verify_failed" and not os.path.exists(env.m.bundle_path)
+    upload(env.m, env.rauc)                                             # not "busy"
+    assert env.m.info()["phase"] == "staged"
+
+
+def test_a_malformed_inspect_answer_returns_to_idle_with_an_error(env, monkeypatch):
+    p = env.m.begin_upload(3)
+    open(p, "wb").write(b"abc")
+    monkeypatch.setattr(env.rauc, "inspect", lambda path: ["not", "a", "dict"])
+    with pytest.raises(UpdateError, match="verify_failed"):
+        env.m.finish_upload("x.raucb")
+    assert env.m.info()["phase"] == "idle" and env.m.info()["error"]["code"] == "verify_failed"
+
+
+def test_a_storage_error_while_finishing_the_upload_returns_to_idle(env, monkeypatch):
+    p = env.m.begin_upload(3)
+    open(p, "wb").write(b"abc")
+    real = os.replace
+    monkeypatch.setattr(M.os, "replace", lambda a, b: real(a, b) if b != env.m.bundle_path else
+                        (_ for _ in ()).throw(OSError(28, "No space left on device")))
+    with pytest.raises(UpdateError, match="upload_failed"):
+        env.m.finish_upload("x.raucb")
+    monkeypatch.undo()
+    i = env.m.info()
+    assert i["phase"] == "idle" and i["error"]["code"] == "upload_failed" and not os.path.exists(p)
+    assert env.m.begin_upload(3)                                        # not "busy"
+
+
+def test_an_unrecordable_error_still_frees_the_manager(env, monkeypatch):
+    logs = []
+    m = env.make(log=logs.append)
+    p = m.begin_upload(3)
+    open(p, "wb").write(b"abc")
+    monkeypatch.setattr(m.state, "edit", lambda: (_ for _ in ()).throw(OSError(5, "Input/output error")))
+    with pytest.raises(UpdateError, match="upload_failed"):
+        m.finish_upload("x.raucb")
+    assert m._busy is None and any("could not record the error upload_failed" in x for x in logs)
+
+
+def test_a_download_whose_verification_fails_does_not_kill_the_thread_silently(env, monkeypatch):
+    m = env.make()
+
+    class D:
+        def __init__(self, *a, **k):
+            pass
+
+        def run(self):
+            open(m.bundle_path, "wb").write(b"x")
+    monkeypatch.setattr(M, "Download", D)
+    with m.state.edit() as st:
+        st["check"] = {"status": "update_available", "latest": {"version": "0.4.0", "asset": {"name": "b.raucb", "size": 1,
+                                                                                            "url": "https://x/b.raucb"}}}
+    errors = []
+    monkeypatch.setattr(M.threading, "excepthook", errors.append)
+    m.start_download()
+    m._thread.join(5)
+    assert m.info()["phase"] == "idle" and m.info()["error"]["code"] == "signature_invalid" and errors == []
+
+
+class Wall:
+    def __init__(self):
+        self.t = 1_800_000_000.0
+
+    def __call__(self):
+        return self.t
+
+
+@pytest.mark.parametrize("before", ["installed", "switching"])
+def test_a_restart_that_never_happens_returns_to_the_previous_phase(env, before):
+    """Review N-10: 'rebooting' had no way out when the restart helper never acted (same boot, no reboot)."""
+    clock = Wall()
+    env.m = env.make(clock=clock)
+    if before == "installed":
+        install(env)
+    else:
+        env.rauc.slot["rootfs.1"].update({"boot-status": "good", "bundle.version": "0.2.0"})
+        env.m.rollback()
+    env.m.request_reboot()
+    clock.t += M.REBOOT_WAIT_S - 1
+    assert env.m.info()["phase"] == "rebooting"
+    with pytest.raises(UpdateError, match="busy"):
+        env.m.request_reboot()
+    clock.t += 2
+    i = env.m.info()
+    assert i["phase"] == before and i["error"]["code"] == "reboot_timeout" and i["reboot_required"]
+    env.m.request_reboot()                                              # the owner can try again
+    assert env.reboots == [1, 1] and env.m.info()["phase"] == "rebooting"
+
+
+def test_a_real_restart_is_never_mistaken_for_a_timeout(env):
+    clock = Wall()
+    env.m = env.make(clock=clock)
+    install(env)
+    env.m.request_reboot()
+    env.boot.id = "boot-2"                                              # the device did restart (bridge still sees the old state)
+    clock.t += M.REBOOT_WAIT_S + 1
+    assert env.m.info()["phase"] == "rebooting"                         # reconcile at the bridge start decides, not the timeout
+    reboot_into(env, "B")
+    assert env.m.info()["phase"] == "confirming"
+
+
+def test_a_rebooting_state_without_a_restart_record_times_out_from_the_install(env):
+    clock = Wall()
+    env.m = env.make(clock=clock)
+    install(env)
+    with env.m.state.edit() as st:                                      # state written by an older release
+        st["phase"] = "rebooting"
+    clock.t += M.REBOOT_WAIT_S + 1
+    assert env.m.info()["phase"] == "installed"
+
+
+def test_storage_errors_while_cleaning_up_never_keep_a_transient_phase(env, monkeypatch):
+    real_unlink, real_replace, real_getsize = os.unlink, os.replace, os.path.getsize
+    bundle = env.m.bundle_path
+    monkeypatch.setattr(M.os, "unlink", lambda p: (_ for _ in ()).throw(OSError(5, "Input/output error")) if p.startswith(bundle)
+                        else real_unlink(p))
+    monkeypatch.setattr(M.os, "replace", lambda a, b: (_ for _ in ()).throw(OSError(5, "Input/output error")) if b == bundle
+                        else real_replace(a, b))
+    open(env.m.begin_upload(3), "wb").write(b"abc")
+    with pytest.raises(UpdateError, match="upload_failed"):
+        env.m.finish_upload("x.raucb")                                  # the partial upload cannot even be deleted
+    assert env.m._busy is None
+    monkeypatch.setattr(M.os, "replace", real_replace)
+    monkeypatch.setattr(M.os.path, "getsize", lambda p: (_ for _ in ()).throw(OSError(5, "Input/output error")) if p == bundle
+                        else real_getsize(p))
+    open(env.m.begin_upload(3), "wb").write(b"abc")
+    with pytest.raises(UpdateError, match="verify_failed"):
+        env.m.finish_upload("x.raucb")                                  # the unverified bundle cannot be deleted
+    assert env.m._busy is None and env.m.info()["error"]["code"] == "verify_failed"
+
+
+def test_a_restart_request_with_an_incomplete_state_record(env):
+    with env.m.state.edit() as st:                                      # "installed" without an install record (hand-edited / foreign)
+        st["phase"], st["install"] = "installed", None
+    env.m.request_reboot()
+    assert env.reboots == [1] and env.m.info()["phase"] == "rebooting"

@@ -143,7 +143,15 @@ for c, en, de in [
         ("truncated", "The upload was incomplete.", "Der Upload war unvollständig."),
         ("timeout", "The upload took too long.", "Der Upload hat zu lange gedauert."),
         ("too_many_parts", "The upload was not understood.", "Der Upload wurde nicht verstanden."),
-        ("field_too_large", "The upload was not understood.", "Der Upload wurde nicht verstanden.")]:
+        ("field_too_large", "The upload was not understood.", "Der Upload wurde nicht verstanden."),
+        ("verify_failed", "The bundle could not be checked (storage error) and was deleted. Try again; if this repeats, restart the device "
+         "and look at the diagnostics page.",
+         "Das Paket konnte nicht geprüft werden (Speicherfehler) und wurde gelöscht. Versuchen Sie es erneut; passiert das wieder, starten "
+         "Sie das Gerät neu und sehen Sie auf der Diagnoseseite nach."),
+        ("reboot_timeout", "The device did not restart. Press “Restart now” again; if nothing happens, unplug the power for a few seconds – "
+         "the selected version starts either way.",
+         "Das Gerät hat nicht neu gestartet. Tippen Sie erneut auf „Jetzt neu starten“; passiert nichts, trennen Sie es für einige Sekunden "
+         "vom Strom – die ausgewählte Version startet so oder so.")]:
     k(f"upd.error.{c}", en, de)
 k("bak.title", "Backup and restore", "Sicherung und Wiederherstellung")
 k("bak.summary", "Export or import the settings", "Einstellungen exportieren oder importieren")

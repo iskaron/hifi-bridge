@@ -43,7 +43,8 @@ SNAPSHOT_DIRS = ("certs",)
 PERSISTENT = ("idle", "staged", "installing", "installed", "rebooting", "switching", "confirming")
 REBOOT_PHASES = ("installed", "switching")
 MONITOR_S = 0.5
-RAUC_GONE_S = 120.0                     # RAUC unreachable this long during an installation -> interrupted
+RAUC_GONE_S = 120.0                     # RAUC unreachable or unusable this long during an installation -> interrupted
+REBOOT_WAIT_S = 300.0                   # "rebooting" on the same boot this long: the restart never happened -> back, with guidance
 
 
 class UpdateError(Exception):
@@ -96,6 +97,16 @@ def booted_slot_from_cmdline(path: str = "/proc/cmdline") -> str | None:
     except OSError:
         return None
     return m.group(1) if m else None
+
+
+def progress_of(props: dict) -> dict:
+    """RAUC's Progress (percentage, message, depth) for the page; a malformed value shows 0 % instead of ending the monitor."""
+    pr = props.get("Progress")
+    try:
+        pct, msg = int(pr[0]), str(pr[1])
+    except (TypeError, ValueError, IndexError, KeyError):
+        pct, msg = 0, ""
+    return {"done": max(0, min(100, pct)), "total": 100, "message": msg[:200]}
 
 
 def empty_state() -> dict:
@@ -291,7 +302,7 @@ class UpdateManager:
                  reboot: Callable[[], None] | None = None, current_boot: Callable[[], str] = boot_id,
                  free: Callable[[str], int] | None = None, log: Callable[[str], None] = print, clock: Callable[[], float] = time.time,
                  download_opts: dict | None = None, monitor_s: float = MONITOR_S, rauc_gone_s: float = RAUC_GONE_S,
-                 max_bundle: int = MAX_BUNDLE):
+                 max_bundle: int = MAX_BUNDLE, reboot_wait_s: float = REBOOT_WAIT_S):
         self.data_dir, self.rauc, self.version, self.log, self.clock = data_dir, rauc, version, log, clock
         self.ota_dir = os.path.join(data_dir, "ota")
         self.state = StateFile(self.ota_dir)
@@ -300,7 +311,7 @@ class UpdateManager:
         self.reboot_fn = reboot or RebootRequest()
         self.current_boot, self.free = current_boot, free
         self.download_opts = download_opts or {}
-        self.monitor_s, self.rauc_gone_s, self.max_bundle = monitor_s, rauc_gone_s, max_bundle
+        self.monitor_s, self.rauc_gone_s, self.max_bundle, self.reboot_wait_s = monitor_s, rauc_gone_s, max_bundle, reboot_wait_s
         self._lock = threading.RLock()
         self._busy: str | None = None                          # transient phase: downloading | verifying | uploading
         self._progress = {"done": 0, "total": 0}
@@ -329,10 +340,11 @@ class UpdateManager:
                         "boot_status": s.get("boot-status", "unknown"), "version": version,
                         "installed": s.get("installed.timestamp")})
         return {"available": True, "compatible": props.get("Compatible"), "booted": booted, "operation": props.get("Operation"),
-                "last_error": props.get("LastError"), "progress": list(props.get("Progress") or (0, "", 0)), "slots": out,
+                "last_error": props.get("LastError"), "progress": progress_of(props), "slots": out,
                 "primary": primary}
 
     def info(self) -> dict:
+        self._reboot_timeout()
         st = self.state.read()
         rv = self._rauc_view()
         other = next((s for s in rv.get("slots", []) if not s["booted"]), None)
@@ -351,13 +363,37 @@ class UpdateManager:
 
     # ---------------------------------------------------------------- helpers
     def _set_error(self, code: str, detail: str = "") -> None:
-        """Record the error, THEN leave a transient phase (so the UI never sees 'idle' without the error)."""
-        with self.state.edit() as st:
-            st["error"] = {"code": code, "detail": detail[:500], "at": self.clock()}
-        self._busy = None
+        """Record the error, THEN leave a transient phase (so the UI never sees 'idle' without the error). A storage error while
+        recording never keeps the transient phase (review N-10): the caller's UpdateError still tells the owner."""
+        try:
+            with self.state.edit() as st:
+                st["error"] = {"code": code, "detail": detail[:500], "at": self.clock()}
+        except OSError as e:
+            self.log(f"update: could not record the error {code} ({type(e).__name__}: {e})")
+        finally:
+            self._busy = None
         self.log(f"update: {code}{(' - ' + detail) if detail else ''}")
 
+    def _reboot_timeout(self) -> None:
+        """Review N-10: the owner confirmed the restart but nothing restarted (same boot, REBOOT_WAIT_S later; e.g. the root restart
+        helper did not act). Go back to the phase before, with an error that tells the owner what to do. A real restart changes the
+        boot id and is reconciled at the next bridge start instead."""
+        if self.state.read()["phase"] != "rebooting":          # cheap check first: no file lock on every page load
+            return
+        with self.state.edit() as st:
+            inst = st.get("install") or {}
+            rb = inst.get("reboot") or {}
+            since = rb.get("at", inst.get("finished_at") or inst.get("started_at") or 0)
+            if (st["phase"] != "rebooting" or rb.get("boot_id", inst.get("boot_id")) != self.current_boot()
+                    or self.clock() - since < self.reboot_wait_s):
+                return
+            st["phase"] = rb.get("from") if rb.get("from") in REBOOT_PHASES else ("switching" if inst.get("kind") == "switch" else "installed")
+            inst.pop("reboot", None)
+            st["error"] = {"code": "reboot_timeout", "detail": "", "at": self.clock()}
+        self.log("update: the requested restart did not happen - waiting for the owner again")
+
     def _require_idle(self, allowed=("idle", "staged")) -> dict:
+        self._reboot_timeout()
         if self._busy:
             raise UpdateError("busy", self._busy)
         st = self.state.read()
@@ -422,7 +458,10 @@ class UpdateManager:
         except Exception as e:                                  # never leave the manager stuck in "downloading"
             self._set_error("download_failed", f"{type(e).__name__}: {e}")
             return
-        self._verify(self.bundle_path, "download", asset["name"])
+        try:
+            self._verify(self.bundle_path, "download", asset["name"])
+        except UpdateError:                                     # already recorded for the page; nobody waits for this thread
+            pass
 
     def cancel_download(self) -> None:
         self._cancel.set()
@@ -461,16 +500,39 @@ class UpdateManager:
         if not os.path.exists(tmp) or os.path.getsize(tmp) == 0:
             self.abort_upload("no_file")
             raise UpdateError("no_file")
-        with self.state.edit() as st:
-            st["staged"], st["phase"] = None, "idle"
-        if os.path.exists(self.bundle_path):
-            os.unlink(self.bundle_path)
-        os.replace(tmp, self.bundle_path)
+        try:
+            with self.state.edit() as st:
+                st["staged"], st["phase"] = None, "idle"
+            if os.path.exists(self.bundle_path):
+                os.unlink(self.bundle_path)
+            os.replace(tmp, self.bundle_path)
+        except OSError as e:                                    # review N-10: never stay in "uploading"
+            try:
+                self.abort_upload("upload_failed", f"{type(e).__name__}: {e}")
+            except OSError:
+                self._busy = None
+            raise UpdateError("upload_failed", type(e).__name__) from None
         return self._verify(self.bundle_path, "upload", os.path.basename(name or "")[:120])
 
     # ---------------------------------------------------------------- verification (RAUC's signature check + our compatible check)
     def _verify(self, path: str, origin: str, name: str) -> dict:
+        """Transient phase 'verifying'; whatever happens, the manager leaves it (review N-10)."""
         self._busy = "verifying"
+        try:
+            return self._verify_bundle(path, origin, name)
+        except UpdateError:
+            raise
+        except Exception as e:                                  # storage error, malformed RAUC answer, ...
+            try:
+                self._remove_bundle()
+            except OSError:
+                pass
+            self._set_error("verify_failed", f"{type(e).__name__}: {e}")
+            raise UpdateError("verify_failed", type(e).__name__) from None
+        finally:
+            self._busy = None
+
+    def _verify_bundle(self, path: str, origin: str, name: str) -> dict:
         try:
             props = self.rauc.properties()
             info = self.rauc.inspect(path)
@@ -493,7 +555,6 @@ class UpdateManager:
                   "verified_at": self.clock()}
         with self.state.edit() as st:
             st["phase"], st["staged"], st["error"] = "staged", staged, None
-        self._busy = None
         self.log(f"update: bundle {staged['version']} verified by RAUC ({origin})")
         return staged
 
@@ -539,35 +600,45 @@ class UpdateManager:
             self._thread.start()
 
     def _monitor(self) -> None:
+        """Watch RAUC until the installation ends. The thread never dies silently (review N-5): RAUC unreachable, a RAUC error reply
+        (RaucError) or anything unexpected counts as "RAUC not usable"; after rauc_gone_s the installation is reported as interrupted,
+        so the page leaves "installing" and every action is possible again."""
         gone_since = None
         while True:
             try:
-                result = self.rauc.completed()
-                props = self.rauc.properties()
+                if self._monitor_step():
+                    return
                 gone_since = None
-            except RaucUnavailable:
+            except Exception as e:
+                why = "RAUC was not reachable" if isinstance(e, RaucUnavailable) else f"{type(e).__name__}: {e}"
                 gone_since = gone_since or self.clock()
                 if self.clock() - gone_since > self.rauc_gone_s:
-                    self._finish(None, "RAUC was not reachable during the installation")
+                    try:
+                        self._finish(None, f"{why} during the installation")
+                    except Exception as e2:                    # e.g. the data partition cannot be written
+                        self.log(f"update: could not record the end of the installation ({type(e2).__name__}: {e2})")
                     return
-                time.sleep(self.monitor_s)
-                continue
-            pct, msg, _ = props.get("Progress") or (0, "", 0)
-            self._progress = {"done": int(pct), "total": 100, "message": msg}
-            if result is not None:
-                self._finish(result, props.get("LastError") or "")
-                return
-            if props.get("Operation") != "installing":         # idle without our Completed: finished while we were not looking,
-                time.sleep(self.monitor_s)                     # or RAUC was restarted; give a late signal a moment to arrive
-                try:
-                    result = self.rauc.completed()
-                except RaucUnavailable:
-                    result = None
-                if result is None and self._primary_bootname() == (self.state.read().get("install") or {}).get("to_slot"):
-                    result = 0                                 # RAUC activates the new slot only after a complete installation
-                self._finish(result, props.get("LastError") or "")
-                return
             time.sleep(self.monitor_s)
+
+    def _monitor_step(self) -> bool:
+        """One look at RAUC; True when the installation has ended (and was recorded)."""
+        result = self.rauc.completed()
+        props = self.rauc.properties()
+        self._progress = progress_of(props)
+        if result is not None:
+            self._finish(result, str(props.get("LastError") or ""))
+            return True
+        if props.get("Operation") != "installing":             # idle without our Completed: finished while we were not looking,
+            time.sleep(self.monitor_s)                         # or RAUC was restarted; give a late signal a moment to arrive
+            try:
+                result = self.rauc.completed()
+            except (RaucUnavailable, RaucError):
+                result = None
+            if result is None and self._primary_bootname() == (self.state.read().get("install") or {}).get("to_slot"):
+                result = 0                                     # RAUC activates the new slot only after a complete installation
+            self._finish(result, str(props.get("LastError") or ""))
+            return True
+        return False
 
     def _primary_bootname(self) -> str | None:
         try:
@@ -628,12 +699,15 @@ class UpdateManager:
         with self._lock:
             st0 = self._require_idle(REBOOT_PHASES)
             with self.state.edit() as st:
-                st["phase"] = "rebooting"
+                st["phase"], st["error"] = "rebooting", None
+                if st.get("install"):                          # for the "restart did not happen" timeout (review N-10)
+                    st["install"]["reboot"] = {"at": self.clock(), "boot_id": self.current_boot(), "from": st0["phase"]}
             try:
                 self.reboot_fn()
             except OSError as e:                               # no restart helper (e.g. not on the image): stay where we were
                 with self.state.edit() as st:
                     st["phase"] = st0["phase"]
+                    (st.get("install") or {}).pop("reboot", None)
                 raise UpdateError("reboot_unavailable", type(e).__name__) from None
             self.log("update: restart requested by the owner")
 
