@@ -145,3 +145,20 @@ Scope: owner work package of 2026-11-18 (DECISIONS #73/#74).
 ### Package 6 - Buildroot images (in progress)
 - Opus agent resumed on `wip/os` (4 commits + saved WIP; Pi 3 B+ had been built once). Task: merge the network/OTA OS changes, build all
   three boards one at a time, image checks, SBOM, licences, sizes.
+
+### Package 6 - Buildroot images (done, results BUILD-VERIFIED only)
+- Opus agent on `wip/os` (18 commits), merged into develop. All three boards **BUILD-VERIFIED** in Docker (`--cpus=3 --memory=8g`,
+  `BR2_JLEVEL=3`): rpi3_64 3631 s (warm ccache) / 6980 s (no ccache), rpizero2w_64 3645 s, rpi4_64 7485 s. Card image 644 MiB each,
+  rootfs ~185 MiB used of 256 MiB, dev RAUC bundle ~77 MB.
+- Image checks (`scripts/os_check_image.sh`): 0 FAIL / 89 PASS per board; secret scan of rootfs, boot FAT and raw card: 0 findings;
+  `make ota` bundle accepted by the image keyring, foreign-signed bundle refused; systemd-analyze verify of all 12 `hifi-*` units clean.
+- Reproducibility (rpi3_64, ccache vs. no ccache): MBR, boot FAT, data, slot B identical; 7394/7398 rootfs files identical, the 4 others
+  differ only by ccache-rewritten `__FILE__` paths -> release builds without ccache (DECISIONS #102).
+- Fixed on the way: post-image symlink size bug, host-python `_ssl`, invalid `update-trust.json` with commas in a CA subject, stock
+  wpa_supplicant/avahi-dnsconfd enabled, unaligned partitions, rootfs 1 KiB blocks + journal, rw remount / no `/var` strategy / kernel
+  outside the slot, several non-reproducibility sources.
+- Firmware licences read from the archives (docs/IMAGE_LICENSING.md): publicly redistributable unmodified, with texts, only for Raspberry Pi
+  hardware; Synaptics BT licence was missing upstream and is now shipped. OPEN_QUESTIONS #35 largely resolved; new #73-#77 (export control,
+  revocable Synaptics licence, release source obligations, partition sizes / 2 GB card, machine-id/DUID). DECISIONS #100-#104.
+- Finding from the agent fixed by me: OTA backup `BrokenPipeError` race when openssl exits before reading the key (`f365404`, regression test).
+- Not verified: anything at runtime (boot, U-Boot env, RAUC install/rollback, power cuts, radio firmware) - HARDWARE-PENDING.

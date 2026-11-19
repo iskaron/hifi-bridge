@@ -18,7 +18,7 @@ the branches were renamed to `wip/<package>`. Worktrees stay in `.claude/worktre
 | 3 network | `wip/network` | `.claude/worktrees/agent-a3fbaad627f328c4b` | 3 commits: `network.json` schema + renderers, state machine (Wi-Fi XOR hotspot), root network agent + Linux adapter + bridge client. Missing: WebUI, OS integration, firewall/timesync/hostname, docs, browser tests |
 | 4 OTA | `wip/ota` | `.claude/worktrees/agent-a018edf388402fff7` | 2 commits: RAUC D-Bus client + simulated RAUC service, update check + streamed transfers; WIP: manager, health check, `Dockerfile.ota`, tests. Missing: WebUI, backup/restore, OS integration, docs |
 | 5 flash tool | `wip/flashtool` | `.claude/worktrees/agent-aaa8ce811404c9b76` | 2 commits: board table, publisher key store, flash tool image, catalogue, resumable downloads, verification; WIP: privileged helper, platform adapters, review fixes M11 (recursive mount walk). Missing: GUI, packaging, M12, docs |
-| 6 Buildroot | `wip/os` | `.claude/worktrees/agent-a9e0212576b4defc8` | 4 commits: read-only root, scripted dev builds (`scripts/os_build.sh`), secret scanner, firmware licence notices, `docs/IMAGE_LICENSING.md`; WIP: reproducibility fix of the data ext4 (fixed UUID/hash seed), `os/tools/size_plan.py`. **Pi 3 B+ build completed** (`.lab/br-out/rpi3_64`, 9 GB); Zero 2 W and Pi 4 not built yet |
+| 6 Buildroot | `wip/os` | `.claude/worktrees/agent-a9e0212576b4defc8` | merged into develop (18 commits); all three boards built; worktree can be removed |
 | 1 review fixes | – | – | the fix agent had not changed anything yet; restarted from `develop` |
 
 Review findings for package 1: `reports/REVIEW_PHASE2B_EXISTING_CODE.md`; repro scripts in `.lab/review-repro/` (not versioned).
@@ -31,7 +31,7 @@ Review findings for package 1: `reports/REVIEW_PHASE2B_EXISTING_CODE.md`; repro 
 | 3 | Network management | **done** (CI run 44420917417: 15/15 green) | `926e945` |
 | 4 | OTA update management | **done** (CI run 44483643387: 16/16 green) | `e8a95ff` |
 | 5 | Flash tool GUI | **done** (CI run 44504983152: 17/17 green) | `1e8c7c5` |
-| 6 | Buildroot images | in progress (Opus agent resumed on `wip/os`) | |
+| 6 | Buildroot images | merged; full run + CI pending | 3 boards BUILD-VERIFIED, 89/89 image checks each |
 | 7 | Final QA, coverage, screenshots, handoff | pending | |
 
 ## Notes

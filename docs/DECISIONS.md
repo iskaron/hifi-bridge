@@ -309,3 +309,21 @@ Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardwar
     LGPL-3.0/GPL texts itself because the PySide6/shiboken6 6.12 wheels contain none, plus third-party notices with a relinking note, source
     links and a 3-year source offer; the About dialog shows the LGPL notice and "About Qt". Linux package built and smoke-tested in Docker;
     Windows (Inno Setup, UAC manifest) and macOS (.app, notarisation) prepared only. No signing keys in the repository.
+
+## Implementation decisions of package 6 - Buildroot development images (reversible; 2026-11-19; details docs/IMAGE_BUILD.md, docs/IMAGE_LICENSING.md)
+100. **Development images only:** internal images for `rpi3_64`, `rpizero2w_64` and `rpi4_64` are built in Docker (`scripts/os_build.sh`) and
+    marked as development builds everywhere (os-release `VARIANT_ID=development`, `build-info.json` `hardware_validated: false`, file name
+    `*-development.img`). They are never published; they carry only the public development CA. Every runtime statement about them stays
+    HARDWARE-PENDING until G1/G2.
+101. **Read-only root without a journal:** rootfs ext4 with 4 KiB blocks and no journal, mounted `ro` (fstab and bootargs); `/var` is an
+    overlay over tmpfs; persistent state is bind-mounted from `/data`; the kernel lives inside each A/B slot. Stock `wpa_supplicant.service`
+    and `avahi-dnsconfd.service` are masked (`hifi-netd` owns the network, DECISIONS #83ff.).
+102. **Reproducibility:** fixed ext4 UUIDs and hash seeds, `SOURCE_DATE_EPOCH` stamps on boot inputs, `mkfs.vfat --invariant`, data
+    `fs-timestamp`. A clean build with and one without ccache differ only in 4 files (ccache rewrites `__FILE__` include paths), so
+    **release builds are made without ccache** (`HIFI_OS_CCACHE=0`). The RAUC verity salt and signature time differ by design.
+103. **Firmware licence texts on the card:** every image carries `licenses/` on the boot FAT (Raspberry Pi boot firmware, Broadcom, Cypress,
+    Synaptics Wi-Fi and the Synaptics End-User Software Tool License for the Zero 2 W Bluetooth patch, which the upstream package does not
+    ship); the build fails if one is missing. Firmware is shipped unmodified and only for Raspberry Pi hardware.
+104. **Image gate:** `scripts/os_check_image.sh` (89 checks: layout, alignment, services, RO root, RAUC keyring, firewall, dev marking) and
+    `os/tools/secret_scan.py` (rootfs, boot FAT and raw card) must report 0 FAIL / 0 findings before an image leaves the build host;
+    `scripts/os_check_ota.sh` proves the image keyring accepts the development bundle and refuses a foreign-signed one.

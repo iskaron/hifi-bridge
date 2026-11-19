@@ -107,8 +107,9 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 * #27 Docker disk: **resolved by the owner** (102 GB free on 2026-11-16).
 
 ## Added by the phase-2b preparation package (2026-11-16)
-35. **brcmfmac firmware licence:** Buildroot labels `brcmfmac_sdio-firmware-rpi` PROPRIETARY. Its LICENSE must be read before any public
-    image (G4 L-1). Without it there is no on-board Wi-Fi/Bluetooth.
+35. ~~brcmfmac firmware licence~~ **largely resolved by package 6** (docs/IMAGE_LICENSING.md, read from the hash-verified archives): the
+    Raspberry Pi boot firmware and the Broadcom/Cypress/Synaptics radio firmware may be redistributed publicly **unmodified, with their
+    licence texts, only for Raspberry Pi hardware** (DECISIONS #103). Remaining owner items: #73-#75.
 36. **Firmware/DTB updates:** the boot partition (firmware, DTB, overlays, U-Boot) is shared by both slots and not A/B. Freeze it per release
     line, or design a two-phase update? (PHASE2B_PLAN §6)
 37. **vfat in-place overwrite:** scrubbing assumes vfat keeps the clusters on a same-length in-place write. Verify on a Pi (G2 P6-3).
@@ -190,3 +191,17 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 71. Installing the device CA on the owner's computer: the tool saves the verified certificate and shows the fingerprint; there is no
     automatic installation into OS or browser trust stores. Enough for V1?
 72. Is an AppImage wanted for Linux? It conflicts with polkit's exact-executable-path rule (today: tarball + `install.sh`).
+
+## Added by package 6 - Buildroot development images (2026-11-19)
+73. **Export control:** the Broadcom licence (§7.1) names embargoed destinations. Does a public download page need a notice or restriction?
+74. **Synaptics Bluetooth licence (Zero 2 W `SYN43430*.hcd`)** can be terminated by Synaptics by written notice. Accept, or prune the firmware
+    per board so the Pi 3 B+/Pi 4 images do not carry it (and document the Zero 2 W risk)?
+75. **Release source obligations:** the prebuilt DT overlays come from raspberrypi/linux `957fc9f9`, not our kernel commit `21b41014`;
+    `make legal-info` does not save the Buildroot source itself and lacks the Bootlin toolchain licence files. All three must be added to a
+    release's source bundle (G4 L-1).
+76. **Partition sizes (cannot change after the first flash):** the images use 256 MiB slots; rootfs uses ~185 MiB, leaving ~70 MiB for
+    future updates. Recommendation (reports/evidence/os_size_plan.md): slot 384 MiB, boot 64 MiB, data at least 448 MiB -> **2 GB minimum
+    card**; the tight alternative is 224/16/144 MiB -> 1 GB card. Owner decision needed before the first release image.
+77. **machine-id on a read-only `/etc`:** `/etc/machine-id` is empty, so each boot gets a transient id; networkd derives its DHCP DUID from
+    it, so DHCPv6 leases (and DHCPv4 with a DUID-based client id) may change on every boot. Proposed fix: `DUIDType=link-layer` in
+    networkd.conf (package 7); a persistent id under `/data` would be the alternative.
