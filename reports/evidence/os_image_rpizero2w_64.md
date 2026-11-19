@@ -17,7 +17,7 @@ Result: **0 FAIL**, 89 PASS, 20 INFO.
 | layout.aligned-4mib | PASS | partition starts (bytes): 4194304, 71303168, 339738624, 608174080 |
 | layout.slot-a-is-rootfs | PASS | slot A content == images/rootfs.ext4 |
 | manifest.size | PASS | 675282944 bytes |
-| manifest.sha256 | PASS | 5a52ecbaa1dce0b7d386f24d9b69740c18dea655e3df159ee66753a92acacc0e |
+| manifest.sha256 | PASS | 8288f0ed0d479ebef296855cc6bf06c37e76c15622df62093659063fabe81d7f |
 | manifest.slot-offset | PASS | slot hifi-provision.json at byte 9410560 matches the FAT file |
 | boot.files | PASS | firmware, U-Boot, boot.scr, provisioning slot |
 | boot.config-uboot | PASS | start_file=start.elf; fixup_file=fixup.dat; kernel=u-boot.bin; disable_overscan=1; gpu_mem_256=100; gpu_mem_512=100; gpu_mem_1024=100; arm_64bit=1 |

@@ -17,7 +17,7 @@ Result: **0 FAIL**, 89 PASS, 20 INFO.
 | layout.aligned-4mib | PASS | partition starts (bytes): 4194304, 71303168, 339738624, 608174080 |
 | layout.slot-a-is-rootfs | PASS | slot A content == images/rootfs.ext4 |
 | manifest.size | PASS | 675282944 bytes |
-| manifest.sha256 | PASS | 5ea0202856d70012e0b0f204b108ddbfbd2ba002bddbec155591a3ba518b1c1c |
+| manifest.sha256 | PASS | 1ea00ada0c91072dff235192ac69970e73bf16ef40d92411c4e4bb54911a935e |
 | manifest.slot-offset | PASS | slot hifi-provision.json at byte 8822784 matches the FAT file |
 | boot.files | PASS | firmware, U-Boot, boot.scr, provisioning slot |
 | boot.config-uboot | PASS | start_file=start4.elf; fixup_file=fixup4.dat; kernel=u-boot.bin; disable_overscan=1; gpu_mem_256=100; gpu_mem_512=100; gpu_mem_1024=100; arm_64bit=1 |
@@ -154,7 +154,6 @@ Largest target packages (installed, stripped file bytes in the rootfs):
 | libglib2 | 4.5 MiB |
 | brcmfmac_sdio-firmware-rpi | 2.8 MiB |
 | kbd | 2.3 MiB |
-| hifi-bridge | 1.9 MiB |
 | bluez5_utils | 1.7 MiB |
 | tzdata | 1.7 MiB |
 | util-linux-libs | 1.7 MiB |
@@ -169,6 +168,7 @@ Largest target packages (installed, stripped file bytes in the rootfs):
 | avahi | 0.7 MiB |
 | pcre2 | 0.6 MiB |
 | lua | 0.5 MiB |
+| rauc | 0.5 MiB |
 
 ## Enabled units
 
