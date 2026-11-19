@@ -110,6 +110,18 @@ jobs:
           persist-credentials: false
       - run: scripts/run_ota.sh
 
+  flashtool:
+    # PySide6 GUI + privileged helper + platform adapters with SIMULATED cards and recorded tool outputs only (no device, no network);
+    # line + branch coverage of flashtool/hififlash
+    needs: unit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          persist-credentials: false
+      - run: scripts/run_flashtool.sh coverage
+
   os-and-flashtool:
     # phase-2b preparation: Buildroot defconfig resolution + licence policy (no image build), RAUC trust matrix, card layout,
     # flash tool core with SIMULATED cards. Never needs release keys: all keys are generated per test run.
