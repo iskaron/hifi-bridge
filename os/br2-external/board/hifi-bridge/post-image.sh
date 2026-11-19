@@ -62,6 +62,11 @@ for i in "${BINARIES_DIR}"/rpi-firmware/* "${BINARIES_DIR}"/*.dtb "${BINARIES_DI
 	FILES+=( "${i#"${BINARIES_DIR}"/}" )
 done
 BOOT_FILES=$(printf '\\t\\t\\t"%s",\\n' "${FILES[@]}")
+# reproducible boot FAT: mcopy stores each file's modification time; the inputs carry their build time (found by comparing two clean
+# builds: identical files, different FAT). Pin them to the build epoch. These are build outputs in BINARIES_DIR, nothing else.
+if [ -n "${SOURCE_DATE_EPOCH:-}" ]; then
+	for f in "${FILES[@]}"; do find "${BINARIES_DIR}/$f" -exec touch -h -d "@${SOURCE_DATE_EPOCH}" {} +; done
+fi
 # -L: in a real build rootfs.ext4 is a symlink to rootfs.ext2 (found by the first real build: slot B got 11 bytes)
 ROOTFS_SIZE=$(stat -L -c %s "${BINARIES_DIR}/rootfs.ext4")
 # reproducible data.ext4: genimage stamps the super block (write/check time) after mke2fs; fs-timestamp pins it to the build epoch

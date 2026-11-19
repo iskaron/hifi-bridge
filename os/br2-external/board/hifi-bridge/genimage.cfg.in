@@ -3,6 +3,8 @@
 image boot.vfat {
 	vfat {
 		label = "HIFIBOOT"
+		# constant volume serial and label time (Buildroot's mkfs.vfat draws them at random / from the clock; found by two clean builds)
+		extraargs = "--invariant"
 		files = {
 #BOOT_FILES#
 		}

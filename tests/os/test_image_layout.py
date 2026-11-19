@@ -129,3 +129,37 @@ def test_post_image_refuses_an_image_without_the_firmware_licences(tmp_path, too
     assert "licence file" not in r.stderr                  # passes the licence step (then stops: no firmware/kernel in this test)
     assert (b / "licenses" / "SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt").exists()
     assert (b / "licenses" / "brcmfmac_sdio-firmware-rpi.LICENSE").read_text() == "Broadcom licence text\n"
+
+
+def _card(base, mtime):
+    """post-image over deterministic dummy content whose files are stamped with `mtime`, like fresh outputs of a build at that time."""
+    b = base / "images"
+    (b / "rpi-firmware" / "overlays").mkdir(parents=True)
+    (b / "rpi-firmware" / "start.elf").write_bytes(b"\x01" * 2048)
+    shutil.copy(f"{BOARD}/firmware/config_3_64bit.txt", b / "rpi-firmware" / "config.txt")
+    (b / "rpi-firmware" / "overlays" / "x.dtbo").write_bytes(b"dtbo")
+    (b / "bcm2710-rpi-3-b-plus.dtb").write_bytes(b"dtb")
+    (b / "u-boot.bin").write_bytes(b"\x02" * 4096)
+    (b / "boot.scr").write_bytes(b"\x03" * 512)          # mkimage stamps the time (Buildroot's honours SOURCE_DATE_EPOCH)
+    (base / "root" / "etc").mkdir(parents=True)
+    (base / "root" / "etc" / "x").write_text("x\n")
+    subprocess.run(["find", str(base), "-exec", "touch", "-h", "-d", mtime, "{}", "+"], check=True)
+    # Buildroot (BR2_REPRODUCIBLE) stamps the target tree with SOURCE_DATE_EPOCH before the rootfs image; the boot files keep build times
+    subprocess.run(["find", str(base / "root"), "-exec", "touch", "-h", "-d", "@1770000000", "{}", "+"], check=True)
+    uuid = "8d3b1c54-2f0e-4a51-9c7e-3f1a6e0b9d21"
+    sh("mke2fs", "-q", "-t", "ext4", "-U", uuid, "-E", f"hash_seed={uuid}", "-d", str(base / "root"), str(b / "rootfs.ext4"), "16M",
+       env={"SOURCE_DATE_EPOCH": "1770000000"})
+    cfg = base / ".config"
+    cfg.write_text('BR2_PACKAGE_HIFI_BRIDGE_COMPATIBLE="hifi-bridge-rpi3"\n')
+    (base / "build").mkdir()
+    sh(f"{BOARD}/post-image.sh", env={"BINARIES_DIR": str(b), "BUILD_DIR": str(base / "build"), "BR2_CONFIG": str(cfg),
+                                      "PYTHONPATH": f"{REPO}/bridge:{REPO}/flashtool", "SOURCE_DATE_EPOCH": "1770000000"})
+    return next(b.glob("hifi-bridge-*.img")).read_bytes()
+
+
+def test_card_image_is_reproducible_with_source_date_epoch(tmp_path, tools):
+    """Same content, build outputs of different age (as in two real builds): byte-identical card. Boot FAT times, the data ext4's UUID,
+    hash seed and time stamps, and the MBR are pinned (two clean real builds had identical files but different FATs before)."""
+    a = _card(tmp_path / "a", "2026-01-01 10:00")
+    b = _card(tmp_path / "b", "2026-11-19 18:00")
+    assert len(a) == len(b) and a == b
