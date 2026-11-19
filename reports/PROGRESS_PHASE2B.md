@@ -95,3 +95,8 @@ Scope: owner work package of 2026-11-18 (DECISIONS #73/#74).
   - Verification: persisted volume 6 on all players, then `docker compose up -d --force-recreate lms player1 player2 player3 legacy1`
     and `scripts/run_integration.sh -k test_end_to_end_bit_exact` immediately: 3 of 3 runs green (2 passed each; the log shows `audg 36`
     on connect followed by `audg 65536` from the reset), plus a warm run green.
+- Package 3 CI: GitHub Actions run 44420917417 on `c4d95ba` - 15/15 green (new job `network`). Lab cold-start fix `c76c541` pushed.
+
+### Package 4 - OTA update management (in progress)
+- Opus agent resumed on `wip/ota` (2 commits + saved WIP: RAUC D-Bus client, simulated RAUC service, update check, streamed transfers,
+  manager and health-check drafts).
