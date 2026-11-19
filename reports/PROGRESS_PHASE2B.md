@@ -124,3 +124,8 @@ Scope: owner work package of 2026-11-18 (DECISIONS #73/#74).
   * pipewire (bookworm, 0.3.65): pipewire-pulse refused connections for 30 s on a cold runner (OPEN_QUESTIONS #26 again); the start script
     now restarts a pipewire-pulse that exited during start-up once (recorded in its log) and prints all three daemon logs on failure.
   Both suites green locally (demo stack rc=0, PipeWire 11+1/12, static 0, entry 90).
+- CI on `d4a19d5`: GitHub Actions run 44483643387 - **16/16 green**. Package 4 done.
+
+### Package 5 - flash tool GUI (in progress)
+- Opus agent resumed on `wip/flashtool` (2 commits + saved WIP: board table, publisher key store, catalogue, resumable downloads, image
+  verification; helper/platform adapters and M11 in progress).
