@@ -327,3 +327,20 @@ Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardwar
 104. **Image gate:** `scripts/os_check_image.sh` (89 checks: layout, alignment, services, RO root, RAUC keyring, firewall, dev marking) and
     `os/tools/secret_scan.py` (rootfs, boot FAT and raw card) must report 0 FAIL / 0 findings before an image leaves the build host;
     `scripts/os_check_ota.sh` proves the image keyring accepts the development bundle and refuses a foreign-signed one.
+
+## Implementation decisions of package 7 - final QA fixes (reversible; 2026-11-19; review reports/REVIEW_PHASE2B_NEW_CODE.md)
+105. **Network settings before the wizard (N-1):** `/settings/network*` and `/api/network` are reachable while setup is incomplete (login,
+    CSRF and origin checks unchanged; every other page still redirects to the wizard), so hotspot-only onboarding and fixing a mistyped Wi-Fi
+    password from the card work; the wizard's Lyrion step links to them and wizard pages show the Keep/Undo banner of a pending change.
+106. **Bridge/agent consistency during network trials (N-2/N-3):** a generation counter discards status answers computed before a save
+    finished; a request that reached the agent without an answer keeps the pending file and the next status decides by trial id; the agent
+    answers status within 0.25 s with its last consistent state (marked `busy`) instead of waiting behind slow system actions.
+107. **Snapshot restore in the boot step (N-4):** an owner-requested restore runs in `hifi-bridge-boot.service` before `hifi-netd` reads
+    `network.json` and the host name; it is all-or-nothing, never raises, records `restore_failed` on error and never causes a restart loop.
+    The boot unit drops `ProcSubset=pid` to read `rauc.slot=` (exposure unchanged at 0.6).
+108. **The update manager never stays busy (N-5/N-10):** any monitor failure for 120 s ends as `install_interrupted`; verify/upload errors
+    end as `verify_failed`/`upload_failed`; a restart that did not happen within 300 s (provisional) returns to the previous phase with
+    guidance and offers the restart again.
+109. **Diagnostics privacy (N-12):** the diagnostics bundle contains only the number of scanned Wi-Fi networks, never neighbours' names.
+110. **Backup KDF bounds (N-9):** scrypt parameters are accepted only within OpenSSL's memory formula (128·r·(N+p+2) ≤ 64 MiB, N < 2^(16r));
+    anything else is "invalid file".

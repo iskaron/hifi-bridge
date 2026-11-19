@@ -162,3 +162,13 @@ Scope: owner work package of 2026-11-18 (DECISIONS #73/#74).
   revocable Synaptics licence, release source obligations, partition sizes / 2 GB card, machine-id/DUID). DECISIONS #100-#104.
 - Finding from the agent fixed by me: OTA backup `BrokenPipeError` race when openssl exits before reading the key (`f365404`, regression test).
 - Not verified: anything at runtime (boot, U-Boot env, RAUC install/rollback, power cuts, radio firmware) - HARDWARE-PENDING.
+
+### Package 7 - final QA (in progress)
+- 7a: independent Opus review of packages 3-6 -> `reports/REVIEW_PHASE2B_NEW_CODE.md`: 14 findings (1 High, 5 Medium, 8 Low).
+- Package 6 CI (run 44597478524 on `fa82736`): 16/17 green; homeassistant test_05 sent a command while the entity was still unavailable
+  (test race) -> waits with `wait_online` now; HA suite 7/7 locally.
+- 7b-1 (Opus agent, `wip/qa-fixes`, merged): N-1 (High, hotspot-only onboarding dead end), N-2/N-3 (trial consistency), N-4 (restore
+  before hifi-netd), N-5/N-10 (OTA stuck states), N-7 (wpa control socket shared by two threads), N-9, N-11 (DE/EN texts for every
+  raisable error code, enforced by a test), N-12 (no neighbour SSIDs in diagnostics). Unit 890, net 16 + live, OTA 12, static 0, entry 90,
+  browser 11. DECISIONS #105-#110, OPEN_QUESTIONS #78.
+- Also: OS networkd DUID from the MAC (OPEN_QUESTIONS #77), OTA backup BrokenPipe race (`f365404`).

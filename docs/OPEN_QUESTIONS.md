@@ -206,3 +206,7 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
     images built after 2026-11-19, the package-6 evidence images predate it). Original finding: `/etc/machine-id` is empty, so each boot gets a transient id; networkd derives its DHCP DUID from
     it, so DHCPv6 leases (and DHCPv4 with a DUID-based client id) may change on every boot. Open only: whether other users of the
     machine id (journal directory names, D-Bus) need a persistent id under `/data`.
+
+## Added by package 7 - final QA (2026-11-19)
+78. **Wizard network step:** network settings are reachable before setup via a link (DECISIONS #105). Is a dedicated network step in the
+    setup wizard wanted instead?
