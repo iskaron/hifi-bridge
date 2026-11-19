@@ -12,8 +12,9 @@
 # bundle is made by re-signing offline (`rauc resign`, docs/UPDATE_TRUST.md section 4).
 #
 # Reproducibility: file times and the squashfs are pinned with SOURCE_DATE_EPOCH (default: the last commit time), so two runs over the
-# same rootfs give the same image checksum, manifest hash and verity hash (printed; checked in tests/os/test_ota_bundle.py). The CMS
-# signature contains its signing time and therefore differs between runs.
+# same rootfs give the same image checksum and a byte-identical squashfs image (both printed; checked in tests/ota/test_rauc_real.py).
+# Not reproducible by design of RAUC: the dm-verity salt (random per bundle, so the hash tree and the signed manifest's hash differ)
+# and the CMS signature's signing time.
 set -euo pipefail
 cd "$(dirname "$0")/.." || exit 1
 REPO="$PWD"
@@ -75,12 +76,14 @@ EOF
 	echo "os_bundle: $OUT/$name ($(stat -c %s "$OUT/$name") bytes)"
 	if [ -n "$KEYRING" ]; then
 		rauc --conf="$work/system.conf" info --output-format=json "$OUT/$name" 2>/dev/null | python3 -c '
-import json, sys
+import hashlib, json, sys
 i = json.load(sys.stdin)
-img = i["images"][0]
 print("compatible   :", i["compatible"]); print("version      :", i["version"])
-print("image sha256 :", img.get("checksum") or img.get("rootfs", {}).get("checksum"))
-print("manifest hash:", i.get("manifest-hash")); print("verity hash  :", i.get("bundle", {}).get("verity-hash") or i.get("verity-hash"))'
+print("image sha256 :", i["images"][0]["rootfs"]["checksum"]); print("manifest hash:", i["hash"])
+data = open(sys.argv[1], "rb").read()                  # verity bundle = squashfs + hash tree + CMS signature + 8-byte signature size
+sig = int.from_bytes(data[-8:], "big")
+print("squashfs hash:", hashlib.sha256(data[:int.from_bytes(data[40:48], "little")]).hexdigest())   # superblock bytes_used
+print("payload hash :", hashlib.sha256(data[:len(data) - 8 - sig]).hexdigest())' "$OUT/$name"
 	fi
 	exit 0
 fi
