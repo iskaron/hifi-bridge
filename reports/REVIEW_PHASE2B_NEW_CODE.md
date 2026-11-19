@@ -272,7 +272,7 @@ Suite results on `wip/qa-fixes` (2026-11-19, Docker only):
 
 | Suite | Result |
 |---|---|
-| tests/unit (same runner as `scripts/run_unit.sh`, under coverage, final commit) | **890 passed** in 337 s (develop before this package: 818). The plain `scripts/run_unit.sh` one commit earlier: 889 passed + 1 warning (a test's fake socket thread), fixed in `185c112` |
+| `scripts/run_unit.sh` (tests/unit), final code | **890 passed** in 332 s, no warning (develop before this package: 818 passed); the same suite under coverage: 890 passed |
 | `scripts/run_net.sh` (real nft/dnsmasq/hostapd/wpa_supplicant/networkd/Avahi + live firewall/DHCP) | 16 passed, live checks PASS, exit 0 (`reports/evidence/network_realtools.txt`) |
 | `scripts/run_ota.sh` (real RAUC 1.13 D-Bus service) | 12 passed, exit 0 (`reports/evidence/ota_realrauc.txt`) |
 | `scripts/run_static.sh` | shellcheck, compile, `systemd-analyze verify`, actionlint: exit 0; exposure hifi-bridge 1.9, hifi-bridge-boot 0.6 (unchanged after dropping `ProcSubset=pid`), health 1.5 |
