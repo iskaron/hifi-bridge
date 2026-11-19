@@ -63,5 +63,7 @@ if rauc --conf=host.conf info foreign.raucb >/dev/null 2>&1; then echo "FAIL a f
 echo "bundle size: $(stat -c %s /bundle.raucb) bytes"
 exit $rc' 2>&1 | tee -a "$REPORT"
 rc=${PIPESTATUS[0]}
+mkdir -p reports/evidence
+grep -v "^rauc-Message\|^Consider setting" "$REPORT" > "reports/evidence/os_ota_$BOARD.txt"
 echo "os_check_ota: $BOARD exit code $rc"
 exit "$rc"
