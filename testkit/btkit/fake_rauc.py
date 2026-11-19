@@ -142,7 +142,7 @@ class FakeRauc:
         elif member == "InspectBundle":
             b = self.bundles.get(body[0])
             if b is None and self.accept_any and os.path.isfile(body[0]):
-                b = {"compatible": self.compatible, "version": self.lab_version}
+                b = self.bundles[body[0]] = {"compatible": self.compatible, "version": self.lab_version}
             if b is None:
                 raise ValueError(f"Invalid bundle format: Failed to open bundle for reading: Error opening file {body[0]}: No such file")
             if isinstance(b, str):

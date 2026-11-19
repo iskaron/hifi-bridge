@@ -77,6 +77,13 @@ that was not tested.
 - [ ] P3-6 Power cut during the boot-count write (right after power-on, 10×): the device boots.
 - [ ] P3-7 Firmware/DTB on the shared boot partition: decide and test how they are updated (not A/B today, see PHASE2B_PLAN risks).
 - [ ] P3-8 Alternative per board if U-Boot fails: firmware `tryboot`/`autoboot.txt` (Pi 4 first). Record which mechanism each board uses.
+- [ ] P3-9 The WebUI flow end to end (docs/OTA.md): upload → install with progress → "Restart now" → `hifi-bridge-health.service` marks B
+  good → "Update completed". A bridge that fails in B (e.g. `/healthz` 503) → `mark-bad` + `FailureAction=reboot` → A, page shows
+  "rolled back". Time from "Restart now" until the page is back.
+- [ ] P3-10 A bundle whose payload was changed after signing passes `InspectBundle` (verified in Docker) but is refused by dm-verity
+  during `rauc install` on the device; the device stays on its slot.
+- [ ] P3-11 On the image: the D-Bus policy (`de.pengutronix.rauc-hifi-bridge.conf`) refuses RAUC to other users; the reboot path unit
+  and `/run/hifi-bridge-ota` work; `rauc-mark-good.service` is masked; a full data partition during an upload gives a clear error.
 
 **Update trust (P5)**
 - [ ] P5-1 An image built with `official` refuses a development-signed bundle **on the device** (`rauc install` fails with a signature error).

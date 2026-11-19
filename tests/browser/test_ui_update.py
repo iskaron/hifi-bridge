@@ -52,11 +52,17 @@ def test_01_update_page_upload_install_and_decline(chromium):  # noqa: F811
         page.get_by_role("button", name="Install version 0.4.0").click()
     expect(page.locator("#ota-progress")).to_be_visible()
     first = page.locator("#ota-progress").get_attribute("value")
-    page.wait_for_function("(v) => document.getElementById('ota-progress') && document.getElementById('ota-progress').value != v", arg=first,
-                           timeout=10000)                                     # update.js moves the bar live
+    moved = False
+    for _ in range(40):                                                      # update.js moves the bar live (no reload); polled from
+        time.sleep(0.25)                                                     # Python: wait_for_function would need eval, which the CSP refuses
+        if page.locator("#ota-progress").count() and page.evaluate("document.getElementById('ota-progress').value") != int(first):
+            moved = True
+            break
+    assert moved, "progress bar did not move"
     no_overflow(page); axe_ok(page, "upd-installing"); shot(page, "upd-03-installing-mobile-light")
     expect(page.get_by_role("button", name="Restart now")).to_be_visible(timeout=30000)   # update.js reloads on the phase change
     expect(page.get_by_text("Version 0.4.0 is installed. Restart now?")).to_be_visible()
+    expect(page.get_by_text("0.4.0 · bootable · starts next")).to_be_visible()             # slot B now holds the new version
     no_overflow(page); axe_ok(page, "upd-installed")
 
     d, dpage = login(chromium, errors, scheme="dark", **DESKTOP)
