@@ -134,7 +134,7 @@ class UpdateSource:
         """Newest published, non-pre-release with a bundle for this board; None if there is none; False if the data is malformed."""
         if not isinstance(releases, list):
             return False
-        prefix = f"hifi-bridge-{compatible}-"
+        prefix, dl_prefix = f"hifi-bridge-{compatible}-", self._download_prefix()
         best = None
         for rel in releases:
             if not isinstance(rel, dict) or rel.get("draft") or rel.get("prerelease"):
@@ -149,9 +149,10 @@ class UpdateSource:
                 name, url = str(a.get("name") or ""), str(a.get("browser_download_url") or "")
                 if not (name.startswith(prefix) and name.endswith(".raucb")):
                     continue
+                if not dl_prefix or not url.startswith(dl_prefix):  # only the official repository's release assets
+                    continue
                 try:
-                    check_url(url, self.allow_http)
-                    size = int(a.get("size") or 0)
+                    size = int(a.get("size") or 0)                   # HTTPS is enforced again by the download itself
                 except (ValueError, TypeError):
                     continue
                 digest = str(a.get("digest") or "")
@@ -163,6 +164,12 @@ class UpdateSource:
                     best = cand
                 break
         return best
+
+    def _download_prefix(self) -> str:
+        """GitHub release assets live at <releases>/download/<tag>/<name> (``browser_download_url``); GitHub's own redirect from there to
+        its storage must stay on HTTPS (HttpsOnlyRedirect). A manipulated API answer can therefore not make the device fetch elsewhere."""
+        base = str(self.source.get("releases") or "").rstrip("/")
+        return base + "/download/" if base.startswith(("https://", "http://")) else ""
 
     def _page(self, rel: dict) -> str:
         """Link to the release page - only inside the official releases URL (never an arbitrary link from the API response)."""

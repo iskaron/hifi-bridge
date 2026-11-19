@@ -35,9 +35,9 @@ class ReleaseServer:
                     self.send_header("Content-Length", str(len(body)))
                     self.end_headers()
                     self.wfile.write(body)
-                elif self.path.startswith("/dl/"):
-                    self.send_response(302)
-                    self.send_header("Location", f"http://127.0.0.1:{srv.port}/assets/{self.path[4:]}")
+                elif self.path.startswith("/dl/") or "/releases/download/" in self.path:
+                    self.send_response(302)                         # like GitHub: release download -> storage
+                    self.send_header("Location", f"http://127.0.0.1:{srv.port}/assets/{self.path.rsplit('/', 1)[-1]}")
                     self.send_header("Content-Length", "0")
                     self.end_headers()
                 elif self.path.startswith("/assets/") and self.path[8:] in srv.assets:
@@ -77,7 +77,8 @@ class ReleaseServer:
     def release(self, tag, assets, draft=False, prerelease=False):
         return {"tag_name": tag, "name": f"Hi-Fi Bridge {tag}", "draft": draft, "prerelease": prerelease, "published_at": "2026-11-20T10:00:00Z",
                 "html_url": f"{self.base}/iskaron/hifi-bridge/releases/tag/{tag}",
-                "assets": [{"name": n, "size": len(self.assets.get(n, b"")) or 10, "browser_download_url": f"{self.base}/dl/{n}", **extra}
+                "assets": [{"name": n, "size": len(self.assets.get(n, b"")) or 10,
+                            "browser_download_url": f"{self.base}/iskaron/hifi-bridge/releases/download/{tag}/{n}", **extra}
                            for n, extra in assets]}
 
     def close(self):

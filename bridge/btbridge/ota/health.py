@@ -17,16 +17,37 @@ Runs as the unprivileged ``hifi-bridge`` user; the D-Bus policy allows it to cal
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 import os
 import sys
 import time
-import urllib.request
+import urllib.parse
 from typing import Callable
 
 from .. import __version__
 from .manager import StateFile, atomic_json, boot_id, confirm, load_json, reconcile
 from .rauc import RaucClient, RaucError, RaucUnavailable
+
+
+def bridge_healthy(healthz: str, timeout: float = 5.0) -> bool:
+    """GET the bridge's /healthz - plain HTTP to a loopback address only (the check never talks to anything else)."""
+    u = urllib.parse.urlsplit(healthz)
+    if u.scheme != "http" or u.hostname not in ("127.0.0.1", "::1", "localhost"):
+        return False
+    try:
+        conn = http.client.HTTPConnection(u.hostname, u.port or 80, timeout=timeout)
+        try:
+            conn.request("GET", u.path or "/healthz")
+            r = conn.getresponse()
+            if r.status != 200:                               # 503 = failed
+                return False
+            body = json.loads(r.read(65536).decode("utf-8"))
+        finally:
+            conn.close()
+        return isinstance(body, dict) and body.get("status") in ("ok", "degraded")
+    except (OSError, ValueError, http.client.HTTPException):   # refused, timeout, garbage
+        return False
 
 
 def check_once(data_dir: str, data_mount: str, healthz: str, rauc, timeout: float = 5.0) -> dict:
@@ -42,12 +63,7 @@ def check_once(data_dir: str, data_mount: str, healthz: str, rauc, timeout: floa
         res["data_writable"] = True
     except OSError:
         res["data_writable"] = False
-    try:
-        with urllib.request.urlopen(healthz, timeout=timeout) as r:
-            body = json.loads(r.read(65536).decode("utf-8"))
-        res["bridge"] = body.get("status") in ("ok", "degraded")
-    except Exception:                                          # refused, timeout, 503 (failed), garbage
-        res["bridge"] = False
+    res["bridge"] = bridge_healthy(healthz, timeout)
     try:
         rauc.properties()
         res["rauc"] = True

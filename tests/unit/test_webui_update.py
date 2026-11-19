@@ -188,6 +188,12 @@ def test_upload_deadline(u, monkeypatch):
     assert flash(u) == "The upload took too long."
 
 
+def test_unexpected_upload_error_does_not_leave_the_manager_busy(u, monkeypatch):
+    monkeypatch.setattr(views_update, "parse_multipart", lambda *a, **k: 1 / 0)
+    r = upload(u)
+    assert r.status == 500 and u.svc.ota.info()["phase"] == "idle" and u.svc.ota.info()["error"]["code"] == "upload_failed"
+
+
 def test_upload_socket_error(u, monkeypatch):
     def boom(*a, **k):
         raise OSError("disk")
@@ -371,6 +377,55 @@ def test_snapshot_restore_from_the_backup_page(u):
     assert "restored at the restart" in u.c.get("/settings/backup").body
     u.c.post("/settings/backup/restore-snapshot")
     assert "Another update step" in flash(u) and u.reboots == [1]                    # no second restart
+
+
+def test_remaining_page_states(u, monkeypatch):
+    m = u.svc.ota
+    with M_state(m) as st:
+        st["restored"] = {"version": "0.3.0", "at": 1}
+    assert "The settings snapshot of version 0.3.0 was restored." in u.c.get("/settings/update").body
+    m._busy, m._progress = "downloading", {"done": 50, "total": 100}
+    page = u.c.get("/settings/update").body
+    assert "Cancel download" in page and 'value="50"' in page and "Check now" not in page and "<noscript>" in page
+    m._busy = None
+    monkeypatch.setattr(m, "info", lambda: 1 / 0)
+    assert "no update service" in u.c.get("/settings").body                    # the overview never fails because of RAUC
+
+
+def M_state(m):
+    return m.state.edit()
+
+
+def test_no_releases_url_accepts_no_asset_and_backup_page_without_update_service(ui):
+    finish_wizard(ui)
+    page = ui.c.get("/settings/backup").body
+    assert "Download backup" in page and "Settings before the last update" not in page
+    srv = ReleaseServer()
+    try:
+        ui.rauc = FakeRaucClient()
+        src = dict(srv.source(), releases="")
+        ui.svc.ota = UpdateManager(ui.svc.store.dir, ui.rauc, trust={"mode": "official", "official_source": src}, version="0.3.0",
+                                   source=UpdateSource(src, allow_http=True), log=lambda m: None)
+        name = "hifi-bridge-hifi-bridge-rpi3-0.4.0.raucb"
+        srv.assets[name] = b"x"
+        rel = srv.release("v0.4.0", [(name, {})])
+        rel["assets"][0]["browser_download_url"] = f"/download/{name}"
+        srv.releases = [rel]
+        ui.c.post("/settings/update/check")
+        assert "No release contains an update" in flash(ui)                    # no releases URL recorded: no asset is trusted
+    finally:
+        srv.close()
+
+
+def test_truncated_backup_upload(u):
+    s = socket.create_connection(("127.0.0.1", u.port), timeout=10)
+    cookie = "; ".join(f"{k}={v}" for k, v in u.c.cookies.items())
+    s.sendall((f"POST /settings/backup/import?csrf={urllib.parse.quote(token(u))} HTTP/1.1\r\nHost: 127.0.0.1:{u.port}\r\nCookie: {cookie}\r\n"
+               "Content-Type: multipart/form-data; boundary=x\r\nContent-Length: 5000\r\n\r\n--x\r\n").encode())
+    s.shutdown(socket.SHUT_WR)
+    data = s.recv(65536).decode("latin-1")
+    s.close()
+    assert data.startswith("HTTP/1.0 303") and "incomplete" in urllib.parse.unquote(data)
 
 
 def test_unknown_error_codes_have_a_generic_text(u):

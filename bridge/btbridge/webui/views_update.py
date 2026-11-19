@@ -199,8 +199,7 @@ def check_card(req, i) -> str:
             a = lt["asset"]
             key = "upd.resume" if i.get("download_paused") else "upd.download"
             res += _form(req, BASE + "/download", key, version=lt["version"], size=_size(a["size"]))
-            if lt.get("page"):
-                res += f'<p><a href="{esc(lt["page"])}" rel="noopener noreferrer">{esc(t("upd.release_notes"))}</a></p>'
+            res += f'<p><a href="{esc(lt["page"])}" rel="noopener noreferrer">{esc(t("upd.release_notes"))}</a></p>'
     busy = i["phase"] in ACTIVE
     btn = "" if busy else _form(req, BASE + "/check", "upd.check.now")
     return (f'<section class="card"><h2>{esc(t("upd.check"))}</h2><p class="help">{esc(t("upd.check.help"))}</p>{res}'
@@ -338,6 +337,9 @@ def upload_post(req):
     except OSError as e:                                         # socket timeout / reset while receiving, disk error
         m.abort_upload("upload_failed", type(e).__name__)
         return _done(req, BASE, _err(req, "upload_failed"), error=True)
+    except Exception:                                            # never leave the manager in "uploading"
+        m.abort_upload("upload_failed")
+        raise
     if not sinks:
         m.abort_upload("no_file")
         return _done(req, BASE, _err(req, "no_file"), error=True)

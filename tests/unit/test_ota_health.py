@@ -145,6 +145,14 @@ def test_installation_of_this_boot_is_left_to_the_bridge(tmp_path, hz):
     assert StateFile(str(tmp_path / "ota")).read()["phase"] == "installing"
 
 
+def test_healthz_only_on_loopback_and_only_a_json_object(hz):
+    assert H.bridge_healthy(hz.url)
+    for url in ("https://127.0.0.1/healthz", "http://example.org/healthz", "file:///etc/passwd", "http://10.0.0.5/healthz"):
+        assert not H.bridge_healthy(url), url
+    hz.body = ["ok"]
+    assert not H.bridge_healthy(hz.url)
+
+
 def test_data_dir_not_writable(tmp_path, hz):
     (tmp_path / "ota").mkdir()
     (tmp_path / "ota" / ".health-probe").mkdir()                       # cannot be opened as a file

@@ -59,18 +59,26 @@ def test_check_finds_the_newest_published_bundle_for_this_board(srv):
                     srv.release("nightly", [("hifi-bridge-hifi-bridge-rpi3-x.raucb", {})]), "junk",
                     {"tag_name": "v0.4.5", "assets": ["junk", {"name": "hifi-bridge-hifi-bridge-rpi3-a.raucb", "browser_download_url": "ftp://x"},
                                                        {"name": "hifi-bridge-hifi-bridge-rpi3-b.raucb", "size": "n/a",
-                                                        "browser_download_url": f"{srv.base}/dl/b"}]}]
+                                                        "browser_download_url": f"{srv.base}/iskaron/hifi-bridge/releases/download/v0.4.5/b"}]}]
     r = UpdateSource(srv.source(), allow_http=True, clock=lambda: 42).check("0.3.0-dev", C)
     assert r["status"] == "update_available" and r["checked_at"] == 42
     lt = r["latest"]
     assert lt["version"] == "0.5.0" and lt["asset"]["size"] == 100 and lt["asset"]["sha256"] == "ab" * 32
-    assert lt["asset"]["url"].endswith("/dl/hifi-bridge-hifi-bridge-rpi3-0.5.0.raucb")
+    assert lt["asset"]["url"] == f"{srv.base}/iskaron/hifi-bridge/releases/download/v0.5.0/hifi-bridge-hifi-bridge-rpi3-0.5.0.raucb"
     assert lt["page"] == f"{srv.base}/iskaron/hifi-bridge/releases/tag/v0.5.0"
     path, headers = srv.requests[-1]
     assert path.endswith("/releases?per_page=20") and headers["User-Agent"].startswith("hifi-bridge/")
     assert "Authorization" not in headers                                     # never any credentials
     assert UpdateSource(srv.source(), allow_http=True).check("0.5.0", C)["status"] == "up_to_date"
     assert UpdateSource(srv.source(), allow_http=True).check("0.5.0", "hifi-bridge-rpizero2w")["status"] == "no_bundle"
+
+
+def test_assets_outside_the_official_repository_are_ignored(srv):
+    srv.assets["hifi-bridge-hifi-bridge-rpi3-0.4.0.raucb"] = b"x"
+    rel = srv.release("v0.4.0", [("hifi-bridge-hifi-bridge-rpi3-0.4.0.raucb", {})])
+    rel["assets"][0]["browser_download_url"] = "https://192.168.1.1/admin/hifi-bridge-hifi-bridge-rpi3-0.4.0.raucb"
+    srv.releases = [rel]
+    assert UpdateSource(srv.source(), allow_http=True).check("0.3.0", C)["status"] == "no_bundle"
 
 
 def test_release_page_link_never_leaves_the_official_releases(srv):
