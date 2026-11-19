@@ -171,3 +171,11 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 61. Do phones need a "stay connected without internet" hint on the hotspot page? Depends on hardware test N-5.
 62. More than one saved client Wi-Fi network in V1 (today one, DECISIONS #88)?
 63. Should `hifi-bridge.service` declare `Wants=hifi-netd.service` (today independent; the WebUI shows the agent as unavailable)?
+
+## Added by package 4 - OTA update management (2026-11-19)
+64. A health failure on an **established** slot currently leads to a rollback via U-Boot's boot-count after three boots. Keep, or never
+    roll back an established slot automatically?
+65. Should a factory reset also remove RAUC's slot status (`slots.json`)?
+66. Payload integrity of an uploaded bundle is checked only at install time by dm-verity (RAUC's inspection accepts a payload byte changed
+    after signing). Acceptable, or additionally hash the payload against a signed checksum before staging?
+67. One large upload occupies one of the 64 WebUI connection slots for its duration. Acceptable for V1?

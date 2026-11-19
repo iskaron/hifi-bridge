@@ -268,3 +268,23 @@ Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardwar
     mDNS, DHCP/ND replies, Lyrion discovery replies, rate-limited ICMP; hotspot clients: DHCP + WebUI only); base firewall loaded before
     `network-pre.target`; Avahi host name follows `local_hostname` through the agent; wait-online `--any --timeout=15`; the time-sync clock
     file persists on the data partition (no RTC).
+
+## Implementation decisions of package 4 - OTA update management (reversible; 2026-11-19; details docs/OTA.md)
+90. **RAUC access:** the bridge talks to RAUC over D-Bus; our policy allows only root and `hifi-bridge` (upstream allows every local user).
+    "Restart now" creates an empty file in `/run/hifi-bridge-ota`; a root `hifi-bridge-reboot.path`/`.service` reacts to it and reads no
+    input. No other root helper.
+91. **Mark-good only from the health check** (`hifi-bridge-health.service`: `/data` mounted, state writable, loopback `/healthz` ok or
+    degraded, RAUC reachable); upstream's unconditional `rauc-mark-good.service` is masked. A failed first boot of a new slot: `mark-bad` +
+    reboot to the previous slot; a failure on an established slot does not reboot (U-Boot's boot-count falls back after three boots).
+    Manual rollback (`mark-active other`) only when the other slot is bootable and its version is known.
+92. **Staging requires RAUC's signature check (`InspectBundle`, keyring, codeSigning) and the manager's own compatible check** - real
+    RAUC 1.13 does not compare the compatible during inspection; payload integrity is enforced by dm-verity at install time.
+93. **Pre-update snapshot** of settings, secrets, network configuration and certificates before every install (no install without it);
+    restored **only on the owner's request** (ConfigStore keeps newer settings across a rollback, #76); factory reset removes snapshots.
+94. **Configuration backup:** versioned JSON; secrets excluded by default; optionally the owner password hash, stream token and MQTT
+    password are encrypted with an owner passphrase - scrypt (salted, per file) → AES-256-CTR via the openssl CLI (key material only through
+    an inherited pipe, never argv/environment/files) + encrypt-then-MAC HMAC-SHA256 checked before decryption (#50: no own cryptography; a
+    first self-built keystream was rejected in review). The device CA key and sessions are never exported.
+95. **Official update source:** release assets are accepted only from `<official repository>/releases/download/`; the update check is
+    manual and never installs (#10); it works only once releases are public (OPEN_QUESTIONS #45). `make ota` (`scripts/os_bundle.sh`) builds
+    bundles with throw-away development keys and refuses certificates without codeSigning or keys tracked by git.
