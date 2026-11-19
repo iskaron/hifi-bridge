@@ -96,10 +96,19 @@ def _form(req, action, inner, button_key, danger=False, confirm_key=None, cls="s
             f'<button{" class=danger" if danger else ""}>{esc(req.t(button_key))}</button></form>')
 
 
+def _in_setup(req) -> bool:
+    """The wizard is not finished: the network pages are reachable anyway (review N-1) and lead back to the wizard."""
+    return not req.ui.svc.store.get("setup_complete")
+
+
 def _page(req, title_key, inner, back=None):
     t = req.t
-    back_html = (f'<p class="back"><a href="{back}">‹ {esc(t("net.title"))}</a></p>' if back else
-                 f'<p class="back"><a href="/settings">‹ {esc(t("nav.settings"))}</a></p>')
+    if back:
+        back_html = f'<p class="back"><a href="{back}">‹ {esc(t("net.title"))}</a></p>'
+    elif _in_setup(req):
+        back_html = f'<p class="back"><a href="/setup/lyrion">‹ {esc(t("net.setup.back"))}</a></p>'
+    else:
+        back_html = f'<p class="back"><a href="/settings">‹ {esc(t("nav.settings"))}</a></p>'
     body = (f'<link rel="stylesheet" href="/static/network.css">{back_html}<h1>{esc(t(title_key))}</h1>'
             f'<div class="stack-cards">{inner}</div><script src="/static/network.js" defer></script>')
     return _v().page(req.ui, req, t(title_key), body, active="/settings")
@@ -237,10 +246,38 @@ def _cfg(req) -> dict:
         return netconfig.defaults()
 
 
+def setup_note(req) -> str:
+    if not _in_setup(req):
+        return ""
+    return f'<section class="card"><p class="help">{esc(req.t("net.setup.note"))}</p></section>'
+
+
+def pending_banner(req) -> str:
+    """The confirm/undo banner of a pending network change, for the wizard pages: after joining the home Wi-Fi from the setup hotspot
+    the owner logs in again at the new address and lands in the wizard, which must offer "Keep" before the change is rolled back."""
+    net = _net(req)
+    if net is None or not req.session:
+        return ""
+    try:
+        st = net.status()
+    except Exception:
+        return ""
+    if (st.get("trial") or {}).get("state") != "pending":
+        return ""
+    return '<link rel="stylesheet" href="/static/network.css">' + trial_card(req, st)
+
+
+def setup_hint(req) -> str:
+    """Wizard, Lyrion step: no server can be found while the device is not on the home network (review N-1)."""
+    t = req.t
+    return f'<p class="help">{esc(t("net.setup.hint"))} <a href="{BASE}">{esc(t("net.setup.link"))}</a></p>'
+
+
 def network_get(req):
     st = _status(req)
     cfg = _cfg(req)
-    inner = trial_card(req, st) + status_card(req, st) + wifi_card(req, st, cfg) + (links_card(req) if st.get("managed") else "")
+    inner = (setup_note(req) + trial_card(req, st) + status_card(req, st) + wifi_card(req, st, cfg)
+             + (links_card(req) if st.get("managed") else ""))
     return _page(req, "net.title", inner)
 
 

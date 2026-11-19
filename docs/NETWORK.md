@@ -14,6 +14,9 @@ real Wi-Fi radio or with real phones.** The hardware items are listed in section
   stays in **Settings → Secure access** (`local_hostname`); the network page shows it.
 * No lock-out: every change that affects the connection the owner may be using must be confirmed on the page within **3 minutes**, or it
   is undone automatically. A wrong Wi-Fi password is undone as soon as the attempt fails. Last resort: the SD-card `network-reset`.
+* **Before the setup wizard is finished** the network pages (and `/api/network`) are reachable for the logged-in owner, the wizard's
+  Lyrion step links to them, and the wizard pages show the confirm banner of a pending change: a device that only has its setup
+  hotspot can join the home Wi-Fi first (review N-1; flow in docs/PROVISIONING.md section 3).
 
 ## 2. Architecture and privilege boundary
 ```

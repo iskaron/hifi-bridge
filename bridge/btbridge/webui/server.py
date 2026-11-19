@@ -26,6 +26,10 @@ CONN_TIMEOUT_S = 10.0          # per connection: TLS handshake, request, body an
 MAX_CONNECTIONS = 64           # concurrent connections per listener; more are answered 503 and closed
 BOOTSTRAP_PATHS = ("/trust", "/ca.crt", "/ca.der", "/healthz", "/static/app.css", "/static/logo.svg", "/static/app.js", "/manifest.webmanifest", "/trust/proof")
 WIZARD_ACTIONS = ("/diagnostics/test",)     # actions offered inside the setup wizard (test sound on the last step)
+# Pages (and everything below them) an authenticated owner may use BEFORE the wizard is finished. Review N-1: on a device that only has
+# its setup hotspot (no home Wi-Fi password on the card, a mistyped one, no Ethernet) the wizard's Lyrion step cannot succeed until the
+# device has joined the home network. Same session, CSRF and Origin checks as every other page.
+SETUP_REACHABLE = ("/settings/network",)
 COOKIE = "bab_session"
 LANG_COOKIE = "bab_lang"
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'self'; "
@@ -327,7 +331,8 @@ class WebUI:
                 return redirect("/setup")
             return redirect("/login")
         if req.session is not None and not public and not self.svc.store.get("setup_complete") \
-                and not req.path.startswith(("/setup", "/api/", "/logout")) and req.path not in WIZARD_ACTIONS:
+                and not req.path.startswith(("/setup", "/api/", "/logout")) and req.path not in WIZARD_ACTIONS \
+                and not any(req.path == p or req.path.startswith(p + "/") for p in SETUP_REACHABLE):
             return redirect("/setup/bluetooth")                 # finish the wizard first
         return handler(req)
 

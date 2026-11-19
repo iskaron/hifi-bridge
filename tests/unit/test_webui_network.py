@@ -10,7 +10,7 @@ import threading
 import urllib.parse
 
 import pytest
-from test_webui import A11y, Client, finish_wizard
+from test_webui import A11y, Client, finish_wizard, setup_account
 
 from btbridge.net import netagent as A
 from btbridge.net import netclient as C
@@ -34,6 +34,16 @@ class Clock:
 
 @pytest.fixture
 def net_ui():
+    yield from make_net_ui(finish_wizard)
+
+
+@pytest.fixture
+def setup_ui():
+    """Fresh device: owner password set with the setup code, the wizard NOT finished (review N-1)."""
+    yield from make_net_ui(setup_account)
+
+
+def make_net_ui(prepare):
     root = tempfile.mkdtemp(prefix="hw", dir="/tmp")
     data, run = os.path.join(root, "d"), os.path.join(root, "r")
     os.makedirs(run)
@@ -60,7 +70,7 @@ def net_ui():
             clock.t += 1
             agent.tick()
     u.advance = advance
-    finish_wizard(u)
+    prepare(u)
     yield u
     w.stop(); svc.stop(); agent.stop()
     shutil.rmtree(root, ignore_errors=True)
@@ -330,6 +340,80 @@ def test_an_agent_without_an_answer_tells_the_owner_what_to_do(net_ui, monkeypat
         assert flash(u).startswith("e:") and busy in flash(u)
     monkeypatch.setattr(u.svc.network, "status", lambda: {"managed": True, "state": "agent_unreachable", "interfaces": []})
     assert down in u.c.get("/settings/network").body
+
+
+# ---------------------------------------------------------------- review N-1: network settings before the wizard is finished
+def test_hotspot_only_onboarding_reaches_the_network_settings_before_the_wizard_is_finished(setup_ui):
+    """Card written without (or with a mistyped) home Wi-Fi password, no Ethernet: the device opens the setup hotspot; the owner set the
+    password with the setup code and must be able to join the home Wi-Fi BEFORE the wizard's Lyrion step can succeed."""
+    u = setup_ui
+    assert not u.svc.store.get("setup_complete")
+    u.advance(16)                                                   # no Wi-Fi works, no Ethernet: setup hotspot
+    r = u.c.get("/settings/network")
+    assert r.status == 200 and "Setup hotspot active" in r.body and 'action="/settings/network/wifi"' in r.body
+    assert 'href="/setup/lyrion"' in r.body and "Back to the setup" in r.body and "setup is not finished yet" in r.body
+    p = A11y(); p.feed(r.body)
+    assert p.h1 == 1 and not p.problems, p.problems
+    for sub in ("/settings/network/hotspot", "/settings/network/addresses"):
+        assert u.c.get(sub).status == 200, sub
+    assert u.c.get("/api/network").status == 200
+    r = u.c.post("/settings/network/wifi", {"ssid": "Home", "password": "wifi-secret-123"})
+    assert r.getheader("Location") == "/settings/network" and "please confirm" in flash(u)
+    u.advance(4)
+    page = u.c.get("/setup/bluetooth").body                          # back at the new address: the wizard shows the banner too
+    assert "Keep the new network settings?" in page and 'action="/settings/network/confirm"' in page
+    u.c.post("/settings/network/confirm")
+    assert "Network settings kept" in flash(u) and N.load(os.path.join(u.data, N.FILE_NAME))["wifi"]["ssid"] == "Home"
+    assert "Keep the new network settings?" not in u.c.get("/setup/bluetooth").body
+    for other in ("/settings", "/settings/lyrion", "/settings/update", "/settings/backup", "/", "/diagnostics"):
+        assert u.c.get(other).getheader("Location") == "/setup/bluetooth", other           # everything else waits for the wizard
+    no_secrets(u.c.get("/settings/network").body)
+
+
+def test_a_mistyped_provisioned_wifi_password_can_be_fixed_before_the_wizard(setup_ui):
+    u = setup_ui
+    N.write_private(os.path.join(u.data, N.FILE_NAME), N.validate({"country": "DE", "hotspot": HOTSPOT,
+                                                                  "wifi": {"ssid": "Home", "psk": "mistyped-pass"}}))
+    u.agent.start()                                                  # the agent (re)reads network.json at its start
+    u.advance(70)                                                    # wrong password -> hotspot after the fallback time
+    page = u.c.get("/settings/network").body
+    assert "Setup hotspot active" in page and "password was not accepted" in page
+    u.c.post("/settings/network/wifi", {"ssid": "Home", "password": "wifi-secret-123"})
+    u.advance(4)
+    u.c.post("/settings/network/confirm")
+    assert N.load(os.path.join(u.data, N.FILE_NAME))["wifi"]["psk"] == "wifi-secret-123"
+
+
+def test_network_settings_before_the_wizard_keep_auth_and_csrf_as_strict(setup_ui):
+    u = setup_ui
+    r = u.c.post("/settings/network/forget", csrf=False)
+    assert r.getheader("Location") == "/login"                        # same CSRF rule as on every other page
+    anon = Client(u.web.port)
+    assert anon.get("/settings/network").getheader("Location") == "/login" and anon.get("/api/network").status == 401
+    assert anon.post("/settings/network/wifi", {"ssid": "Home"}, csrf=False).getheader("Location") == "/login"
+
+
+def test_fresh_device_without_owner_password_sends_network_pages_to_the_setup():
+    gen = make_net_ui(lambda u: None)
+    u = next(gen)
+    try:
+        assert u.c.get("/settings/network").getheader("Location") == "/setup"           # the setup code comes first, as always
+    finally:
+        gen.close()
+
+
+@pytest.mark.parametrize("lang,hint,link", [("en", "Not connected to your home network yet", "Network settings"),
+                                            ("de", "Noch nicht mit Ihrem Heimnetz verbunden", "Netzwerkeinstellungen")])
+def test_the_wizards_lyrion_step_points_to_the_network_settings(setup_ui, monkeypatch, lang, hint, link):
+    u = setup_ui
+    u.svc.store.update({"language": lang})
+    monkeypatch.setattr(u.svc, "discover_servers", lambda timeout=1.5: [])        # behind the hotspot nothing answers
+    page = u.c.get("/setup/lyrion").body
+    assert hint in page and f'<a href="/settings/network">{link}</a>' in page
+    p = A11y(); p.feed(page)
+    assert p.h1 == 1 and not p.problems, p.problems
+    u.svc.store.update({"setup_complete": True})
+    assert u.c.get("/settings/network").status == 200 and "Back to the setup" not in u.c.get("/settings/network").body
 
 
 def test_every_network_key_exists_in_both_languages():

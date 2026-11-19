@@ -107,6 +107,14 @@ def test_01_keyboard_only_setup_with_error_focus_and_skip_link(chromium):
     tab_to(page, 'input[name="device_name"]'); page.keyboard.press("Control+A"); page.keyboard.type("Wohnzimmer"); submit(page)
     expect(page).to_have_url(BASE + "/setup/lyrion")
     no_overflow(page); axe_ok(page, "lyrion"); shot(page, "02-lyrion-mobile-light")
+    # review N-1: before the wizard is finished, the network settings are reachable (hotspot-only onboarding) and lead back to it
+    tab_to(page, 'a[href="/settings/network"]'); submit(page)
+    expect(page).to_have_url(BASE + "/settings/network")
+    expect(page.locator("h1")).to_have_text("Network")
+    expect(page.locator('form[action="/settings/network/wifi"]')).to_be_visible()
+    no_overflow(page); axe_ok(page, "network-during-setup"); shot(page, "02b-network-during-setup-mobile-light")
+    tab_to(page, 'a[href="/setup/lyrion"]'); submit(page)
+    expect(page).to_have_url(BASE + "/setup/lyrion")
     tab_to(page, "form.server button.choice"); submit(page)     # real UDP discovery of the lab LMS
     expect(page).to_have_url(BASE + "/setup/target")
     tab_to(page, 'input[name="target_player"]')

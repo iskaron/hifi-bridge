@@ -21,6 +21,17 @@ for s, en, de in [("connected", "Wi-Fi connected", "WLAN verbunden"), ("connecti
                   ("unmanaged", "Managed by the host system", "Vom Host-System verwaltet"),
                   ("agent_unreachable", "Network service not reachable", "Netzwerkdienst nicht erreichbar")]:
     k("net.state." + s, en, de)
+k("net.setup.back", "Back to the setup", "Zurück zur Einrichtung")
+k("net.setup.link", "Network settings", "Netzwerkeinstellungen")
+k("net.setup.hint", "Not connected to your home network yet – for example only to the device's setup hotspot, or no Ethernet cable? "
+  "Then no Lyrion server can be found. Set up the network first; the setup continues here afterwards.",
+  "Noch nicht mit Ihrem Heimnetz verbunden – zum Beispiel nur mit dem Einrichtungs-Hotspot des Geräts, oder ohne Ethernet-Kabel? "
+  "Dann kann kein Lyrion-Server gefunden werden. Richten Sie zuerst das Netzwerk ein; danach geht die Einrichtung hier weiter.")
+k("net.setup.note", "The setup is not finished yet. After joining your home Wi-Fi, connect your phone to the same Wi-Fi, open the device's "
+  "page again (its name or the address your router shows), confirm the new network settings and continue with the setup.",
+  "Die Einrichtung ist noch nicht abgeschlossen. Verbinden Sie nach dem Wechsel ins Heim-WLAN Ihr Telefon mit demselben WLAN, öffnen "
+  "Sie die Seite des Geräts erneut (sein Name oder die Adresse, die Ihr Router anzeigt), bestätigen Sie die neuen Netzwerkeinstellungen "
+  "und setzen Sie die Einrichtung fort.")
 k("net.wifi", "Wi-Fi network", "WLAN")
 k("net.last_problem", "Last problem", "Letztes Problem")
 k("net.fallback", "Setup hotspot", "Einrichtungs-Hotspot")
