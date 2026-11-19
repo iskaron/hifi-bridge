@@ -100,3 +100,7 @@ Scope: owner work package of 2026-11-18 (DECISIONS #73/#74).
 ### Package 4 - OTA update management (in progress)
 - Opus agent resumed on `wip/ota` (2 commits + saved WIP: RAUC D-Bus client, simulated RAUC service, update check, streamed transfers,
   manager and health-check drafts).
+- OTA agent reported the package complete (805 unit, 12 real-RAUC 1.13 tests, 11 browser, `make ota` with dev keys). Coordinator review:
+  the optional passphrase encryption of backups used a self-built keystream (HMAC-SHA256 in counter mode) - against DECISIONS #50
+  ("never own cryptography"). Sent back: standard cipher via the openssl CLI (pass-fd, no key material on command lines) + encrypt-then-MAC.
+  Interrupted by the account rate limit (reset 04:00), resumed 06:47.
