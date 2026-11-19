@@ -3,7 +3,7 @@
     python3 size_plan.py --board NAME=CHECK_JSON[:BUNDLE_FILE] ... --md OUT.md
 
 CHECK_JSON is $OUT/hifi/check/image-check.json from scripts/os_check_image.sh; BUNDLE_FILE the development RAUC bundle from
-scripts/os_dev_bundle.sh (its size is what an update upload needs on the data partition, because RAUC streaming is disabled).
+scripts/os_check_ota.sh, i.e. `make ota` (its size is what an update upload needs on the data partition, because RAUC streaming is disabled).
 
 Rules (documented in docs/IMAGE_BUILD.md; all sizes in MiB, rounded up):
   * slot (rootfs A = B), fixed for the life of a device because an update cannot repartition the card:

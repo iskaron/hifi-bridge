@@ -18,7 +18,10 @@ if [ -s "$D/ca.pem" ] && [ -s "$D/ca.key" ] && [ -s "$D/signing.pem" ] && [ -s "
 fi
 mkdir -p "$D"
 chmod 0700 "$D"
-docker image inspect btbridge-os:dev >/dev/null 2>&1 || docker build -q -f docker/Dockerfile.os -t btbridge-os:dev docker >/dev/null
+# shellcheck source=lib/common.sh
+. scripts/lib/common.sh
+hb_require
+hb_ensure_images btbridge-os:dev
 docker run --rm --name "hifi-os-devca-$$" --network none -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$D":/ca btbridge-os:dev bash -c '
 set -euo pipefail
 umask 077

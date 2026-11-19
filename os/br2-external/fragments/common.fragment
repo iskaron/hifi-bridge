@@ -67,8 +67,6 @@ BR2_PACKAGE_UBOOT_TOOLS_FWPRINTENV=y
 BR2_PACKAGE_E2FSPROGS=y
 BR2_PACKAGE_E2FSPROGS_RESIZE2FS=y
 # BR2_PACKAGE_DOSFSTOOLS is not set
-# firewall tool (nftables) for the network stream's ruleset; added by the OS stream so that the measured image sizes include it
-BR2_PACKAGE_NFTABLES=y
 BR2_TARGET_UBOOT=y
 BR2_TARGET_UBOOT_BUILD_SYSTEM_KCONFIG=y
 BR2_TARGET_UBOOT_BOARD_DEFCONFIG="rpi_arm64"
@@ -80,7 +78,8 @@ BR2_TARGET_ROOTFS_EXT2_4=y
 BR2_TARGET_ROOTFS_EXT2_SIZE="256M"
 # fixed file-system UUID and directory hash seed: mke2fs otherwise draws both at random, which makes every rootfs.ext4 different.
 # Slots are mounted by partition (/dev/mmcblk0p2/3), never by UUID, and A/B copies share the UUID anyway. Read-only fs: no hash-DoS.
-BR2_TARGET_ROOTFS_EXT2_MKFS_OPTIONS="-O ^64bit -U 8d3b1c54-2f0e-4a51-9c7e-3f1a6e0b9d21 -E hash_seed=8d3b1c54-2f0e-4a51-9c7e-3f1a6e0b9d21"
+# 4 KiB blocks always (mke2fs would choose 1 KiB for images below 512 MiB: more metadata, and the choice would depend on the size)
+BR2_TARGET_ROOTFS_EXT2_MKFS_OPTIONS="-O ^64bit -b 4096 -U 8d3b1c54-2f0e-4a51-9c7e-3f1a6e0b9d21 -E hash_seed=8d3b1c54-2f0e-4a51-9c7e-3f1a6e0b9d21"
 # each A/B slot carries its own kernel: boot.cmd loads /boot/Image from the selected rootfs (the FAT holds firmware + U-Boot only)
 BR2_LINUX_KERNEL_INSTALL_TARGET=y
 BR2_PACKAGE_HOST_GENIMAGE=y

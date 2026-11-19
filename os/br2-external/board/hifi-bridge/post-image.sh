@@ -62,8 +62,13 @@ for i in "${BINARIES_DIR}"/rpi-firmware/* "${BINARIES_DIR}"/*.dtb "${BINARIES_DI
 	FILES+=( "${i#"${BINARIES_DIR}"/}" )
 done
 BOOT_FILES=$(printf '\\t\\t\\t"%s",\\n' "${FILES[@]}")
-ROOTFS_SIZE=$(stat -c %s "${BINARIES_DIR}/rootfs.ext4")
-sed -e "s|#BOOT_FILES#|${BOOT_FILES}|" -e "s|#ROOTFS_SIZE#|${ROOTFS_SIZE}|" "${BOARD_DIR}/genimage.cfg.in" > "${GENIMAGE_CFG}"
+# -L: in a real build rootfs.ext4 is a symlink to rootfs.ext2 (found by the first real build: slot B got 11 bytes)
+ROOTFS_SIZE=$(stat -L -c %s "${BINARIES_DIR}/rootfs.ext4")
+# reproducible data.ext4: genimage stamps the super block (write/check time) after mke2fs; fs-timestamp pins it to the build epoch
+# (Buildroot exports SOURCE_DATE_EPOCH with BR2_REPRODUCIBLE; without it the current time is used)
+FS_TIMESTAMP=$(date -u -d "@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y%m%d%H%M%S)
+sed -e "s|#BOOT_FILES#|${BOOT_FILES}|" -e "s|#ROOTFS_SIZE#|${ROOTFS_SIZE}|" -e "s|#FS_TIMESTAMP#|${FS_TIMESTAMP}|" \
+	"${BOARD_DIR}/genimage.cfg.in" > "${GENIMAGE_CFG}"
 
 trap 'rm -rf "${ROOTPATH_TMP}"' EXIT
 ROOTPATH_TMP="$(mktemp -d)"

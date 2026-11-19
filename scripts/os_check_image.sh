@@ -17,6 +17,10 @@
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 REPO="$PWD"
+# shellcheck source=lib/common.sh
+. scripts/lib/common.sh
+hb_require
+hb_ensure_images btbridge-os:dev
 BOARD="${1:?usage: os_check_image.sh <rpi3_64|rpi4_64|rpizero2w_64>}"
 LAB="${HIFI_LAB:-$REPO/.lab}"
 OUT="${HIFI_OS_OUT:-$LAB/br-out/$BOARD}"

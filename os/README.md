@@ -43,7 +43,7 @@ scripts/run_os.sh                      # all of the above + tests/os + tests/fla
 # internal development images (one board at a time; hours for a first build, minutes incrementally)
 scripts/os_build.sh rpi3_64            # build + legal-info + SBOM   -> .lab/br-out/rpi3_64/images/*.img
 scripts/os_check_image.sh rpi3_64      # all image checks + secret scan -> reports/evidence/os_image_rpi3_64.md
-scripts/os_dev_bundle.sh rpi3_64       # development RAUC bundle, verified against the image's own keyring
+scripts/os_check_ota.sh rpi3_64        # `make ota` bundle of the built rootfs, checked against the image's own keyring
 ```
 Environment: `HIFI_LAB` (lab dir, default `.lab`; a git worktree points it at the main checkout's `.lab`), `HIFI_OS_JOBS`/`HIFI_OS_CPUS`
 (default 3), `HIFI_OS_MEM` (default 8g), `HIFI_OS_MIN_FREE_GB` (default 40). `scripts/os_build.sh <board> clean build` starts over
