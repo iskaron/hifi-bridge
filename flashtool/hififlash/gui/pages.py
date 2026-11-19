@@ -57,6 +57,13 @@ def set_state(label: QLabel, state: str) -> None:
     label.style().polish(label)
 
 
+def plain(label: QLabel) -> QLabel:
+    """Labels that show untrusted text (a card's model string comes from the device; error details from the network) must never be
+    interpreted as rich text - QLabel would otherwise auto-detect HTML."""
+    label.setTextFormat(Qt.TextFormat.PlainText)
+    return label
+
+
 def panel(kind: str) -> QFrame:
     f = QFrame()
     f.setProperty("panel", kind)
@@ -253,7 +260,7 @@ class ImagePage(Page):
         act.addWidget(self.cancel)
         act.addWidget(self.bar, 1)
         self.lay.addLayout(act)
-        self.result = QLabel()
+        self.result = plain(QLabel())
         self.result.setWordWrap(True)
         self.result.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.result.setAccessibleName("status")
@@ -428,7 +435,7 @@ class DiskPage(Page):
         self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.bind(self.list, "disk.list", "setAccessibleName")
         self.lay.addWidget(self.list, 1)
-        self.details = QLabel()
+        self.details = plain(QLabel())
         self.details.setWordWrap(True)
         self.details.setAccessibleName("status")
         self.lay.addWidget(self.details)
@@ -640,13 +647,13 @@ class ConfirmPage(Page):
         self.summary.setAccessibleName("summary")
         self.lay.addWidget(self.summary)
         self.warn = panel("warn")
-        self.warning = QLabel()
+        self.warning = plain(QLabel())
         self.warning.setWordWrap(True)
         set_state(self.warning, "warn")
         self.warn.layout().addWidget(self.warning)
         self.lay.addWidget(self.warn)
         self.typed = QLineEdit()
-        self.prompt = QLabel()
+        self.prompt = plain(QLabel())
         self.prompt.setBuddy(self.typed)
         self.lay.addWidget(self.prompt)
         self.lay.addWidget(self.typed)
@@ -704,7 +711,7 @@ class WritePage(Page):
         self.cancel = self.bind(QPushButton(), "nav.cancel")
         self.cancel.setProperty("danger", True)
         self.fail = panel("error")
-        self.message = QLabel()
+        self.message = plain(QLabel())
         self.message.setWordWrap(True)
         self.message.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.message.setAccessibleName("error")
@@ -823,7 +830,7 @@ class DonePage(Page):
         self.verify = self.bind(QPushButton(), "trust.verify")
         self.verify.setProperty("primary", True)
         arow.addWidget(self.verify)
-        self.status = QLabel()
+        self.status = plain(QLabel())
         self.status.setWordWrap(True)
         self.status.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.status.setAccessibleName("status")

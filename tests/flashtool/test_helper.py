@@ -330,6 +330,12 @@ def test_helper_main_version_and_stdio(setup, capsys):
         helper_main(["--connect", "0", "--token-file", "x"])
 
 
+def test_simulation_never_runs_elevated(monkeypatch, tmp_path):
+    monkeypatch.setattr(os, "geteuid", lambda: 0)
+    with pytest.raises(SystemExit):
+        helper_main(["--stdio", "--simulate", str(tmp_path)], stdin=io.BytesIO(), stdout=io.BytesIO())
+
+
 def test_token_file_validation(tmp_path):
     f = tmp_path / "t"
     f.write_text("a" * 64 + "\n")

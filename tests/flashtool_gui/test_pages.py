@@ -299,3 +299,16 @@ def test_confirm_page_escapes_owner_input(qtbot, win, env):
     assert not win.pages[4].is_complete()
     win.ctx.state.disk = None
     win.pages[4].refresh()                                                         # incomplete state: nothing to show, no crash
+
+
+def test_untrusted_device_strings_are_never_rendered_as_rich_text(qtbot, win, env):
+    env.set_card_meta(model="<b>SUITABLE</b><img src='/etc/passwd'>")              # a USB device chooses its own model string
+    pick_board(qtbot, win)
+    verified_official(qtbot, win)
+    choose_card(qtbot, win)
+    win.back()
+    page = win.pages[2]
+    qtbot.waitUntil(lambda: not page.busy(), timeout=TIMEOUT)
+    assert page.details.textFormat() == Qt.TextFormat.PlainText and "<b>SUITABLE</b>" in page.details.text()
+    for lab in (win.pages[1].result, win.pages[4].warning, win.pages[4].prompt, win.pages[5].message, win.pages[6].status):
+        assert lab.textFormat() == Qt.TextFormat.PlainText

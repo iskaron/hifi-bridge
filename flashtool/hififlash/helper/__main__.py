@@ -42,6 +42,8 @@ def main(argv=None, stdin=None, stdout=None, platform: str = sys.platform, conne
     if a.version:
         print(f"hififlash-helper {__version__} protocol {PR.VERSION}")
         return 0
+    if a.simulate and hasattr(os, "geteuid") and os.geteuid() == 0:
+        ap.error("--simulate is for tests and package checks only and never runs elevated")
     adapter, plat = adapter_for(platform, a.simulate)
     if a.stdio:
         return serve(stdin if stdin is not None else sys.stdin.buffer, stdout if stdout is not None else sys.stdout.buffer, adapter, plat)

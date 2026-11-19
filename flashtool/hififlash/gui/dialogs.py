@@ -65,6 +65,7 @@ class SettingsDialog(QDialog):
             row.addWidget(w)
         lay.addLayout(row)
         self.message = QLabel()
+        self.message.setTextFormat(Qt.TextFormat.PlainText)            # error details come from files the user picked
         self.message.setWordWrap(True)
         lay.addWidget(self.message)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
