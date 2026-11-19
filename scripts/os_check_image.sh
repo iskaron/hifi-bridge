@@ -12,7 +12,8 @@
 # Then the secret scan (os/tools/secret_scan.py) over the rootfs tree, the boot tree and the RAW card image, and a file manifest of the
 # rootfs (os/tools/tree_manifest.py) for reproducibility comparisons.
 #
-# Results: $OUT/hifi/check/ (image-check.{json,md}, secret-scan.json, rootfs-manifest.tsv, boot-manifest.tsv), copied as evidence to
+# Results: $OUT/hifi/check/ (image-check.{json,md}, secret-scan.json, rootfs-manifest.tsv, boot-manifest.tsv). Copied as evidence (with
+# the build's SBOM, licence report and legal-info manifest.csv) to
 # reports/evidence/os_image_<board>.md and reports/evidence/os_secret_scan_<board>.json. Exit code: non-zero if any check fails.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
@@ -74,5 +75,9 @@ rc=$?
 mkdir -p reports/evidence
 [ -f "$OUT/hifi/check/image-check.md" ] && cp "$OUT/hifi/check/image-check.md" "reports/evidence/os_image_$BOARD.md"
 [ -f "$OUT/hifi/check/secret-scan.json" ] && cp "$OUT/hifi/check/secret-scan.json" "reports/evidence/os_secret_scan_$BOARD.json"
+# SBOM, licence policy report and the legal-info manifest of this build (small; legal-info itself is not committed)
+[ -f "$OUT/hifi/sbom.cdx.json" ] && cp "$OUT/hifi/sbom.cdx.json" "reports/evidence/os_sbom_$BOARD.cdx.json"
+[ -f "$OUT/hifi/licences.md" ] && cp "$OUT/hifi/licences.md" "reports/evidence/os_licenses_$BOARD.md"
+[ -f "$OUT/legal-info/manifest.csv" ] && cp "$OUT/legal-info/manifest.csv" "reports/evidence/os_legal_manifest_$BOARD.csv"
 echo "os_check_image: $BOARD exit code $rc"
 exit $rc

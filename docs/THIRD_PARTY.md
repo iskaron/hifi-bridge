@@ -11,6 +11,14 @@
 | `flac` binary (optional) | FLAC stream encoding | GPL-2.0+ (tools) | only with `stream_format=flac` |
 | `openssl` CLI | local CA and certificates for the WebUI | Apache-2.0 (OpenSSL 3) | needed for HTTPS in `local_ca`/`custom` mode (OPEN_QUESTIONS #29) |
 
+## Device image (Buildroot; internal development builds only, nothing published)
+The card image is a collection of separately licensed packages (Buildroot 2026.02.x). Per board, the complete list with versions, licences
+and source URLs is the committed SBOM and licence report: `reports/evidence/os_sbom_<board>.cdx.json` (CycloneDX 1.6, from
+`utils/generate-cyclonedx`) and `reports/evidence/os_licenses_<board>.md` (policy: `os/tools/license_report.py`). `make legal-info`
+(sources + licence texts) is produced by every build but not committed (size). The non-free firmware (Raspberry Pi boot firmware,
+Broadcom/Cypress/Synaptics Wi-Fi and Bluetooth firmware) is reviewed in **docs/IMAGE_LICENSING.md**: redistributable unmodified, only for
+the hardware, with the licence texts, which every image carries in `licenses/` on the boot partition.
+
 ## Development, lab and test only (never shipped)
 | Component | Use | Licence |
 |---|---|---|
@@ -30,7 +38,7 @@
 | rsyslog 8 + rsyslog-gnutls (Debian 13) | TLS syslog peer for the remote-syslog test | GPL-3.0+/ASL-2.0 |
 | python:3.14-slim, pytest 8.4.2, numpy 2.3.5, jeepney 0.9.0 | Python 3.14 compatibility run | PSF / MIT / BSD-3-Clause / MIT |
 | coverage.py (Debian python3-coverage) | coverage measurement | Apache-2.0 |
-| Buildroot 2026.02.x (`679b9ea`, fetched into `.lab/`, not redistributed) | configuration checks, `show-info` licence reports | GPL-2.0+ |
+| Buildroot 2026.02.x (`679b9ea`, fetched into `.lab/`, not redistributed) | configuration checks, `show-info` licence reports, internal development image builds (`scripts/os_build.sh`) | GPL-2.0+ |
 | Debian 13 OS tools in `btbridge-os`: RAUC 1.13, genimage 18, mtools 4.0.48, dosfstools 4.2, e2fsprogs 1.47.2, squashfs-tools 4.6.1, u-boot-tools 2025.01, fdisk (util-linux), OpenSSL 3.5 | image-layout, keyring and signature tests | LGPL-2.1 / GPL-2.0 / GPL-3.0+ / GPL-3.0+ / GPL-2.0 / GPL-2.0+ / GPL-2.0+ / GPL-2.0+ / Apache-2.0 |
 | python3-cryptography 43 (Debian) | flash tool: manifest signature check (also a future runtime dependency of the flash tool) | Apache-2.0 or BSD-3-Clause |
 | `btbridge-flash:dev` (Debian 13 + pip, exact pins): PySide6 6.12.0, cryptography 50.0.2, pytest 8.4.2, pytest-qt 4.5.0, coverage 7.16.2, PyInstaller 6.22.3; fonts-dejavu-core, fonts-urw-base35 | flash tool GUI tests (offscreen), screenshots, the Linux package build | LGPL-3.0/GPL / Apache-2.0 or BSD / MIT / MIT / Apache-2.0 / GPL-2.0 with bootloader exception / Bitstream Vera + public domain / AGPL-3.0 (URW base35) |

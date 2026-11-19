@@ -20,7 +20,12 @@ import stat
 import subprocess
 import sys
 
-OWN_UNITS = ["hifi-bridge.service", "hifi-bridge-boot.service", "hifi-bridge-data.service", "hifi-bridge-growdata.service"]
+OWN_UNITS = ["hifi-bridge.service", "hifi-bridge-boot.service", "hifi-bridge-data.service", "hifi-bridge-growdata.service",
+             "hifi-bridge-health.service", "hifi-bridge-reboot.path", "hifi-bridge-reboot.service", "hifi-firewall.service",
+             "hifi-netd.service", "hifi-net-wpa@.service", "hifi-net-hostapd@.service", "hifi-net-dhcp@.service"]
+# enabled at boot by post-build.sh (template units are started by hifi-netd on demand, never at boot)
+ENABLED_AT_BOOT = ["hifi-bridge.service", "hifi-bridge-boot.service", "hifi-bridge-data.service", "hifi-bridge-growdata.service",
+                   "hifi-bridge-health.service", "hifi-bridge-reboot.path", "hifi-firewall.service", "hifi-netd.service"]
 HARDWARE_PENDING = [
     "boots: firmware -> U-Boot -> kernel from slot A -> multi-user.target (G2 P1-2)",
     "U-Boot reads uboot.env from the FAT; fw_printenv/fw_setenv agree with it (G2 P3-1)",
@@ -143,7 +148,8 @@ def check_fstab_ro(r, root, cmdline_args):
     rootline = [x for x in fstab if len(x) > 1 and x[1] == "/"]
     r.add("rootfs.fstab-ro", bool(rootline) and "ro" in rootline[0][3].split(","), f"root entry: {rootline}")
     r.add("rootfs.bootargs-ro", " ro " in f" {cmdline_args} ", f"U-Boot bootargs: {cmdline_args.strip()}")
-    want = {"/boot": "vfat", "/data": "ext4", "/var/lib/hifi-bridge": "none", "/var/lib/bluetooth": "none"}
+    want = {"/boot": "vfat", "/data": "ext4", "/var/lib/hifi-bridge": "none", "/var/lib/bluetooth": "none",
+            "/var/lib/systemd/timesync": "none"}
     for mp, typ in want.items():
         e = [x for x in fstab if len(x) > 2 and x[1] == mp]
         r.add(f"rootfs.fstab{mp.replace('/', '-')}", bool(e) and e[0][2] == typ, f"{mp}: {e[0] if e else 'missing'}")
@@ -152,7 +158,7 @@ def check_fstab_ro(r, root, cmdline_args):
     r.add("rootfs.var-overlay-unit", ok, "/var = overlayfs with a tmpfs upper (Buildroot BR2_INIT_SYSTEMD_VAR_OVERLAYFS)")
     r.add("rootfs.var-not-symlink", os.path.isdir(os.path.join(root, "var")) and not os.path.islink(os.path.join(root, "var")),
           "var.mount has ConditionPathIsSymbolicLink=!/var")
-    for d in ("boot", "data", "var/lib/hifi-bridge", "var/lib/bluetooth"):
+    for d in ("boot", "data", "var/lib/hifi-bridge", "var/lib/bluetooth", "var/lib/systemd/timesync"):
         r.add(f"rootfs.mountpoint-{d.replace('/', '-')}", os.path.isdir(os.path.join(root, d)), f"/{d} exists as a mount point")
 
 
@@ -317,7 +323,7 @@ def check_bridge(r, root):
 
 def check_units(r, root, units):
     r.facts["enabled_units"] = units
-    for u in ("hifi-bridge.service", "hifi-bridge-boot.service", "hifi-bridge-data.service", "hifi-bridge-growdata.service"):
+    for u in ENABLED_AT_BOOT:
         r.add(f"units.enabled-{u}", is_enabled(units, u), f"{u} is wanted by " +
               ", ".join(k for k, v in units.items() if u in v) if is_enabled(units, u) else f"{u} not enabled")
     for u in ("bluetooth.service", "avahi-daemon.service", "systemd-networkd.service", "systemd-timesyncd.service",
@@ -327,6 +333,12 @@ def check_units(r, root, units):
         present = os.path.exists(os.path.join(root, "usr/lib/systemd/system", u)) or os.path.exists(os.path.join(root, "etc/systemd/system", u))
         r.add(f"units.state-{u}", True, f"unit file {'present' if present else 'absent'}, {'enabled' if is_enabled(units, u) else 'not enabled'}",
               info=True)
+    mg = os.path.join(root, "etc/systemd/system/rauc-mark-good.service")
+    r.add("units.rauc-mark-good-masked", os.path.islink(mg) and os.readlink(mg) == "/dev/null",
+          "rauc-mark-good masked: only hifi-bridge-health.service marks a slot good (docs/OTA.md section 4)")
+    templ = [u for u in ("hifi-net-wpa@.service", "hifi-net-hostapd@.service", "hifi-net-dhcp@.service")
+             if any(x.startswith(u.split("@")[0] + "@") for v in units.values() for x in v)]
+    r.add("units.net-templates-not-at-boot", not templ, "Wi-Fi client/hotspot/DHCP instances are started by hifi-netd only")
     both = [u for u in ("hostapd.service", "wpa_supplicant.service") if is_enabled(units, u)]
     r.add("units.not-hotspot-and-client", len(both) < 2, "never both hostapd and wpa_supplicant enabled at boot (PRODUCT_SPEC)")
     dns = is_enabled(units, "dnsmasq.service") and is_enabled(units, "systemd-resolved.service")
@@ -343,15 +355,17 @@ def systemd_verify(r, root):
     if not shutil.which("systemd-analyze"):
         r.add("units.verify", False, "systemd-analyze not available")
         return
-    paths = [os.path.join(root, "usr/lib/systemd/system", u) for u in OWN_UNITS]
-    res = sh("systemd-analyze", "verify", f"--root={root}", "--man=no", "--generators=no", *paths)
+    # unit NAMES (resolved in the image's own search path); templates are verified as an instance
+    names = [u.replace("@.", "@wlan0.") for u in OWN_UNITS]
+    res = sh("systemd-analyze", "verify", f"--root={root}", "--man=no", "--generators=no", *names)
     out = (res.stdout + res.stderr).strip()
     r.facts["systemd_verify_output"] = out
     # warnings about units of OTHER packages that ours reference are listed, but only messages about our own units fail the check
-    own = [ln for ln in out.splitlines() if any(u in ln for u in OWN_UNITS)]
+    stems = [u.split("@")[0].split(".")[0] for u in OWN_UNITS]
+    own = [ln for ln in out.splitlines() if any(st in ln for st in stems)]
     r.add("units.verify", res.returncode == 0 and not own,
           f"systemd-analyze verify --root (rc {res.returncode}): " + (" | ".join(out.splitlines()[:12]) or "no messages"))
-    for u in ("hifi-bridge.service", "hifi-bridge-boot.service"):
+    for u in ("hifi-bridge.service", "hifi-bridge-boot.service", "hifi-netd.service", "hifi-bridge-health.service"):
         s = sh("systemd-analyze", "security", "--offline=true", f"--root={root}", "--no-pager", u)
         m = re.search(r"Overall exposure level for \S+: ([0-9.]+) (\S+)", s.stdout + s.stderr)
         r.facts.setdefault("exposure", {})[u] = m.group(0) if m else (s.stdout + s.stderr).strip()[-300:]
@@ -364,9 +378,19 @@ def check_network_and_misc(r, root):
     r.facts["networkd_files"] = nets
     r.add("network.networkd-config", True, "networkd files: " + ", ".join(nets), info=True)
     r.add("network.nft", os.path.exists(resolve(root, "/usr/sbin/nft")), "nft binary (firewall ruleset: network stream)")
-    rules = glob.glob(os.path.join(root, "etc/nftables*")) + glob.glob(os.path.join(root, "etc/nftables.d/*"))
-    r.add("network.firewall-ruleset", True, "nftables ruleset: " + (", ".join(os.path.relpath(x, root) for x in rules) or "none yet"),
-          info=True)
+    base = os.path.join(root, "usr/share/hifi-bridge/nftables-base.nft")
+    text = open(base).read() if os.path.isfile(base) else ""
+    r.add("network.firewall-base-ruleset", "policy drop" in text and "input" in text,
+          "base ruleset /usr/share/hifi-bridge/nftables-base.nft (default-deny inbound, loaded by hifi-firewall.service before networking)")
+    mods = os.path.join(root, "etc/modules-load.d/hifi-bridge-nftables.conf")
+    r.add("network.nft-modules", os.path.isfile(mods), "nftables kernel modules loaded at boot (modules-load.d)")
+    ko = glob.glob(os.path.join(root, "usr/lib/modules/*/kernel/net/netfilter/nf_tables.ko*"))
+    builtin = any("nf_tables" in open(p).read() for p in glob.glob(os.path.join(root, "usr/lib/modules/*/modules.builtin")))
+    r.add("network.nf_tables-in-kernel", bool(ko) or builtin, "nf_tables " + ("module" if ko else "built in" if builtin else "MISSING"))
+    pol = os.path.join(root, "etc/dbus-1/system.d/de.pengutronix.rauc-hifi-bridge.conf")
+    r.add("rauc.dbus-policy", os.path.isfile(pol) and "hifi-bridge" in open(pol).read(), "RAUC D-Bus policy for the hifi-bridge user")
+    for f in ("etc/avahi/avahi-daemon.conf", "etc/systemd/timesyncd.conf.d/hifi-bridge.conf", "usr/lib/tmpfiles.d/hifi-bridge-ota.conf"):
+        r.add(f"files.{os.path.basename(f)}", os.path.isfile(os.path.join(root, f)), "/" + f)
     regdb = glob.glob(os.path.join(root, "usr/lib/firmware/regulatory.db*"))
     r.add("network.regdb", bool(regdb), "wireless regulatory database")
     bt = glob.glob(os.path.join(root, "usr/lib/firmware/brcm/BCM*.hcd"))
