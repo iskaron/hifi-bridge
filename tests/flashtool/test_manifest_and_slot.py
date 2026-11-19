@@ -53,6 +53,9 @@ def test_manifest_validation(change):
     assert M.load(M.dumps(MAN)) == MAN
     with pytest.raises(M.ManifestError):
         M.load(b"not json")
+    for not_an_object in (b"null", b"[1]", b'"x"'):                    # valid JSON, but not a manifest (was an AttributeError)
+        with pytest.raises(M.ManifestError, match="not a JSON object"):
+            M.load(not_an_object)
 
 
 def fat_image(tmp, fat_bits, size_mb):
@@ -121,3 +124,46 @@ def test_build_manifest_from_an_image_and_the_cli(tmp_path, capsys):
     with pytest.raises(M.ManifestError, match="slot has"):
         M.build(str(img2), "c", "1")
     assert M.main(["build", "--image", str(img2), "--compatible", "c", "--version", "1", "--out", str(out)]) == 1
+
+
+def raw_fat(tmp, *mkfs_args, files=(), delete=(), fill_root=False):
+    """An MBR image with one FAT12 partition made with the given mkfs.vfat options, the given files copied in and some deleted
+    (``fill_root``: as many files as the root directory has entries - mkfs.vfat enforces its own minimum)."""
+    img, part = tmp / "raw.img", tmp / "rawp.img"
+    with open(img, "wb") as fh:
+        fh.truncate(9 * 1024 ** 2)
+    subprocess.run(["sfdisk", "-q", str(img)], input="label: dos\n2048,,c\n", text=True, check=True)
+    sh("mkfs.vfat", "-F", "12", *mkfs_args, "-C", str(part), str(8 * 1024 - 1024))
+    if fill_root:
+        files = [f"F{i}.TXT" for i in range(struct.unpack_from("<H", part.read_bytes()[:512], 17)[0])]
+    for n in files:
+        (tmp / n).write_bytes(b"x" * 100)
+        sh("mcopy", "-i", str(part), str(tmp / n), f"::{n}")
+    for n in delete:
+        sh("mdel", "-i", str(part), f"::{n}")
+    with open(img, "r+b") as fh, open(part, "rb") as src:
+        fh.seek(2048 * 512); fh.write(src.read())
+    return img
+
+
+def test_fat_edge_cases_label_deleted_entries_full_root_short_chain_and_not_fat(tmp_path):
+    img = raw_fat(tmp_path, "-n", "HIFIBOOT", files=("A.TXT", "B.TXT", "C.TXT"), delete=("A.TXT",))
+    assert find_file(file_reader(str(img)), "C.TXT")[1] == 100                  # skips the volume label and the deleted entry
+    full = tmp_path / "full"; full.mkdir()
+    img2 = raw_fat(full, "-r", "16", "-n", "", fill_root=True)
+    with pytest.raises(SlotError, match="not found"):                           # every root entry used: the scan ends without a 0 entry
+        find_file(file_reader(str(img2)), "NOPE.TXT")
+    off, _ = find_file(file_reader(str(img)), "C.TXT")
+    bs = file_reader(str(img))(2048 * 512, 512)
+    root = 2048 * 512 + (struct.unpack_from("<H", bs, 14)[0] + bs[16] * struct.unpack_from("<H", bs, 22)[0]) * 512
+    raw = bytearray(img.read_bytes())
+    for i in range(root, root + 16 * 32, 32):                                    # make C.TXT claim far more bytes than its one cluster
+        if raw[i:i + 11] == b"C       TXT":
+            struct.pack_into("<I", raw, i + 28, 10 * 1024 * 1024)
+    img.write_bytes(bytes(raw))
+    with pytest.raises(SlotError, match="cluster chain shorter"):
+        find_file(file_reader(str(img)), "C.TXT")
+    raw[2048 * 512 + 11:2048 * 512 + 13] = b"\x00\x00"                            # 0 bytes per sector
+    img.write_bytes(bytes(raw))
+    with pytest.raises(SlotError, match="not a FAT"):
+        find_file(file_reader(str(img)), "C.TXT")

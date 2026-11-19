@@ -27,6 +27,20 @@ pipewire        </dev/null >"$LOG/pipewire.log"     2>&1 &
 for _ in $(seq 150); do [ -S "$XDG_RUNTIME_DIR/pipewire-0" ] && break; sleep 0.1; done
 wireplumber     </dev/null >"$LOG/wireplumber.log"  2>&1 &
 pipewire-pulse  </dev/null >"$LOG/pipewire-pulse.log" 2>&1 &
-for _ in $(seq 300); do pactl info >/dev/null 2>&1 && break; sleep 0.1; done   # up to 30 s: cold CI runners are slow
-pactl info >/dev/null || { echo "pipewire-pulse did not come up" >&2; tail -n 8 "$LOG"/*.log >&2; return 1 2>/dev/null || exit 1; }
+PW_PULSE_PID=$!
+# Up to 30 s: cold CI runners are slow. pipewire-pulse occasionally exits during start-up (OPEN_QUESTIONS #26, seen on a cold CI runner
+# with 0.3.65): restart it ONCE and record that in its log, as the device's service manager would.
+PW_PULSE_RESTARTS=0
+for _ in $(seq 300); do
+  pactl info >/dev/null 2>&1 && break
+  if [ "$PW_PULSE_RESTARTS" -eq 0 ] && ! kill -0 "$PW_PULSE_PID" 2>/dev/null; then
+    echo "### harness: pipewire-pulse exited during start-up - restarting it once" >>"$LOG/pipewire-pulse.log"
+    pipewire-pulse </dev/null >>"$LOG/pipewire-pulse.log" 2>&1 &
+    PW_PULSE_PID=$!; PW_PULSE_RESTARTS=1
+  fi
+  sleep 0.1
+done
+pactl info >/dev/null || { echo "pipewire-pulse did not come up (restarts: $PW_PULSE_RESTARTS)" >&2
+  for f in pipewire-pulse wireplumber pipewire; do echo "--- $f.log" >&2; tail -n 12 "$LOG/$f.log" >&2; done; return 1 2>/dev/null || exit 1; }
+export PW_PULSE_RESTARTS
 export XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS XDG_CONFIG_HOME

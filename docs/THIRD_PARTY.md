@@ -15,7 +15,7 @@
 | Component | Use | Licence |
 |---|---|---|
 | Debian bookworm/trixie images | lab containers | various (DFSG) |
-| Lyrion Music Server 9.1.2 (`lmscommunity/lyrionmusicserver:stable`) | real LMS in the lab | GPL-2.0 |
+| Lyrion Music Server 9.1.2 (`lmscommunity/lyrionmusicserver:9.1.2@sha256 pin`) | real LMS in the lab | GPL-2.0 |
 | Squeezelite 1.9.9 | software players in the lab | GPL-3.0 |
 | Eclipse Mosquitto 2.0.20 | MQTT broker in the lab | EPL-2.0 / EDL-1.0 |
 | numpy, pytest | analysis, test runner | BSD-3-Clause / MIT |
@@ -33,6 +33,7 @@
 | Buildroot 2026.02.x (`679b9ea`, fetched into `.lab/`, not redistributed) | configuration checks, `show-info` licence reports | GPL-2.0+ |
 | Debian 13 OS tools in `btbridge-os`: RAUC 1.13, genimage 18, mtools 4.0.48, dosfstools 4.2, e2fsprogs 1.47.2, squashfs-tools 4.6.1, u-boot-tools 2025.01, fdisk (util-linux), OpenSSL 3.5 | image-layout, keyring and signature tests | LGPL-2.1 / GPL-2.0 / GPL-3.0+ / GPL-3.0+ / GPL-2.0 / GPL-2.0+ / GPL-2.0+ / GPL-2.0+ / Apache-2.0 |
 | python3-cryptography 43 (Debian) | flash tool: manifest signature check (also a future runtime dependency of the flash tool) | Apache-2.0 or BSD-3-Clause |
+| `btbridge-flash:dev` (Debian 13 + pip, exact pins): PySide6 6.12.0, cryptography 50.0.2, pytest 8.4.2, pytest-qt 4.5.0, coverage 7.16.2, PyInstaller 6.22.3; fonts-dejavu-core, fonts-urw-base35 | flash tool GUI tests (offscreen), screenshots, the Linux package build | LGPL-3.0/GPL / Apache-2.0 or BSD / MIT / MIT / Apache-2.0 / GPL-2.0 with bootloader exception / Bitstream Vera + public domain / AGPL-3.0 (URW base35) |
 
 The logo (`webui/static/logo.svg`) is original to this project. It deliberately does **not** use the Bluetooth® trademark logo. The provisional product name is
 "Hi-Fi Bridge"; "Bluetooth" is used only descriptively (DECISIONS #34); trademark questions remain open before a public release.
@@ -48,9 +49,27 @@ pulled from their publishers. Versions as tested on 2026-11-17.
 | Squeezelite 2.0 | the three simulated rooms' players | GPL-3.0-or-later | Debian package |
 | flac, mpg123, vorbis-tools | decoding the user's own files (local only) | GPL-2.0+ / BSD (libFLAC), LGPL-2.1, GPL-2.0 | Debian packages |
 | NumPy, jeepney, python-cryptography | music generation, D-Bus, flash-tool core | BSD-3-Clause, MIT, Apache-2.0 or BSD | Debian packages |
-| Lyrion Music Server (`lmscommunity/lyrionmusicserver:stable`) | the real Lyrion server | GPL-2.0 and others | Docker Hub |
+| Lyrion Music Server (`lmscommunity/lyrionmusicserver:9.1.2@sha256 pin`) | the real Lyrion server | GPL-2.0 and others | Docker Hub |
 | Eclipse Mosquitto 2.0.20 | MQTT broker | EPL-2.0 or EDL-1.0 | Docker Hub |
 | Home Assistant 2026.11.1 (optional profile) | MQTT discovery in a real Home Assistant | Apache-2.0 | ghcr.io |
 | Playwright, axe-core (stack test only) | browser tests and WCAG audit | Apache-2.0, MPL-2.0 | Microsoft Playwright image, PyPI |
 | Gitleaks v8.24.3 (CI and `scripts/run_secrets.sh`) | secret scan of the Git history | MIT | ghcr.io |
 | Demo music, radio programme, notification sounds | generated in code (`demo/hifidemo/music.py`) | output: CC0-1.0 | this project |
+
+## Flash tool (owner's computer; `flashtool/`, docs/FLASH_TOOL.md)
+Shipped in the flash-tool packages (one-folder PyInstaller build, `flashtool/packaging/`). The licence texts are collected into
+`licenses/` of every package by `flashtool/packaging/collect_licenses.py`, and the About dialog points to `THIRD_PARTY_NOTICES.txt`.
+
+| Component | Use | Licence | How the obligations are met |
+|---|---|---|---|
+| Qt 6.12 (QtCore, QtGui, QtWidgets, QtSvg, QtSvgWidgets, QtPrintSupport + platform plugins), via the PySide6 wheels | GUI toolkit | LGPL-3.0 (option chosen; also GPL-2.0/3.0) | **dynamic linking**, one-folder build (never a single-file bundle), the Qt shared libraries stay separate files that the user can replace with own builds of the same version; LGPL-3.0 + GPL-3.0 texts shipped; notice + replacement hint in `THIRD_PARTY_NOTICES.txt` and in the About dialog ("About Qt" included); source: download.qt.io links + written offer to provide the corresponding source for three years |
+| PySide6 / shiboken6 6.12.0 | Python bindings | LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only (LGPL chosen) | as Qt. **Finding:** the 6.12 wheels contain no licence text files (only the metadata expression), so the package ships the texts itself (Debian `common-licenses`) |
+| python-cryptography 50.0.2 (+ cffi, pycparser) | manifest signature check | Apache-2.0 OR BSD-3-Clause (cffi/pycparser: MIT, BSD-3-Clause) | licence files from their dist-info copied into `licenses/` |
+| OpenSSL 3 (inside the cryptography wheel) | crypto backend | Apache-2.0 | named in the notices |
+| CPython 3.13 runtime | interpreter | PSF-2.0 | `Python-LICENSE.txt` |
+| PyInstaller bootloader | starter executables | GPL-2.0 with the bootloader exception (allows any licence for the bundled program) | no obligation for the bundle beyond the notice |
+| Hi-Fi Bridge flash tool itself | — | AGPL-3.0-only | `LICENSE-hifi-bridge.txt` + source link in the About dialog |
+
+Runtime prerequisites that are **not** bundled on Linux: the desktop's X11/xcb or Wayland libraries (e.g. `libxcb-cursor0` for Qt ≥ 6.5),
+fontconfig, `pkexec` (polkit) and `lsblk` (util-linux). Not yet done (G3/G4): a licence review of the actually built Windows and macOS
+bundles (they include platform plugins and, on Windows, the MSVC runtime), and code-signing certificates (owner decision).

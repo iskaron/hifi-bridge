@@ -87,7 +87,7 @@ def test_bridge_is_visible_and_pairable_only_inside_the_pairing_window(world):
     assert vbt.visible()["name"] == "Wohnzimmer Bridge"
     assert vbt.pair(PHONE_A, "Anna's phone") == "paired"
     assert wait(lambda: vbt.device(PHONE_A)["trusted"])              # the product's agent trusted it
-    assert [d["address"] for d in adapter.paired_devices()] == [PHONE_A]
+    assert wait(lambda: [d["address"] for d in adapter.paired_devices()] == [PHONE_A])   # the trust flag can land first
     adapter.set_pairable(False)
     assert wait(lambda: vbt.visible() is None)
     assert vbt.pair(PHONE_B, "Ben's phone") == "not_discoverable"

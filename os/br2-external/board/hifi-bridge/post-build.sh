@@ -146,14 +146,22 @@ add_fstab "/dev/mmcblk0p1 /boot vfat rw,noatime,flush,uid=990,gid=990,fmask=0177
 add_fstab "/dev/mmcblk0p4 /data ext4 rw,noatime,commit=5,x-systemd.growfs 0 2"
 add_fstab "/data/hifi-bridge /var/lib/hifi-bridge none bind,x-systemd.requires=hifi-bridge-data.service 0 0"
 add_fstab "/data/bluetooth /var/lib/bluetooth none bind,x-systemd.requires=hifi-bridge-data.service 0 0"
-mkdir -p "$TARGET_DIR/boot" "$TARGET_DIR/data" "$TARGET_DIR/var/lib/hifi-bridge" "$TARGET_DIR/var/lib/bluetooth"
+# the clock survives a reboot without RTC (docs/NETWORK.md "Time")
+add_fstab "/data/timesync /var/lib/systemd/timesync none bind,x-systemd.requires=hifi-bridge-data.service 0 0"
+mkdir -p "$TARGET_DIR/boot" "$TARGET_DIR/data" "$TARGET_DIR/var/lib/hifi-bridge" "$TARGET_DIR/var/lib/bluetooth" "$TARGET_DIR/var/lib/systemd/timesync"
 
 # ---------------------------------------------------------------- enabled units
 wants="$TARGET_DIR/etc/systemd/system/multi-user.target.wants"
 mkdir -p "$wants"
-for u in hifi-bridge-boot.service hifi-bridge.service; do
+for u in hifi-bridge-boot.service hifi-bridge.service hifi-firewall.service hifi-netd.service; do
 	ln -sf "/usr/lib/systemd/system/$u" "$wants/$u"
 done
+for u in hifi-bridge-health.service hifi-bridge-reboot.path; do	# updates: confirm/roll back after boot, owner-confirmed restart
+	ln -sf "/usr/lib/systemd/system/$u" "$wants/$u"
+done
+# updates (docs/OTA.md section 4): the slot is marked good ONLY by hifi-bridge-health.service after its checks. Upstream RAUC's
+# rauc-mark-good.service would mark every boot good unconditionally and defeat the rollback, so it is masked (harmless if absent).
+ln -sf /dev/null "$TARGET_DIR/etc/systemd/system/rauc-mark-good.service"
 mkdir -p "$TARGET_DIR/etc/systemd/system/data.mount.wants" "$TARGET_DIR/etc/systemd/system/local-fs.target.wants"
 ln -sf /usr/lib/systemd/system/hifi-bridge-growdata.service "$TARGET_DIR/etc/systemd/system/data.mount.wants/hifi-bridge-growdata.service"
 ln -sf /usr/lib/systemd/system/hifi-bridge-data.service "$TARGET_DIR/etc/systemd/system/local-fs.target.wants/hifi-bridge-data.service"

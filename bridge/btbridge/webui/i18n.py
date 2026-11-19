@@ -14,6 +14,9 @@ def strings(lang: str) -> dict[str, str]:
     if lang not in _CACHE:
         with open(os.path.join(_DIR, f"{lang}.json"), encoding="utf-8") as fh:
             _CACHE[lang] = json.load(fh)
+        for extra in sorted(f for f in os.listdir(_DIR) if f.endswith(f".{lang}.json")):     # module dictionaries, e.g. network.en.json
+            with open(os.path.join(_DIR, extra), encoding="utf-8") as fh:
+                _CACHE[lang].update(json.load(fh))
     return _CACHE[lang]
 
 

@@ -1,0 +1,33 @@
+# The demo's network topology in miniature (tests/entry/docker_matrix, scripts/test_docker_versions.sh): an INTERNAL network without a host
+# address (`demo`), a gateway on it and on a normal network (`edge`) that publishes a port to 127.0.0.1, one service only on `demo`, and a
+# CONTROL network without inhibit_ipv4 (positive control: there the host-side decoy IS reachable, which proves the probe works).
+name: hifi-entry-topology
+services:
+  gw:
+    image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+    command: ["sh", "-c", "while true; do printf 'HTTP/1.0 200 OK\\r\\n\\r\\nok' | nc -l -p 8000; done"]
+    networks:
+      demo: {}
+      edge: {}
+    ports: ["127.0.0.1:18999:8000"]
+  srv:
+    image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+    command: ["sleep", "infinity"]
+    networks: [demo]
+  ctl:
+    image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+    command: ["sleep", "infinity"]
+    networks: [control]
+networks:
+  demo:
+    internal: true
+    driver_opts:
+      com.docker.network.bridge.inhibit_ipv4: "true"
+    ipam:
+      config: [{subnet: 172.29.251.0/24}]
+  edge:
+    ipam:
+      config: [{subnet: 172.29.250.0/24}]
+  control:
+    ipam:
+      config: [{subnet: 172.29.249.0/24}]

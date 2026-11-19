@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import platform
+import re
 import socket
 import subprocess
 import threading
@@ -48,12 +49,60 @@ class Lab:
         self.lms = Lms()
         self.t_reset = time.time()
 
+    # Squeezelite logs every volume change it receives ("audg gainL: N"); 65536 = unity gain (LMS volume 100).
+    FULL_GAIN = 65536
+
+    def wait_players_connected(self, timeout=60.0):
+        """Block until Lyrion lists every lab player as connected (a recreated Lyrion has no client objects until the
+        players have re-connected, and commands sent before that are lost)."""
+        want = {m.lower() for m in PLAYERS.values()}
+        deadline = time.time() + timeout
+        have = set()
+        while True:
+            try:
+                loop = self.lms.req("", "serverstatus", 0, 50).get("players_loop") or []
+                have = {p["playerid"].lower() for p in loop if p.get("connected")}
+                if want <= have:
+                    return
+            except OSError:
+                pass                                         # Lyrion still starting
+            if time.time() > deadline:
+                raise RuntimeError(f"lab players not connected within {timeout:.0f}s: missing {sorted(want - have)}")
+            time.sleep(0.25)
+
+    @staticmethod
+    def last_gain(name):
+        """Gain the player actually applied last (from its Squeezelite log), None if unknown."""
+        try:
+            with open(f"/captures/{name}/squeezelite.log", "rb") as f:
+                f.seek(0, 2); f.seek(max(0, f.tell() - 65536))
+                gains = re.findall(rb"audg gainL: (\d+)", f.read())
+            return int(gains[-1]) if gains else None
+        except OSError:
+            return None
+
+    def _volume_confirmed(self, name):
+        return self.status(name).get("mixer volume") == 100 and self.last_gain(name) in (self.FULL_GAIN, None)
+
     def reset(self):
-        for pid in PLAYERS.values():
-            self.lms.req(pid, "sync", "-")
-        for pid in PLAYERS.values():
-            self.lms.req(pid, "playlist", "clear"); self.lms.req(pid, "stop"); self.lms.req(pid, "power", 1); self.lms.req(pid, "mixer", "volume", 100)
-        time.sleep(0.5)
+        # The persisted per-player volume (Lyrion prefs survive a lab recreate, DECISIONS #47) is applied when a player connects, and
+        # a volume command sent before that is lost.  A gain != unity makes the bit-exact checks fail ("samples altered"), so wait
+        # for the players, then confirm the gain the player really applied (not only Lyrion's preference) and retry if needed.
+        self.wait_players_connected()
+        for attempt in range(10):
+            for pid in PLAYERS.values():
+                self.lms.req(pid, "sync", "-")
+            for pid in PLAYERS.values():
+                self.lms.req(pid, "playlist", "clear"); self.lms.req(pid, "stop"); self.lms.req(pid, "power", 1)
+                if attempt >= 2:                             # nudge: a set to the value Lyrion already holds can be a no-op
+                    self.lms.req(pid, "mixer", "volume", 99)
+                self.lms.req(pid, "mixer", "volume", 100)
+            time.sleep(0.5)
+            if all(self._volume_confirmed(n) for n in PLAYERS):
+                break
+        else:
+            raise RuntimeError("lab reset: player volume not confirmed at 100: "
+                               + str({n: (self.status(n).get("mixer volume"), self.last_gain(n)) for n in PLAYERS}))
         self.t_reset = time.time()
 
     def status(self, name="player1"):

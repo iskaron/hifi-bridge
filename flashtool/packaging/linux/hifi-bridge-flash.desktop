@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Hi-Fi Bridge Flash Tool
+Name[de]=Hi-Fi Bridge Flash-Werkzeug
+Comment=Write and set up SD cards for a Hi-Fi Bridge
+Comment[de]=SD-Karten für eine Hi-Fi Bridge schreiben und einrichten
+Exec=/opt/hifi-bridge-flash/hifi-bridge-flash
+Icon=hifi-bridge-flash
+Terminal=false
+Categories=Utility;System;
+Keywords=Raspberry Pi;SD card;flash;image;

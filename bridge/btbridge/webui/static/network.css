@@ -1,0 +1,11 @@
+/* Network pages (views_network.py). Uses the design tokens of app.css only. */
+.net-trial { border-color: var(--accent); background: var(--accent-soft); }
+.net-trial h2 { margin-top: 0; }
+.net-countdown { font-variant-numeric: tabular-nums; }
+.stack-cards form.inline { display: inline-block; margin: 0 .5rem .5rem 0; }
+.choice.radio.muted { opacity: .72; cursor: not-allowed; }
+.choice.radio.muted strong { color: var(--muted); }
+.static-fields { display: grid; gap: .8rem; margin-top: .6rem; }
+.static-fields[hidden] { display: none; }
+fieldset + fieldset { margin-top: 1rem; }
+.facts.stacked code { word-break: break-all; }

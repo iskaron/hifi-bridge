@@ -5,12 +5,16 @@
 # Output is tee'd to $LOG (default reports/evidence/full_run.log). For a clean-slate run: scripts/lab_down.sh first.
 set -uo pipefail
 cd "$(dirname "$0")/.."  || exit 1
+# shellcheck source=lib/common.sh
+. scripts/lib/common.sh
+hb_require --compose
 LOG="${LOG:-reports/evidence/full_run.log}"
 mkdir -p reports/evidence
 scripts/lab_up.sh >/dev/null
 {
   echo "### date: $(date -u +%FT%TZ)"; docker --version; git rev-parse --short HEAD 2>/dev/null
   echo "### STATIC";        scripts/run_static.sh                                     ; S=$?
+  echo "### ENTRY";         scripts/run_entry_tests.sh                                ; EN=$?
   echo "### UNIT";          scripts/run_unit.sh -q                                    ; U=$?
   echo "### INTEGRATION";   scripts/run_integration.sh -q                             ; I=$?
   echo "### OUTAGE lms";    scripts/test_outage.sh lms     | grep -vE "Container"; O1=${PIPESTATUS[0]}
@@ -18,14 +22,17 @@ scripts/lab_up.sh >/dev/null
   echo "### PIPEWIRE";      scripts/run_pipewire.sh -q                                ; P=$?
   echo "### HWKIT";         scripts/run_hwkit.sh -q                                   ; H=$?
   echo "### MDNS";          scripts/test_mdns.sh                                      ; M=$?
+  echo "### NETWORK";       scripts/run_net.sh                                        ; NET=$?
+  echo "### OTA (real RAUC)"; scripts/run_ota.sh                                      ; OTA=$?
   echo "### SYSLOG";        scripts/test_syslog.sh -q                                 ; SY=$?
   echo "### PYTHON 3.14";   scripts/run_py314.sh                                      ; PY=$?
   echo "### SECURITY";      scripts/run_security.sh                                   ; SEC=$?
   echo "### SECRETS";       scripts/run_secrets.sh                                    ; SECR=$?
   echo "### OS + FLASH TOOL"; scripts/run_os.sh                                       ; OS=$?
+  echo "### FLASH TOOL (GUI, helper, package)"; { scripts/run_flashtool.sh coverage && scripts/run_flashtool.sh package; }; FT=$?
   echo "### HOMEASSISTANT"; scripts/run_homeassistant.sh -q                           ; HA=$?
   echo "### DEMO (unit)";   scripts/run_demo_tests.sh -q                              ; DU=$?
   echo "### DEMO (stack)";  scripts/test_demo.sh                                      ; DS=$?
   echo "### BROWSER";       scripts/run_browser.sh -q                                 ; B=$?
-  echo "exit codes: static=$S unit=$U integration=$I outage_lms=$O1 outage_player=$O2 pipewire=$P hwkit=$H mdns=$M syslog=$SY py314=$PY security=$SEC secrets=$SECR os=$OS homeassistant=$HA demo_unit=$DU demo_stack=$DS browser=$B"
+  echo "exit codes: static=$S entry=$EN unit=$U integration=$I outage_lms=$O1 outage_player=$O2 pipewire=$P hwkit=$H mdns=$M network=$NET ota=$OTA syslog=$SY py314=$PY security=$SEC secrets=$SECR os=$OS flashtool=$FT homeassistant=$HA demo_unit=$DU demo_stack=$DS browser=$B"
 } 2>&1 | tee "$LOG"

@@ -47,7 +47,9 @@ def load(raw: bytes) -> dict:
         m = json.loads(raw)
     except ValueError:
         raise ManifestError("manifest is not JSON") from None
-    need = {"format": str, "compatible": str, "version": str, "image": str, "size": int, "sha256": str, "slot": dict}
+    if not isinstance(m, dict):
+        raise ManifestError("manifest is not a JSON object")
+    need ={"format": str, "compatible": str, "version": str, "image": str, "size": int, "sha256": str, "slot": dict}
     for k, t in need.items():
         if not isinstance(m.get(k), t):
             raise ManifestError(f"manifest field {k} missing or wrong type")

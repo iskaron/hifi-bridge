@@ -1,0 +1,6 @@
+      docker engine 29.1.3 (required: engine >= 24.0)
+FAIL  network hifi-entry-negative_internal_only: internal=true inhibit_ipv4=unset, attached: hifi-entry-negative-half-1  - a reachable host address is possible
+FAIL  network hifi-entry-negative_open: internal=false inhibit_ipv4=unset, attached: hifi-entry-negative-plain-1  - a reachable host address is possible
+FAIL  plain is attached to hifi-entry-negative_open, which is not internal+inhibit_ipv4
+FAIL  half is attached to hifi-entry-negative_internal_only, which is not internal+inhibit_ipv4
+isolation check of project hifi-entry-negative: rc=1

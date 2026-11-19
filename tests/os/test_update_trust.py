@@ -116,7 +116,9 @@ def test_post_build_writes_system_conf_fstab_and_units_idempotently(tmp_path, to
     cfg = tmp_path / "config-OFFICIAL"
     sh(f"{BOARD}/post-build.sh", str(target), env={"BR2_CONFIG": str(cfg)})          # second run: no duplicates
     fstab = (target / "etc/fstab").read_text().splitlines()
-    assert len(fstab) == len(set(fstab)) == 4 and any(" /boot vfat " in x and "uid=990" in x and "fmask=0177" in x for x in fstab)
+    assert len(fstab) == len(set(fstab)) == 5 and any(" /var/lib/systemd/timesync none bind" in x for x in fstab) and any(" /boot vfat " in x and "uid=990" in x and "fmask=0177" in x for x in fstab)
     assert (target / "etc/systemd/system/multi-user.target.wants/hifi-bridge-boot.service").is_symlink()
+    for u in ("hifi-firewall.service", "hifi-netd.service"):                                   # network agent + base firewall (docs/NETWORK.md)
+        assert (target / "etc/systemd/system/multi-user.target.wants" / u).is_symlink()
     assert (target / "etc/systemd/system/data.mount.wants/hifi-bridge-growdata.service").is_symlink()
     shutil.rmtree(target)

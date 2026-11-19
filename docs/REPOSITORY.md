@@ -23,7 +23,10 @@ owner's approval; no merge from `develop` without approval). No tags, no release
 3. `main` and `develop` pushed with their full, unchanged history; upstreams set to `origin/main` and `origin/develop`.
 
 ## 3. CI (GitHub Actions, `.github/workflows/ci.yml`)
-* Every job calls the same Docker script as a local run (`scripts/run_*.sh`); nothing besides Docker is installed on the runner.
+* Every job calls the same Docker script as a local run (`scripts/run_*.sh`); nothing besides Docker is installed on the runner. All entry
+  scripts share `scripts/lib/common.sh` (pre-flight check of Docker/Compose versions, disk and ports; build of missing project images in
+  dependency order; progress output; `HB_QUIET=1` for CI). Third-party images are pinned by tag and digest (`docker/image-pins.txt`,
+  `docs/IMAGE_PINS.md`); the `static` job also runs `scripts/run_entry_tests.sh` (entry scripts, compose isolation rules, pins).
 * Jobs: static (shellcheck, compile, systemd-analyze, actionlint), unit, integration + outages (real LMS/Squeezelite/Mosquitto), PipeWire
   0.3.65/1.4.2, hwkit, mDNS against a real Avahi, OS + flash tool (Buildroot defconfig/licence checks, real RAUC host tool, genimage card
   layout, simulated cards), security (bandit + **full-history Gitleaks**, `fetch-depth: 0`), Python 3.14, syslog over TLS, coverage,

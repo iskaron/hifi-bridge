@@ -86,7 +86,14 @@ def _add(buf: np.ndarray, sig: np.ndarray, at: int, pan: float, gain: float) -> 
     buf[at:end, 1] += s * np.sin((pan + 1) * np.pi / 4)
 
 
-def _finish(buf: np.ndarray, peak: float = 0.7, fade_in: float = 1.0, fade_out: float = 2.0) -> bytes:
+PEAK = 0.89                                                         # -1 dBFS: loud, but with headroom for the DAC and for resampling
+DRIVE = 1.0                                                         # gentle tanh saturation: about +4 dB RMS at the same peak
+
+
+def _finish(buf: np.ndarray, peak: float = PEAK, fade_in: float = 1.0, fade_out: float = 2.0, drive: float = DRIVE) -> bytes:
+    """Echo, fades, then a soft limiter and peak normalisation. Level policy (docs/DEMO.md "Loudness"): the generated pieces were -17.8 dBFS
+    RMS / -3.1 dBFS peak, which behind Lyrion's default player volume 50 (-25 dB) arrived at about -42 dBFS - hardly audible. Now about
+    -14 dBFS RMS / -1 dBFS peak, like moderately loud music."""
     d = int(0.29 * RATE)                                             # a soft ping-pong echo for width
     buf[d:, 0] += 0.22 * buf[:-d, 1]
     buf[d:, 1] += 0.22 * buf[:-d, 0]
@@ -94,6 +101,9 @@ def _finish(buf: np.ndarray, peak: float = 0.7, fade_in: float = 1.0, fade_out: 
     fi, fo = int(fade_in * RATE), int(fade_out * RATE)
     buf[:fi] *= np.linspace(0, 1, fi)[:, None] ** 2
     buf[-fo:] *= np.linspace(1, 0, fo)[:, None] ** 2
+    buf /= max(1e-9, np.abs(buf).max())
+    if drive > 0:
+        buf = np.tanh(drive * buf) / np.tanh(drive)
     buf *= peak / max(1e-9, np.abs(buf).max())
     return (np.clip(buf, -1, 1) * 32767).astype("<i2").tobytes()
 
@@ -132,7 +142,7 @@ def notification(seconds: float = 0.7) -> bytes:
     buf = np.zeros((n, 2))
     _add(buf, _pluck(hz(88), seconds, 0.12), 0, -0.1, 1.0)
     _add(buf, _pluck(hz(93), seconds - 0.12, 0.14), int(0.12 * RATE), 0.1, 0.9)
-    return _finish(buf, peak=0.6, fade_in=0.005, fade_out=0.05)
+    return _finish(buf, peak=0.8, fade_in=0.005, fade_out=0.05)
 
 
 RADIO_SHOWS = (
@@ -162,7 +172,7 @@ class Radio:
         buf = np.zeros((int(1.6 * RATE), 2))
         for i, m in enumerate((72, 76, 79, 84)):
             _add(buf, _pluck(hz(m), 1.6 - i * 0.18, 0.4), int(i * 0.18 * RATE), -0.3 + 0.2 * i, 0.9)
-        return _finish(buf, peak=0.6, fade_in=0.005, fade_out=0.3)
+        return _finish(buf, peak=0.8, fade_in=0.005, fade_out=0.3)
 
     def read(self, nbytes: int) -> bytes:
         nbytes -= nbytes % 4

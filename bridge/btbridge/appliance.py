@@ -17,6 +17,7 @@ from typing import Callable
 
 from .mqtt import MqttBridge
 from .net.access import LocalAccess
+from .net.netclient import AgentClient, NetworkService
 from .service import ApplianceService
 from .supervision import StopSignal, SystemdNotifier, Watchdog
 from .system import SystemMonitor
@@ -30,8 +31,9 @@ def build_source(spec: str, dbus: str):
         from btkit.sim_a2dp import SimulatedA2dpSource           # lab only (testkit on PYTHONPATH)
         return SimulatedA2dpSource()
     if spec == "bluez":
+        from . import privacy
         from .adapters.bluez.factory import create_adapter
-        return create_adapter(bus=dbus)
+        return create_adapter(bus=dbus, log=privacy.scrubbed_print)          # journald gets pseudonyms, not phone MACs
     mod, cls = spec.split(":")
     return getattr(importlib.import_module(mod), cls)()
 
@@ -51,6 +53,11 @@ def parser() -> argparse.ArgumentParser:
     ap.add_argument("--proc-root", default="/proc")
     ap.add_argument("--thermal-path", default="/sys/class/thermal/thermal_zone0/temp", help='"" disables temperature reading')
     ap.add_argument("--no-mqtt", action="store_true")
+    ap.add_argument("--net-agent", default="/run/hifi-net/agent.sock",
+                    help="socket of the root network agent hifi-netd; without it the network pages only show the current addresses")
+    ap.add_argument("--updates", choices=("none", "rauc"), default="none",
+                    help="rauc = update management through the RAUC D-Bus service (appliance image); none = no update service")
+    ap.add_argument("--update-trust", default="/etc/hifi-bridge/update-trust.json", help="the image's update trust record (post-build.sh)")
     return ap
 
 
@@ -82,13 +89,27 @@ def run(a, source, ready: Callable[[ApplianceService, WebUI], None] | None = Non
             print(f"boot files: recovery={r['recovery']} provisioning={r['provisioning']['result']}", flush=True)
         except OSError as e:                                  # e.g. a root-owned /boot/firmware on stock Pi OS: report, keep running
             print(f"boot files NOT processed ({type(e).__name__}: {e}) - the bridge starts without them", file=sys.stderr, flush=True)
+    if getattr(a, "updates", "none") == "rauc":                 # an owner-requested settings snapshot, BEFORE the configuration loads
+        from .ota.manager import prepare_data
+        prepare_data(a.data, log=lambda m: print(m, flush=True))
     svc = ApplianceService(a.data, source=source, stream_port=a.stream_port, advertise_host=a.advertise_host,
                            monitor=SystemMonitor(proc=a.proc_root, thermal=a.thermal_path or None, data_dir=a.data),
                            mqtt_factory=None if a.no_mqtt else MqttBridge)
     if a.no_mdns:
         svc.store.update({"mdns_enabled": False})
     svc.access = LocalAccess(svc.store, a.data, svc.instance_id(), a.http_port, a.https_port or 0, log=svc.logs)
+    svc.network = NetworkService(a.data, AgentClient(getattr(a, "net_agent", "/run/hifi-net/agent.sock")), log=svc.logs,
+                                 secrets=svc.logs.secrets)
+    svc.network.access = svc.access
+    svc.access.before_rename = svc.network.apply_hostname
     svc.access.start()
+    svc.network.start()
+    if getattr(a, "updates", "none") == "rauc":
+        from .ota.manager import UpdateManager
+        from .ota.rauc import RaucClient
+        from .ota.source import load_trust
+        svc.ota = UpdateManager(a.data, RaucClient(bus=a.dbus), trust=load_trust(a.update_trust) or {}, log=svc.logs)
+        svc.ota.resume()                                      # reconcile with what booted; keep watching a running installation
     ca = svc.access.certs.ca_info()
     if ca:                                   # out-of-band reference for the trust step (docs/LOCAL_ACCESS_TLS.md 4.2)
         svc.logs(f"local CA fingerprint (SHA-256): {ca['sha256']}")

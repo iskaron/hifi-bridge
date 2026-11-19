@@ -2,9 +2,12 @@
 # INTEGRATION: optional secure remote syslog -> REAL rsyslog (TLS). Certificates are created with the bridge's own CertManager.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
+# shellcheck source=lib/common.sh
+. scripts/lib/common.sh
+hb_require --compose
+hb_ensure_images btbridge-lab:dev btbridge-syslog:dev
 scripts/lab_up.sh >/dev/null
 cd docker || exit 1
-docker compose --profile syslog build -q syslog >/dev/null
 docker compose --profile syslog rm -sf syslog >/dev/null 2>&1
 docker volume rm -f btbridge-lab_syslog-certs btbridge-lab_syslog-out >/dev/null 2>&1
 # 1. server certificate for syslog.lan from a fresh device CA (into the shared volume)

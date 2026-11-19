@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- Only the write helper is elevated (docs/FLASH_TOOL.md §4). Administrator authentication EVERY time (auth_admin, not _keep), and
+     only in an active local session. The action applies to exactly this executable path. -->
+<policyconfig>
+  <vendor>Hi-Fi Bridge</vendor>
+  <vendor_url>https://github.com/iskaron/hifi-bridge</vendor_url>
+  <action id="io.github.iskaron.hifibridge.flash.write">
+    <description>Write a Hi-Fi Bridge image to an SD card</description>
+    <description xml:lang="de">Ein Hi-Fi-Bridge-Image auf eine SD-Karte schreiben</description>
+    <message>Authentication is required to write the selected SD card</message>
+    <message xml:lang="de">Zum Schreiben der gewählten SD-Karte ist eine Authentifizierung erforderlich</message>
+    <icon_name>hifi-bridge-flash</icon_name>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/opt/hifi-bridge-flash/hififlash-helper</annotate>
+  </action>
+</policyconfig>

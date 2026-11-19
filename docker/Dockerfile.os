@@ -4,7 +4,7 @@
 #  * RAUC (host tool) + openssl for bundle-signature and keyring tests,
 #  * python3-cryptography for the flash tool's core logic tests.
 # No board image is built with it in this package. Lab/CI only.
-FROM debian:trixie-slim
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential make gcc g++ patch perl python3 python3-pytest python3-cryptography python3-coverage file wget ca-certificates cpio unzip rsync bc \
       git xz-utils bzip2 libncurses-dev \

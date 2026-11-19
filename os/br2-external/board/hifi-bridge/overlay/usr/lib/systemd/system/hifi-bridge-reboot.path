@@ -1,0 +1,11 @@
+# Owner-confirmed restart (docs/OTA.md section 5). The unprivileged bridge cannot reboot; after the owner confirms a restart in the
+# WebUI it creates an EMPTY request file in /run/hifi-bridge-ota (tmpfiles: owned by hifi-bridge, 0750). Its content is never read.
+[Unit]
+Description=Hi-Fi Bridge restart request from the WebUI
+
+[Path]
+PathExists=/run/hifi-bridge-ota/reboot-request
+Unit=hifi-bridge-reboot.service
+
+[Install]
+WantedBy=multi-user.target

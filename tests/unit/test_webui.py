@@ -158,7 +158,7 @@ def test_static_files_and_no_traversal(ui):
 def test_body_size_limit(ui):
     setup_account(ui)
     r = ui.c.req("POST", "/setup/bluetooth", raw_body="x" * (70 * 1024), headers={"Content-Type": "application/x-www-form-urlencoded"})
-    assert r.status == 400
+    assert r.status == 413
 
 
 # ---------------------------------------------------------------- wizard + pages

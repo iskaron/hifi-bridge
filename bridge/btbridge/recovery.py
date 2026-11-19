@@ -1,10 +1,11 @@
-"""Local recovery (no network path): reset the owner password or factory-reset the configuration.
+"""Local recovery (no network path): reset the owner password, reset the network settings or factory-reset the configuration.
 
 Authority = local access: a console on the device, or physical access to the SD card's boot partition (P8, docs/PHASE2B_PLAN.md).
 Never reachable from the WebUI or MQTT.
 
     python3 -m btbridge.recovery --data /var/lib/hifi-bridge reset-owner-password
     python3 -m btbridge.recovery --data /var/lib/hifi-bridge factory-reset --yes
+    python3 -m btbridge.recovery --data /var/lib/hifi-bridge network-reset          # broken static address / wrong Wi-Fi (docs/NETWORK.md)
     python3 -m btbridge.recovery --data /var/lib/hifi-bridge boot-request --boot /boot     # processes /boot/hifi-recovery once
 
 Factory reset removes ONLY the bridge's own known files in the data directory (settings, secrets, certificates, journals, faults, setup code,
@@ -24,10 +25,34 @@ import os
 import sys
 import time
 
-OWN_FILES = ("settings.json", "secrets.json", "session.json", "faults.jsonl", "setup-code.txt", "network.json", "provision-journal.json")
+OWN_FILES = ("settings.json", "secrets.json", "session.json", "faults.jsonl", "setup-code.txt", "network.json", "provision-journal.json",
+             "faults-respawn.log",
+             "network.pending.json")
 OWN_CERT_FILES = ("ca.key", "ca.crt", "server.key", "server.crt", "custom.key", "custom.crt", "state.json")
 REQUEST_FILE, STATUS_FILE, JOURNAL = "hifi-recovery", "hifi-status.txt", "recovery-journal.json"
-ACTIONS = ("reset-owner-password", "factory-reset")
+ACTIONS = ("reset-owner-password", "factory-reset", "network-reset")
+
+
+def network_reset(data_dir: str) -> str:
+    """Forget the client Wi-Fi and every static address (Ethernet and Wi-Fi back to DHCP/automatic IPv6); keep the regulatory country
+    and the owner-known hotspot credentials, so the setup hotspot can open (docs/NETWORK.md). Idempotent. Returns a status text that
+    never contains a password."""
+    from .net import netconfig
+    path = os.path.join(data_dir, netconfig.FILE_NAME)
+    try:
+        old, note = netconfig.load(path), ""
+    except netconfig.NetConfigError:
+        old, note = netconfig.defaults(), " The old network file was unreadable; no setup hotspot credentials could be kept."
+    new = netconfig.reset_network(old)
+    netconfig.write_private(path, new)
+    try:
+        os.unlink(os.path.join(data_dir, netconfig.PENDING_NAME))
+    except FileNotFoundError:
+        pass
+    hs = new["hotspot"]
+    where = (f"Without Ethernet the setup hotspot '{hs['ssid']}' opens after about 15 s: join it with its password and open "
+             f"http://{netconfig.HOTSPOT_ADDRESS}/" if hs else "No setup hotspot is configured: connect the device by Ethernet (DHCP)")
+    return f"network reset: Wi-Fi client and static addresses removed, DHCP everywhere. {where}.{note}"
 
 
 def reset_owner_password(data_dir: str) -> str:
@@ -56,6 +81,8 @@ def factory_reset(data_dir: str) -> list[str]:
         if name.startswith(("settings.json.corrupt-", "secrets.json.corrupt-")):
             os.unlink(os.path.join(data_dir, name))
             removed.append(name)
+    from .ota.manager import forget_owner_data             # pre-update snapshots hold copies of the secrets (docs/OTA.md section 6)
+    removed += forget_owner_data(data_dir)
     return removed
 
 
@@ -134,7 +161,7 @@ def boot_request(data_dir: str, boot_dir: str, hooks: dict | None = None) -> str
         _set_journal(data_dir, None)
         return "already-done"
     if action not in ACTIONS:
-        _write_status(boot_dir, f"{stamp} unknown recovery request ignored (use 'reset-owner-password' or 'factory-reset').\n")
+        _write_status(boot_dir, f"{stamp} unknown recovery request ignored (use 'reset-owner-password', 'network-reset' or 'factory-reset').\n")
         _remove_request(req)
         return "unknown"
     os.makedirs(data_dir, exist_ok=True)
@@ -144,6 +171,8 @@ def boot_request(data_dir: str, boot_dir: str, hooks: dict | None = None) -> str
         code = reset_owner_password(data_dir)
         text = (f"{stamp} owner password reset. New one-time setup code: {code}\n"
                 f"   It becomes invalid as soon as a new owner password is set.\n")
+    elif action == "network-reset":
+        text = f"{stamp} {network_reset(data_dir)}\n"
     else:
         removed = factory_reset(data_dir)
         text = f"{stamp} factory reset: {len(removed)} file(s) removed. A new setup code is created on the next start.\n"
@@ -161,6 +190,27 @@ def write_boot_status(boot_dir: str, lines: list[str]) -> None:
     _write_status(boot_dir, "".join(f"{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())} {line}\n" for line in lines))
 
 
+def _drop_to(uid: int, gid: int) -> None:
+    os.setgroups([])
+    os.setgid(gid)
+    os.setuid(uid)
+
+
+def run_as_data_owner(data_dir: str) -> str | None:
+    """Act as the owner of the data directory. Run as root on the console, the CLI used to leave root-owned files that the
+    service (user hifi-bridge) could not read: the next start moved secrets.json aside and the printed setup code was useless
+    (review M8). Root drops to the owner; any other user is refused. Returns an error text, or None."""
+    st = os.stat(data_dir)
+    euid = os.geteuid()
+    if euid == st.st_uid:
+        return None
+    if euid == 0:
+        _drop_to(st.st_uid, st.st_gid)
+        return None
+    return (f"refusing: {data_dir} belongs to uid {st.st_uid}, this process runs as uid {euid}; "
+            "run as root (the tool switches to the data owner) or as the data owner")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="btbridge.recovery", description="local recovery (console / SD card only)")
     ap.add_argument("--data", required=True)
@@ -168,10 +218,15 @@ def main(argv=None) -> int:
     sub.add_parser("reset-owner-password")
     fr = sub.add_parser("factory-reset"); fr.add_argument("--yes", action="store_true", help="confirm")
     br = sub.add_parser("boot-request"); br.add_argument("--boot", required=True)
+    sub.add_parser("network-reset")
     a = ap.parse_args(argv)
     if not os.path.isdir(a.data):
         print(f"data directory not found: {a.data}", file=sys.stderr)
         return 2
+    err = run_as_data_owner(a.data)
+    if err:
+        print(err, file=sys.stderr)
+        return 4
     if a.cmd == "reset-owner-password":
         print(f"owner password removed; new setup code: {reset_owner_password(a.data)}")
     elif a.cmd == "factory-reset":
@@ -180,6 +235,8 @@ def main(argv=None) -> int:
             return 3
         removed = factory_reset(a.data)
         print(f"factory reset: removed {len(removed)} file(s): {', '.join(removed) or '-'}")
+    elif a.cmd == "network-reset":
+        print(network_reset(a.data))
     else:
         print(f"recovery request: {boot_request(a.data, a.boot)}")
     return 0

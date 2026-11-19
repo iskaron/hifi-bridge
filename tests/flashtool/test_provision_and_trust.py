@@ -108,6 +108,9 @@ def test_cli_provision_then_verify_device(device, tmp_path, capsys):
     assert "VERIFIED" in text and "HTTP 200" in text and "BEGIN CERTIFICATE" in ca_out.read_text()
     keyf.write_text(P.encode_trust_key(secrets.token_bytes(32)))
     assert main(["verify-device", "--url", f"http://127.0.0.1:{device.ui.port}", "--key-file", str(keyf)]) == 1
+    keyf.write_text(P.encode_trust_key(device.key))                 # verified without saving the CA and without the HTTPS check
+    assert main(["verify-device", "--url", f"http://127.0.0.1:{device.ui.port}", "--key-file", str(keyf)]) == 0
+    assert "VERIFIED" in capsys.readouterr().out
 
 
 def test_cli_verify_image(tmp_path, capsys):
@@ -122,3 +125,12 @@ def test_cli_verify_image(tmp_path, capsys):
     img.write_bytes(b"\x01" * 8192)
     assert main(["verify-image", str(img), "--manifest", str(mf)]) == 1
     assert main(["verify-image", str(img), "--manifest", str(mf), "--sig", str(mf)]) == 2
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    k = ec.generate_private_key(ec.SECP256R1())
+    sig, pub = tmp_path / "m.sig", tmp_path / "p.pem"
+    sig.write_bytes(k.sign(mf.read_bytes(), ec.ECDSA(hashes.SHA256())))
+    pub.write_bytes(k.public_key().public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo))
+    img.write_bytes(b"\x00" * 8192)
+    assert main(["verify-image", str(img), "--manifest", str(mf), "--sig", str(sig), "--key", str(pub)]) == 0
+    assert "manifest signed by: publisher" in capsys.readouterr().out

@@ -1,0 +1,42 @@
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+158 passed, 2 warnings in 94.67s (0:01:34)
+Name                                         Stmts   Miss Branch BrPart  Cover   Missing
+----------------------------------------------------------------------------------------
+flashtool/hififlash/__init__.py                  1      0      0      0   100%
+flashtool/hififlash/__main__.py                 65      0     18      0   100%
+flashtool/hififlash/boards.py                   12      0      0      0   100%
+flashtool/hififlash/catalog.py                 165      0     44      0   100%
+flashtool/hififlash/disks.py                   119      0     44      0   100%
+flashtool/hififlash/fatslot.py                  90      0     34      0   100%
+flashtool/hififlash/gui/__main__.py              3      0      0      0   100%
+flashtool/hififlash/gui/app.py                  46      0      8      0   100%
+flashtool/hififlash/gui/dialogs.py             139      0     20      0   100%
+flashtool/hififlash/gui/i18n.py                 28      0      4      0   100%
+flashtool/hififlash/gui/ownersheet.py           30      0      8      0   100%
+flashtool/hififlash/gui/pages.py               777      0    108      0   100%
+flashtool/hififlash/gui/services.py             85      0      8      0   100%
+flashtool/hififlash/gui/tasks.py                24      0      0      0   100%
+flashtool/hififlash/gui/theme.py                48      0      4      0   100%
+flashtool/hififlash/gui/window.py              178      0     26      0   100%
+flashtool/hififlash/helper/__main__.py          50      0     12      0   100%
+flashtool/hififlash/helper/client.py           180      0     34      0   100%
+flashtool/hififlash/helper/protocol.py          92      0     32      0   100%
+flashtool/hififlash/helper/server.py           108      0     14      0   100%
+flashtool/hififlash/images.py                   63      0     14      0   100%
+flashtool/hififlash/keystore.py                 80      0     14      0   100%
+flashtool/hififlash/manifest.py                 73      0     22      0   100%
+flashtool/hififlash/platforms/__init__.py       18      0      8      0   100%
+flashtool/hififlash/platforms/blockio.py        37      0      6      0   100%
+flashtool/hififlash/platforms/darwin.py         28      0      6      0   100%
+flashtool/hififlash/platforms/linux.py          39      0     14      0   100%
+flashtool/hififlash/platforms/posixio.py        70      0     24      0   100%
+flashtool/hififlash/platforms/simulated.py      48      0      8      0   100%
+flashtool/hififlash/platforms/windows.py        82      0     16      0   100%
+flashtool/hififlash/provision.py                32      0     12      0   100%
+flashtool/hififlash/trust.py                    22      0      2      0   100%
+flashtool/hififlash/writer.py                  124      0     40      0   100%
+----------------------------------------------------------------------------------------
+TOTAL                                         2956      0    604      0   100%
+
+2 empty files skipped.

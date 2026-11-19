@@ -1,7 +1,8 @@
 # Update trust and signing keys (P5, DECISIONS #55, #61)
 
 Status: the trust configuration is implemented in the Buildroot skeleton (`os/br2-external`). It is verified with the **real RAUC 1.13
-host tool** for signatures and keyrings (`tests/os/test_update_trust.py`). **Installing an update on a device has not been tested** (no
+host tool** for signatures and keyrings (`tests/os/test_update_trust.py`), and the update management on top of it (docs/OTA.md) with the
+**real RAUC 1.13 D-Bus service** in a container (`scripts/run_ota.sh`). **Installing an update on a device has not been tested** (no
 image built, nothing booted). The official release CA **does not exist yet**.
 
 ## 1. Goals
@@ -31,7 +32,8 @@ certificate, or a certificate that is not a CA.
 
 The image records the choice in `/etc/hifi-bridge/update-trust.json`: the mode, subject and SHA-256 fingerprint of each certificate, and
 the **official update source** (`official_source`, section 4a; `null` in own-only images).
-The WebUI update page (phase 2b, step 6) shows it before any installation.
+The WebUI update page (`/settings/update`, docs/OTA.md) shows the mode, every certificate's subject and SHA-256 fingerprint and the
+official source before any installation.
 
 **Compatible string:** RAUC installs a bundle only if its `compatible` equals the device's. Official bundles use `hifi-bridge-rpi3`,
 `hifi-bridge-rpi4` and `hifi-bridge-rpizero2w`. A self-built image that wants official updates must keep the same string (the default).
@@ -62,7 +64,9 @@ source fixed in `update-trust.json`:
   GitHub account alone cannot install anything.
 * It is **not configurable** in the image configuration, so an official image cannot be pointed at another source. Own-only images record
   `null`; self-builders distribute their own bundles by upload.
-* The update check (phase 2b step 6) only **reports** a newer release; installation always needs the owner's confirmation (PRODUCT_SPEC).
+* The update check (`ota/source.py`) only **reports** a newer release; download and installation each need an owner action
+  (PRODUCT_SPEC). It sends no credentials, ignores drafts and pre-releases, looks for the asset `hifi-bridge-<compatible>-<version>.raucb`,
+  refuses non-HTTPS URLs and redirects, and links release notes only inside the official releases URL.
 * While the repository is private, devices cannot reach its releases without credentials, and devices never get a token
   (OPEN_QUESTIONS #45).
 
@@ -79,8 +83,13 @@ source fixed in `update-trust.json`:
 |---|---|
 | The keyring holds exactly the chosen CAs; no private key; the choice is recorded | UNIT (`post-build.sh` with a fake target tree) |
 | The official source is recorded for official/both and `null` for own | UNIT (same test) |
-| The update check against GitHub Releases | **NOT IMPLEMENTED** – phase 2b step 6 |
+| The update check against GitHub Releases | UNIT against a local server imitating the API (incl. 404 = private, rate limit, offline); the real GitHub only after OPEN_QUESTIONS #45 (G4 U-2) |
+| A bundle is staged only if RAUC's `InspectBundle` verifies it AND its compatible matches (RAUC does not compare it there) | **real RAUC 1.13** D-Bus service (`tests/ota`) |
+| A signer without codeSigning, an unknown CA, a truncated or random file are refused by `InspectBundle` | **real RAUC 1.13** D-Bus service |
+| A payload byte changed after signing passes `InspectBundle` (only manifest + verity root are signed); dm-verity must reject it at install | **real RAUC 1.13** (finding); the rejection needs a device |
+| Only root and `hifi-bridge` may call RAUC (image D-Bus policy) | real dbus-daemon + real RAUC service, with a control run without the policy |
 | official ⇒ accepts release, refuses own; own ⇒ the reverse; both ⇒ both | **real RAUC 1.13** `rauc info` with the generated keyrings |
 | Re-signing gives a release bundle without the release key ever being in the build | real RAUC `resign` |
 | A certificate without codeSigning purpose is refused | real RAUC with `check-purpose=codesign` |
-| Install, slot switch, boot-count rollback, power loss during install | **NOT TESTED** – hardware gate / phase 2b step 2 |
+| `mark-good`/`mark-active`/`mark-bad` write the U-Boot variables `boot.cmd` uses | **real RAUC 1.13** + `fw_setenv` on a file-backed environment |
+| Install into a slot, slot switch, boot-count rollback, power loss during install | **NOT TESTED** – hardware gate (docs/OTA.md section 10); in Docker RAUC stops at the bundle mount (no loop device) |

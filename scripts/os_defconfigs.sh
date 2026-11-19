@@ -5,6 +5,10 @@
 #   scripts/os_defconfigs.sh check      - fail if a committed defconfig is stale OR if Kconfig dropped any required fragment line
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
+# shellcheck source=lib/common.sh
+. scripts/lib/common.sh
+hb_require
+hb_ensure_images btbridge-os:dev
 MODE="${1:-check}"
 LAB="${HIFI_LAB:-$PWD/.lab}"
 [ -d "$LAB/buildroot/configs" ] || scripts/os_fetch_buildroot.sh || exit 2

@@ -139,7 +139,54 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 47. **GitHub settings to switch on when going public** (owner, repository settings): private vulnerability reporting (SECURITY.md relies
     on it), "require approval for workflows from outside collaborators", branch protection for `main` (and `develop`), Dependabot alerts,
     secret scanning with push protection.
-48. **Unpinned Lyrion image:** lab and demo use `lmscommunity/lyrionmusicserver:stable`; pin a version (e.g. the tested 9.1.x tag) for
+48. ~~**Unpinned Lyrion image:**~~ **resolved by DECISIONS #80** (9.1.2 + digest). lab and demo use `lmscommunity/lyrionmusicserver:stable`; pin a version (e.g. the tested 9.1.x tag) for
     reproducible CI once the tag naming is confirmed.
-49. **Demo volume:** Lyrion starts new players at volume 50, which is quiet in the audio monitor; the monitor has its own listening level.
+49. ~~**Demo volume:**~~ **resolved by DECISIONS #81** (rooms at 75). Lyrion starts new players at volume 50, which is quiet in the audio monitor; the monitor has its own listening level.
     Should the demo preset the rooms higher? (cosmetic)
+
+## Added by package 1 - review fixes (2026-11-18)
+50. **Privacy of MQTT state:** the bridge publishes the connected phone's name and the track title as **retained** MQTT state, readable by
+    every broker subscriber and stored in Home Assistant's history. Keep, make it an opt-in setting, or publish without retain? (Logs,
+    syslog and the diagnostics bundle now use salted pseudonyms `dev-<8 hex>` for MAC addresses and leave phone names out.)
+51. LMS player IDs look like MAC addresses and are now pseudonymised in logs as well. Should player IDs stay in clear for debugging?
+52. The new global login-failure budget (50 failures, then up to 60 s delay) can slow the owner during a distributed guessing attack.
+    Accept or tune?
+53. A player that reads nothing for 60 s is dropped by the stream server; a pause at LMS longer than 60 s therefore starts a fresh bridge
+    session on resume. Validate on hardware (E2).
+54. Capture restart back-off (4 fast retries, then doubling up to 5 s) - measure against the real PipeWire BlueZ node on the Pi (A3/A4).
+55. A device CA regenerated after a torn write (power cut during first boot) has a new fingerprint, so the owner must trust it again.
+    Accept, or keep a backup copy of the CA?
+56. An unreadable configuration now makes the service fail at start (systemd restarts it; the log names the reason) instead of silently
+    resetting the device. Should the reason also go into `hifi-status.txt` on the boot partition?
+
+## Added by package 2 - demo and entry points (2026-11-18)
+57. **Image pin updates:** enable Dependabot for the Docker ecosystem (proposes digest bumps as pull requests), or keep manual updates via
+    `scripts/image_pins.sh`? Owner decision together with #47.
+58. Engine 29 with Compose 2.21-2.23 was not tried; the stated Engine-29 minimum (2.24.5) is the lowest release tested there.
+
+## Added by package 3 - network management (2026-11-18)
+59. **Fallback NTP server:** keep `pool.ntp.org` after the DHCP-provided servers, use none, or make it an owner setting?
+60. **Devices without internet never sync time:** certificate validity is judged by the device clock, so browsers may see an expired
+    certificate after ~13 months. Options: a time hint from the owner's browser or from Lyrion, or manual renewal.
+61. Do phones need a "stay connected without internet" hint on the hotspot page? Depends on hardware test N-5.
+62. More than one saved client Wi-Fi network in V1 (today one, DECISIONS #88)?
+63. Should `hifi-bridge.service` declare `Wants=hifi-netd.service` (today independent; the WebUI shows the agent as unavailable)?
+
+## Added by package 4 - OTA update management (2026-11-19)
+64. A health failure on an **established** slot currently leads to a rollback via U-Boot's boot-count after three boots. Keep, or never
+    roll back an established slot automatically?
+65. Should a factory reset also remove RAUC's slot status (`slots.json`)?
+66. Payload integrity of an uploaded bundle is checked only at install time by dm-verity (RAUC's inspection accepts a payload byte changed
+    after signing). Acceptable, or additionally hash the payload against a signed checksum before staging?
+67. One large upload occupies one of the 64 WebUI connection slots for its duration. Acceptable for V1?
+
+## Added by package 5 - flash tool (2026-11-19)
+68. **Reverse-DNS namespace** for the polkit action and app IDs: currently `io.github.iskaron.hifibridge` (action
+    `io.github.iskaron.hifibridge.flash.write`). Keep, or a project domain?
+69. **Code-signing certificates** for Windows (Authenticode) and macOS (Developer ID + notarisation): who obtains them and at what cost? Without
+    them Windows SmartScreen and macOS Gatekeeper warn or block.
+70. Should the elevated helper also verify the manifest **signature** itself? Today it checks the image hash against the manifest the GUI
+    verified (the image is the user's choice either way).
+71. Installing the device CA on the owner's computer: the tool saves the verified certificate and shows the fingerprint; there is no
+    automatic installation into OS or browser trust stores. Enough for V1?
+72. Is an AppImage wanted for Linux? It conflicts with polkit's exact-executable-path rule (today: tarball + `install.sh`).

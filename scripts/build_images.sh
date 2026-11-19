@@ -1,31 +1,30 @@
 #!/usr/bin/env bash
 # Rebuild ALL project images from scratch (--pull --no-cache) and record sizes and base-image digests.
-# Only project images (btbridge-*) are built; nothing else is touched. Output: reports/evidence/images.txt
-# Usage: build_images.sh [--cached]   (--cached keeps the Docker layer cache for fast local rebuilds)
+# Only project images (btbridge-*, hifi-demo) are built; nothing else is touched. Output: reports/evidence/images.txt
+# The image list, Dockerfiles and build arguments come from the registry in scripts/lib/common.sh (single source for all entry scripts).
+# Usage: build_images.sh [--cached] [-q]   (--cached keeps the Docker layer cache for fast local rebuilds)
 set -uo pipefail
-cd "$(dirname "$0")/../docker" || exit 1
-NC="--no-cache"; [ "${1:-}" = "--cached" ] && NC=""
+cd "$(dirname "$0")/.." || exit 1
+# shellcheck source=lib/common.sh
+. scripts/lib/common.sh
+hb_parse_quiet "$@"
+HB_BUILD_FLAGS="--pull --no-cache"; [ "${HB_ARGS[0]:-}" = "--cached" ] && HB_BUILD_FLAGS=""
+export HB_BUILD_FLAGS
+hb_require --disk 12000 "all project images (the browser image alone is 2.6 GB)"
+read -r -a IMGS <<<"$HB_ALL_IMAGES"
+hb_steps $(( ${#IMGS[@]} + 1 ))
 rc=0
-b() { echo "### build $1"; shift; docker build -q --pull $NC "$@" >/dev/null || rc=1; }
-b lab -f Dockerfile.lab -t btbridge-lab:dev .
-b pipewire-bookworm -f Dockerfile.pipewire --build-arg BASE=debian:bookworm-slim -t btbridge-pw:bookworm .
-b pipewire-trixie -f Dockerfile.pipewire --build-arg BASE=debian:trixie-slim -t btbridge-pw:trixie .
-echo "### build hwkit (FROM btbridge-lab:dev)"; docker build -q $NC -f Dockerfile.hwkit -t btbridge-hwkit:dev . >/dev/null || rc=1
-b avahi -f Dockerfile.avahi -t btbridge-avahi:dev .
-b browser -f Dockerfile.browser -t btbridge-browser:dev .
-b static -f Dockerfile.static -t btbridge-static:dev .
-b syslog -f Dockerfile.syslog -t btbridge-syslog:dev .
-b py314 -f Dockerfile.py314 -t btbridge-py314:dev .
-b security -f Dockerfile.security -t btbridge-security:dev .
-b os -f Dockerfile.os -t btbridge-os:dev .
+for i in "${IMGS[@]}"; do
+  hb_step "build $i"
+  hb_build_image "$i" || rc=1
+done
+hb_step "record sizes and base-image digests"
+mkdir -p reports/evidence
 {
   echo "# project images $(date -u +%FT%TZ)"
-  docker images --format '{{.Repository}}:{{.Tag}} {{.ID}} {{.Size}}' | grep '^btbridge-' | sort
-  echo "# base images (digests)"
-  for i in debian:bookworm-slim debian:trixie-slim mcr.microsoft.com/playwright/python:v1.49.1-noble lmscommunity/lyrionmusicserver:stable \
-           eclipse-mosquitto:2.0.20 ghcr.io/home-assistant/home-assistant:2026.11.1; do
-    echo "$i $(docker image inspect "$i" --format '{{index .RepoDigests 0}}' 2>/dev/null)"
-  done
-} > ../reports/evidence/images.txt
-cat ../reports/evidence/images.txt
+  docker images --format '{{.Repository}}:{{.Tag}} {{.ID}} {{.Size}}' | grep -E '^(btbridge-|hifi-demo)' | sort
+  echo "# pinned third-party images (docker/image-pins.txt)"
+  scripts/image_pins.sh list
+} > reports/evidence/images.txt
+cat reports/evidence/images.txt
 exit $rc

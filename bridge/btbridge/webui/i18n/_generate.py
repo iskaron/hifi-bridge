@@ -23,6 +23,7 @@ S = {"connected":("Connected","Verbunden"),"disconnected":("Not connected","Nich
      "lost":("Taken over by another source","Von anderer Quelle übernommen"),"closed":("Closed","Geschlossen"),"parked":("Paused (grace period)","Pausiert (Karenzzeit)"),
      "streaming":("Streaming","Streamt"),"audio_disabled":("Bridge audio off","Bridge-Wiedergabe aus"),"override_disabled":("Override disabled","Übernahme deaktiviert"),
      "notification_filter":("Checking: notification or music?","Prüft: Hinweiston oder Musik?"),"lyrion_unreachable":("Lyrion unreachable","Lyrion nicht erreichbar"),
+     "stream_address_unavailable":("Waiting for the network","Wartet auf das Netzwerk"),
      "no_device":("No phone connected","Kein Telefon verbunden"),"not_configured":("Not configured","Nicht eingerichtet"),"not_connected":("Not connected","Nicht verbunden")}
 for s,(en,de) in S.items(): k(f"state.{s}",en,de)
 DIM = {"bluetooth_connection":("Bluetooth","Bluetooth"),"bt_media_activity":("Phone media","Medien am Telefon"),"audio_permission":("Bridge audio","Bridge-Wiedergabe"),
@@ -34,7 +35,8 @@ for key,en,de in [("live.pairing_open","Pairing open for {seconds} s – select 
 for key,en,de in [("dash.now","Now","Jetzt"),("dash.device","Phone","Telefon"),("dash.playing","Now playing","Aktueller Titel"),("dash.target","Lyrion player","Lyrion-Player"),
     ("dash.server","Lyrion server","Lyrion-Server"),("dash.attention","Needs attention","Bitte beachten"),("dash.pairing","Pair a phone","Telefon koppeln"),
     ("dash.audio","Bridge audio","Bridge-Wiedergabe"),("dash.test","Test sound","Testton"),("dash.system","System","System"),("dash.more","System details","Systemdetails"),
-    ("pairing.open","Allow pairing for 5 minutes","Kopplung 5 Minuten erlauben"),("pairing.close","Stop pairing","Kopplung beenden"),
+    ("pairing.open","Allow pairing for {duration}","Kopplung {duration} erlauben"),
+    ("duration.minute","1 minute","1 Minute"),("duration.minutes","{n} minutes","{n} Minuten"),("duration.seconds","{n} seconds","{n} Sekunden"),("pairing.close","Stop pairing","Kopplung beenden"),
     ("pairing.open_for","Pairing open for {seconds} s – select “{name}” on the phone","Kopplung {seconds} s offen – am Telefon „{name}“ auswählen"),
     ("pairing.help","Guests then select “{name}” in their phone’s Bluetooth settings – no app needed.","Gäste wählen dann in den Bluetooth-Einstellungen ihres Telefons „{name}“ – ohne App."),
     ("pairing.window","Pairing window","Kopplungsfenster"),("pairing.guest_hint","Paired phones reconnect later without a pairing window.","Gekoppelte Telefone verbinden sich später ohne Kopplungsfenster."),
@@ -112,7 +114,11 @@ for key,en,de in [("sys.health","Health","Zustand"),("sys.cpu","CPU","CPU"),("sy
     ("mqtt.disabled","Not enabled.","Nicht aktiviert."),("mqtt.connected","Connected to {broker}.","Mit {broker} verbunden."),("mqtt.disconnected","Not connected ({error}).","Nicht verbunden ({error}).")]: k(key,en,de)
 for s,(en,de) in {"ok":("normal","normal"),"warning":("warm","warm"),"critical":("too hot","zu heiß"),"unknown":("not available","nicht verfügbar")}.items(): k(f"thermal.{s}",en,de)
 for d,(en,de) in {"not_configured":("Setup is not finished.","Die Einrichtung ist nicht abgeschlossen."),"lyrion_unreachable":("The Lyrion server or player is not reachable.","Lyrion-Server oder Player sind nicht erreichbar."),
-    "thermal_warning":("The device is getting warm.","Das Gerät wird warm."),"thermal_critical":("The device is too hot.","Das Gerät ist zu heiß."),"mqtt_disconnected":("MQTT broker not connected.","MQTT-Broker nicht verbunden.")}.items(): k(f"degraded.{d}",en,de)
+    "thermal_warning":("The device is getting warm.","Das Gerät wird warm."),"thermal_critical":("The device is too hot.","Das Gerät ist zu heiß."),"mqtt_disconnected":("MQTT broker not connected.","MQTT-Broker nicht verbunden."),
+    "pairing_adapter_error":("The Bluetooth adapter did not accept the last pairing change; the bridge keeps retrying.",
+                             "Der Bluetooth-Adapter hat die letzte Kopplungsänderung nicht übernommen; die Bridge versucht es weiter."),
+    "stream_address_unavailable":("No network address for the stream yet: the bridge waits for the network before it starts playback.",
+                                  "Noch keine Netzwerkadresse für den Stream: Die Bridge wartet auf das Netzwerk, bevor sie die Wiedergabe startet.")}.items(): k(f"degraded.{d}",en,de)
 # flashes + errors
 for key,en,de in [("flash.session_expired","Please log in again.","Bitte erneut anmelden."),("flash.account_created","Owner password set.","Besitzer-Passwort festgelegt."),
     ("flash.setup_done","Setup complete. Guests can now connect via Bluetooth.","Einrichtung abgeschlossen. Gäste können sich jetzt per Bluetooth verbinden."),
@@ -166,7 +172,17 @@ for key,en,de in [("brand.device","Device","Gerät"),("brand.tagline","Bluetooth
     ("access.custom_help","Paste certificate (with chain) and key in PEM format. Used when “Own certificate” is selected.","Zertifikat (mit Kette) und Schlüssel im PEM-Format einfügen. Wird verwendet, wenn „Eigenes Zertifikat“ gewählt ist."),
     ("access.custom_install","Check and install","Prüfen und installieren"),
     ("flash.cert_installed","Certificate installed.","Zertifikat installiert."),("flash.cert_renewed","Certificate renewed.","Zertifikat erneuert."),
+    ("errorpage.title","Error {status}","Fehler {status}"),
+    ("errorpage.400","The request could not be processed.","Die Anfrage konnte nicht verarbeitet werden."),
+    ("errorpage.403","Request refused: it did not come from this device’s own pages. Reload the page and try again.","Anfrage abgelehnt: Sie kam nicht von den Seiten dieses Geräts. Laden Sie die Seite neu und versuchen Sie es noch einmal."),
+    ("errorpage.405","This address does not accept this kind of request.","Diese Adresse nimmt diese Art von Anfrage nicht an."),
+    ("errorpage.411","Request bodies must have a known length.","Anfragen müssen eine bekannte Länge haben."),
+    ("errorpage.413","The request is too large.","Die Anfrage ist zu groß."),
+    ("errorpage.421","This device does not answer to the name “{host}”. Open it via one of these addresses:","Dieses Gerät antwortet nicht auf den Namen „{host}“. Öffnen Sie es über eine dieser Adressen:"),
+    ("errorpage.500","Internal error – the details are in the diagnostics log.","Interner Fehler – die Details stehen im Diagnoseprotokoll."),
+    ("error.pairing_adapter","The Bluetooth adapter did not accept the change; the bridge keeps retrying.","Der Bluetooth-Adapter hat die Änderung nicht übernommen; die Bridge versucht es weiter."),
     ("error.https_only_needs_https","Open this page via HTTPS first – that proves your device trusts the certificate.","Öffnen Sie diese Seite zuerst über HTTPS – das zeigt, dass Ihr Gerät dem Zertifikat vertraut."),
+    ("error.cert.invalid","The certificate or key could not be read.","Zertifikat oder Schlüssel konnten nicht gelesen werden."),
     ("error.cert.pem_format","Certificate or key is not in PEM format.","Zertifikat oder Schlüssel ist nicht im PEM-Format."),
     ("error.cert.key_mismatch","The key does not belong to the certificate.","Der Schlüssel gehört nicht zum Zertifikat."),
     ("error.cert.expired","The certificate has expired.","Das Zertifikat ist abgelaufen."),

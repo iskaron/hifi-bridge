@@ -4,7 +4,10 @@
 # with SIMULATED cards only). No board image is built, nothing is booted, no host disk is touched.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
-docker image inspect btbridge-os:dev >/dev/null 2>&1 || docker build -q -f docker/Dockerfile.os -t btbridge-os:dev docker >/dev/null
+# shellcheck source=lib/common.sh
+. scripts/lib/common.sh
+hb_require
+hb_ensure_images btbridge-os:dev
 echo "### buildroot defconfigs"; scripts/os_defconfigs.sh check; D=$?
 echo "### licences"; scripts/os_licenses.sh; L=$?
 echo "### tests/os + tests/flashtool"
