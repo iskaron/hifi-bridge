@@ -92,6 +92,7 @@
  "upd.error.rauc_unavailable": "Der Update-Dienst (RAUC) ist nicht erreichbar.",
  "upd.error.reboot_timeout": "Das Gerät hat nicht neu gestartet. Tippen Sie erneut auf „Jetzt neu starten“; passiert nichts, trennen Sie es für einige Sekunden vom Strom – die ausgewählte Version startet so oder so.",
  "upd.error.reboot_unavailable": "Das Gerät kann sich hier nicht selbst neu starten (kein Neustart-Helfer).",
+ "upd.error.restore_failed": "Der Einstellungs-Schnappschuss konnte nicht wiederhergestellt werden (Speicherfehler); das Gerät behält seine aktuellen Einstellungen. Versuchen Sie es erneut; passiert das wieder, ist eventuell die SD-Karte defekt.",
  "upd.error.rollback_unavailable": "Keine andere startfähige Version vorhanden.",
  "upd.error.signature_invalid": "Abgelehnt: Das Paket ist nicht mit einem vertrauten Schlüssel signiert oder beschädigt.",
  "upd.error.size_mismatch": "Der Download hat die falsche Größe.",

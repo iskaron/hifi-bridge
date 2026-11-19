@@ -202,45 +202,80 @@ def restorable_snapshot(ota_dir: str, bootname: str | None, version: str) -> dic
 
 
 def prepare_data(data_dir: str, version: str = __version__, bootname: str | None = None, log: Callable[[str], None] = print) -> str:
-    """Startup step BEFORE the configuration is loaded: apply an OWNER-REQUESTED snapshot restore (never automatic). The request names
-    the snapshot (slot, version, creation time); it is applied only if that snapshot still exists and belongs to the running version on
-    the booted slot. The request file is removed afterwards; a power cut in between repeats the (idempotent) copy.
-    Returns none | restored | mismatch."""
+    """Boot step BEFORE anything reads the data (``bootfiles``, i.e. ``hifi-bridge-boot.service``, which ``hifi-netd`` and the bridge are
+    ordered after - review N-4; the bridge calls it again as a no-op fallback): apply an OWNER-REQUESTED snapshot restore (never
+    automatic). The request names the snapshot (slot, version, creation time); it is applied only if that snapshot still exists and
+    belongs to the running version on the booted slot. All files are copied first and swapped in only when every copy succeeded; the
+    request file is removed afterwards; a power cut in between repeats the (idempotent) restore.
+    Never raises (a failure must not stop the start, or every restart would repeat it): returns none | restored | mismatch | deferred
+    (the booted slot is not known here; the request stays for a later step) | failed (logged, recorded as the error ``restore_failed``
+    for the update/backup pages, request dropped, nothing changed)."""
     ota_dir = os.path.join(data_dir, "ota")
     req_path = os.path.join(ota_dir, RESTORE_REQUEST)
-    req = load_json(req_path)
-    if req is None and not os.path.exists(req_path):
-        return "none"
-    bootname = bootname or booted_slot_from_cmdline()
-    meta = restorable_snapshot(ota_dir, bootname, version)
-    if not isinstance(req, dict) or not meta or req.get("slot") != bootname or req.get("created") != meta.get("created"):
+    try:
+        req = load_json(req_path)
+        if req is None and not os.path.exists(req_path):
+            return "none"
+        bootname = bootname or booted_slot_from_cmdline()
+        if bootname is None:
+            log("update: snapshot restore deferred (the booted slot is not known in this step)")
+            return "deferred"
+        meta = restorable_snapshot(ota_dir, bootname, version)
+        if not isinstance(req, dict) or not meta or req.get("slot") != bootname or req.get("created") != meta.get("created"):
+            os.unlink(req_path)
+            log("update: snapshot restore request ignored (it does not match this version and slot)")
+            return "mismatch"
+        _restore_snapshot(data_dir, os.path.join(ota_dir, "snapshots", bootname))
+        with StateFile(ota_dir).edit() as st:
+            st["restored"] = {"at": time.time(), "version": version, "snapshot_created": meta.get("created")}
         os.unlink(req_path)
-        log("update: snapshot restore request ignored (it does not match this version and slot)")
-        return "mismatch"
-    snap = os.path.join(ota_dir, "snapshots", bootname)
-    for name in SNAPSHOT_FILES:
-        src, dst = os.path.join(snap, name), os.path.join(data_dir, name)
-        if os.path.isfile(src):
-            tmp = dst + ".restore"
-            shutil.copy2(src, tmp)
-            os.replace(tmp, dst)
-        elif os.path.isfile(dst):
-            os.unlink(dst)                                     # did not exist when the snapshot was taken
-    for name in SNAPSHOT_DIRS:
-        src, dst = os.path.join(snap, name), os.path.join(data_dir, name)
-        if os.path.isdir(src):
-            tmp = dst + ".restore"
-            shutil.rmtree(tmp, ignore_errors=True)
-            shutil.copytree(src, tmp)
-            shutil.rmtree(dst, ignore_errors=True)
-            os.replace(tmp, dst)
-    _fsync_dir(data_dir)
-    with StateFile(ota_dir).edit() as st:
-        st["restored"] = {"at": time.time(), "version": version, "snapshot_created": meta.get("created")}
-    os.unlink(req_path)
-    _fsync_dir(ota_dir)
+        _fsync_dir(ota_dir)
+    except Exception as e:                                     # ENOSPC, EIO on the card, a damaged snapshot, ...
+        detail = f"{type(e).__name__}: {e}"
+        log(f"update: snapshot restore FAILED ({detail}) - the device starts with its current settings")
+        try:
+            with StateFile(ota_dir).edit() as st:
+                st["error"] = {"code": "restore_failed", "detail": detail[:500], "at": time.time()}
+            os.unlink(req_path)
+        except Exception as e2:
+            log(f"update: could not record the failed restore ({type(e2).__name__}: {e2})")
+        return "failed"
     log(f"update: restored the settings snapshot of version {version} as requested by the owner")
     return "restored"
+
+
+def _restore_snapshot(data_dir: str, snap: str) -> None:
+    """Copy everything next to its target first; only when every copy succeeded, swap the copies in (a failing copy changes nothing)."""
+    swaps: list[tuple[str | None, str]] = []                   # (staged copy, or None = delete the target; target)
+    try:
+        for name in (*SNAPSHOT_FILES, *SNAPSHOT_DIRS):
+            src, dst = os.path.join(snap, name), os.path.join(data_dir, name)
+            tmp = dst + ".restore"
+            if name in SNAPSHOT_DIRS and os.path.isdir(src):
+                shutil.rmtree(tmp, ignore_errors=True)
+                swaps.append((tmp, dst))                       # registered first: a partial copy is cleaned up as well
+                shutil.copytree(src, tmp)
+            elif name in SNAPSHOT_FILES and os.path.isfile(src):
+                swaps.append((tmp, dst))
+                shutil.copy2(src, tmp)
+            elif name in SNAPSHOT_FILES and os.path.isfile(dst):
+                swaps.append((None, dst))                      # did not exist when the snapshot was taken
+    except BaseException:
+        for tmp, _ in swaps:
+            if tmp and os.path.isdir(tmp):
+                shutil.rmtree(tmp, ignore_errors=True)
+            elif tmp:
+                with contextlib.suppress(OSError):
+                    os.unlink(tmp)
+        raise
+    for tmp, dst in swaps:
+        if tmp is None:
+            os.unlink(dst)
+        else:
+            if os.path.isdir(tmp):
+                shutil.rmtree(dst, ignore_errors=True)
+            os.replace(tmp, dst)
+    _fsync_dir(data_dir)
 
 
 # ------------------------------------------------------------------------------------------------ boot reconciliation

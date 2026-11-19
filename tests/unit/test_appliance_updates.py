@@ -66,6 +66,26 @@ def test_updates_rauc_attaches_the_manager_and_applies_a_requested_restore(tmp_p
         rauc.stop(); bus.close()
 
 
+def test_a_crashing_restore_step_never_keeps_the_webui_down(tmp_path, monkeypatch, capsys):
+    """Review N-4: an exception in prepare_data aborted appliance.run before the WebUI started; with the request file still there,
+    every restart repeated it until systemd's start limit left the device without a WebUI."""
+    monkeypatch.setenv("NOTIFY_SOCKET", "")
+    monkeypatch.setattr(M, "prepare_data", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("unexpected")))
+    trust = tmp_path / "trust.json"
+    trust.write_text('{"mode": "own", "certificates": [], "official_source": null}')
+    bus = PrivateBus()
+    rauc = FakeRauc(bus.address)
+    rauc.start()
+    try:
+        svc, done, t = start(args(tmp_path, "--updates", "rauc", "--dbus", bus.address, "--update-trust", str(trust)))
+        try:
+            assert svc.ota is not None and "snapshot restore step failed (RuntimeError: unexpected)" in capsys.readouterr().err
+        finally:
+            done.set(); t.join(10)
+    finally:
+        rauc.stop(); bus.close()
+
+
 def test_without_updates_there_is_no_update_service(tmp_path, monkeypatch):
     monkeypatch.setenv("NOTIFY_SOCKET", "")
     svc, done, t = start(args(tmp_path))

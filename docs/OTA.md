@@ -109,6 +109,14 @@ atomically. After a rollback the older version keeps using the **current** data:
 lowers `schema_version` (DECISIONS #75-#77), so returning to the newer version later loses nothing. Restoring the snapshot is therefore
 **only an owner action** ("Restore snapshot and restart" on the backup page): the request names the snapshot; at the next start
 `prepare_data()` applies it before the configuration is loaded - only if it was taken by exactly the running version on the booted slot.
+It runs in the **boot step** (`btbridge.bootfiles`, `hifi-bridge-boot.service`), because the network agent `hifi-netd` is ordered after
+that unit and reads `network.json` and the host name only at its own start (review N-4: run from the bridge, which starts after the
+agent, the restored network settings were shown but not applied until the next boot). The boot unit therefore has no `ProcSubset=pid`:
+it reads the booted slot (`rauc.slot=`) from `/proc/cmdline`; without a known slot the request waits (`deferred`). The bridge still calls
+`prepare_data()` before loading its configuration (a no-op when the boot step did it; a fallback for setups without the boot unit, where
+the agent would follow only at the next boot). The restore is all or nothing (every file is copied first, then swapped in); any error is
+logged, recorded as `restore_failed` (shown on the update and backup pages, DE/EN) and the request is dropped, so a failing card can
+never cause a restart loop; the device starts with its current settings and the owner may try again.
 Rule for future releases: an incompatible data change must raise the settings `schema_version` and migrate.
 The snapshots contain copies of `secrets.json` (owner password hash, stream token, MQTT password): they are protected like the originals
 (data partition, 0700/0600) and **removed by a factory reset** (`recovery.factory_reset` → `ota.manager.forget_owner_data`), together with

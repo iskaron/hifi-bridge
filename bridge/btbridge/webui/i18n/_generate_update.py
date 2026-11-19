@@ -148,6 +148,10 @@ for c, en, de in [
          "and look at the diagnostics page.",
          "Das Paket konnte nicht geprüft werden (Speicherfehler) und wurde gelöscht. Versuchen Sie es erneut; passiert das wieder, starten "
          "Sie das Gerät neu und sehen Sie auf der Diagnoseseite nach."),
+        ("restore_failed", "The settings snapshot could not be restored (storage error); the device kept its current settings. Try again; "
+         "if this repeats, the SD card may be failing.",
+         "Der Einstellungs-Schnappschuss konnte nicht wiederhergestellt werden (Speicherfehler); das Gerät behält seine aktuellen "
+         "Einstellungen. Versuchen Sie es erneut; passiert das wieder, ist eventuell die SD-Karte defekt."),
         ("reboot_timeout", "The device did not restart. Press “Restart now” again; if nothing happens, unplug the power for a few seconds – "
          "the selected version starts either way.",
          "Das Gerät hat nicht neu gestartet. Tippen Sie erneut auf „Jetzt neu starten“; passiert nichts, trennen Sie es für einige Sekunden "

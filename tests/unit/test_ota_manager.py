@@ -885,3 +885,102 @@ def test_a_restart_request_with_an_incomplete_state_record(env):
         st["phase"], st["install"] = "installed", None
     env.m.request_reboot()
     assert env.reboots == [1] and env.m.info()["phase"] == "rebooting"
+
+
+# ---------------------------------------------------------------- review N-4: snapshot restore before hifi-netd, failures do not loop
+def restore_scenario(tmp_path, monkeypatch):
+    """The snapshot holds Wi-Fi 'Home' and host name 'wohnzimmer'; afterwards the owner changed both; then requested the restore."""
+    from btbridge import __version__
+    from btbridge.config import ConfigStore
+    from btbridge.net import netconfig as N
+    data = tmp_path / "data"
+    store = ConfigStore(str(data))
+    store.update({"local_hostname": "wohnzimmer"})
+    N.write_private(str(data / N.FILE_NAME), N.validate({"country": "DE", "wifi": {"ssid": "Home", "psk": "wifi-secret-123"}}))
+    M.take_snapshot(str(data), str(data / "ota"), "A", __version__, SCHEMA_VERSION)
+    meta = M.snapshot_meta(str(data / "ota"), "A")
+    store.update({"local_hostname": "kueche"})
+    N.write_private(str(data / N.FILE_NAME), N.validate({"country": "DE", "wifi": {"ssid": "Gartenhaus", "psk": "garden-pass-1"}}))
+    M.atomic_json(str(data / "ota" / M.RESTORE_REQUEST), {"slot": "A", "created": meta["created"]})
+    monkeypatch.setattr(M, "booted_slot_from_cmdline", lambda path="/proc/cmdline": "A")
+    return data
+
+
+def test_the_boot_step_restores_the_snapshot_before_the_network_agent_reads_it(tmp_path, monkeypatch):
+    """hifi-netd starts After=hifi-bridge-boot.service and reads network.json and local_hostname only at its start: the restore must
+    therefore happen in the boot step, not in the bridge (which starts after the agent)."""
+    from btbridge import bootfiles
+    from btbridge.net import netagent as A
+    from btkit.sim_net import SimulatedNetworkSystem
+    data = restore_scenario(tmp_path, monkeypatch)
+    boot = tmp_path / "boot"
+    boot.mkdir()
+    logs = []
+    r = bootfiles.run(str(data), str(boot), iterations=1000, log=logs.append)
+    assert r["restore"] == "restored" and not (data / "ota" / M.RESTORE_REQUEST).exists()
+    system = SimulatedNetworkSystem()
+    agent = A.Agent(system, str(data), os.getuid(), str(tmp_path), log=lambda m: None)
+    agent.start()                                                         # what hifi-netd does next in the boot order
+    assert agent.manager.cfg["wifi"]["ssid"] == "Home" and agent.hostname == "wohnzimmer" and system.hostnames == ["wohnzimmer"]
+    assert "Wi-Fi network: 'Home'" in (boot / "hifi-status.txt").read_text()
+    assert prepare_data(str(data), log=lambda m: None) == "none"         # the bridge's own call afterwards changes nothing
+
+
+def test_a_failing_restore_changes_nothing_records_the_error_and_drops_the_request(tmp_path, monkeypatch):
+    data = restore_scenario(tmp_path, monkeypatch)
+    before = {p: (data / p).read_bytes() for p in ("settings.json", "network.json")}
+    real = M.shutil.copy2
+
+    def failing(src, dst, **kw):
+        if "network.json" in str(src):
+            raise OSError(28, "No space left on device")
+        return real(src, dst, **kw)
+    monkeypatch.setattr(M.shutil, "copy2", failing)
+    logs = []
+    assert prepare_data(str(data), log=logs.append) == "failed"
+    assert {p: (data / p).read_bytes() for p in before} == before        # all or nothing: settings.json untouched too
+    assert not (data / "ota" / M.RESTORE_REQUEST).exists()               # no repeat at every start (restart loop)
+    assert not list(data.glob("*.restore")) and any("restore FAILED" in m for m in logs)
+    st = StateFile(str(data / "ota")).read()
+    assert st["error"]["code"] == "restore_failed" and "restored" not in st
+
+
+def test_a_failing_restore_never_stops_the_start_even_if_nothing_can_be_written(tmp_path, monkeypatch):
+    data = restore_scenario(tmp_path, monkeypatch)
+    monkeypatch.setattr(M.shutil, "copy2", lambda *a, **k: (_ for _ in ()).throw(OSError(5, "Input/output error")))
+    monkeypatch.setattr(M.os, "unlink", lambda p: (_ for _ in ()).throw(OSError(5, "Input/output error")))
+    monkeypatch.setattr(M, "atomic_json", lambda *a: (_ for _ in ()).throw(OSError(5, "Input/output error")))
+    logs = []
+    assert prepare_data(str(data), log=logs.append) == "failed"
+    assert any("restore FAILED" in m for m in logs) and any("could not record" in m for m in logs)
+
+
+def test_without_a_known_boot_slot_the_request_waits(tmp_path, monkeypatch):
+    data = restore_scenario(tmp_path, monkeypatch)
+    monkeypatch.setattr(M, "booted_slot_from_cmdline", lambda path="/proc/cmdline": None)
+    assert prepare_data(str(data), log=lambda m: None) == "deferred"
+    assert (data / "ota" / M.RESTORE_REQUEST).exists()                   # e.g. /proc/cmdline hidden: the next step may know the slot
+
+
+def test_a_restore_failing_in_the_middle_of_a_directory_copy_leaves_no_partial_copies(tmp_path, monkeypatch):
+    data = restore_scenario(tmp_path, monkeypatch)
+    (data / "certs").mkdir()
+    (data / "certs" / "ca.crt").write_text("current CA")
+    from btbridge import __version__
+    meta = M.snapshot_meta(str(data / "ota"), "A")
+    snap = data / "ota" / "snapshots" / "A"
+    (snap / "certs").mkdir()
+    (snap / "certs" / "ca.crt").write_text("snapshot CA")
+    if (snap / "secrets.json").exists():
+        (snap / "secrets.json").unlink()                                  # the snapshot had none: the restore would delete it
+    (data / "secrets.json").write_text('{"stream_token": "current"}')
+    real = M.shutil.copytree
+
+    def half(src, dst, **kw):
+        real(src, dst, **kw)                                              # the copy exists, then the disk fails
+        raise OSError(5, "Input/output error")
+    monkeypatch.setattr(M.shutil, "copytree", half)
+    before = (data / "network.json").read_bytes()
+    assert prepare_data(str(data), version=__version__, log=lambda m: None) == "failed" and meta
+    assert (data / "network.json").read_bytes() == before and (data / "certs" / "ca.crt").read_text() == "current CA"
+    assert (data / "secrets.json").read_text() == '{"stream_token": "current"}' and not list(data.glob("*.restore"))

@@ -32,7 +32,7 @@ ProtectControlGroups=yes
 ProtectClock=yes
 ProtectHostname=yes
 ProtectProc=invisible
-ProcSubset=pid
+# no ProcSubset=pid: the owner-requested snapshot restore reads the booted slot (rauc.slot=) from /proc/cmdline (docs/OTA.md 6)
 RestrictNamespaces=yes
 RestrictRealtime=yes
 RestrictSUIDSGID=yes

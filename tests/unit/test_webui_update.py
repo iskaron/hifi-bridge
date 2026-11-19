@@ -379,6 +379,21 @@ def test_import_with_kdf_parameters_above_the_memory_limit_is_an_invalid_file(u,
     assert u.svc.store.get("device_name") == "Changed"
 
 
+@pytest.mark.parametrize("lang,text", [("en", "could not be restored (storage error)"),
+                                       ("de", "konnte nicht wiederhergestellt werden (Speicherfehler)")])
+def test_a_failed_snapshot_restore_is_shown_on_the_backup_and_update_pages(u, monkeypatch, lang, text):
+    """Review N-4: the restore at the start failed (here: ENOSPC while copying); the owner sees it on both pages, in both languages."""
+    from btbridge.config.store import SCHEMA_VERSION
+    from btbridge.ota import manager as M
+    u.svc.store.update({"language": lang})
+    M.take_snapshot(u.svc.store.dir, u.svc.ota.ota_dir, "A", "0.3.0", SCHEMA_VERSION)
+    M.atomic_json(u.svc.ota.ota_dir + "/" + M.RESTORE_REQUEST, {"slot": "A", "created": M.snapshot_meta(u.svc.ota.ota_dir, "A")["created"]})
+    monkeypatch.setattr(M.shutil, "copy2", lambda *a, **k: (_ for _ in ()).throw(OSError(28, "No space left on device")))
+    assert M.prepare_data(u.svc.store.dir, version="0.3.0", bootname="A", log=lambda m: None) == "failed"
+    for path in ("/settings/backup", "/settings/update"):
+        assert text in u.c.get(path).body, path
+
+
 def test_import_socket_error(u, monkeypatch):
     monkeypatch.setattr(views_update, "parse_multipart", lambda *a, **k: (_ for _ in ()).throw(OSError("reset")))
     import_file(u, b"{}")

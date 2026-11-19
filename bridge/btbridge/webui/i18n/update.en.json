@@ -92,6 +92,7 @@
  "upd.error.rauc_unavailable": "The update service (RAUC) is not reachable.",
  "upd.error.reboot_timeout": "The device did not restart. Press “Restart now” again; if nothing happens, unplug the power for a few seconds – the selected version starts either way.",
  "upd.error.reboot_unavailable": "The device cannot restart itself here (no restart helper).",
+ "upd.error.restore_failed": "The settings snapshot could not be restored (storage error); the device kept its current settings. Try again; if this repeats, the SD card may be failing.",
  "upd.error.rollback_unavailable": "No other bootable version is available.",
  "upd.error.signature_invalid": "Refused: the bundle is not signed by a key this device trusts, or it is damaged.",
  "upd.error.size_mismatch": "The download has the wrong size.",
