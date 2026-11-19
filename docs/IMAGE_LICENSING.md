@@ -1,6 +1,6 @@
 # Image licensing: Raspberry Pi boot firmware and Wi-Fi/Bluetooth firmware (G4 L-1, OPEN_QUESTIONS #35)
 
-Status (2026-11-18): the licence texts below were **read from the exact, hash-verified source archives that the build uses**
+Status (2026-11-18, legal-info facts added 2026-11-19 from the real builds): the licence texts below were **read from the exact, hash-verified source archives that the build uses**
 (Buildroot 2026.02.x @ `679b9ea`) and from the upstream copyright files those archives come from. This is a reading of the texts by the
 project, **not legal advice**; the owner decides on a public release (G4). Nothing here has been published.
 
@@ -89,5 +89,8 @@ with other hardware; using Broadcom's name for promotion; distributing it to the
   public release: add the `raspberrypi/linux@957fc9f9` source to the source offer, or build the overlays from our own kernel tree, or drop
   them (the product's `config.txt` uses no overlay). Owner decision.
 * GPL/LGPL components: ship `make legal-info` (sources + licence texts + `manifest.csv`) per release, or a written offer (OPEN_QUESTIONS #43).
-  Measured sizes per board are in docs/IMAGE_BUILD.md.
+  Measured: legal-info is **965 MB per board** (sources dominate; the boards share almost all of it). It completes, with two warnings that
+  a release must close by hand: **the Buildroot source itself is not saved** (Buildroot is GPL-2.0+ and its skeleton files are in the
+  image: add the pinned Buildroot tarball to the source offer) and **the Bootlin toolchain has no licence files defined** (add the glibc
+  LGPL-2.1+ and GCC runtime-exception texts for the runtime libraries in the image).
 * AGPL-3.0-only bridge: source link in every WebUI footer (DECISIONS #72) plus `NOTICE.txt` on the FAT.

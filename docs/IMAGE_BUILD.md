@@ -79,8 +79,39 @@ The builds still use 256 MiB slots (70 MiB free each). Switching to 384 MiB is a
 the layout for every device ever flashed: owner decision (proposed below). Possible savings if a smaller card is wanted: a trimmed kernel
 configuration (modules are 23 MiB), fewer inodes, dropping the 358 overlays (unused by our config.txt), per-board firmware pruning.
 
-## 5. Reproducibility
-<!-- filled in from the reproducibility run -->
+## 5. Reproducibility (G2 P1-1, software part)
+Settings: `BR2_REPRODUCIBLE` (SOURCE_DATE_EPOCH = commit date of the pinned Buildroot, TZ=UTC, LANG=C), the same container paths for
+every build (`/out`, `/work`, `/buildroot`), fixed ext4 UUIDs and hash seeds (rootfs and data), genimage `fs-timestamp` for the data
+partition, boot inputs stamped with SOURCE_DATE_EPOCH, `mkfs.vfat --invariant`, MBR disk signature 0 (genimage default), bridge bytecode
+as `unchecked-hash` pycs (no time stamps).
+
+**Experiment:** rpi3_64 built twice from scratch in different output directories on the host (same container path `/out`): build A
+with the shared ccache (and later incremental runs), build B clean **without ccache** (`HIFI_OS_CCACHE=0`, 6980 s). Compared with
+`tree_manifest.py` (path, type, mode, owner, size, SHA-256 of every file) and SHA-256 of each partition:
+
+| Part | Result |
+|---|---|
+| boot FAT (377 entries; partition image) | **identical** (after the fix below) |
+| data partition (ext4 image) | **identical** |
+| slot B | identical (all zero) |
+| rootfs files | **7394 of 7398 identical**, incl. kernel `Image`, all modules, Python, systemd, the bridge's bytecode, every configuration file |
+| 4 rootfs files differ | `libwireplumber-0.5.so`, two WirePlumber modules, `pylibmount.so`: only strings of the form `__FILE__` (assertion messages from headers) differ: `../../../host/…/spa/pod/iter.h` in the ccache build vs. `buildroot/host/…` without ccache. ccache's base-dir rewriting turns absolute include paths into relative ones before Buildroot's `-ffile-prefix-map` can apply. A ccache artefact, not randomness. |
+| rootfs.ext4 / card image | differ only because of those 4 files |
+
+Also: the Zero 2 W build (independent, fresh output directory) has bit-identical rootfs files to the Pi 3 B+ build except the expected
+board files (its DTB, no `eth0.network`, `system.conf`, `os-release`, `build-info.json`).
+
+**What is and is not bit-reproducible, and why:**
+* Reproducible: every file of the rootfs and the boot FAT, the boot FAT image, the data partition, the MBR; the rootfs and card image
+  **when the ccache setting is the same** (consequence: build releases **without ccache**, as CI would).
+* Not shown: two complete ccache-free builds against each other (a third 2-hour build; not run). Not covered: a different host or a
+  different output path (Buildroot only promises identical results for the same `O=` path, which the container mount keeps fixed).
+* Not reproducible by design: the RAUC bundle's dm-verity salt and CMS signing time (docs/OTA.md); the flash manifest embeds the image hash
+  and is reproducible with the image. Development images contain the temporary development CA, so each developer's image differs in
+  `/etc/rauc/keyring.pem` and `update-trust.json`.
+
+Fixes found by this experiment: boot FAT file times, volume serial and label time; data ext4 time stamps; rootfs/data UUIDs and hash
+seeds (all listed in §7).
 
 ## 6. Licences and SBOM
 * Licence policy (`os/tools/license_report.py` over `make show-info`): **52 target packages per board, 0 to review** (reviewed exceptions
@@ -105,6 +136,7 @@ configuration (modules are 23 MiB), fewer inodes, dropping the 358 overlays (unu
 | rootfs: 1 KiB blocks (mke2fs default below 512 MiB) and a 32 MiB journal on a read-only file system | `-b 4096`, `^has_journal` |
 | the root file system was remounted read-write (Buildroot default), no `/var` strategy, kernel not in the slot (boot.cmd loads it from there) | `# BR2_TARGET_GENERIC_REMOUNT_ROOTFS_RW is not set`, `VAR_OVERLAYFS`, `BR2_LINUX_KERNEL_INSTALL_TARGET` |
 | random ext4 UUIDs/hash seeds and genimage time stamps made every card different | fixed UUIDs/seeds, `fs-timestamp` from `SOURCE_DATE_EPOCH`, `BR2_REPRODUCIBLE` |
+| two clean builds: identical boot files but different FAT images (mtimes, volume serial, label time) | boot inputs stamped with `SOURCE_DATE_EPOCH`, `mkfs.vfat --invariant` |
 | secret scan: `psk = net.get("psk")` in Python source matched the Wi-Fi passphrase rule | rule limited to configuration files |
 
 ## 8. Not verified (HARDWARE-PENDING) and open points

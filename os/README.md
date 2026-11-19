@@ -1,7 +1,7 @@
 # os/ – Buildroot external tree for the Hi-Fi Bridge appliance
 
-**Internal DEVELOPMENT images are built for all three boards (owner approval for builds before gate G1, phase 2b). Nothing has been
-booted.** "Builds" is not "boots": every board statement is BUILD-VERIFIED (compiles, image layout and contents checked in Docker) and
+**Internal DEVELOPMENT images are built for all three boards (owner approval for builds before gate G1; phase 2b package 6, 2026-11-19:
+all image checks pass, secret scan clean, `make ota` round trip passes). Nothing has been booted.** "Builds" is not "boots": every board statement is BUILD-VERIFIED (compiles, image layout and contents checked in Docker) and
 HARDWARE-PENDING (docs/HARDWARE_GATE_CHECKLIST.md, G2). Measurements, reproducibility and sizes: docs/IMAGE_BUILD.md. Licences of the
 firmware: docs/IMAGE_LICENSING.md.
 

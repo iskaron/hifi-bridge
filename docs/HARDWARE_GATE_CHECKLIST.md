@@ -57,19 +57,24 @@ that was not tested.
 **Boot and layout (P1, P4)**
 - [ ] P1-1 The image from `hifi_bridge_<board>_defconfig` builds reproducibly in Docker. Two builds give the same rootfs hash, or the
   differences are explained.
+  *Software evidence (BUILD-VERIFIED, package 6, not a hardware result):* all three boards build in Docker; two clean rpi3_64 builds (with and without ccache) compared file by file, see docs/IMAGE_BUILD.md §5.
 - [ ] P1-2 Firmware → U-Boot → kernel from slot A → `multi-user.target` (serial or HDMI log). Measure the time to the WebUI.
 - [ ] P1-3 `config.txt` without `miniuart-bt`: Bluetooth on PL011 is stable during 30 min of A2DP (repeat E1). Compare with
   `miniuart-bt` if problems occur.
 - [ ] P4-1 Partitions as designed (boot FAT, A, B, data). `hifi-bridge-growdata` grows data to the card size once; `x-systemd.growfs`
   grows ext4; the second boot does nothing.
+  *Software evidence (BUILD-VERIFIED, package 6, not a hardware result):* the built cards have this layout (MBR, 4 MiB aligned, slot B empty); growth itself is HARDWARE-PENDING.
 - [ ] P4-2 Rootfs is read-only; `/var/lib/hifi-bridge` and `/var/lib/bluetooth` persist across reboots (pairings survive).
+  *Software evidence (BUILD-VERIFIED, package 6, not a hardware result):* fstab `ro`, bootargs `ro`, /var overlay on tmpfs, bind mounts from /data verified in the images; runtime behaviour HARDWARE-PENDING.
 - [ ] P4-3 Measured sizes (rootfs used/free, boot, data after setup) replace the estimates in PHASE2B_PLAN §3. Minimum card size and
   recommendation decided.
+  *Software evidence (BUILD-VERIFIED, package 6, not a hardware result):* measured per board (rootfs 185 MiB used, bundle 74 MiB); recommendation 384/64/448 MiB, 2 GB card (minimum 1 GB) in docs/IMAGE_BUILD.md §4 - owner decision; data after setup needs a device.
 - [ ] P4-4 RAM/CPU at idle and while playing (Zero 2 W: 512 MB) with BlueZ, PipeWire, WirePlumber, Avahi and RAUC running.
 
 **A/B updates and rollback (P3 – provisional U-Boot boot-count)**
 - [ ] P3-1 `fw_printenv`/`fw_setenv` read and write `uboot.env` on the boot FAT (check `CONFIG_ENV_SIZE`/offset of `rpi_arm64`; adjust
   `/etc/fw_env.config`).
+  *Software evidence (BUILD-VERIFIED, package 6, not a hardware result):* U-Boot `rpi_arm64` build: `CONFIG_ENV_SIZE=0x4000`, `uboot.env` on FAT `mmc 0:1` = `/etc/fw_env.config`; reading/writing on a board is pending.
 - [ ] P3-2 A fresh card boots slot A; slot B (empty) is **never** tried (`BOOT_B_LEFT=0`).
 - [ ] P3-3 `rauc install` (development-signed bundle) writes slot B, switches, boots B and marks it good (`rauc status`).
 - [ ] P3-4 A deliberately broken B (kernel missing) is tried 3 times, then A boots again automatically.
@@ -134,6 +139,7 @@ that was not tested.
   the corresponding source is available to recipients.
 - [ ] L-1 `make legal-info` complete. Review the `brcmfmac_sdio-firmware-rpi` (PROPRIETARY) and Raspberry Pi firmware licence texts.
   Source offer for GPL/LGPL in place.
+  *Software evidence (BUILD-VERIFIED, package 6, not a hardware result):* legal-info completes for all boards (warnings: Buildroot source and toolchain licences not saved); licence texts reviewed in docs/IMAGE_LICENSING.md; owner items there.
 - [ ] L-2 Project `LICENSE` (AGPL-3.0-only) added; `HIFI_BRIDGE_LICENSE_FILES` set.
 - [ ] U-1 The WebUI update upload refuses unsigned and wrongly signed bundles; it installs only after owner confirmation; the previous release
   can be selected.
