@@ -24,13 +24,15 @@ def hotspot_password() -> str:
 
 
 def new_document(country: str, device_name: str | None = None, wifi: tuple[str, str] | None = None, hotspot: bool = True,
-                 hotspot_psk: str | None = None, tool_version: str = "hififlash") -> tuple[dict, bytes]:
+                 hotspot_psk: str | None = None, tool_version: str = "hififlash", local_hostname: str | None = None) -> tuple[dict, bytes]:
     """Returns (document, trust_key). A custom hotspot password must satisfy the device's rule (>= 12 printable ASCII)."""
     key = secrets.token_bytes(32)
     doc = {"format": P.FORMAT, "created_by": tool_version, "setup_code": setup_code(), "trust_key": P.encode_trust_key(key),
            "country": country}
     if device_name:
         doc["device_name"] = device_name
+    if local_hostname:
+        doc["local_hostname"] = local_hostname
     if hotspot:
         doc["hotspot"] = {"ssid": f"Hi-Fi Bridge {secrets.token_hex(2).upper()}", "psk": hotspot_psk or hotspot_password()}
     if wifi:

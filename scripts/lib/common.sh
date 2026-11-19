@@ -292,6 +292,7 @@ hb_image_info() {
     btbridge-security:dev)  HB_I_FILE=docker/Dockerfile.security;  HB_I_CTX=docker; HB_I_MB=155;  HB_I_WHY="bandit security analysis" ;;
     btbridge-os:dev)        HB_I_FILE=docker/Dockerfile.os;        HB_I_CTX=docker; HB_I_MB=520;  HB_I_WHY="Buildroot prerequisites, genimage and flash-tool tests" ;;
     btbridge-ota:dev)       HB_I_FILE=docker/Dockerfile.ota;       HB_I_CTX=docker; HB_I_MB=530;  HB_I_DEPS=btbridge-os:dev; HB_I_WHY="real RAUC D-Bus service, dbus-daemon and fw_setenv for the update tests" ;;
+    btbridge-flash:dev)     HB_I_FILE=docker/Dockerfile.flashtool; HB_I_CTX=docker; HB_I_MB=900;  HB_I_WHY="flash tool: PySide6 GUI tests (offscreen), coverage, screenshots, Linux package" ;;
     btbridge-net:dev)       HB_I_FILE=docker/Dockerfile.net;       HB_I_CTX=docker; HB_I_MB=330;  HB_I_WHY="real nft/dnsmasq/hostapd/wpa_supplicant/networkd/Avahi for the network checks" ;;
     btbridge-entry:dev)     HB_I_FILE=docker/Dockerfile.entry;     HB_I_CTX=docker; HB_I_MB=130;  HB_I_WHY="tests of the entry scripts and compose files" ;;
     hifi-demo:dev)          HB_I_FILE=demo/Dockerfile;             HB_I_CTX=.;      HB_I_MB=400;  HB_I_WHY="the interactive demo: bridge node, phones, rooms, gateway (one image)" ;;
@@ -301,7 +302,7 @@ hb_image_info() {
 
 # shellcheck disable=SC2034  # used by scripts/build_images.sh
 HB_ALL_IMAGES="btbridge-lab:dev btbridge-hwkit:dev btbridge-pw:bookworm btbridge-pw:trixie btbridge-avahi:dev btbridge-browser:dev \
-btbridge-static:dev btbridge-syslog:dev btbridge-py314:dev btbridge-security:dev btbridge-os:dev btbridge-entry:dev btbridge-net:dev btbridge-ota:dev hifi-demo:dev"
+btbridge-static:dev btbridge-syslog:dev btbridge-py314:dev btbridge-security:dev btbridge-os:dev btbridge-entry:dev btbridge-net:dev btbridge-ota:dev btbridge-flash:dev hifi-demo:dev"
 
 hb_image_present() { docker image inspect "$1" >/dev/null 2>&1; }
 
