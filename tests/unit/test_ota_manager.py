@@ -227,6 +227,20 @@ def test_finish_after_phase_changed_is_ignored(env):
 
 
 # ---------------------------------------------------------------- after the install: cancel / reboot / confirm / rollback
+def test_restart_helper_missing_is_a_clear_error_and_changes_nothing(env):
+    def no_helper():
+        raise FileNotFoundError("/run/hifi-bridge-ota")
+    m = env.make(reboot=no_helper)
+    install(env)
+    with pytest.raises(UpdateError, match="reboot_unavailable"):
+        m.request_reboot()
+    assert m.info()["phase"] == "installed"
+    m.cancel_installed()
+    with pytest.raises(UpdateError, match="reboot_unavailable"):
+        m.request_snapshot_restore()
+    assert not m.info()["restore_requested"]
+
+
 def test_owner_can_decline_the_restart(env):
     install(env)
     env.m.cancel_installed()

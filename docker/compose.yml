@@ -32,7 +32,7 @@ services:
       - appliance-data:/data
     command: ["python3", "-m", "btkit.appliance_lab", "--data", "/data", "--http-port", "8080", "--https-port", "8443",
               "--stream-port", "8090", "--advertise-host", "appliance", "--source", "none", "--thermal-path", "", "--no-mdns",
-              "--sim-port", "8099", "--sim-network", "8098"]
+              "--sim-port", "8099", "--sim-network", "8098", "--sim-rauc"]
     networks:
       lab:
         aliases: ["hifi-bridge.local"]       # the device's mDNS name, so Host validation and the certificate apply as on hardware

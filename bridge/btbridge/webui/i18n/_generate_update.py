@@ -118,6 +118,7 @@ k("upd.live.uploading", "Uploading … {pct} %", "Wird hochgeladen … {pct} %")
 k("upd.error.generic", "The update step failed ({code}).", "Der Update-Schritt ist fehlgeschlagen ({code}).")
 for c, en, de in [
         ("busy", "Another update step is in progress.", "Ein anderer Update-Schritt läuft gerade."),
+        ("reboot_unavailable", "The device cannot restart itself here (no restart helper).", "Das Gerät kann sich hier nicht selbst neu starten (kein Neustart-Helfer)."),
         ("no_space", "Not enough free space on the data partition.", "Nicht genug freier Platz auf der Datenpartition."),
         ("too_large", "The bundle is too large.", "Das Paket ist zu groß."),
         ("signature_invalid", "Refused: the bundle is not signed by a key this device trusts, or it is damaged.", "Abgelehnt: Das Paket ist nicht mit einem vertrauten Schlüssel signiert oder beschädigt."),

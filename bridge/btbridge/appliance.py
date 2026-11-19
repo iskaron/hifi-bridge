@@ -57,6 +57,7 @@ def parser() -> argparse.ArgumentParser:
                     help="socket of the root network agent hifi-netd; without it the network pages only show the current addresses")
     ap.add_argument("--updates", choices=("none", "rauc"), default="none",
                     help="rauc = update management through the RAUC D-Bus service (appliance image); none = no update service")
+    ap.add_argument("--update-trust", default="/etc/hifi-bridge/update-trust.json", help="the image's update trust record (post-build.sh)")
     return ap
 
 
@@ -106,7 +107,8 @@ def run(a, source, ready: Callable[[ApplianceService, WebUI], None] | None = Non
     if getattr(a, "updates", "none") == "rauc":
         from .ota.manager import UpdateManager
         from .ota.rauc import RaucClient
-        svc.ota = UpdateManager(a.data, RaucClient(bus=a.dbus), log=svc.logs)
+        from .ota.source import load_trust
+        svc.ota = UpdateManager(a.data, RaucClient(bus=a.dbus), trust=load_trust(a.update_trust) or {}, log=svc.logs)
         svc.ota.resume()                                      # reconcile with what booted; keep watching a running installation
     ca = svc.access.certs.ca_info()
     if ca:                                   # out-of-band reference for the trust step (docs/LOCAL_ACCESS_TLS.md 4.2)

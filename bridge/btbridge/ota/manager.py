@@ -605,11 +605,16 @@ class UpdateManager:
 
     def request_reboot(self) -> None:
         with self._lock:
-            self._require_idle(REBOOT_PHASES)
+            st0 = self._require_idle(REBOOT_PHASES)
             with self.state.edit() as st:
                 st["phase"] = "rebooting"
+            try:
+                self.reboot_fn()
+            except OSError as e:                               # no restart helper (e.g. not on the image): stay where we were
+                with self.state.edit() as st:
+                    st["phase"] = st0["phase"]
+                raise UpdateError("reboot_unavailable", type(e).__name__) from None
             self.log("update: restart requested by the owner")
-            self.reboot_fn()
 
     def rollback(self) -> None:
         """Owner selects the other (previous, known-good) slot for the next boot."""
@@ -642,10 +647,14 @@ class UpdateManager:
                 raise UpdateError("no_snapshot")
             if info["restore_requested"]:
                 raise UpdateError("busy", "restore already requested")
-            atomic_json(os.path.join(self.ota_dir, RESTORE_REQUEST), {"slot": meta["slot"], "version": meta["version"],
-                                                                      "created": meta["created"], "requested": self.clock()})
+            req = os.path.join(self.ota_dir, RESTORE_REQUEST)
+            atomic_json(req, {"slot": meta["slot"], "version": meta["version"], "created": meta["created"], "requested": self.clock()})
+            try:
+                self.reboot_fn()
+            except OSError as e:
+                os.unlink(req)
+                raise UpdateError("reboot_unavailable", type(e).__name__) from None
             self.log(f"update: owner requested the settings snapshot of {meta['version']}; restarting")
-            self.reboot_fn()
 
     def dismiss(self) -> None:
         with self.state.edit() as st:

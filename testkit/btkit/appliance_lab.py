@@ -4,6 +4,7 @@ manual tests can 'press Play on the phone'.  The control API exists only here (t
   python3 -m btkit.appliance_lab --data /data --http-port 8080 --sim-port 8099 [appliance options...]
   curl http://appliance:8099/connect | /play | /pause | /notify | /disconnect | /status
 
+``--sim-rauc`` runs the SIMULATED RAUC D-Bus service (btkit.fake_rauc), so the update pages are managed.
 ``--sim-network [PORT]`` also runs the REAL network agent with the SIMULATED radio (btkit.sim_net) on a socket in /tmp, so the network
 pages are managed; its control API (``/ethernet/on|off``, ``/stations/<n>``) listens on PORT (default 8098).
 """
@@ -58,8 +59,36 @@ def start_sim_network(data: str, port: int) -> str:
     return path
 
 
+def start_sim_rauc() -> list[str]:
+    """The SIMULATED RAUC service (btkit.fake_rauc) on a private bus: booted slot A, an earlier release 0.2.0 in slot B, any uploaded
+    file counts as a signed bundle of 0.4.0 and installs in ~5 s. Returns the appliance options that use it. No restart helper exists
+    in the lab, so "Restart now" reports that it is unavailable."""
+    import json
+    import tempfile
+
+    from .fake_bluez import PrivateBus
+    from .fake_rauc import FakeRauc
+    bus = PrivateBus()
+    rauc = FakeRauc(bus.address)
+    rauc.accept_any = True
+    rauc.install_plan = {"result": 0, "steps": 12, "step_s": 0.4}
+    rauc.slots["rootfs.1"]["bundle.version"] = "0.2.0"
+    rauc.boot_status["rootfs.1"] = "good"
+    rauc.start()
+    fd, trust = tempfile.mkstemp(prefix="hifi-lab-update-trust-", suffix=".json")
+    with open(fd, "w") as fh:
+        json.dump({"format": "hifi-bridge-update-trust/1", "mode": "own", "keyring": "/etc/rauc/keyring.pem", "official_source": None,
+                   "certificates": [{"role": "own", "subject": "CN=Hi-Fi Bridge lab update CA (SIMULATED)",
+                                     "sha256": "4C:41:42:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00"}]}, fh)
+    print(f"SIMULATED RAUC on {bus.address}", flush=True)
+    return ["--updates", "rauc", "--dbus", bus.address, "--update-trust", trust]
+
+
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    if "--sim-rauc" in argv:
+        argv.remove("--sim-rauc")
+        argv += start_sim_rauc()
     sim_port = 8099
     if "--sim-port" in argv:
         i = argv.index("--sim-port"); sim_port = int(argv[i + 1]); del argv[i:i + 2]

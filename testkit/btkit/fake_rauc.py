@@ -9,6 +9,7 @@ does (success, failure with a RAUC message, or a daemon crash without Completed)
 """
 from __future__ import annotations
 
+import os
 import threading
 import time
 
@@ -43,6 +44,7 @@ class FakeRauc:
         self.primary = self._by_bootname(booted)
         self.bundles: dict[str, dict | str] = {}      # path -> {"compatible", "version"} or an error message (bad signature ...)
         self.install_plan: dict = {"result": 0}        # {"result": 0|1, "error": "...", "steps": n, "crash": bool}
+        self.accept_any, self.lab_version = False, "0.4.0"     # lab: any existing file counts as a bundle of lab_version
         self.calls: list[tuple] = []
         self.conn = None
         self._lock = threading.RLock()
@@ -139,6 +141,8 @@ class FakeRauc:
             self._reply(msg, "ss", (name, text))
         elif member == "InspectBundle":
             b = self.bundles.get(body[0])
+            if b is None and self.accept_any and os.path.isfile(body[0]):
+                b = {"compatible": self.compatible, "version": self.lab_version}
             if b is None:
                 raise ValueError(f"Invalid bundle format: Failed to open bundle for reading: Error opening file {body[0]}: No such file")
             if isinstance(b, str):

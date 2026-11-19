@@ -88,6 +88,7 @@
  "upd.error.no_space": "Nicht genug freier Platz auf der Datenpartition.",
  "upd.error.no_update": "Bitte zuerst nach Updates suchen.",
  "upd.error.rauc_unavailable": "Der Update-Dienst (RAUC) ist nicht erreichbar.",
+ "upd.error.reboot_unavailable": "Das Gerät kann sich hier nicht selbst neu starten (kein Neustart-Helfer).",
  "upd.error.rollback_unavailable": "Keine andere startfähige Version vorhanden.",
  "upd.error.signature_invalid": "Abgelehnt: Das Paket ist nicht mit einem vertrauten Schlüssel signiert oder beschädigt.",
  "upd.error.size_mismatch": "Der Download hat die falsche Größe.",

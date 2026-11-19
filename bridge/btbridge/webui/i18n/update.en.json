@@ -88,6 +88,7 @@
  "upd.error.no_space": "Not enough free space on the data partition.",
  "upd.error.no_update": "Check for updates first.",
  "upd.error.rauc_unavailable": "The update service (RAUC) is not reachable.",
+ "upd.error.reboot_unavailable": "The device cannot restart itself here (no restart helper).",
  "upd.error.rollback_unavailable": "No other bootable version is available.",
  "upd.error.signature_invalid": "Refused: the bundle is not signed by a key this device trusts, or it is damaged.",
  "upd.error.size_mismatch": "The download has the wrong size.",
