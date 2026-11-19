@@ -108,6 +108,23 @@ def static(ui, req):
     return r
 
 
+def duration_text(req, seconds: int) -> str:
+    """'5 minutes' / '90 seconds' in the UI language (the pairing window is configurable: 60-1800 s; review L9)."""
+    seconds = int(seconds)
+    if seconds % 60:
+        return req.t("duration.seconds", n=seconds)
+    return req.t("duration.minute") if seconds == 60 else req.t("duration.minutes", n=seconds // 60)
+
+
+CERT_ERRORS = ("expired", "key_mismatch", "name_not_covered", "openssl not available", "pem_format")
+
+
+def cert_err_text(req, e: Exception) -> str:
+    """Known certificate error codes have their own text; anything else (openssl's English stderr) gets a generic one."""
+    code = str(e).split(":")[0]
+    return req.t("error.cert." + (code if code in CERT_ERRORS else "invalid"))
+
+
 def err_text(req, e: Exception) -> str:
     if isinstance(e, SettingError):
         return req.t("error.setting", field=req.t("field." + e.key), reason=req.t("error." + e.code))
@@ -170,8 +187,8 @@ def wizard_steps(req, current: int) -> str:
 
 def lang_switch(req) -> str:
     t = req.t
-    btns = "".join(f'<button name="lang" value="{code}" class="chip"{" aria-pressed=true" if req.t.lang == code else ""}>{label}</button>'
-                   for code, label in (("de", "Deutsch"), ("en", "English")))
+    btns = "".join(f'<button name="lang" value="{code}" lang="{code}" class="chip"{" aria-pressed=true" if req.t.lang == code else ""}>'
+                   f'{label}</button>' for code, label in (("de", "Deutsch"), ("en", "English")))   # each label in its own language
     return f'<form class="langs" method="post" action="/lang" aria-label="{esc(t("field.language"))}">{btns}</form>'
 
 
@@ -213,8 +230,7 @@ def setup_post(req):
 def lang_post(req):
     lang = req.form.get("lang")
     to = req.h.headers.get("Referer") or "/"
-    path = urllib.parse.urlsplit(to).path or "/"
-    r = _srv().redirect(path if path.startswith("/") else "/")
+    r = _srv().redirect(local_path(urllib.parse.urlsplit(to).path or "/"))
     if lang in ("de", "en"):
         r.cookie(_srv().LANG_COOKIE, lang, req.secure, max_age=365 * 86400)
         if req.session:
@@ -360,9 +376,9 @@ def dashboard(req):
     p = st["bluetooth"]
     allowed = st["bridge"]["audio_permission"] == "allowed"
     pairing = (toggle_form(req, "/pairing/close", t("pairing.close"), "off", True,
-                           f'<p class="countdown" data-remaining="{p["pairing_remaining_s"]}" id="live-pairing">'
+                           f'<p class="countdown" data-remaining="{p["pairing_remaining_s"]}" data-name="{esc(p["name"])}" id="live-pairing">'
                            f'{esc(t("pairing.open_for", name=p["name"], seconds=p["pairing_remaining_s"]))}</p>')
-               if p["pairing_open"] else toggle_form(req, "/pairing/open", t("pairing.open"), "on", False,
+               if p["pairing_open"] else toggle_form(req, "/pairing/open", t("pairing.open", duration=duration_text(req, svc.store.get("pairing_seconds"))), "on", False,
                                                      f'<p class="help">{esc(t("pairing.help", name=p["name"]))}</p>'))
     degraded = "".join(f'<li>{esc(t("degraded." + d))}</li>' for d in st["degraded"])
     sysd = st["system"] or {}
@@ -387,12 +403,14 @@ def fmt(v, unit="") -> str:
 
 
 def pairing_open(req):
-    req.ui.svc.open_pairing()
+    if not req.ui.svc.open_pairing():
+        return _srv().redirect(safe_back(req, "/"), req.t("error.pairing_adapter"), req.secure, error=True)
     return _srv().redirect(safe_back(req, "/"), req.t("flash.pairing_opened"), req.secure)
 
 
 def pairing_close(req):
-    req.ui.svc.close_pairing()
+    if not req.ui.svc.close_pairing():
+        return _srv().redirect(safe_back(req, "/"), req.t("error.pairing_adapter"), req.secure, error=True)
     return _srv().redirect(safe_back(req, "/"), req.t("flash.pairing_closed"), req.secure)
 
 
@@ -403,8 +421,16 @@ def audio_post(req):
 
 
 def safe_back(req, default: str) -> str:
-    b = req.form.get("back", "")
-    return b if b.startswith("/") and not b.startswith("//") else default
+    return local_path(req.form.get("back", ""), default)
+
+
+def local_path(p: str, default: str = "/") -> str:
+    """``p`` if it is a path on this device, else ``default``. Browsers treat a backslash like a slash, so "/\\evil" is
+    "//evil" (another host); control characters would inject headers (review L10)."""
+    if (not p or not p.startswith("/") or p.startswith("//") or "\\" in p or any(ord(c) < 0x20 or ord(c) == 0x7F for c in p)):
+        return default
+    u = urllib.parse.urlsplit(p)
+    return p if not u.scheme and not u.netloc else default
 
 
 # ============================================================== pairing page
@@ -420,9 +446,9 @@ def pairing_page(req):
 <form method="post" action="/devices/remove" data-confirm="{esc(t("pairing.remove.confirm"))}">{csrf(req)}
 <input type="hidden" name="address" value="{esc(d["address"])}"><button class="danger small">{esc(t("pairing.remove"))}</button></form></li>""" for d in devs)
     win = (toggle_form(req, "/pairing/close", t("pairing.close"), "off", True,
-                       f'<input type="hidden" name="back" value="/pairing"><p class="countdown" data-remaining="{st["pairing_remaining_s"]}" '
+                       f'<input type="hidden" name="back" value="/pairing"><p class="countdown" data-remaining="{st["pairing_remaining_s"]}" data-name="{esc(st["name"])}" '
                        f'id="live-pairing">{esc(t("pairing.open_for", name=st["name"], seconds=st["pairing_remaining_s"]))}</p>')
-           if st["pairing_open"] else toggle_form(req, "/pairing/open", t("pairing.open"), "on", False,
+           if st["pairing_open"] else toggle_form(req, "/pairing/open", t("pairing.open", duration=duration_text(req, svc.store.get("pairing_seconds"))), "on", False,
                                                   f'<input type="hidden" name="back" value="/pairing"><p class="help">{esc(t("pairing.help", name=st["name"]))}</p>'))
     body = f"""<h1>{esc(t("nav.pairing"))}</h1><div class="grid two">
 <section class="card"><h2>{esc(t("pairing.window"))}</h2>{win}<p class="help">{esc(t("pairing.guest_hint", name=st["name"]))}</p></section>
@@ -467,7 +493,7 @@ def select(req, key, value, choices, help_key: str | None = None) -> str:
     return f'<label>{esc(t("field." + key))}<select name="{key}"{desc}>{opts}</select></label>{helptext}'
 
 
-SECTIONS = ("lyrion", "playback", "bluetooth", "access", "mqtt", "logging", "appearance", "security")
+SECTIONS = ("lyrion", "playback", "bluetooth", "access", "mqtt", "logging", "appearance", "security", "network")
 
 
 def section_summary(req, name: str) -> str:
@@ -490,6 +516,9 @@ def section_summary(req, name: str) -> str:
         return f'{t("choice.language." + c["language"])} · {t("choice.theme." + c["theme"])}'
     if name == "logging":
         return f'{c["syslog_host"]}:{c["syslog_port"]} (TLS)' if c["syslog_enabled"] else t("summary.syslog_off")
+    if name == "network":
+        from .views_network import summary
+        return summary(req)
     return t("summary.security")
 
 
@@ -625,11 +654,16 @@ def settings_access_get(req):
     return section_page(req, "access", inner)
 
 
-def _save(req, keys: tuple[str, ...], checkboxes: tuple[str, ...] = (), back: str = "/settings"):
+def _save(req, keys: tuple[str, ...], checkboxes: tuple[str, ...] = (), back: str = "/settings", before=None):
+    """Save a settings form all-or-nothing; ``before`` (e.g. storing a secret) runs only once every field validated."""
+    from ..config.schema import validate
     changes = {k: req.form.get(k, "") for k in keys if k in req.form}
     for k in checkboxes:
         changes[k] = req.form.get(k) == "on"
     try:
+        validate(changes)
+        if before is not None:
+            before()
         req.ui.svc.store.update(changes)
     except SettingError as e:
         return _srv().redirect(back, err_text(req, e), req.secure, error=True)
@@ -658,10 +692,9 @@ def settings_bluetooth(req):
 
 def settings_mqtt(req):
     pw = req.form.get("mqtt_password", "")
-    if pw:
-        req.ui.svc.store.set_secret("mqtt_password", pw)
+    store_pw = (lambda: req.ui.svc.store.set_secret("mqtt_password", pw)) if pw else None   # only after the form validated (L2)
     return _save(req, ("mqtt_host", "mqtt_port", "mqtt_username", "mqtt_base_topic", "mqtt_discovery_prefix", "mqtt_telemetry_s",
-                       "mqtt_ca_pem"), ("mqtt_enabled", "mqtt_tls"), back="/settings/mqtt")
+                       "mqtt_ca_pem"), ("mqtt_enabled", "mqtt_tls"), back="/settings/mqtt", before=store_pw)
 
 
 def settings_mqtt_controls(req):
@@ -700,15 +733,19 @@ def settings_access_custom(req):
     try:
         acc.install_custom(req.form.get("custom_cert_pem", ""), req.form.get("custom_key_pem", ""))
     except CertError as e:
-        return _srv().redirect("/settings/access", req.t("error.cert." + str(e).split(":")[0]), req.secure, error=True)
+        return _srv().redirect("/settings/access", cert_err_text(req, e), req.secure, error=True)
     return _srv().redirect("/settings/access", req.t("flash.cert_installed"), req.secure)
 
 
 def settings_access_renew(req):
+    from ..net.certs import CertError
     acc = req.ui.svc.access
     if acc is not None and acc.mode == "local_ca":
-        acc.certs.issue_server(acc.cert_names())
-        acc._load_ctx()
+        try:
+            acc.certs.issue_server(acc.cert_names())
+            acc._load_ctx()
+        except CertError as e:
+            return _srv().redirect("/settings/access", cert_err_text(req, e), req.secure, error=True)
     return _srv().redirect("/settings/access", req.t("flash.cert_renewed"), req.secure)
 
 
@@ -717,7 +754,7 @@ def settings_password(req):
     if f.get("new") != f.get("confirm"):
         return _srv().redirect("/settings/security", req.t("error.password_mismatch"), req.secure, error=True)
     try:
-        req.ui.svc.auth.change_password(f.get("old", ""), f.get("new", ""))
+        req.ui.svc.auth.change_password(f.get("old", ""), f.get("new", ""), client=req.client)
     except AuthError as e:
         return _srv().redirect("/settings/security", err_text(req, e), req.secure, error=True)
     sid, _ = req.ui.svc.auth.sessions.create()                 # all old sessions are gone; keep this browser logged in
@@ -921,7 +958,8 @@ def api_diagnostics(req):
 
 
 def routes(ui):
-    return {
+    from .views_network import routes as network_routes
+    return network_routes(ui) | {
         ("GET", "/setup"): setup_get, ("POST", "/setup"): setup_post, ("POST", "/lang"): lang_post,
         ("GET", "/setup/bluetooth"): setup_bluetooth_get, ("POST", "/setup/bluetooth"): setup_bluetooth_post,
         ("GET", "/setup/lyrion"): setup_lyrion_get, ("POST", "/setup/lyrion"): setup_lyrion_post,

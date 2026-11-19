@@ -84,6 +84,33 @@ def source_present(node: str, run=subprocess.run) -> bool:
     return any(len(cols) > 1 and cols[1] == node for cols in (line.split("\t") for line in out.splitlines()))
 
 
+RESTART_MAX_S = 5.0           # capture child restart back-off cap (review L4)
+FAST_RETRIES = 4              # first retries at retry_s: the node usually appears within ~2 s of the transport (start latency)
+HEALTHY_RUN_S = 5.0           # a child that delivered audio this long resets the back-off
+
+
+def reap(proc, timeout: float = 2.0) -> None:
+    """Terminate a child, wait for it (no zombie) and close its pipes (no fd leak); kill if it does not exit."""
+    if proc is None:
+        return
+    try:
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=timeout)
+    except Exception:
+        pass
+    for f in (getattr(proc, "stdout", None), getattr(proc, "stdin", None)):
+        try:
+            if f is not None:
+                f.close()
+        except Exception:
+            pass
+
+
 class PipeWireCapture:
     def __init__(self, argv_for: Callable[[str], list[str]] | None = None, popen=subprocess.Popen,
                  retry_s: float = 0.5, log: Callable[[str], None] = lambda m: None, stall_s: float = 3.0,
@@ -108,16 +135,18 @@ class PipeWireCapture:
         p = self._proc
         if p is not None:
             try:
-                p.terminate()
+                p.terminate()                              # unblocks the reader; the capture thread reaps it
             except Exception:
                 pass
         t = self._thread
         if t is not None and t is not threading.current_thread():
             t.join(timeout=3)
+        reap(p)                                            # idempotent: no zombie even if the thread did not get to it
         self._thread, self._proc = None, None
 
     def _run(self, address: str, on_pcm, stop: threading.Event) -> None:
         argv = self.argv_for(address)
+        fails = 0                                          # consecutive runs without lasting audio (restart back-off)
         while not stop.is_set():
             if self.present is not None and not self.present(address):
                 if stop.wait(self.retry_s):
@@ -132,6 +161,8 @@ class PipeWireCapture:
                 continue
             self._proc = proc
             self.starts += 1
+            started = time.monotonic()
+            first_data = None
             try:
                 buf, last_data = b"", time.monotonic()
                 while not stop.is_set():
@@ -145,14 +176,15 @@ class PipeWireCapture:
                     if not data:
                         break                              # child exited (node missing / PipeWire restarted): retry
                     last_data = time.monotonic()
+                    first_data = first_data or last_data
                     buf += data
                     if len(buf) >= CHUNK_BYTES:
                         on_pcm(buf)
                         buf = b""
             finally:
-                try:
-                    proc.terminate()
-                except Exception:
-                    pass
-            if stop.wait(self.retry_s):
+                reap(proc)
+            healthy = first_data is not None and time.monotonic() - started >= HEALTHY_RUN_S
+            fails = 0 if healthy else fails + 1
+            delay = self.retry_s if fails <= FAST_RETRIES else min(RESTART_MAX_S, self.retry_s * 2 ** (fails - FAST_RETRIES))
+            if stop.wait(delay):
                 return

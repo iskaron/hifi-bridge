@@ -19,6 +19,21 @@ import sys
 from . import provisioning, recovery
 
 
+def network_lines(data_dir: str) -> list[str]:
+    """Where to find the device without a working network (no password ever: the owner knows the hotspot password)."""
+    from .net import netconfig
+    try:
+        cfg = netconfig.load(os.path.join(data_dir, netconfig.FILE_NAME))
+    except netconfig.NetConfigError:
+        return ["Network settings unreadable: Ethernet with DHCP only (put a 'hifi-recovery' file containing 'network-reset' here)"]
+    out = []
+    if cfg["wifi"]:
+        out.append(f"Wi-Fi network: '{cfg['wifi']['ssid']}'")
+    if cfg["hotspot"]:
+        out.append(f"Setup hotspot (opens when no network works): '{cfg['hotspot']['ssid']}' -> http://{netconfig.HOTSPOT_ADDRESS}/")
+    return out
+
+
 def run(data_dir: str, boot_dir: str, iterations: int | None = None, log=print) -> dict:
     from .config import ConfigStore
     from .net.certs import CertManager
@@ -32,13 +47,20 @@ def run(data_dir: str, boot_dir: str, iterations: int | None = None, log=print) 
         iid = secrets.token_hex(4)
         store.update({"instance_id": iid})
     auth = Auth(store, log=log, **({"iterations": iterations} if iterations else {}))   # creates a setup code if none exists
-    ca = CertManager(data_dir, iid, log=log).ensure_ca()
-    out["ca_sha256"] = ca["sha256"]
+    from .net.certs import CertError
+    try:
+        ca = CertManager(data_dir, iid, log=log).ensure_ca()          # heals a CA torn by a power cut (review H6)
+    except (CertError, OSError) as e:                                 # the status file (setup code!) must still be written
+        log(f"bootfiles: local CA not available: {e}")
+        ca = None
+    out["ca_sha256"] = ca["sha256"] if ca else None
     name = f"{store.get('local_hostname')}.local"
     lines = [f"Hi-Fi Bridge '{store.get('device_name')}' - http://{name}/ (or the IP address shown by your router)",
-             f"Device CA fingerprint (SHA-256): {ca['sha256']}"]
-    if out["recovery"] in ("reset-owner-password", "factory-reset"):
+             f"Device CA fingerprint (SHA-256): {ca['sha256']}" if ca else
+             "Device CA: not available yet (HTTPS starts once it could be created; see the diagnostics page)"]
+    if out["recovery"] in ("reset-owner-password", "factory-reset", "network-reset"):
         lines.append(f"Recovery request processed: {out['recovery']}")
+    lines += network_lines(data_dir)
     prov = out["provisioning"]
     if prov["result"] == "applied":
         lines += [f"Provisioning applied: {n}" for n in prov["notes"]]
@@ -60,7 +82,7 @@ def main(argv=None) -> int:
         print(f"boot directory not found: {a.boot}", file=sys.stderr)
         return 2
     r = run(a.data, a.boot)
-    print(f"bootfiles: recovery={r['recovery']} provisioning={r['provisioning']['result']} ca={r['ca_sha256'][:23]}...")
+    print(f"bootfiles: recovery={r['recovery']} provisioning={r['provisioning']['result']} ca={(r['ca_sha256'] or 'none')[:23]}...")
     return 0
 
 

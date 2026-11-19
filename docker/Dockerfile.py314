@@ -1,5 +1,5 @@
 # Python 3.14 compatibility check: the Buildroot 2026.02 image ships Python 3.14, the lab runs 3.11 (docs/PHASE2B_PLAN.md).
-FROM python:3.14-slim
+FROM python:3.14-slim@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f
 RUN apt-get update && apt-get install -y --no-install-recommends openssl procps && rm -rf /var/lib/apt/lists/* \
  && pip install --no-cache-dir pytest==8.4.2 numpy==2.3.5 jeepney==0.9.0
 ENV PYTHONPATH=/work/bridge:/work/testkit:/work/hwkit PYTHONDONTWRITEBYTECODE=1

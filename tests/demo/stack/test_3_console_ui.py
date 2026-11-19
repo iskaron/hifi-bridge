@@ -4,6 +4,8 @@ phone in the bridge WebUI and the phone noticing it; MQTT configured in the brid
 import json
 import os
 
+import math
+
 import pytest
 from playwright.sync_api import expect, sync_playwright
 
@@ -105,22 +107,33 @@ def test_03_audio_monitor_plays_the_room_and_measures_its_latency(browser, local
     # the console's strict CSP (no 'unsafe-eval') also blocks Playwright's string predicates, so poll via evaluate()
     wait(lambda: page.evaluate("() => window.monitorStats.latencyMs !== null && window.monitorStats.frames > 44100 * 4"), 30,
          what="audio in the browser monitor")
+    # loudness at the browser's output (after listening level and soft limiter): an analyser on the last node before the speakers
+    page.evaluate("() => { const a = M.ctx.createAnalyser(); a.fftSize = 2048; M.limiter.connect(a); window.__outLevels = []; "
+                  "setInterval(() => { const d = new Float32Array(2048); a.getFloatTimeDomainData(d); let s = 0, p = 0; "
+                  "for (const v of d) { s += v * v; p = Math.max(p, Math.abs(v)); } window.__outLevels.push([s / d.length, p]); }, 100); }")
+    gain_default = page.evaluate("() => M.gain.gain.value")
     samples = []
     for _ in range(10):
         page.wait_for_timeout(1000)
         samples.append(page.evaluate("({...window.monitorStats})"))
     assert samples[-1]["engine"] == engine
+    lv = page.evaluate("() => window.__outLevels")
+    mean_sq = sum(a for a, _ in lv) / len(lv) if lv else 0.0
+    out = {"rms_dbfs": round(10 * math.log10(max(mean_sq, 1e-12)), 1), "peak": round(max(p for _, p in lv), 3), "default_gain": gain_default}
     if engine == "AudioWorklet":
         page.screenshot(path=f"{SHOTS}/demo-05-monitor-listening.png", full_page=True)
     lat = [s["latencyMs"] for s in samples if s["latencyMs"] is not None]
     result = {"label": "MEASURED in headless Chromium in Docker (no sound card: output latency as reported by the browser)",
               "latency_ms": {"min": min(lat), "median": sorted(lat)[len(lat) // 2], "max": max(lat)},
               "buffer_ms_last": samples[-1]["bufferMs"], "output_ms_reported": samples[-1]["outputMs"],
-              "underruns": samples[-1]["underruns"], "peak": round(samples[-1]["peak"], 3)}
+              "underruns": samples[-1]["underruns"], "peak": round(samples[-1]["peak"], 3), "browser_output": out}
     result["engine"] = engine
     save_json(f"{STATE_DIR}/demo_monitor_latency_{engine}.json", result)
     assert samples[-1]["peak"] > 0.005                                      # real audio arrived (behind Lyrion and Squeezelite)
     assert 50 < result["latency_ms"]["median"] < 1500, result
+    assert out["default_gain"] == 4                                          # the demo's default listening level (docs/DEMO.md "Loudness")
+    assert out["rms_dbfs"] > -35, out                                         # audible at the speakers (it was about -36 dBFS or less before)
+    assert out["peak"] <= 0.99, out                                           # the soft limiter keeps a high listening level from clipping
     ctx.close()
     assert not [e for e in errors if "ScriptProcessorNode is deprecated" not in e], errors     # expected only on the fallback path
 

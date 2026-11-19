@@ -23,7 +23,7 @@
   ],
   "bytes": 0,
   "mic_frames": 0,
-  "starts": 14
+  "starts": 7
  },
  "no_fallback_pw-cat": {
   "argv": [
@@ -44,11 +44,11 @@
   ],
   "bytes": 0,
   "mic_frames": 0,
-  "starts": 14
+  "starts": 7
  },
  "node_vanishes": {
-  "bytes_before": 345744,
-  "bytes_total": 345744,
+  "bytes_before": 349272,
+  "bytes_total": 349272,
   "mic_frames": 0
  },
  "parec": {
@@ -68,7 +68,7 @@
   "consecutive_pairs": 219617,
   "dropped_frames": 0,
   "drops": 0,
-  "first_index": 15077,
+  "first_index": 16471,
   "foreign_frames": 0,
   "frames": 219618,
   "garbage_prefix_frames": 0,
@@ -104,7 +104,7 @@
   "consecutive_pairs": 219611,
   "dropped_frames": 0,
   "drops": 0,
-  "first_index": 339685,
+  "first_index": 325719,
   "foreign_frames": 0,
   "frames": 219618,
   "garbage_prefix_frames": 6,
@@ -141,7 +141,7 @@
   "consecutive_pairs": 219617,
   "dropped_frames": 0,
   "drops": 0,
-  "first_index": 655077,
+  "first_index": 634967,
   "foreign_frames": 0,
   "frames": 219618,
   "garbage_prefix_frames": 0,
@@ -158,11 +158,11 @@
  },
  "restart": {
   "chunks_before": 98,
-  "chunks_while_node_missing": 0,
+  "chunks_while_node_missing": 1,
   "mic_frames_total": 0,
   "resume_asserted": true,
-  "resumed_pattern_frames": 97846,
-  "starts": 17,
+  "resumed_pattern_frames": 95256,
+  "starts": 8,
   "tool": "pw-cat --raw"
  },
  "restart_stand_in_reloads": 0,
@@ -176,7 +176,7 @@
    "--raw"
   ],
   "bytes": 194040,
-  "mic_frames": 36080
+  "mic_frames": 38128
  },
  "risk_fallback_pw-cat": {
   "argv": [

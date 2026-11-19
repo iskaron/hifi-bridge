@@ -1,7 +1,7 @@
 # Disposable PipeWire test image: a real PipeWire daemon + WirePlumber + pipewire-pulse WITHOUT any audio hardware.
 # Used to verify the bridge's capture command lines (pw-cat / parec) against real PipeWire tools.
-# BASE selects the PipeWire generation: debian:bookworm-slim (0.3.65) or debian:trixie-slim (1.x).
-ARG BASE=debian:bookworm-slim
+# BASE selects the PipeWire generation: debian bookworm-slim (0.3.65) or trixie-slim (1.x), each pinned by digest (docker/image-pins.txt).
+ARG BASE=debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
 FROM ${BASE}
 ENV DEBIAN_FRONTEND=noninteractive PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 RUN apt-get update \

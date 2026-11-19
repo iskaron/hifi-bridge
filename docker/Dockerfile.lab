@@ -1,7 +1,7 @@
 # Disposable lab image: bridge runtime (stdlib python), test tooling, software
 # Squeezelite players and analysis helpers. Everything runs in containers; the
 # development host only needs Docker + Compose.
-FROM debian:bookworm-slim
+FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
 ENV DEBIAN_FRONTEND=noninteractive PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \

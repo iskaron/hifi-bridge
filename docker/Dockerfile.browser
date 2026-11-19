@@ -1,4 +1,4 @@
 # Real-browser UI tests (Chromium via Playwright) against the appliance container on the isolated lab network.
-FROM mcr.microsoft.com/playwright/python:v1.49.1-noble
+FROM mcr.microsoft.com/playwright/python:v1.49.1-noble@sha256:42e251ec3238672c931be6c3565ff279690ae072c3e22058128d0412494f6866
 RUN pip install --no-cache-dir --break-system-packages playwright==1.49.1 pytest==8.3.4 axe-playwright-python==0.1.4
 WORKDIR /work

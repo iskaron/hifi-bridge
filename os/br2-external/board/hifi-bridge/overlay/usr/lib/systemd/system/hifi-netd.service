@@ -1,0 +1,48 @@
+# Root-side network agent (docs/NETWORK.md): client Wi-Fi XOR setup hotspot, Ethernet/Wi-Fi addresses, firewall, host name.
+# The unprivileged bridge talks to it over /run/hifi-net/agent.sock (uid-checked, six requests). Verified with systemd-analyze only.
+[Unit]
+Description=Hi-Fi Bridge network agent
+Documentation=file:///usr/share/doc/hifi-bridge/NETWORK.md
+RequiresMountsFor=/var/lib/hifi-bridge
+After=hifi-bridge-boot.service hifi-firewall.service systemd-networkd.service
+Wants=systemd-networkd.service hifi-firewall.service
+Before=avahi-daemon.service hifi-bridge.service network.target
+
+[Service]
+Type=notify
+NotifyAccess=main
+ExecStart=/usr/bin/python3 -m btbridge.net.netagent --bridge-data /var/lib/hifi-bridge --bridge-user hifi-bridge --run-dir /run/hifi-net --http-port 80 --https-port 443 --stream-port 8090
+Environment=PYTHONPATH=/usr/lib/hifi-bridge PYTHONUNBUFFERED=1
+Restart=always
+RestartSec=2
+# wpa_supplicant/hostapd keep running across an agent restart: their configuration and sockets stay in /run/hifi-net
+RuntimeDirectory=hifi-net
+RuntimeDirectoryMode=0750
+RuntimeDirectoryPreserve=yes
+# root, but only: nft/iw (NET_ADMIN, NET_RAW), reading the bridge's 0600 files (DAC_READ_SEARCH), handing the socket to the bridge group (CHOWN)
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_DAC_READ_SEARCH CAP_CHOWN
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/run/hifi-net /run/systemd/network
+ReadOnlyPaths=/var/lib/hifi-bridge
+ProtectHome=yes
+PrivateTmp=yes
+DevicePolicy=closed
+DeviceAllow=/dev/rfkill rw
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_INET AF_INET6
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+UMask=0077
+MemoryMax=96M
+
+[Install]
+WantedBy=multi-user.target

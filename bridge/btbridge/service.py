@@ -21,12 +21,12 @@ import threading
 import time
 from typing import Callable
 
-from . import __version__
+from . import __version__, privacy
 from .app import BridgeRuntime, RuntimeConfig
 from .config import ConfigStore
 from .core.controller import Config
 from .lms import discovery
-from .lms.client import LmsClient, LmsUnreachable, Observation
+from .lms.client import LmsClient, LmsUnreachable, Observation, _Resolver
 from .stream.server import redact
 from .system import SystemMonitor
 from .supervision import SessionJournal
@@ -57,15 +57,19 @@ def lms_url(host: str, port: int) -> str:
     return f"http://{h}:{port}"
 
 
-def local_ip_for(host: str, port: int) -> str:
-    """The local address the bridge would use to reach ``host`` (= what LMS/players must use to reach the stream). No packet is sent."""
+def local_ip_for(host: str, port: int, resolver: "_Resolver | None" = None, connect=None) -> str | None:
+    """The local address the bridge would use to reach ``host`` (= what LMS/players must use to reach the stream). No packet is sent.
+    ``None`` when there is no route yet (Wi-Fi not up, no DHCP lease): the caller must then not advertise anything - the old
+    fallback 127.0.0.1 sent every remote LMS an unreachable URL until the next restart (review H3). A host name is looked up
+    through ``resolver`` (bounded, cached) because a UDP connect would otherwise block in getaddrinfo."""
     try:
-        fam = socket.AF_INET6 if ":" in host else socket.AF_INET
+        target = resolver.address() if resolver is not None else host
+        fam = socket.AF_INET6 if ":" in target else socket.AF_INET
         with socket.socket(fam, socket.SOCK_DGRAM) as s:
-            s.connect((host, port))
+            (connect or (lambda sock, addr: sock.connect(addr)))(s, (target, port))
             return s.getsockname()[0]
-    except OSError:
-        return "127.0.0.1"
+    except (OSError, LmsUnreachable):
+        return None
 
 
 class LogBuffer:
@@ -79,7 +83,7 @@ class LogBuffer:
         self.forward: Callable[[str], None] | None = None
 
     def _clean(self, msg: str) -> str:
-        m = redact(str(msg))
+        m = privacy.scrub(redact(str(msg)))            # MAC addresses -> per-device pseudonyms (review M10)
         for s in self.secrets:
             if s:
                 m = m.replace(s, "***")
@@ -104,6 +108,8 @@ class LogBuffer:
                 tmp = self.faults_path + ".tmp"
                 with open(tmp, "w") as fh:
                     fh.write("\n".join(old + [rec]) + "\n")
+                    fh.flush()
+                    os.fsync(fh.fileno())                  # a fault is exactly what must survive a power cut (review L5)
                 os.replace(tmp, self.faults_path)
             except OSError:
                 pass
@@ -125,20 +131,30 @@ class ApplianceService:
                  mqtt_factory: Callable | None = None, discover: Callable = discovery.discover, echo=print, auth_iterations: int | None = None):
         self.logs = LogBuffer(data_dir, echo=echo)
         self.store = ConfigStore(data_dir, log=self.logs)
+        salt = self.store.secret("log_salt")
+        if not salt:
+            salt = secrets.token_hex(16)
+            self.store.set_secret("log_salt", salt)
+        privacy.configure(bytes.fromhex(salt))
         self.logs.secrets = [self.store.secret("stream_token") or ""]
         self.auth = Auth(self.store, log=self.logs, **({"iterations": auth_iterations} if auth_iterations else {}))
         self.lms_factory, self.discover, self.advertise_cfg = lms_factory, discover, advertise_host
         self.monitor = monitor or SystemMonitor(data_dir=data_dir)
         self.mqtt_factory, self.mqtt = mqtt_factory, None
+        self.mqtt_failed = False                        # enabled but could not be started (shown as degraded)
         self.syslog = None
         self.access = None                              # LocalAccess (names, HTTPS, mDNS) - set by the appliance entry point
+        self.network = None                             # net.netclient.NetworkService - set by the appliance entry point
         c = self.store.all()
         rc = RuntimeConfig(lms_url=lms_url(c["lms_host"], c["lms_port"]) if c["lms_host"] else "http://127.0.0.1:9",
-                           advertise_host=self._advertise(c), stream_port=stream_port, stream_format=c["stream_format"],
+                           advertise_host="" if advertise_host == "auto" else advertise_host, stream_port=stream_port, stream_format=c["stream_format"],
                            icy_metadata=c["icy_metadata"], pairing_s=float(c["pairing_seconds"]))
         cc = Config(target_player=c["target_player"], audio_allowed=c["audio_allowed"], override_lms=c["override_lms"],
                     pause_strategy=c["pause_strategy"])
         self.runtime = BridgeRuntime(rc, cc, source=source, lms=self._lms_for(c), log=self.logs, token=self.store.secret("stream_token"))
+        self._resolvers: dict[tuple, _Resolver | None] = {}
+        if advertise_host == "auto":
+            self.runtime.advertise = self.stream_host           # per session: follows Wi-Fi coming up and DHCP changes
         self.journal = SessionJournal(data_dir)
         self.runtime.on_controller_event = self._journal_event
         self.source = source
@@ -148,9 +164,11 @@ class ApplianceService:
         self._threads: list[threading.Thread] = []
         self._last_key = None
         self.started_at = time.time()
+        self.started_mono = time.monotonic()           # uptime: not affected by the NTP jump after boot (no RTC; review L8)
         self.last_system: dict = {}
         self._thermal = {"state": "unknown", "temperature_c": None, "checked_at": None}
         self.watch_heartbeat = time.monotonic()
+        self.watch_ident: int | None = None
         self.history: collections.deque = collections.deque(maxlen=HISTORY_SAMPLES)    # (t, cpu %, temp C, memory %) for the trend graphs
 
     # ------------------------------------------------------------------ lifecycle
@@ -160,7 +178,11 @@ class ApplianceService:
         if name == "session_start" and ctl.session is not None:
             self.journal.record(ctl.cfg.target_player, ctl.session.url)
         elif name in ("session_release", "session_parked", "ownership_lost", "stream_died", "restart_after_outage"):
-            self.journal.clear()                         # released by us, or no longer ours: nothing to clean up after a crash
+            # released by us, or no longer ours: nothing to clean up after a crash. A release is reported after its LMS call
+            # (outside the controller lock), so a newer session may already own the journal: keep that entry.
+            s, j = ctl.session, self.journal.pending()
+            if not (s is not None and not s.released_at_lms and ctl.ownership == "owned" and j and j.get("url") == s.url):
+                self.journal.clear()
 
     def recover_stale_session(self) -> str:
         """After a crash: release the URL a previous process left at LMS (URL-addressed: harmless if anything else plays now)."""
@@ -168,13 +190,13 @@ class ApplianceService:
         if not j:
             return "none"
         if isinstance(self.runtime.lms, UnconfiguredLms):
-            self.journal.clear()
+            self.journal.clear_if(j["url"])
             return "dropped_unconfigured"
         try:
-            self.runtime.lms.release(j["player"], j["url"])
+            self.runtime.controller.io.call(self.runtime.lms.release, j["player"], j["url"])
         except LmsUnreachable:
             return "pending"                             # retried by the watch loop until LMS is reachable
-        self.journal.clear()
+        self.journal.clear_if(j["url"])                  # a session started meanwhile keeps its own entry
         self.logs("recovered: released the stream item a previous (crashed) process left at Lyrion")
         return "released"
 
@@ -203,6 +225,8 @@ class ApplianceService:
             self.syslog.stop()
         if self.access is not None:
             self.access.stop()                         # mDNS goodbye
+        if self.network is not None:
+            self.network.stop()
         self.runtime.stop()
 
     # ------------------------------------------------------------------ config -> runtime
@@ -211,10 +235,28 @@ class ApplianceService:
             return UnconfiguredLms()
         return self.lms_factory(lms_url(c["lms_host"], c["lms_port"]))
 
-    def _advertise(self, c: dict) -> str:
+    def stream_host(self) -> str | None:
+        """Host LMS and its players use to fetch the stream, computed per session (route toward the LMS host)."""
         if self.advertise_cfg != "auto":
             return self.advertise_cfg
-        return local_ip_for(c["lms_host"], c["lms_port"]) if c["lms_host"] else "127.0.0.1"
+        host, port = self.store.get("lms_host"), self.store.get("lms_port")
+        if not host:
+            return None
+        key = (host, port)
+        if key not in self._resolvers:
+            try:
+                socket.inet_pton(socket.AF_INET6 if ":" in host else socket.AF_INET, host)
+                self._resolvers = {key: None}                 # IP literal: nothing to look up
+            except OSError:
+                self._resolvers = {key: _Resolver(host, int(port))}
+        return local_ip_for(host, port, resolver=self._resolvers[key])
+
+    def _step(self, what: str, fn: Callable, *args) -> None:
+        """One independent part of applying settings: a failure is logged and the remaining parts still apply (review H4)."""
+        try:
+            fn(*args)
+        except Exception as e:
+            self.logs(f"{what} failed: {type(e).__name__}: {e}")
 
     def _apply(self, ch: dict) -> None:
         rt, ctl = self.runtime, self.runtime.controller
@@ -232,24 +274,19 @@ class ApplianceService:
             if "pause_strategy" in ch:
                 ctl.cfg.pause_strategy = ch["pause_strategy"]
         if "audio_allowed" in ch:
-            ctl.set_audio_allowed(ch["audio_allowed"])
+            self._step("audio permission", ctl.set_audio_allowed, ch["audio_allowed"])
         if "stream_format" in ch or "icy_metadata" in ch:
-            rt.reconfigure_stream(ch.get("stream_format"), ch.get("icy_metadata"))
+            self._step("stream reconfiguration", rt.reconfigure_stream, ch.get("stream_format"), ch.get("icy_metadata"))
         if {"lms_host", "lms_port"} & set(ch) or ("target_player" in ch and (not c["target_player"] or isinstance(rt.lms, UnconfiguredLms))):
-            rt.rcfg.advertise_host = self._advertise(c)
-            if "target_player" in ch:
-                with ctl.lock:
-                    ctl._release("target_change")
-                    ctl.cfg.target_player = c["target_player"]
-            rt.set_lms(self._lms_for(c))
+            self._step("Lyrion server change", lambda: rt.set_lms(self._lms_for(c), c["target_player"] if "target_player" in ch else None))
         elif "target_player" in ch:
-            ctl.set_target(c["target_player"])
+            self._step("target change", ctl.set_target, c["target_player"])
         if any(k.startswith("mqtt_") for k in ch):
             self._restart_mqtt()
         if any(k.startswith("syslog_") for k in ch) or "device_name" in ch:
             self._restart_syslog()
         if self.access is not None and {"local_hostname", "mdns_enabled", "mdns_backend", "extra_hostnames", "tls_mode", "device_name"} & set(ch):
-            self.access.reconfigure(set(ch))
+            self._step("local access reconfiguration", self.access.reconfigure, set(ch))
         self._emit("settings_changed", {"keys": sorted(ch)})
 
     def _restart_syslog(self) -> None:
@@ -263,23 +300,43 @@ class ApplianceService:
             try:
                 self.syslog = RemoteSyslog(st.get("syslog_host"), st.get("syslog_port"), st.get("syslog_ca_pem"),
                                            hostname=(st.get("local_hostname") or "hifi-bridge"))
+                self.syslog.start()
             except ssl.SSLError as e:
+                self.syslog = None
                 self.logs(f"remote syslog: invalid CA certificate ({e})")
                 return
-            self.syslog.start()
+            except Exception as e:                       # an optional integration never aborts start or settings (review H4)
+                self.syslog = None
+                self.logs(f"remote syslog could not start: {type(e).__name__}: {e}")
+                return
             self.logs.forward = self.syslog.emit
 
     def _restart_mqtt(self) -> None:
         if self.mqtt:
-            self.mqtt.stop()
-            self.mqtt = None
+            old, self.mqtt = self.mqtt, None
+            try:
+                old.stop()
+            except Exception as e:
+                self.logs(f"MQTT stop failed: {type(e).__name__}: {e}")
+        self.mqtt_failed = False
         if self.mqtt_factory and self.store.get("mqtt_enabled") and self.store.get("mqtt_host"):
-            self.mqtt = self.mqtt_factory(self)
-            self.mqtt.start()
+            try:
+                m = self.mqtt_factory(self)
+                m.start()
+                self.mqtt = m
+            except Exception as e:                       # an optional integration never aborts start or settings (review H4)
+                self.mqtt_failed = True
+                self.logs(f"MQTT could not start: {type(e).__name__}: {e}")
 
     # ------------------------------------------------------------------ events
     def on_event(self, fn: Callable[[str, dict], None]) -> None:
         self._listeners.append(fn)
+
+    def off_event(self, fn: Callable[[str, dict], None]) -> None:
+        try:
+            self._listeners.remove(fn)
+        except ValueError:
+            pass
 
     def _emit(self, kind: str, data: dict) -> None:
         for fn in list(self._listeners):
@@ -311,6 +368,7 @@ class ApplianceService:
     def _watch(self) -> None:
         next_sys = time.monotonic() + 2.0                 # second sample soon: CPU % needs two /proc/stat readings
         next_thermal = time.monotonic()
+        self.watch_ident = threading.get_ident()
         while not self._stop.wait(0.5):
             self.watch_heartbeat = time.monotonic()
             try:
@@ -339,6 +397,7 @@ class ApplianceService:
 
     # ------------------------------------------------------------------ health (supervision, /healthz)
     HEARTBEAT_STALE_S = 5.0
+    LMS_CALL_HANG_S = 60.0          # an LMS call is bounded by the client's timeouts (lms/client.py); longer = a real hang
 
     def health(self) -> dict:
         """'failed' = a vital internal loop is dead or hung -> the service supervisor must restart the process (watchdog stops pinging).
@@ -347,15 +406,18 @@ class ApplianceService:
         rt = self.runtime
         threads = {t.name: t.is_alive() for t in rt._threads}
         checks = {
-            "control_loop": bool(threads.get("controller")) and now - rt.heartbeat < self.HEARTBEAT_STALE_S,
+            # waiting in a slow LMS call (outage, DNS) is not a hang: degraded, never a restart (review H2)
+            "control_loop": bool(threads.get("controller")) and rt.controller.io.alive(
+                rt.loop_ident, rt.heartbeat, self.HEARTBEAT_STALE_S, self.LMS_CALL_HANG_S, now),
             "feeder": bool(threads.get("feeder")),
-            "service_watch": any(t.is_alive() for t in self._threads) and now - self.watch_heartbeat < self.HEARTBEAT_STALE_S,
+            "service_watch": any(t.is_alive() for t in self._threads) and rt.controller.io.alive(
+                self.watch_ident, self.watch_heartbeat, self.HEARTBEAT_STALE_S, self.LMS_CALL_HANG_S, now),
             "stream_server": rt.stream.httpd is not None,
         }
         st = self.status()
         status = "failed" if not all(checks.values()) else ("degraded" if st["degraded"] else "ok")
         return {"status": status, "checks": checks, "degraded": st["degraded"], "version": __version__,
-                "uptime_s": int(time.time() - self.started_at)}
+                "uptime_s": int(time.monotonic() - self.started_mono)}
 
     # ------------------------------------------------------------------ status
     def instance_id(self) -> str:
@@ -386,10 +448,14 @@ class ApplianceService:
             degraded.append("not_configured")
         elif b["lyrion_reachability"] == "unreachable":
             degraded.append("lyrion_unreachable")
+        if b["blocked_reason"] == "stream_address_unavailable":
+            degraded.append("stream_address_unavailable")
         if self._thermal["state"] in ("warning", "critical"):
             degraded.append("thermal_" + self._thermal["state"])
-        if self.mqtt and not self.mqtt.state().get("connected"):
+        if (self.mqtt and not self.mqtt.state().get("connected")) or (self.mqtt is None and self.mqtt_failed):
             degraded.append("mqtt_disconnected")
+        if self.runtime.pairing.error:
+            degraded.append("pairing_adapter_error")
         headline = self._headline(b, degraded)
         return {
             "version": __version__,
@@ -406,7 +472,7 @@ class ApplianceService:
             "now_playing": rt.stream.title or None,
             "mqtt": self.mqtt.state() if self.mqtt else {"enabled": bool(self.store.get("mqtt_enabled")), "connected": False},
             "system": self.last_system,
-            "uptime_s": int(time.time() - self.started_at),
+            "uptime_s": int(time.monotonic() - self.started_mono),
         }
 
     @staticmethod
@@ -428,11 +494,16 @@ class ApplianceService:
         return "connected"
 
     # ------------------------------------------------------------------ owner actions
-    def open_pairing(self) -> None:
-        self.runtime.pairing.open(); self.logs("pairing window opened")
+    def open_pairing(self) -> bool:
+        """False when the Bluetooth adapter refused the change (retried in the background, shown as degraded)."""
+        ok = self.runtime.pairing.open()
+        self.logs("pairing window opened" if ok else f"pairing window: the adapter refused to open ({self.runtime.pairing.error}); retrying")
+        return ok
 
-    def close_pairing(self) -> None:
-        self.runtime.pairing.close(); self.logs("pairing window closed")
+    def close_pairing(self) -> bool:
+        ok = self.runtime.pairing.close()
+        self.logs("pairing window closed" if ok else f"pairing window: the adapter refused to close ({self.runtime.pairing.error}); retrying")
+        return ok
 
     def set_audio_allowed(self, allowed: bool) -> None:
         self.store.update({"audio_allowed": allowed})
@@ -463,12 +534,22 @@ class ApplianceService:
         self.store.update({"device_labels": labels})
 
     def discover_servers(self, timeout: float = 2.0) -> list[dict]:
+        """LMS servers answering the discovery broadcast. Answers come from the LAN (untrusted): one with a malformed port is
+        skipped instead of failing the wizard page (review L6)."""
         try:
-            return [{"host": d.get("address"), "port": int(d.get("JSON") or 9000), "name": d.get("NAME", ""), "version": d.get("VERS", "")}
-                    for d in self.discover(timeout=timeout)]
+            answers = self.discover(timeout=timeout)
         except OSError as e:
             self.logs(f"discovery failed: {e}")
             return []
+        out = []
+        for d in answers:
+            raw = str(d.get("JSON") or "9000").strip()
+            port = int(raw) if raw.isascii() and raw.isdigit() else 0
+            if not d.get("address") or not 0 < port < 65536:
+                self.logs(f"discovery: ignoring an answer with an unusable port ({raw[:20]!r})")
+                continue
+            out.append({"host": d.get("address"), "port": port, "name": d.get("NAME", ""), "version": d.get("VERS", "")})
+        return out
 
     def check_server(self, host: str, port: int) -> dict:
         try:
@@ -498,13 +579,22 @@ class ApplianceService:
         self.logs("stream token rotated (new sessions use the new URL)")
 
     def diagnostics_bundle(self) -> dict:
-        """Owner download: everything needed to debug, nothing secret (test: no token/password hash/MAC labels leak)."""
-        return {
+        """Owner download: everything needed to debug, nothing secret. No stream token or password hash; every MAC address
+        (phones, players) is replaced by its salted per-device pseudonym as in the logs; device labels and phone names are left
+        out (review M10). Tests: test_service.py, test_review_service.py."""
+        cfg = self.store.export_redacted()
+        labels = cfg["settings"].get("device_labels") or {}
+        cfg["settings"]["device_labels"] = f"{len(labels)} label(s), not included"
+        st = self.status()
+        if st["bluetooth"].get("connected_device"):
+            st["bluetooth"]["connected_device"] = {"address": st["bluetooth"]["connected_device"]["address"]}
+        return privacy.scrub_data({
             "generated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "version": __version__,
             "python": platform.python_version(), "platform": platform.platform(),
-            "config": self.store.export_redacted(), "status": self.status(),
+            "config": cfg, "status": st,
             "stream": dict(self.runtime.stream.stats), "lms_commands": [c[0] for c in getattr(self.runtime.lms, "commands_sent", [])][-50:],
-            "controller_events": [(round(t, 2), n, str(d)) for t, n, d in self.runtime.controller.events[-100:]],
+            "controller_events": [(round(t, 2), n, str(d)) for t, n, d in list(self.runtime.controller.events)[-100:]],
             "logs": [(round(t, 2), m) for t, m in self.logs.recent(300)], "faults": self.logs.faults(),
-            "note": "stream token, password hash and other secrets are never included",
-        }
+            "network": self.network.diagnostics() if self.network is not None else None,     # passwords redacted (netconfig.redact)
+            "note": "stream token, password hash and other secrets are never included; MAC addresses are pseudonymised",
+        })

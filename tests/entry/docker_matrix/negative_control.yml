@@ -1,0 +1,22 @@
+# NEGATIVE control for scripts/check_isolation.sh (docs/DOCKER_REQUIREMENTS.md): a project whose networks are NOT isolated. The check must fail.
+#   docker compose -p hifi-entry-negative -f tests/entry/docker_matrix/negative_control.yml up -d
+#   scripts/check_isolation.sh hifi-entry-negative        # expected: FAIL (exit 1) for both networks
+#   docker compose -p hifi-entry-negative -f tests/entry/docker_matrix/negative_control.yml down -v
+name: hifi-entry-negative
+services:
+  plain:
+    image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+    command: ["sleep", "infinity"]
+    networks: [open]
+  half:
+    image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+    command: ["sleep", "infinity"]
+    networks: [internal_only]
+networks:
+  open:
+    ipam:
+      config: [{subnet: 172.29.245.0/24}]
+  internal_only:                  # internal, but the host still has an address on the bridge (no inhibit_ipv4)
+    internal: true
+    ipam:
+      config: [{subnet: 172.29.244.0/24}]

@@ -1,0 +1,35 @@
+# Base firewall before any interface is configured (default deny inbound; docs/NETWORK.md "Firewall"). The network agent replaces the
+# table with the role-specific ruleset (e.g. hotspot restrictions). Independent of Python, so a failing agent never leaves the device open.
+[Unit]
+Description=Hi-Fi Bridge base firewall
+DefaultDependencies=no
+Before=network-pre.target hifi-netd.service shutdown.target
+Wants=network-pre.target
+Conflicts=shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /usr/share/hifi-bridge/nftables-base.nft
+CapabilityBoundingSet=CAP_NET_ADMIN
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_NETLINK AF_UNIX
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+
+[Install]
+WantedBy=multi-user.target

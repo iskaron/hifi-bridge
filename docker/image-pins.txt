@@ -1,0 +1,22 @@
+# Pinned third-party container images (DECISIONS #73, docs/IMAGE_PINS.md). One line per image: <name:tag> <manifest-list digest> <used by>.
+# Every occurrence of <name:tag> in compose files, Dockerfiles and scripts must read <name:tag>@<digest>; tests/entry/test_image_pins.py enforces
+# it and rejects any unpinned third-party image. The digest is the multi-architecture manifest list, so amd64 and arm64 hosts get the tested bits.
+# Update: scripts/image_pins.sh resolve (shows the registry's current digests), edit this file, scripts/image_pins.sh apply, run the tests.
+lmscommunity/lyrionmusicserver:9.1.2 sha256:a8709abda8a80766274abeb44015189b7e050eb1a6372678dcb077eb8c3a1e21 Lyrion Music Server 9.1.2 (tag "stable" on 2026-10-24): lab, demo, CI
+eclipse-mosquitto:2.0.20 sha256:21421af7b32bf9ce508e9090c8eb13bb81f410ca778dc205506180a6f862d0eb MQTT broker: lab, demo
+ghcr.io/home-assistant/home-assistant:2026.11.1 sha256:6785d1eca68747a524c156faae1b139ed415c07357386ae6fe17291986e59e82 real Home Assistant: lab (profile ha), demo (profile ha)
+mcr.microsoft.com/playwright/python:v1.49.1-noble sha256:42e251ec3238672c931be6c3565ff279690ae072c3e22058128d0412494f6866 browser tests (Chromium/WebKit)
+debian:bookworm-slim sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc lab image, Avahi peer, PipeWire 0.3.65 tests
+debian:trixie-slim sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 demo image, PipeWire 1.4 tests, static checks, syslog, OS tooling, entry tests, network tools
+python:3.11-slim sha256:07d4824036af339fa1b6ef769cc99d9c10a141769538b52b3b597c84f7a7b535 bandit image, static Python compile check
+python:3.14-slim sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f Python 3.14 compatibility run
+alpine:3.20 sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc chown helper after test runs
+koalaman/shellcheck-alpine:v0.10.0 sha256:5921d946dac740cbeec2fb1c898747b6105e585130cc7f0602eec9a10f7ddb63 shellcheck (scripts/run_static.sh)
+rhysd/actionlint:1.7.7 sha256:887a259a5a534f3c4f36cb02dca341673c6089431057242cdc931e9f133147e9 workflow lint (scripts/run_static.sh)
+ghcr.io/gitleaks/gitleaks:v8.24.3 sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055 secret scan (scripts/run_secrets.sh)
+docker:24.0.9-dind sha256:9b17a9f25adf17b88d0a013b4f00160754adf4b07ccbe9986664a49886c2c98e Docker-version matrix sandbox (scripts/test_docker_versions.sh)
+docker:25.0.5-dind sha256:b41d0183012e2334aacd4e0b8e339b89246c4fdb7eada6cc86b0355f41328549 Docker-version matrix sandbox
+docker:26.1.4-dind sha256:dd43b430341a40d88f4f30edb03865daa9d6fa39c9b1da70f27e2a89cec3eae1 Docker-version matrix sandbox
+docker:27.5.1-dind sha256:aa3df78ecf320f5fafdce71c659f1629e96e9de0968305fe1de670e0ca9176ce Docker-version matrix sandbox
+docker:28.0.4-dind sha256:4de6a5668da5d138bf9c18b29d2702e43c8773daee085087ba4fac61a6d34b7f Docker-version matrix sandbox
+docker:29.1.5-dind sha256:3a33fc81fa4d38360f490f5b900e9846f725db45bb1d9b1fe02d849bd42a5cf2 Docker-version matrix sandbox, clean-environment test (scripts/test_entry_clean.sh)

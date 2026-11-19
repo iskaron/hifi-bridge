@@ -15,7 +15,7 @@
 [manager]	WARNING	Test in comment: the is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: stream is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: token is not a test name or id, ignoring
-[tester]	WARNING	nosec encountered (B104), but no failed test on line 42
+[tester]	WARNING	nosec encountered (B104), but no failed test on line 44
 [manager]	WARNING	Test in comment: scheme is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: restricted is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: to is not a test name or id, ignoring
@@ -23,6 +23,24 @@
 [manager]	WARNING	Test in comment: https is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: in is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: __init__ is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: root is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: hifi is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: bridge is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: the is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: bridge is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: must is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: reach is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: the is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: socket is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: root is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: hifi is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: bridge is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: only is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: requests is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: are is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: uid is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: checked is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: too is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: players is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: fetch is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: the is not a test name or id, ignoring
@@ -35,7 +53,7 @@
 [manager]	WARNING	Test in comment: see is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: appliance is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: py is not a test name or id, ignoring
-Run started:2026-11-17 13:20:27.771183
+Run started:2026-11-18 23:15:07.605854
 
 Test results:
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -73,22 +91,55 @@ Test results:
    Severity: Low   Confidence: High
    CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
    More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
-   Location: bridge/btbridge/adapters/bluez/pcm.py:112:12
-111	                p.terminate()
-112	            except Exception:
-113	                pass
-114	        t = self._thread
+   Location: bridge/btbridge/adapters/bluez/pcm.py:104:4
+103	                proc.wait(timeout=timeout)
+104	    except Exception:
+105	        pass
+106	    for f in (getattr(proc, "stdout", None), getattr(proc, "stdin", None)):
 
 --------------------------------------------------
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
    Severity: Low   Confidence: High
    CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
    More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
-   Location: bridge/btbridge/adapters/bluez/pcm.py:155:16
-154	                    proc.terminate()
-155	                except Exception:
-156	                    pass
-157	            if stop.wait(self.retry_s):
+   Location: bridge/btbridge/adapters/bluez/pcm.py:110:8
+109	                f.close()
+110	        except Exception:
+111	            pass
+112	
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: bridge/btbridge/adapters/bluez/pcm.py:139:12
+138	                p.terminate()                              # unblocks the reader; the capture thread reaps it
+139	            except Exception:
+140	                pass
+141	        t = self._thread
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: bridge/btbridge/net/avahi.py:124:16
+123	                        return False
+124	                except Exception:                              # error reply, broken connection, ...
+125	                    pass
+126	                self.log("mdns (avahi): our entry group is gone (avahi-daemon restarted?) - publishing again")
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: bridge/btbridge/net/avahi.py:130:12
+129	                    self.conn.close()
+130	            except Exception:
+131	                pass
+132	            self.conn, self.group, self.state, self.host = None, None, "lost", self.base
 
 --------------------------------------------------
 >> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
@@ -125,20 +176,40 @@ Test results:
    Severity: Low   Confidence: High
    CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
    More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b607_start_process_with_partial_path.html
-   Location: bridge/btbridge/net/certs.py:228:15
-227	    def ca_der(self) -> bytes:
-228	        return subprocess.run(["openssl", "x509", "-in", self.p["ca_crt"], "-outform", "DER"], capture_output=True, check=True).stdout
-229	
+   Location: bridge/btbridge/net/certs.py:303:15
+302	    def ca_der(self) -> bytes:
+303	        return subprocess.run(["openssl", "x509", "-in", self.p["ca_crt"], "-outform", "DER"], capture_output=True, check=True).stdout
+304	
 
 --------------------------------------------------
 >> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
    Severity: Low   Confidence: High
    CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
    More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
-   Location: bridge/btbridge/net/certs.py:228:15
-227	    def ca_der(self) -> bytes:
-228	        return subprocess.run(["openssl", "x509", "-in", self.p["ca_crt"], "-outform", "DER"], capture_output=True, check=True).stdout
-229	
+   Location: bridge/btbridge/net/certs.py:303:15
+302	    def ca_der(self) -> bytes:
+303	        return subprocess.run(["openssl", "x509", "-in", self.p["ca_crt"], "-outform", "DER"], capture_output=True, check=True).stdout
+304	
+
+--------------------------------------------------
+>> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/blacklists/blacklist_imports.html#b404-import-subprocess
+   Location: bridge/btbridge/net/netsys.py:16:0
+15	import struct
+16	import subprocess
+17	from typing import Callable
+
+--------------------------------------------------
+>> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
+   Severity: Low   Confidence: High
+   CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
+   Location: bridge/btbridge/net/netsys.py:266:16
+265	        try:
+266	            r = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+267	            return r.returncode, (r.stdout + r.stderr)
 
 --------------------------------------------------
 >> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
@@ -192,27 +263,39 @@ Test results:
    Severity: Low   Confidence: High
    CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
    More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
-   Location: bridge/btbridge/stream/encoders.py:78:8
-77	            self.proc.kill()
-78	        except Exception:
-79	            pass
+   Location: bridge/btbridge/stream/encoders.py:80:8
+79	            self.proc.wait(timeout=2)
+80	        except Exception:
+81	            pass
+82	        for f in (self.proc.stdin, self.proc.stdout):
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b110_try_except_pass.html
+   Location: bridge/btbridge/stream/encoders.py:86:12
+85	                    f.close()
+86	            except Exception:
+87	                pass
+88	        self._t.join(timeout=1)
 
 --------------------------------------------------
 
 Code scanned:
-	Total lines of code: 6241
+	Total lines of code: 9557
 	Total lines skipped (#nosec): 0
-	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 4
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 6
 
 Run metrics:
 	Total issues (by severity):
 		Undefined: 0
-		Low: 15
+		Low: 21
 		Medium: 0
 		High: 0
 	Total issues (by confidence):
 		Undefined: 0
 		Low: 0
 		Medium: 0
-		High: 15
+		High: 21
 Files skipped (0):

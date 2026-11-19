@@ -3,6 +3,10 @@
 # usage: scripts/test_outage.sh lms|player1
 # Host needs only Docker + Compose; the scenario itself runs in the runner container.
 set -euo pipefail
+# shellcheck source=lib/common.sh
+. "$(dirname "$0")/lib/common.sh"
+hb_require --compose
+hb_ensure_image btbridge-lab:dev
 cd "$(dirname "$0")/../docker"
 KIND="${1:?usage: $0 lms|player1}"
 docker compose up -d lms player1 player2 player3 legacy1 >/dev/null
