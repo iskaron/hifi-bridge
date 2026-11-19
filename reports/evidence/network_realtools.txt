@@ -1,4 +1,4 @@
-# network management with real tools - 2026-11-18T23:10:08Z - label INTEGRATION (Docker, no Wi-Fi hardware)
+# network management with real tools - 2026-11-19T06:26:48Z - label INTEGRATION (Docker, no Wi-Fi hardware)
 nft: nftables v1.1.3 (Commodore Bullmoose #4)
 dnsmasq: Dnsmasq version 2.91  Copyright (c) 2000-2025 Simon Kelley
 hostapd: hostapd v2.10
@@ -30,9 +30,9 @@ tests/net/test_real_tools.py::test_linux_system_applies_the_firewall_with_the_re
 tests/net/test_real_tools.py::test_avahi_set_hostname_against_a_real_daemon PASSED [ 93%]
 tests/net/test_real_tools.py::test_units_pass_systemd_analyze_verify PASSED [100%]
 
-============================== 16 passed in 5.12s ==============================
+============================== 16 passed in 5.10s ==============================
 ### 2. live firewall and hotspot DHCP (three containers)
-ready hotspot_iface=eth0 dnsmasq_pid=8
+ready hotspot_iface=eth1 dnsmasq_pid=8
 table inet hifi {
 	chain input {
 		type filter hook input priority filter; policy drop;
@@ -44,7 +44,7 @@ table inet hifi {
 		icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem, mld-listener-query, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } accept
 		icmpv6 type echo-request limit rate 10/second burst 20 packets accept
 		udp dport 5353 accept
-		iifname "eth0" jump hotspot
+		iifname "eth1" jump hotspot
 		udp sport 67 udp dport 68 accept
 		ip6 saddr fe80::/10 udp sport 547 udp dport 546 accept
 		udp sport 3483 udp dport 1024-65535 accept
@@ -62,24 +62,24 @@ table inet hifi {
 	}
 }
 
-PASS e9d10a82b817 -> 192.168.77.10:80 expected open, got open
-PASS e9d10a82b817 -> 192.168.77.10:443 expected open, got open
-PASS e9d10a82b817 -> 192.168.77.10:8090 expected open, got open
-PASS e9d10a82b817 -> 192.168.77.10:2222 expected dropped, got dropped
-PASS e9d10a82b817 -> 192.168.77.10:53 expected dropped, got dropped
-PASS e9d10a82b817 -> 192.168.77.10 ICMP echo
-PASS 25c898551bc6 -> 10.42.0.1:80 expected open, got open
-PASS 25c898551bc6 -> 10.42.0.1:443 expected open, got open
-PASS 25c898551bc6 -> 10.42.0.1:8090 expected dropped, got dropped
-PASS 25c898551bc6 -> 10.42.0.1:2222 expected dropped, got dropped
-PASS 25c898551bc6 -> 10.42.0.1:53 expected dropped, got dropped
-PASS 25c898551bc6 -> 10.42.0.1 ICMP echo
+PASS 88eec4309d21 -> 192.168.77.10:80 expected open, got open
+PASS 88eec4309d21 -> 192.168.77.10:443 expected open, got open
+PASS 88eec4309d21 -> 192.168.77.10:8090 expected open, got open
+PASS 88eec4309d21 -> 192.168.77.10:2222 expected dropped, got dropped
+PASS 88eec4309d21 -> 192.168.77.10:53 expected dropped, got dropped
+PASS 88eec4309d21 -> 192.168.77.10 ICMP echo
+PASS 0a56454bc3ed -> 10.42.0.1:80 expected open, got open
+PASS 0a56454bc3ed -> 10.42.0.1:443 expected open, got open
+PASS 0a56454bc3ed -> 10.42.0.1:8090 expected dropped, got dropped
+PASS 0a56454bc3ed -> 10.42.0.1:2222 expected dropped, got dropped
+PASS 0a56454bc3ed -> 10.42.0.1:53 expected dropped, got dropped
+PASS 0a56454bc3ed -> 10.42.0.1 ICMP echo
 udhcpc: started, v1.37.0
 udhcpc: broadcasting discover
 udhcpc: broadcasting discover
-udhcpc: broadcasting select for 10.42.0.51, server 10.42.0.1
-udhcpc: lease of 10.42.0.51 obtained from 10.42.0.1, lease time 3600
-lease: ip=10.42.0.51 mask=255.255.255.0 router=none dns=none server=10.42.0.1
+udhcpc: broadcasting select for 10.42.0.14, server 10.42.0.1
+udhcpc: lease of 10.42.0.14 obtained from 10.42.0.1, lease time 3600
+lease: ip=10.42.0.14 mask=255.255.255.0 router=none dns=none server=10.42.0.1
 PASS lease address in 10.42.0.10-60
 PASS no default router
 PASS no DNS server

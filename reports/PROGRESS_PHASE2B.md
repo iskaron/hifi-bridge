@@ -104,3 +104,14 @@ Scope: owner work package of 2026-11-18 (DECISIONS #73/#74).
   the optional passphrase encryption of backups used a self-built keystream (HMAC-SHA256 in counter mode) - against DECISIONS #50
   ("never own cryptography"). Sent back: standard cipher via the openssl CLI (pass-fd, no key material on command lines) + encrypt-then-MAC.
   Interrupted by the account rate limit (reset 04:00), resumed 06:47.
+- Backup cipher replaced (`bee5b60`): scrypt → AES-256-CTR via the openssl CLI (pass-fd) + encrypt-then-MAC; 817 unit, 12 real-RAUC.
+
+### Package 4 - OTA update management (done)
+- Merged as `e8a95ff`: `bridge/btbridge/ota/` (RAUC D-Bus client, update check, resumable download + streamed upload, state machine with
+  boot reconciliation, health check, backup), WebUI `/settings/update` + `/settings/backup` (DE/EN, axe-clean), D-Bus policy, health and
+  reboot units, masked upstream mark-good, `make ota` with throw-away keys, docs/OTA.md, gate items G2 P3-9..P3-11. New suite
+  `scripts/run_ota.sh` against the real RAUC 1.13 service - wired into CI (job `ota`) and the full run. DECISIONS #90-#95, OPEN_QUESTIONS
+  #64-#67. A real slot install is impossible in Docker (no loop device): RAUC verifies the signature and stops at the bundle mount (asserted).
+- Full run (`reports/evidence/full_run_pkg4_ota.log`): **integration 55/55** (the lab cold-start fix works), unit 817, OTA 12, network,
+  browser 11, demo stack, HA, OS 49 etc. green; mDNS red (host environment). Python 3.14: 11 errors + 1 failure - the 3.14 image had no
+  `dbus-daemon` for the new RAUC client tests; added to `docker/Dockerfile.py314` (the appliance has D-Bus) → 816 passed, 1 skipped.

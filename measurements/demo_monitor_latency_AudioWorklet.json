@@ -1,16 +1,16 @@
 {
  "browser_output": {
   "default_gain": 4,
-  "peak": 0.77,
-  "rms_dbfs": -14.0
+  "peak": 0.738,
+  "rms_dbfs": -13.9
  },
- "buffer_ms_last": 243,
+ "buffer_ms_last": 240,
  "engine": "AudioWorklet",
  "label": "MEASURED in headless Chromium in Docker (no sound card: output latency as reported by the browser)",
  "latency_ms": {
-  "max": 293,
-  "median": 289,
-  "min": 283
+  "max": 290,
+  "median": 287,
+  "min": 282
  },
  "output_ms_reported": 50,
  "peak": 0.216,
