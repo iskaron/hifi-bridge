@@ -698,3 +698,32 @@ def test_a_second_save_while_the_first_still_waits_wins_and_the_first_is_refused
         assert N.load(r.svc.cfg_path)["wifi"]["ssid"] == "Gartenhaus" and not os.path.exists(r.svc.pending_path)
     finally:
         r.close()
+
+
+def test_the_diagnostics_bundle_never_contains_the_neighbours_wifi_names(root):
+    """Review N-12: owners share the bundle with support; the scan list (SSIDs, signal, channel of every network in range) stays on the
+    page, the bundle only gets how many networks were seen. The device's own SSIDs stay."""
+    import pathlib
+
+    from test_service import fake_tree
+
+    from btbridge.service import ApplianceService
+    r = Rig(root, N.validate({"country": "DE", "hotspot": HOTSPOT, "wifi": {"ssid": "Gartenhaus", "psk": "wrong-pass-123"}}))
+    tree = pathlib.Path(root) / "tree"
+    tree.mkdir()
+    svc = ApplianceService(os.path.join(root, "app"), source=None, stream_port=0, monitor=fake_tree(tree), echo=None, auth_iterations=1000)
+    try:
+        r.advance(70)                                                  # the Wi-Fi never connects (wrong password) -> hotspot + scan
+        st = r.svc.status()
+        assert st["state"] == "hotspot" and {"Home", "Nachbar 5G", "Cafe Gast"} <= {n["ssid"] for n in st["scan"]["results"]}
+        svc.network = r.svc
+        bundle = svc.diagnostics_bundle()
+        text = json.dumps(bundle)
+        for foreign in ("Home", "Nachbar 5G", "Cafe Gast"):
+            assert foreign not in text, foreign
+        scan = bundle["network"]["status"]["scan"]
+        assert "results" not in scan and scan["count"] == len(st["scan"]["results"])
+        assert "Gartenhaus" in text and HOTSPOT["ssid"] in text                    # the device's own networks
+        assert r.svc.status()["scan"]["results"]                                   # the page keeps the list
+    finally:
+        svc.stop(); r.close()

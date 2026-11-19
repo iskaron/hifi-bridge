@@ -251,11 +251,17 @@ class NetworkService:
             self.log("network: host name not applied (network agent not reachable)")
 
     def diagnostics(self) -> dict:
+        """For the diagnostics bundle: passwords redacted, and only the NUMBER of networks seen in the last Wi-Fi scan - the neighbours'
+        network names, signal and channel stay on the network page (review N-12; owners share the bundle with support)."""
         try:
             cfg, err = netconfig.redact(self.config()), None
         except netconfig.NetConfigError as e:
             cfg, err = None, e.problems
-        return {"status": self.status(), "config": cfg, "config_error": err, "pending_change": os.path.exists(self.pending_path)}
+        st = self.status()
+        scan = st.get("scan")
+        if isinstance(scan, dict):
+            st["scan"] = {**{k: v for k, v in scan.items() if k != "results"}, "count": len(scan.get("results") or [])}
+        return {"status": st, "config": cfg, "config_error": err, "pending_change": os.path.exists(self.pending_path)}
 
     # ---- follow the network: certificate check after the first time sync, mDNS/certificates after address changes
     def poll(self) -> dict:

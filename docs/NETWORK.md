@@ -133,6 +133,9 @@ three boards) builds `nf_tables`, `nf_conntrack`, `nft_ct`, `nft_limit` as modul
   diagnostics (`netconfig.redact` → `password_set: true`), MQTT and logs never contain them; the passwords are added to the log redaction
   list as defence in depth. Problems are reported as `field:reason` without values. Tests scan every page, the status, the diagnostics
   bundle and the logs for the passwords.
+* Neighbours' networks: the Wi-Fi scan list (names, signal, channel of every network in range) is shown on the network page only; the
+  diagnostics bundle, which owners share with support, contains just the number of networks seen (review N-12). The device's own
+  network names (configured Wi-Fi, hotspot) stay in it.
 
 ## 8. Host name, mDNS, addresses
 * `local_hostname` (owner setting, validated label) is applied by the agent as the transient system host name (`hostnamectl`; DHCP sends
