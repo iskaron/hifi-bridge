@@ -41,14 +41,17 @@ def _status(resp: bytes) -> int:
 
 # ---------------------------------------------------------------- H1: request body limits before any authentication
 def test_negative_content_length_is_rejected_without_reading_the_body(ui):
-    before = _rss_kib()
-    t0 = time.monotonic()
+    # The client's body is allocated BEFORE the baseline, so only the server's (same process) memory is measured. A server that
+    # buffers the body (the bug: read until EOF) grows by >= 32 MiB; the margin absorbs allocator/GC noise of a long test run.
+    body = b"a" * (32 << 20)
     head = (f"POST /login HTTP/1.1\r\nHost: 127.0.0.1:{ui.port}\r\nContent-Type: application/x-www-form-urlencoded\r\n"
             "Content-Length: -1\r\n\r\n").encode()
-    resp = _raw(ui.port, head, b"a" * (8 << 20))
+    before = _rss_kib()
+    t0 = time.monotonic()
+    resp = _raw(ui.port, head, body)
     assert _status(resp) == 400
     assert time.monotonic() - t0 < 3.0
-    assert _rss_kib() - before < 4096                  # the 8 MiB body was not buffered (was: read until EOF)
+    assert _rss_kib() - before < 12 * 1024             # the 32 MiB body was not buffered
 
 
 @pytest.mark.parametrize("value,status", [("abc", 400), ("1e3", 400), ("+5", 400), (" 7 , 7", 400), (str(70 * 1024), 413)])
