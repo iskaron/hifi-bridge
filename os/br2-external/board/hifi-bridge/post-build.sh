@@ -102,8 +102,10 @@ mkdir -p "$TARGET_DIR/boot" "$TARGET_DIR/data" "$TARGET_DIR/var/lib/hifi-bridge"
 # ---------------------------------------------------------------- enabled units
 wants="$TARGET_DIR/etc/systemd/system/multi-user.target.wants"
 mkdir -p "$wants"
-for u in hifi-bridge-boot.service hifi-bridge.service hifi-firewall.service hifi-netd.service hifi-bridge-health.service \
-	hifi-bridge-reboot.path; do
+for u in hifi-bridge-boot.service hifi-bridge.service hifi-firewall.service hifi-netd.service; do
+	ln -sf "/usr/lib/systemd/system/$u" "$wants/$u"
+done
+for u in hifi-bridge-health.service hifi-bridge-reboot.path; do	# updates: confirm/roll back after boot, owner-confirmed restart
 	ln -sf "/usr/lib/systemd/system/$u" "$wants/$u"
 done
 # updates (docs/OTA.md section 4): the slot is marked good ONLY by hifi-bridge-health.service after its checks. Upstream RAUC's
