@@ -7,7 +7,7 @@
 #     IDENTITY="Developer ID Application: <owner>" PROFILE=<notarytool-profile> sh flashtool/packaging/macos/notarize.sh
 set -eu
 APP="dist/Hi-Fi Bridge Flash.app"
-: "${IDENTITY:?set IDENTITY to the owner's Developer ID Application identity}"
+: "${IDENTITY:?set IDENTITY to the Developer ID Application identity of the owner}"
 : "${PROFILE:?set PROFILE to a notarytool keychain profile}"
 codesign --force --deep --options runtime --timestamp --sign "$IDENTITY" "$APP"
 ditto -c -k --keepParent "$APP" dist/hifi-bridge-flash-macos.zip
