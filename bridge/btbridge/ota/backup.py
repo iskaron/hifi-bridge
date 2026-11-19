@@ -95,8 +95,11 @@ def _openssl(decrypt: bool, key_material: bytes, data: bytes) -> bytes:
         raise BackupError("crypto_unavailable", type(e).__name__) from None
     finally:
         os.close(r)
-    with os.fdopen(w, "wb") as fh:                     # a few bytes: fits the pipe buffer, never blocks
-        fh.write(key_material.hex().encode("ascii") + b"\n")
+    try:
+        with os.fdopen(w, "wb") as fh:                 # a few bytes: fits the pipe buffer, never blocks
+            fh.write(key_material.hex().encode("ascii") + b"\n")
+    except BrokenPipeError:                            # openssl already exited: its exit status below reports the failure
+        pass
     try:
         out, _ = proc.communicate(data, timeout=OPENSSL_TIMEOUT)
     except subprocess.TimeoutExpired:

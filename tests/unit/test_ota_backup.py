@@ -160,6 +160,30 @@ def test_openssl_missing_failing_or_hanging(store, tmp_path, monkeypatch):
         B.export(store, include_secrets=True, passphrase=PASS)
 
 
+def test_openssl_exiting_before_it_reads_the_key_is_crypto_failed(store, tmp_path, monkeypatch):
+    # Race seen under load: openssl had already exited when the key was written to its pass pipe -> EPIPE. That must be reported as
+    # openssl's own failure, not escape as BrokenPipeError. Forced deterministically: the key-pipe write fails as it would then.
+    real_fdopen = os.fdopen
+
+    class ClosedReader:
+        def __init__(self, fd, *a, **kw):
+            self.fh = real_fdopen(fd, *a, **kw)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            self.fh.close()
+
+        def write(self, data):
+            raise BrokenPipeError(32, "Broken pipe")
+
+    monkeypatch.setattr(B.os, "fdopen", ClosedReader)
+    monkeypatch.setattr(B, "OPENSSL", script(tmp_path, "early-exit", "exit 1\n"))
+    with pytest.raises(B.BackupError, match="crypto_failed"):
+        B.export(store, include_secrets=True, passphrase=PASS)
+
+
 def test_a_settings_only_backup_restores_without_touching_secrets(store, target):
     before = target.secret("stream_token")
     res = B.apply(target, B.plan(B.parse(B.export(store)), PASS))
