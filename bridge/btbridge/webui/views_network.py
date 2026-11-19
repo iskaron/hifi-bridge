@@ -256,11 +256,11 @@ def pending_banner(req) -> str:
     """The confirm/undo banner of a pending network change, for the wizard pages: after joining the home Wi-Fi from the setup hotspot
     the owner logs in again at the new address and lands in the wizard, which must offer "Keep" before the change is rolled back."""
     net = _net(req)
-    if net is None or not req.session:
+    if net is None:
         return ""
     try:
         st = net.status()
-    except Exception:
+    except Exception:                                                   # a wizard page never fails because of the network
         return ""
     if (st.get("trial") or {}).get("state") != "pending":
         return ""

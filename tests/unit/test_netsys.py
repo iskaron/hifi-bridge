@@ -360,6 +360,8 @@ def test_one_control_client_used_by_two_threads_never_mixes_up_replies(short_tmp
                 data, peer = srv.recvfrom(4096)
             except socket.timeout:
                 continue
+            except OSError:                                   # closed at the end of the test
+                return
             n += 1
             time.sleep(0.0003)
             if n % 7 == 0:

@@ -393,6 +393,15 @@ def test_network_settings_before_the_wizard_keep_auth_and_csrf_as_strict(setup_u
     assert anon.post("/settings/network/wifi", {"ssid": "Home"}, csrf=False).getheader("Location") == "/login"
 
 
+def test_a_broken_network_service_never_breaks_the_wizard(setup_ui, monkeypatch):
+    u = setup_ui
+    monkeypatch.setattr(u.svc.network, "status", lambda: (_ for _ in ()).throw(RuntimeError("x")))
+    r = u.c.get("/setup/bluetooth")
+    assert r.status == 200 and "Keep the new network settings?" not in r.body
+    u.svc.network = None                                             # unmanaged installation (Docker lab without an agent)
+    assert u.c.get("/setup/bluetooth").status == 200
+
+
 def test_fresh_device_without_owner_password_sends_network_pages_to_the_setup():
     gen = make_net_ui(lambda u: None)
     u = next(gen)
