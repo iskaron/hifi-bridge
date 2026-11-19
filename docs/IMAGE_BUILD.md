@@ -30,6 +30,7 @@ After changing an already built package's configuration: `HIFI_OS_REBUILD="pkg .
 `make legal-info` 61–76 s (965 MB per board, not committed), SBOM 12–25 s. Download cache 791 MB, ccache 1.1 GB, one output directory ~9 GB.
 
 ## 3. What the image check verifies (all three boards: 0 FAIL, 89 PASS, 20 INFO; reports/evidence/os_image_<board>.md)
+* *Added after the evidence builds:* `network.dhcp-duid-link-layer` (networkd DUID from the MAC, OPEN_QUESTIONS #77) - a rebuild reports 90 checks.
 * **Identity:** development variant in os-release and build-info.json; RAUC compatible `hifi-bridge-rpi3|rpizero2w|rpi4`.
 * **Layout:** MBR, boot FAT 64 MiB | rootfs-A 256 MiB | rootfs-B 256 MiB (all zero on a fresh card) | data 64 MiB (grows on first boot);
   every partition on a 4 MiB boundary; slot A = `rootfs.ext4`; manifest size/sha256 and the provisioning-slot offset match the image.
