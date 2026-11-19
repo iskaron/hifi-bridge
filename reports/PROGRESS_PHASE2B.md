@@ -129,3 +129,14 @@ Scope: owner work package of 2026-11-18 (DECISIONS #73/#74).
 ### Package 5 - flash tool GUI (in progress)
 - Opus agent resumed on `wip/flashtool` (2 commits + saved WIP: board table, publisher key store, catalogue, resumable downloads, image
   verification; helper/platform adapters and M11 in progress).
+- Interrupted twice by account limits (incl. a weekly Opus limit); work saved as `chore(wip)` commits each time, resumed successfully.
+
+### Package 5 - flash tool (done)
+- Opus agent on `wip/flashtool`, merged as `1e8c7c5`: PySide6 wizard (DE/EN, light/dark/system, accessible), elevated one-shot helper with a
+  strict JSON-lines protocol and connect-back token (pkexec/osascript/UAC), Linux/macOS/Windows disk adapters (recorded outputs, fakes),
+  catalogue + resumable downloads + signature/hash checks, custom publisher keys, provisioning via the device's validators, owner sheet,
+  P7 trust bootstrap, review fixes M11/M12, Linux PyInstaller package built + smoke-tested in Docker, Windows/macOS prepared only, LGPL
+  texts shipped (the PySide6 wheels contain none). New suite `scripts/run_flashtool.sh`: 158 tests, flash tool 100 % line + branch; wired
+  into CI (job `flashtool`) and the full run (+ package build). DECISIONS #96-#99, OPEN_QUESTIONS #68-#72. 22 screenshots `flashtool-*.png`.
+- Full run (`reports/evidence/full_run_pkg5_flashtool.log`): all suites green incl. integration 55/55, flash tool + package, OS 127; only
+  mDNS red (host environment, green in CI).

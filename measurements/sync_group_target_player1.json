@@ -6,55 +6,93 @@
   ],
   "bridge_target": "player1",
   "max_player_spread_ms_at_3_frames": [
-    12.0,
-    11.8,
-    11.7
+    9.0,
+    9.1,
+    9.0
   ],
   "sync_correction_jumps_frames": {
     "player1": [
-      793
+      441,
+      485
     ],
     "player2": [
-      573
+      529,
+      485
     ],
-    "player3": []
+    "player3": [
+      793,
+      485
+    ]
   },
   "integrity": {
     "player1": {
       "blocks": 143,
-      "matched": 141,
-      "mismatched": 2,
+      "matched": 139,
+      "mismatched": 4,
       "jumps": [
         [
-          55,
+          58,
           0
         ],
         [
-          56,
-          793
+          59,
+          441
+        ],
+        [
+          118,
+          0
+        ],
+        [
+          119,
+          485
         ]
       ]
     },
     "player2": {
       "blocks": 143,
-      "matched": 141,
-      "mismatched": 2,
+      "matched": 139,
+      "mismatched": 4,
       "jumps": [
         [
-          35,
+          58,
           0
         ],
         [
-          36,
-          573
+          59,
+          529
+        ],
+        [
+          118,
+          0
+        ],
+        [
+          119,
+          485
         ]
       ]
     },
     "player3": {
       "blocks": 143,
-      "matched": 143,
-      "mismatched": 0,
-      "jumps": []
+      "matched": 139,
+      "mismatched": 4,
+      "jumps": [
+        [
+          19,
+          0
+        ],
+        [
+          20,
+          793
+        ],
+        [
+          87,
+          0
+        ],
+        [
+          88,
+          485
+        ]
+      ]
     }
   },
   "bridge_only_commands": [
@@ -63,7 +101,7 @@
   ],
   "label": "INTEGRATION real LMS sync + SIMULATED BT; virtual DACs, NOT acoustic",
   "env": {
-    "date_utc": "2026-11-19T06:09:49Z",
+    "date_utc": "2026-11-19T09:46:57Z",
     "lms": "9.1.2",
     "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
     "kernel": "7.0.0-43-generic",

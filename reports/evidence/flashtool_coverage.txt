@@ -1,6 +1,6 @@
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-158 passed, 2 warnings in 99.74s (0:01:39)
+158 passed, 2 warnings in 94.67s (0:01:34)
 Name                                         Stmts   Miss Branch BrPart  Cover   Missing
 ----------------------------------------------------------------------------------------
 flashtool/hififlash/__init__.py                  1      0      0      0   100%

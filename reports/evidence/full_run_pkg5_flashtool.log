@@ -1,0 +1,822 @@
+### date: 2026-11-19T09:32:23Z
+Docker version 29.1.3, build 29.1.3-0ubuntu4.1
+556da0e
+### STATIC
+      docker engine 29.1.3 (required: engine >= 24.0)
+      image btbridge-static:dev: present
+### shellcheck
+### licence-copy
+### python-compile
+compiled without writing bytecode; 0 error(s)
+### systemd-unit
+hifi-bridge: → Overall exposure level for hifi-bridge.service: 1.9 OK :-)
+hifi-bridge-boot: → Overall exposure level for hifi-bridge-boot.service: 0.6 SAFE :-}
+hifi-bridge-health: → Overall exposure level for hifi-bridge-health.service: 1.5 OK :-)
+### actionlint
+static exit: 0
+### ENTRY
+      docker engine 29.1.3 (required: engine >= 24.0)
+      image btbridge-entry:dev: present
+........................................................................ [ 80%]
+..................                                                       [100%]
+90 passed in 8.31s
+### UNIT
+      docker engine 29.1.3, compose 2.40.3 (required: engine >= 24.0, compose >= 2.20)
+      image btbridge-lab:dev: present
+........................................................................ [  8%]
+........................................................................ [ 17%]
+........................................................................ [ 26%]
+........................................................................ [ 35%]
+........................................................................ [ 44%]
+........................................................................ [ 52%]
+........................................................................ [ 61%]
+........................................................................ [ 70%]
+........................................................................ [ 79%]
+........................................................................ [ 88%]
+........................................................................ [ 96%]
+.........................                                                [100%]
+817 passed in 306.03s (0:05:06)
+### INTEGRATION
+      docker engine 29.1.3, compose 2.40.3 (required: engine >= 24.0, compose >= 2.20)
+ Container btbridge-lab-mosquitto-1  Running
+ Container btbridge-lab-lms-1  Running
+ Container btbridge-lab-player3-1  Running
+ Container btbridge-lab-player1-1  Running
+ Container btbridge-lab-player2-1  Running
+ Container btbridge-lab-legacy1-1  Running
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+============================= test session starts ==============================
+platform linux -- Python 3.11.2, pytest-7.2.1, pluggy-1.0.0+repack
+rootdir: /work, configfile: pytest.ini
+collected 55 items
+
+tests/integration/test_01_pipeline.py ..                                 [  3%]
+tests/integration/test_02_ownership.py ..........                        [ 21%]
+tests/integration/test_03_pause_stall.py .....                           [ 30%]
+tests/integration/test_04_startup_buffering.py ..                        [ 34%]
+tests/integration/test_05_group_legacy_meta_volume.py ........           [ 49%]
+tests/integration/test_06_soak_drift_cpu.py ....                         [ 56%]
+tests/integration/test_07_diagnostic_security.py .....                   [ 65%]
+tests/integration/test_08_bluez_dbus.py .........                        [ 81%]
+tests/integration/test_09_bluez_adapter_e2e.py ...                       [ 87%]
+tests/integration/test_11_mqtt_mosquitto.py ....                         [ 94%]
+tests/integration/test_12_webui_lms_e2e.py ..                            [ 98%]
+tests/integration/test_13_guest_flow.py .                                [100%]
+
+======================== 55 passed in 982.29s (0:16:22) ========================
+### OUTAGE lms
+ Container btbridge-lab-lms-1  Running
+ Container btbridge-lab-legacy1-1  Running
+ Container btbridge-lab-player2-1  Running
+ Container btbridge-lab-player1-1  Running
+ Container btbridge-lab-player3-1  Running
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Stopping
+ Container btbridge-lab-lms-1  Stopped
+ Container btbridge-lab-lms-1  Starting
+ Container btbridge-lab-lms-1  Started
+      docker engine 29.1.3, compose 2.40.3 (required: engine >= 24.0, compose >= 2.20)
+      image btbridge-lab:dev: present
+[host] stopping lms
+[host] starting lms
++ 36.5s status ('unreachable', 'owned', None)
++ 54.0s status ('reachable', 'owned', None)
+{
+ "kind": "lms",
+ "timeline": [
+  [
+   0.0,
+   "reachable",
+   "owned",
+   null
+  ],
+  [
+   36.5,
+   "unreachable",
+   "owned",
+   null
+  ],
+  [
+   54.0,
+   "reachable",
+   "owned",
+   null
+  ]
+ ],
+ "bt_stayed_connected": true,
+ "lms_mode_at_end": "play",
+ "lms_plays_current_bridge_session": true,
+ "outage_window_s": [
+  36.5,
+  54.0
+ ],
+ "audible_fraction_during_outage": 1.0000018143865352,
+ "first_audio_after_target_back_s": -0.0011072158813476562,
+ "age_of_first_recovered_frame_s": null,
+ "audio_never_stopped_during_outage": true,
+ "bridge_commands": [
+  "play"
+ ],
+ "label": "INTEGRATION real LMS/player container outage + SIMULATED BT"
+}
+scenario exit code: 0
+### OUTAGE player
+ Container btbridge-lab-lms-1  Running
+ Container btbridge-lab-player1-1  Running
+ Container btbridge-lab-legacy1-1  Running
+ Container btbridge-lab-player2-1  Running
+ Container btbridge-lab-player3-1  Running
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player1-1  Stopping
+ Container btbridge-lab-player1-1  Stopped
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-player1-1  Starting
+ Container btbridge-lab-player1-1  Started
+      docker engine 29.1.3, compose 2.40.3 (required: engine >= 24.0, compose >= 2.20)
+      image btbridge-lab:dev: present
+[host] stopping player1
+[host] starting player1
++ 33.5s status ('unreachable', 'owned', None)
++ 49.5s status ('reachable', 'owned', None)
+{
+ "kind": "player1",
+ "timeline": [
+  [
+   0.0,
+   "reachable",
+   "owned",
+   null
+  ],
+  [
+   33.5,
+   "unreachable",
+   "owned",
+   null
+  ],
+  [
+   49.5,
+   "reachable",
+   "owned",
+   null
+  ]
+ ],
+ "bt_stayed_connected": true,
+ "lms_mode_at_end": "play",
+ "lms_plays_current_bridge_session": true,
+ "outage_window_s": [
+  33.5,
+  49.5
+ ],
+ "audible_fraction_during_outage": 0.0,
+ "first_audio_after_target_back_s": 0.4799478054046631,
+ "age_of_first_recovered_frame_s": 1.539306640625,
+ "audio_never_stopped_during_outage": false,
+ "bridge_commands": [
+  "play"
+ ],
+ "label": "INTEGRATION real LMS/player container outage + SIMULATED BT"
+}
+scenario exit code: 0
+### PIPEWIRE
+      docker engine 29.1.3 (required: engine >= 24.0)
+      building btbridge-pw:bookworm - refreshing (layer cache makes this fast) (about 210 MB)
+      #1 [internal] load build definition from Dockerfile.pipewire
+      #2 [internal] load metadata for docker.io/library/debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
+      #3 [internal] load .dockerignore
+      #4 [1/3] FROM docker.io/library/debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
+      #5 [2/3] RUN apt-get update  && apt-get install -y --no-install-recommends       pipewire pipewire-bin pipewire-pulse wireplumber pulseaudio-utils dbu
+      #5 CACHED
+      #6 [3/3] WORKDIR /work
+      #6 CACHED
+      #7 writing image sha256:2a58eeab93207132fee40c2f1f342b458022c66525dcb0851f37de5310d9936f done
+      #7 naming to docker.io/library/btbridge-pw:bookworm 0.0s done
+      build btbridge-pw:bookworm: done in 1 s
+### PipeWire on debian:bookworm
+============================= test session starts ==============================
+platform linux -- Python 3.11.2, pytest-7.2.1, pluggy-1.0.0+repack
+rootdir: /work, configfile: pytest.ini
+collected 12 items
+
+tests/pipewire/test_capture.py ..s.......                                [ 83%]
+tests/pipewire/test_hwkit_capture.py .                                   [ 91%]
+tests/pipewire/test_zz_restart.py .                                      [100%]
+
+=================== 11 passed, 1 skipped in 64.74s (0:01:04) ===================
+      building btbridge-pw:trixie - refreshing (layer cache makes this fast) (about 240 MB)
+      #1 [internal] load build definition from Dockerfile.pipewire
+      #2 [internal] load metadata for docker.io/library/debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
+      #3 [internal] load .dockerignore
+      #4 [1/3] FROM docker.io/library/debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
+      #5 [2/3] RUN apt-get update  && apt-get install -y --no-install-recommends       pipewire pipewire-bin pipewire-pulse wireplumber pulseaudio-utils dbu
+      #5 CACHED
+      #6 [3/3] WORKDIR /work
+      #6 CACHED
+      #7 writing image sha256:877560a410d6cefae4e886b40e78670d6dd3ed026ce159fc0795bdff9019acce 0.0s done
+      #7 naming to docker.io/library/btbridge-pw:trixie
+      #7 naming to docker.io/library/btbridge-pw:trixie done
+      build btbridge-pw:trixie: done in 1 s
+### PipeWire on debian:trixie
+============================= test session starts ==============================
+platform linux -- Python 3.13.5, pytest-8.3.5, pluggy-1.5.0
+rootdir: /work
+configfile: pytest.ini
+collected 12 items
+
+tests/pipewire/test_capture.py ..........                                [ 83%]
+tests/pipewire/test_hwkit_capture.py .                                   [ 91%]
+tests/pipewire/test_zz_restart.py .                                      [100%]
+
+======================== 12 passed in 70.24s (0:01:10) =========================
+### HWKIT
+      docker engine 29.1.3 (required: engine >= 24.0)
+      image btbridge-lab:dev: present
+      building btbridge-hwkit:dev - refreshing (layer cache makes this fast) (about 630 MB)
+      #1 [internal] load build definition from Dockerfile.hwkit
+      #2 [internal] load metadata for docker.io/library/btbridge-lab:dev
+      #3 [internal] load .dockerignore
+      #4 [1/2] FROM docker.io/library/btbridge-lab:dev
+      #5 [2/2] RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+      #5 CACHED
+      #6 writing image sha256:bbb3b9854bf83c7989f1ad83fd28c7d3e8a69a73707464c9b66148f3cb2f4d3d done
+      #6 naming to docker.io/library/btbridge-hwkit:dev done
+      build btbridge-hwkit:dev: done in 1 s
+................................                                         [100%]
+32 passed in 20.74s
+### MDNS
+      docker engine 29.1.3, compose 2.40.3 (required: engine >= 24.0, compose >= 2.20)
+      image btbridge-lab:dev: present
+      image btbridge-avahi:dev: present
+responder ip: 172.17.0.8
+avahi-resolve: Failed to resolve host name 'hifi-bridge.local': Timeout reached
+FAIL avahi resolves hifi-bridge.local to the responder
+FAIL avahi browse finds the _https._tcp service on port 8443
+mdns-responder-1  | mdns name: hifi-bridge.local
+mdns-responder-1  | mdns: goodbye sent
+mdns-responder-1  | mdns name: hifi-bridge.local
+FAIL responder detects the conflict and takes hifi-bridge-2.local
+FAIL avahi resolves hifi-bridge-2.local to the responder
+PASS hifi-bridge.local still belongs to the other device
+PASS responder sends the goodbye on SIGTERM
+PASS after stop (goodbye) the name no longer resolves (gone after 3.1 s)
+### avahi backend (production preference, DECISIONS #49): bridge publisher + its own avahi-daemon vs. the Avahi peer
+avahi-resolve: Failed to resolve host name 'hifi-bridge.local': Timeout reached (publisher ip 172.17.0.8)
+FAIL avahi backend: peer resolves hifi-bridge.local to the publisher
+FAIL avahi backend: peer browses the _https._tcp service
+PASS avahi backend: goodbye on SIGTERM
+PASS avahi backend: after stop the name no longer resolves (gone after 3.1 s)
+mdns-avahi-pub-1  | avahi avahi 0.8
+mdns-avahi-pub-1  | mdns name: hifi-bridge.local
+FAIL avahi backend: conflict -> hifi-bridge-2.local
+FAIL avahi backend: peer resolves hifi-bridge-2.local to the publisher
+### NETWORK
+      docker engine 29.1.3 (required: engine >= 24.0)
+      image btbridge-net:dev: present
+### 1. tests/net (single container, own namespace)
+============================= test session starts ==============================
+platform linux -- Python 3.13.5, pytest-8.3.5, pluggy-1.5.0 -- /usr/bin/python3
+rootdir: /work
+configfile: pytest.ini
+collecting ... collected 16 items
+
+tests/net/test_real_tools.py::test_nft_accepts_and_loads_the_generated_ruleset[None] PASSED [  6%]
+tests/net/test_real_tools.py::test_nft_accepts_and_loads_the_generated_ruleset[wlan0] PASSED [ 12%]
+tests/net/test_real_tools.py::test_nft_negative_control PASSED           [ 18%]
+tests/net/test_real_tools.py::test_dnsmasq_accepts_the_generated_configuration PASSED [ 25%]
+tests/net/test_real_tools.py::test_hostapd_parses_the_generated_configuration PASSED [ 31%]
+tests/net/test_real_tools.py::test_wpa_supplicant_parses_the_generated_configuration PASSED [ 37%]
+tests/net/test_real_tools.py::test_pmk_equals_wpa_passphrase[pa"ss word#1-Wohnzimmer "5G" \u2615] PASSED [ 43%]
+tests/net/test_real_tools.py::test_pmk_equals_wpa_passphrase[correct horse battery-Hi-Fi Bridge 4F2A] PASSED [ 50%]
+tests/net/test_real_tools.py::test_pmk_equals_wpa_passphrase[~!@#$%^&*()_+{}|:<>?`-=[]\\;',./ x-K\xfcche] PASSED [ 56%]
+tests/net/test_real_tools.py::test_control_socket_client_against_a_real_wpa_supplicant PASSED [ 62%]
+tests/net/test_real_tools.py::test_networkd_applies_the_generated_static_addresses_and_netlink_reads_them PASSED [ 68%]
+tests/net/test_real_tools.py::test_networkd_accepts_the_dhcp_and_hotspot_files PASSED [ 75%]
+tests/net/test_real_tools.py::test_netlink_reader_matches_ip_addr PASSED [ 81%]
+tests/net/test_real_tools.py::test_linux_system_applies_the_firewall_with_the_real_nft PASSED [ 87%]
+tests/net/test_real_tools.py::test_avahi_set_hostname_against_a_real_daemon PASSED [ 93%]
+tests/net/test_real_tools.py::test_units_pass_systemd_analyze_verify PASSED [100%]
+
+============================== 16 passed in 5.10s ==============================
+### 2. live firewall and hotspot DHCP (three containers)
+ready hotspot_iface=eth1 dnsmasq_pid=8
+table inet hifi {
+	chain input {
+		type filter hook input priority filter; policy drop;
+		iif "lo" accept
+		ct state invalid drop
+		ct state established,related accept
+		icmp type { destination-unreachable, time-exceeded, parameter-problem } accept
+		icmp type echo-request limit rate 10/second burst 20 packets accept
+		icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem, mld-listener-query, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } accept
+		icmpv6 type echo-request limit rate 10/second burst 20 packets accept
+		udp dport 5353 accept
+		iifname "eth1" jump hotspot
+		udp sport 67 udp dport 68 accept
+		ip6 saddr fe80::/10 udp sport 547 udp dport 546 accept
+		udp sport 3483 udp dport 1024-65535 accept
+		tcp dport { 80, 443, 8090 } accept
+	}
+
+	chain hotspot {
+		udp dport 67 accept
+		tcp dport { 80, 443 } accept
+		drop
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy drop;
+	}
+}
+
+PASS 8a131d9ca6de -> 192.168.77.10:80 expected open, got open
+PASS 8a131d9ca6de -> 192.168.77.10:443 expected open, got open
+PASS 8a131d9ca6de -> 192.168.77.10:8090 expected open, got open
+PASS 8a131d9ca6de -> 192.168.77.10:2222 expected dropped, got dropped
+PASS 8a131d9ca6de -> 192.168.77.10:53 expected dropped, got dropped
+PASS 8a131d9ca6de -> 192.168.77.10 ICMP echo
+PASS b84909d58d67 -> 10.42.0.1:80 expected open, got open
+PASS b84909d58d67 -> 10.42.0.1:443 expected open, got open
+PASS b84909d58d67 -> 10.42.0.1:8090 expected dropped, got dropped
+PASS b84909d58d67 -> 10.42.0.1:2222 expected dropped, got dropped
+PASS b84909d58d67 -> 10.42.0.1:53 expected dropped, got dropped
+PASS b84909d58d67 -> 10.42.0.1 ICMP echo
+udhcpc: started, v1.37.0
+udhcpc: broadcasting discover
+udhcpc: broadcasting discover
+udhcpc: broadcasting select for 10.42.0.31, server 10.42.0.1
+udhcpc: lease of 10.42.0.31 obtained from 10.42.0.1, lease time 3600
+lease: ip=10.42.0.31 mask=255.255.255.0 router=none dns=none server=10.42.0.1
+PASS lease address in 10.42.0.10-60
+PASS no default router
+PASS no DNS server
+PASS served by the device
+PASS hotspot client cannot reach the LAN
+network exit codes: tests=0 live=0
+### OTA (real RAUC)
+      docker engine 29.1.3 (required: engine >= 24.0)
+      image btbridge-os:dev: present
+      image btbridge-ota:dev: present
+============================= test session starts ==============================
+platform linux -- Python 3.13.5, pytest-8.3.5, pluggy-1.5.0 -- /usr/bin/python3
+rootdir: /work
+configfile: pytest.ini
+collecting ... collected 12 items
+
+tests/ota/test_rauc_real.py::test_properties_slots_and_primary PASSED    [  8%]
+tests/ota/test_rauc_real.py::test_mark_writes_the_u_boot_environment PASSED [ 16%]
+tests/ota/test_rauc_real.py::test_inspect_verifies_signature_and_purpose_but_not_compatible PASSED [ 25%]
+tests/ota/test_rauc_real.py::test_manager_stages_only_signed_bundles_for_this_board PASSED [ 33%]
+tests/ota/test_rauc_real.py::test_install_failure_keeps_the_device_on_its_slot PASSED [ 41%]
+tests/ota/test_rauc_real.py::test_rauc_restart_is_survived PASSED        [ 50%]
+tests/ota/test_rauc_real.py::test_manual_slot_switch_and_cancel_with_real_rauc PASSED [ 58%]
+tests/ota/test_rauc_real.py::test_health_check_marks_the_booted_slot_good PASSED [ 66%]
+tests/ota/test_rauc_real.py::test_policy_allows_only_root_and_the_bridge_user PASSED [ 75%]
+tests/ota/test_rauc_real.py::test_upstream_policy_alone_would_let_anyone_in PASSED [ 83%]
+tests/ota/test_rauc_real.py::test_bundle_script_is_reproducible_and_creates_development_keys_once PASSED [ 91%]
+tests/ota/test_rauc_real.py::test_bundle_script_refuses_a_certificate_without_codesigning PASSED [100%]
+
+============================== 12 passed in 5.66s ==============================
+ota exit code: tests=0
+### SYSLOG
+      docker engine 29.1.3, compose 2.40.3 (required: engine >= 24.0, compose >= 2.20)
+      image btbridge-lab:dev: present
+      image btbridge-syslog:dev: present
+ Container btbridge-lab-mosquitto-1  Running
+ Container btbridge-lab-lms-1  Running
+ Container btbridge-lab-legacy1-1  Running
+ Container btbridge-lab-player2-1  Running
+ Container btbridge-lab-player1-1  Running
+ Container btbridge-lab-player3-1  Running
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+certs ok
+============================= test session starts ==============================
+platform linux -- Python 3.11.2, pytest-7.2.1, pluggy-1.0.0+repack
+rootdir: /work, configfile: pytest.ini
+collected 2 items
+
+tests/syslog/test_rsyslog.py ..                                          [100%]
+
+============================== 2 passed in 4.55s ===============================
+syslog-1  | rsyslogd: GnuTLS handshake retry returned error: A TLS fatal alert has been received.  [v8.2504.0 try https://www.rsyslog.com/e/2083 ]
+syslog-1  | rsyslogd: netstream session 0x7dd84c0137e0 from 172.17.0.8 will be closed due to error [v8.2504.0 try https://www.rsyslog.com/e/2083 ]
+syslog-1  | rsyslogd: GnuTLS handshake retry returned error: A TLS fatal alert has been received.  [v8.2504.0 try https://www.rsyslog.com/e/2083 ]
+syslog-1  | rsyslogd: netstream session 0x7dd84c01a2b0 from 172.17.0.8 will be closed due to error [v8.2504.0 try https://www.rsyslog.com/e/2083 ]
+syslog-1  | rsyslogd: GnuTLS handshake retry returned error: A TLS fatal alert has been received.  [v8.2504.0 try https://www.rsyslog.com/e/2083 ]
+### PYTHON 3.14
+      docker engine 29.1.3 (required: engine >= 24.0)
+      image btbridge-py314:dev: present
+........................................................................ [  8%]
+........................................................................ [ 17%]
+........................................................................ [ 26%]
+........................................................................ [ 35%]
+........................................................................ [ 44%]
+........................................................................ [ 52%]
+........................................................................ [ 61%]
+........................................................................ [ 70%]
+........................................................................ [ 79%]
+.......................s................................................ [ 88%]
+........................................................................ [ 96%]
+.........................                                                [100%]
+816 passed, 1 skipped in 303.23s (0:05:03)
+### SECURITY
+      docker engine 29.1.3 (required: engine >= 24.0)
+      image btbridge-security:dev: present
+[manager]	WARNING	Test in comment: LAN is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: appliance is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: owner is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: UI is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: players is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: must is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: reach is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: it is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: protected is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: by is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: Host is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: validation is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: auth is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: and is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: the is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: stream is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: token is not a test name or id, ignoring
+[tester]	WARNING	nosec encountered (B104), but no failed test on line 44
+[manager]	WARNING	Test in comment: scheme is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: restricted is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: to is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: http is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: https is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: in is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: __init__ is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: root is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: hifi is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: bridge is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: the is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: bridge is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: must is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: reach is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: the is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: socket is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: root is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: hifi is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: bridge is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: only is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: requests is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: are is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: uid is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: checked is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: too is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: players is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: fetch is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: the is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: stream is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: over is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: the is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: LAN is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: token is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: protected is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: see is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: appliance is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: py is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: scheme is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: checked is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: https is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: only is not a test name or id, ignoring
+	Total issues (by severity):
+		Undefined: 0
+		Low: 30
+		Medium: 0
+		High: 0
+bandit medium/high gate: rc=0
+### SECRETS
+      docker engine 29.1.3 (required: engine >= 24.0)
+      image ghcr.io/gitleaks/gitleaks:v8.24.3: present
+gitleaks (ghcr.io/gitleaks/gitleaks:v8.24.3@sha256:e1b35e12a8c6fa8901f060459cfb6b2fc4c484d3afbe3b029733a3bbfab07055) over 202 commits: rc=0
+### OS + FLASH TOOL
+      docker engine 29.1.3 (required: engine >= 24.0)
+      image btbridge-os:dev: present
+### buildroot defconfigs
+      docker engine 29.1.3 (required: engine >= 24.0)
+      image btbridge-os:dev: present
+PASS rpi3_64: defconfig resolves, all 77 common + board requirements kept
+PASS rpi4_64: defconfig resolves, all 77 common + board requirements kept
+PASS rpizero2w_64: defconfig resolves, all 77 common + board requirements kept
+### licences
+      docker engine 29.1.3 (required: engine >= 24.0)
+      image btbridge-os:dev: present
+rpi3_64: 52 target packages, 0 need review
+rpi4_64: 52 target packages, 0 need review
+rpizero2w_64: 52 target packages, 0 need review
+### tests/os + tests/flashtool
+........................................................................ [ 56%]
+.......................................................                  [100%]
+=============================== warnings summary ===============================
+tests/flashtool/test_core_gaps.py::test_module_entry_points[hififlash.helper-argv0-0]
+  <frozen runpy>:128: RuntimeWarning: 'hififlash.helper.__main__' found in sys.modules after import of package 'hififlash.helper', but prior to execution of 'hififlash.helper.__main__'; this may result in unpredictable behaviour
+
+tests/flashtool/test_core_gaps.py::test_module_entry_points[hififlash.manifest-argv1-2]
+  <frozen runpy>:128: RuntimeWarning: 'hififlash.manifest' found in sys.modules after import of package 'hififlash', but prior to execution of 'hififlash.manifest'; this may result in unpredictable behaviour
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+127 passed, 2 warnings in 37.13s
+os exit codes: defconfigs=0 licences=0 tests=0
+### FLASH TOOL (GUI, helper, package)
+      docker engine 29.1.3 (required: engine >= 24.0)
+      image btbridge-flash:dev: present
+----------------------------------------------------------------------------------------
+TOTAL                                         2956      0    604      0   100%
+
+2 empty files skipped.
+      docker engine 29.1.3 (required: engine >= 24.0)
+      image btbridge-flash:dev: present
+### pyinstaller (one-folder)
+10854 WARNING: Library not found: could not resolve 'libcups.so.2', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/printsupport/libcupsprintersupport.so'.
+10854 WARNING: Library not found: could not resolve 'libgssapi_krb5.so.2', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platforms/libqvnc.so'.
+10854 WARNING: Library not found: could not resolve 'libgssapi_krb5.so.2', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/generic/libqtuiotouchplugin.so'.
+10854 WARNING: Library not found: could not resolve 'libgssapi_krb5.so.2', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platforminputcontexts/libqtvirtualkeyboardplugin.so'.
+10854 WARNING: Library not found: could not resolve 'libxcb-render.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platforms/libqxcb.so'.
+10855 WARNING: Library not found: could not resolve 'libxcb-icccm.so.4', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platforms/libqxcb.so'.
+10855 WARNING: Library not found: could not resolve 'libxcb-util.so.1', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platforms/libqxcb.so'.
+10855 WARNING: Library not found: could not resolve 'libxcb-keysyms.so.1', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platforms/libqxcb.so'.
+10855 WARNING: Library not found: could not resolve 'libxkbcommon-x11.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platforms/libqxcb.so'.
+10855 WARNING: Library not found: could not resolve 'libxcb-image.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platforms/libqxcb.so'.
+10855 WARNING: Library not found: could not resolve 'libxcb-shape.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platforms/libqxcb.so'.
+10855 WARNING: Library not found: could not resolve 'libxcb-xkb.so.1', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platforms/libqxcb.so'.
+10855 WARNING: Library not found: could not resolve 'libxcb-cursor.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platforms/libqxcb.so'.
+10855 WARNING: Library not found: could not resolve 'libxcb-render-util.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platforms/libqxcb.so'.
+10855 WARNING: Library not found: could not resolve 'libxcb-render.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-egl-integration.so'.
+10855 WARNING: Library not found: could not resolve 'libxcb-icccm.so.4', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-egl-integration.so'.
+10855 WARNING: Library not found: could not resolve 'libxcb-util.so.1', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-egl-integration.so'.
+10855 WARNING: Library not found: could not resolve 'libxcb-keysyms.so.1', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-egl-integration.so'.
+10855 WARNING: Library not found: could not resolve 'libxkbcommon-x11.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-egl-integration.so'.
+10855 WARNING: Library not found: could not resolve 'libxcb-image.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-egl-integration.so'.
+10855 WARNING: Library not found: could not resolve 'libxcb-shape.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-egl-integration.so'.
+10855 WARNING: Library not found: could not resolve 'libxcb-xkb.so.1', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-egl-integration.so'.
+10855 WARNING: Library not found: could not resolve 'libxcb-cursor.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-egl-integration.so'.
+10856 WARNING: Library not found: could not resolve 'libxcb-render-util.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-egl-integration.so'.
+10856 WARNING: Library not found: could not resolve 'libgdk_pixbuf-2.0.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platformthemes/libqgtk3.so'.
+10856 WARNING: Library not found: could not resolve 'libpango-1.0.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platformthemes/libqgtk3.so'.
+10856 WARNING: Library not found: could not resolve 'libcairo-gobject.so.2', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platformthemes/libqgtk3.so'.
+10856 WARNING: Library not found: could not resolve 'libgtk-3.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platformthemes/libqgtk3.so'.
+10856 WARNING: Library not found: could not resolve 'libharfbuzz.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platformthemes/libqgtk3.so'.
+10856 WARNING: Library not found: could not resolve 'libpangocairo-1.0.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platformthemes/libqgtk3.so'.
+10856 WARNING: Library not found: could not resolve 'libgdk-3.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platformthemes/libqgtk3.so'.
+10856 WARNING: Library not found: could not resolve 'libatk-1.0.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platformthemes/libqgtk3.so'.
+10856 WARNING: Library not found: could not resolve 'libcairo.so.2', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platformthemes/libqgtk3.so'.
+10856 WARNING: Library not found: could not resolve 'libxcb-render.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-glx-integration.so'.
+10856 WARNING: Library not found: could not resolve 'libxcb-icccm.so.4', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-glx-integration.so'.
+10856 WARNING: Library not found: could not resolve 'libxcb-util.so.1', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-glx-integration.so'.
+10856 WARNING: Library not found: could not resolve 'libxcb-keysyms.so.1', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-glx-integration.so'.
+10856 WARNING: Library not found: could not resolve 'libxkbcommon-x11.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-glx-integration.so'.
+10856 WARNING: Library not found: could not resolve 'libxcb-image.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-glx-integration.so'.
+10856 WARNING: Library not found: could not resolve 'libxcb-shape.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-glx-integration.so'.
+10856 WARNING: Library not found: could not resolve 'libxcb-xkb.so.1', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-glx-integration.so'.
+10856 WARNING: Library not found: could not resolve 'libxcb-cursor.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-glx-integration.so'.
+10856 WARNING: Library not found: could not resolve 'libxcb-render-util.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/xcbglintegrations/libqxcb-glx-integration.so'.
+10856 WARNING: Library not found: could not resolve 'libgssapi_krb5.so.2', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/plugins/imageformats/libqpdf.so'.
+10856 WARNING: Library not found: could not resolve 'libgssapi_krb5.so.2', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Network.so.6'.
+10856 WARNING: Library not found: could not resolve 'libgssapi_krb5.so.2', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6VirtualKeyboardQml.so.6'.
+10856 WARNING: Library not found: could not resolve 'libgssapi_krb5.so.2', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6QmlModels.so.6'.
+10856 WARNING: Library not found: could not resolve 'libgssapi_krb5.so.2', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6QmlMeta.so.6'.
+10856 WARNING: Library not found: could not resolve 'libgssapi_krb5.so.2', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6QmlWorkerScript.so.6'.
+10856 WARNING: Library not found: could not resolve 'libgssapi_krb5.so.2', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Qml.so.6'.
+10856 WARNING: Library not found: could not resolve 'libgssapi_krb5.so.2', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6VirtualKeyboard.so.6'.
+10856 WARNING: Library not found: could not resolve 'libgssapi_krb5.so.2', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Quick.so.6'.
+10856 WARNING: Library not found: could not resolve 'libxcb-render.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6XcbQpa.so.6'.
+10856 WARNING: Library not found: could not resolve 'libxcb-icccm.so.4', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6XcbQpa.so.6'.
+10856 WARNING: Library not found: could not resolve 'libxcb-util.so.1', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6XcbQpa.so.6'.
+10856 WARNING: Library not found: could not resolve 'libxcb-keysyms.so.1', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6XcbQpa.so.6'.
+10856 WARNING: Library not found: could not resolve 'libxkbcommon-x11.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6XcbQpa.so.6'.
+10856 WARNING: Library not found: could not resolve 'libxcb-image.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6XcbQpa.so.6'.
+10856 WARNING: Library not found: could not resolve 'libxcb-shape.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6XcbQpa.so.6'.
+10856 WARNING: Library not found: could not resolve 'libxcb-xkb.so.1', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6XcbQpa.so.6'.
+10856 WARNING: Library not found: could not resolve 'libxcb-cursor.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6XcbQpa.so.6'.
+10857 WARNING: Library not found: could not resolve 'libxcb-render-util.so.0', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6XcbQpa.so.6'.
+10857 WARNING: Library not found: could not resolve 'libgssapi_krb5.so.2', dependency of '/opt/venv/lib/python3.13/site-packages/PySide6/Qt/lib/libQt6Pdf.so.6'.
+### licences
+licences collected in /work/build/flashtool/dist/hifi-bridge-flash/licenses: GPL-2.0.txt, GPL-3.0.txt, LGPL-3.0.txt, LICENSE-hifi-bridge.txt, Python-LICENSE.txt, THIRD_PARTY_NOTICES.txt, cffi, cryptography, pycparser
+### desktop integration
+### smoke test: GUI
+Detected locale "C" with character encoding "ANSI_X3.4-1968", which is not UTF-8.
+Qt depends on a UTF-8 locale, and has switched to "C.UTF-8" instead.
+If this causes problems, reconfigure your locale. See the locale(1) manual
+for more information.
+self-test ok: 7 pages, language de
+### smoke test: helper (simulated card, real protocol)
+hififlash-helper 0.1.0-dev protocol 1
+helper smoke: {'event': 'done', 'result': {'bytes': 6291456, 'sha256': 'd28c5099aea8d5e12eaed3d81c6894c3ff627fb62a4b11b90347585457f9f128', 'provisioned': True}} rc=0 -> OK
+### smoke test: install.sh into a scratch DESTDIR
+installed to /tmp/destdir/opt/hifi-bridge-flash
+### archive
+171M	/work/build/flashtool/dist/hifi-bridge-flash
+66M	/work/build/flashtool/hifi-bridge-flash-0.1.0-dev-linux-x86_64.tar.gz
+package ok: /work/build/flashtool/hifi-bridge-flash-0.1.0-dev-linux-x86_64.tar.gz
+### HOMEASSISTANT
+      docker engine 29.1.3, compose 2.40.3 (required: engine >= 24.0, compose >= 2.20)
+      image btbridge-lab:dev: present
+ Container btbridge-lab-lms-1  Running
+ Container btbridge-lab-mosquitto-1  Running
+ Container btbridge-lab-legacy1-1  Running
+ Container btbridge-lab-player3-1  Running
+ Container btbridge-lab-player1-1  Running
+ Container btbridge-lab-player2-1  Running
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+============================= test session starts ==============================
+platform linux -- Python 3.11.2, pytest-7.2.1, pluggy-1.0.0+repack
+rootdir: /work, configfile: pytest.ini
+collected 7 items
+
+tests/homeassistant/test_ha_mqtt.py .......                              [100%]
+
+============================== 7 passed in 40.17s ==============================
+### Home Assistant log: MQTT warnings/errors
+### DEMO (unit)
+      docker engine 29.1.3 (required: engine >= 24.0)
+      image hifi-demo:dev: present
+....................................................                     [100%]
+52 passed in 28.23s
+### DEMO (stack)
+      docker engine 29.1.3, compose 2.40.3 (required: engine >= 24.0, compose >= 2.20)
+      building hifi-demo:dev - refreshing (layer cache makes this fast) (about 400 MB)
+      #1 [internal] load build definition from Dockerfile
+      #2 [internal] load metadata for docker.io/library/debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
+      #3 [internal] load .dockerignore
+      #4 [1/9] FROM docker.io/library/debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
+      #5 [internal] load build context
+      #6 [2/9] RUN apt-get update  && apt-get install -y --no-install-recommends       python3 python3-numpy python3-jeepney python3-cryptography python3-py
+      #6 CACHED
+      #7 [3/9] RUN useradd --uid 10001 --create-home --shell /usr/sbin/nologin hifi  && mkdir -p /data /boot-demo /owner /run/hifi /var/cache/hifi-demo  && 
+      #7 CACHED
+      #8 [4/9] COPY bridge/btbridge /opt/hifi-bridge/bridge/btbridge
+      #8 CACHED
+      #9 [5/9] COPY testkit/btkit /opt/hifi-bridge/testkit/btkit
+      #9 CACHED
+      #10 [6/9] COPY testkit/pw/start_pipewire.sh /opt/hifi-bridge/testkit/pw/start_pipewire.sh
+      #10 CACHED
+      #11 [7/9] COPY flashtool/hififlash /opt/hifi-bridge/flashtool/hififlash
+      #12 [8/9] COPY demo /opt/hifi-bridge/demo
+      #13 [9/9] WORKDIR /opt/hifi-bridge
+      #14 writing image sha256:0f80d13bc8358416c8daa5ac1bd242bffd42533f602a83bc03fc58733646fb3c done
+      #14 naming to docker.io/library/hifi-demo:dev 0.1s done
+      build hifi-demo:dev: done in 1 s
+      image btbridge-browser:dev: present
+      image lmscommunity/lyrionmusicserver:9.1.2: present
+      image eclipse-mosquitto:2.0.20: present
+### 0 isolation: no route from the demo to the host or the LAN (scripts/check_isolation.sh; DECISIONS #71)
+      docker engine 29.1.3 (required: engine >= 24.0)
+ok    network hifi-demo-test_demo: internal, inhibit_ipv4 (the host has no address on it)
+ok    host: no IPv4 address on br-7d24740c18e7
+ok    network hifi-demo-test_edge: not internal, attached only to the allowed edge service(s):hifi-demo-test-gateway-1 
+note  gateway is an allowed edge service (it only forwards fixed targets)
+note  172.29.253.1 belongs to a container of this project on hifi-demo-test_demo: not a host candidate
+ok    network hifi-demo-test_demo: TCP 9000/3483 and UDP 3483 discovery to the candidate host addresses () and the broadcast reach nothing outside the project
+isolation check of project hifi-demo-test: rc=0
+### P7 CA trust proof BEFORE setup (flash tool; the one-time key is deleted when the owner password is set)
+VERIFIED device CA, SHA-256 fingerprint: 42:33:79:A0:DF:4B:AB:AE:8F:4C:68:5F:9E:FE:33:DB:74:4D:9D:19:C7:A0:65:DC:26:2E:C7:C7:C7:1B:77:62
+HTTPS with only this CA: HTTP 200
+### 1 setup (browser)
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.3.4, pluggy-1.7.0 -- /usr/bin/python3
+rootdir: /work
+configfile: pytest.ini
+collecting ... collected 1 item
+
+tests/demo/stack/test_1_setup_ui.py::test_owner_setup_and_pairing_window PASSED [100%]
+
+============================== 1 passed in 6.74s ===============================
+### 2 audio chain
+============================= test session starts ==============================
+platform linux -- Python 3.13.5, pytest-8.3.5, pluggy-1.5.0 -- /usr/bin/python3
+rootdir: /work
+configfile: pytest.ini
+collecting ... collected 11 items
+
+tests/demo/stack/test_2_chain.py::test_01_guest_pairs_and_connects_inside_the_window PASSED [  9%]
+tests/demo/stack/test_2_chain.py::test_02_play_reaches_the_room_behind_lyrion_and_squeezelite PASSED [ 18%]
+tests/demo/stack/test_2_chain.py::test_03_track_change_reaches_the_room PASSED [ 27%]
+tests/demo/stack/test_2_chain.py::test_04_phone_volume_changes_the_room_volume PASSED [ 36%]
+tests/demo/stack/test_2_chain.py::test_05_second_phone_is_refused_and_never_interrupts_the_first PASSED [ 45%]
+tests/demo/stack/test_2_chain.py::test_06_pause_and_resume PASSED        [ 54%]
+tests/demo/stack/test_2_chain.py::test_07_short_notification_does_not_take_over_the_radio_but_music_does PASSED [ 63%]
+tests/demo/stack/test_2_chain.py::test_08_synchronised_group_plays_in_two_rooms PASSED [ 72%]
+tests/demo/stack/test_2_chain.py::test_09_connection_loss_stops_the_room PASSED [ 81%]
+tests/demo/stack/test_2_chain.py::test_10_manual_source_change_the_bridge_steps_back_and_stays_back PASSED [ 90%]
+tests/demo/stack/test_2_chain.py::test_99_write_measurements PASSED      [100%]
+
+============================= 11 passed in 56.69s ==============================
+### 3 console UI (browser)
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.3.4, pluggy-1.7.0 -- /usr/bin/python3
+rootdir: /work
+configfile: pytest.ini
+collecting ... collected 8 items
+
+tests/demo/stack/test_3_console_ui.py::test_01_console_pages_in_both_themes_languages_and_sizes PASSED [ 12%]
+tests/demo/stack/test_3_console_ui.py::test_02_phone_controls_in_the_browser PASSED [ 25%]
+tests/demo/stack/test_3_console_ui.py::test_03_audio_monitor_plays_the_room_and_measures_its_latency[AudioWorklet] PASSED [ 37%]
+tests/demo/stack/test_3_console_ui.py::test_03_audio_monitor_plays_the_room_and_measures_its_latency[ScriptProcessor] PASSED [ 50%]
+tests/demo/stack/test_3_console_ui.py::test_04_owner_removes_a_phone_and_the_phone_learns_it PASSED [ 62%]
+tests/demo/stack/test_3_console_ui.py::test_05_mqtt_configured_in_the_bridge_webui PASSED [ 75%]
+tests/demo/stack/test_3_console_ui.py::test_06_track_titles_reach_lyrion_after_the_owner_enables_icy PASSED [ 87%]
+tests/demo/stack/test_3_console_ui.py::test_99_audit_summary PASSED      [100%]
+
+============================== 8 passed in 52.83s ==============================
+### 4 trust after setup: manual fingerprint method (make demo-trust fallback)
+downloaded 42:33:79:A0:DF:4B:AB:AE:8F:4C:68:5F:9E:FE:33:DB:74:4D:9D:19:C7:A0:65:DC:26:2E:C7:C7:C7:1B:77:62 / boot partition 42:33:79:A0:DF:4B:AB:AE:8F:4C:68:5F:9E:FE:33:DB:74:4D:9D:19:C7:A0:65:DC:26:2E:C7:C7:C7:1B:77:62
+### 5 MQTT discovery on the demo broker
+discovery config topics: 14
+### 6 SD-card recovery (make demo-recover)
+SD-card recovery (docs/PROVISIONING.md, P8): request 'reset-owner-password' on the boot partition, then restart the device.
+  2026-11-19T10:19:17Z One-time setup code: <redacted> (invalid as soon as the owner password is set)
+after recovery / redirects to: http://hifi-bridge.local:28080/setup
+### resources
+  hifi-demo-test-arbeitszimmer-1	1.04%	41.21MiB / 22.89GiB
+  hifi-demo-test-console-1	1.56%	196.4MiB / 22.89GiB
+  hifi-demo-test-gateway-1	0.00%	11.04MiB / 22.89GiB
+  hifi-demo-test-hifi-bridge-1	1.70%	48.34MiB / 22.89GiB
+  hifi-demo-test-lms-1	0.26%	127.7MiB / 22.89GiB
+  hifi-demo-test-mosquitto-1	0.04%	1.496MiB / 22.89GiB
+  hifi-demo-test-schlafzimmer-1	0.86%	43.06MiB / 22.89GiB
+  hifi-demo-test-wohnzimmer-1	0.84%	57.52MiB / 22.89GiB
+demo stack test: rc=0
+### BROWSER
+      docker engine 29.1.3, compose 2.40.3 (required: engine >= 24.0, compose >= 2.20)
+      image btbridge-lab:dev: present
+      image btbridge-browser:dev: present
+ Container btbridge-lab-mosquitto-1  Running
+ Container btbridge-lab-lms-1  Running
+ Container btbridge-lab-player3-1  Running
+ Container btbridge-lab-player1-1  Running
+ Container btbridge-lab-legacy1-1  Running
+ Container btbridge-lab-player2-1  Running
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-lms-1  Healthy
+ Volume btbridge-lab_appliance-data  Creating
+ Volume btbridge-lab_appliance-data  Created
+ Container btbridge-lab-lms-1  Running
+ Container btbridge-lab-appliance-1  Creating
+ Container btbridge-lab-appliance-1  Created
+ Container btbridge-lab-lms-1  Waiting
+ Container btbridge-lab-lms-1  Healthy
+ Container btbridge-lab-appliance-1  Starting
+ Container btbridge-lab-appliance-1  Started
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-8.3.4, pluggy-1.7.0
+rootdir: /work
+configfile: pytest.ini
+collected 11 items
+
+tests/browser/test_ui_browser.py .....                                   [ 45%]
+tests/browser/test_ui_network.py ....                                    [ 81%]
+tests/browser/test_ui_update.py ..                                       [100%]
+
+============================= 11 passed in 58.27s ==============================
+appliance-1  | [ctl] reachability unreachable
+appliance-1  | [ctl] reachability reachable
+appliance-1  | [ctl] bt_connected 
+appliance-1  | [ctl] media_play 
+appliance-1  | [ctl] session_start sZoURJX8
+appliance-1  | [ctl] media_pause 
+appliance-1  | [ctl] session_parked sZoURJX8
+appliance-1  | [ctl] bt_disconnected 
+appliance-1  | [ctl] session_release sZoURJX8:disconnect
+exit codes: static=0 entry=0 unit=0 integration=0 outage_lms=0 outage_player=0 pipewire=0 hwkit=0 mdns=1 network=0 ota=0 syslog=0 py314=0 security=0 secrets=0 os=0 flashtool=0 homeassistant=0 demo_unit=0 demo_stack=0 browser=0
