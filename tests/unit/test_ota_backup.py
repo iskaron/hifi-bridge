@@ -232,6 +232,42 @@ def test_unusable_secret_parameters(store, change):
         B.decrypt(doc, PASS)
 
 
+@pytest.mark.parametrize("n,r,p", [(2 ** 16, 16, 1), (2 ** 16, 8, 4), (2 ** 15, 16, 4)])
+def test_kdf_parameters_within_the_bounds_but_above_the_memory_limit_are_an_invalid_file(store, n, r, p):
+    """Review N-9: scrypt refuses these with ValueError (memory limit exceeded); that must be "invalid file", never an HTTP 500."""
+    doc = secret_doc(store)
+    doc["secrets"].update(n=n, r=r, p=p)
+    with pytest.raises(B.BackupError) as e:
+        B.plan(doc, PASS)
+    assert e.value.code == "invalid_file"
+
+
+@pytest.mark.parametrize("n,r,p", [(2 ** 16, 1, 1), (2 ** 16, 1, 4)])
+def test_n_must_be_below_2_to_the_16_r_as_scrypt_demands(store, n, r, p):
+    doc = secret_doc(store)
+    doc["secrets"].update(n=n, r=r, p=p)
+    with pytest.raises(B.BackupError) as e:
+        B.decrypt(doc, PASS)
+    assert e.value.code == "invalid_file"
+
+
+@pytest.mark.parametrize("n,r,p", [(2 ** 10, 1, 1), (2 ** 15, 1, 4), (2 ** 16, 2, 1), (2 ** 16, 7, 4), (2 ** 14, 16, 4), (2 ** 15, 8, 4)])
+def test_every_accepted_kdf_corner_runs_within_the_memory_limit(store, n, r, p):
+    doc = secret_doc(store)
+    doc["secrets"].update(n=n, r=r, p=p)                                  # the tag no longer matches: the KDF itself must run
+    with pytest.raises(B.BackupError) as e:
+        B.decrypt(doc, PASS)
+    assert e.value.code == "wrong_passphrase"
+
+
+def test_a_scrypt_refusal_is_an_invalid_file(store, monkeypatch):
+    doc = secret_doc(store)
+    monkeypatch.setattr(B.hashlib, "scrypt", lambda *a, **k: (_ for _ in ()).throw(ValueError("memory limit exceeded")))
+    with pytest.raises(B.BackupError) as e:
+        B.decrypt(doc, PASS)
+    assert e.value.code == "invalid_file"
+
+
 @pytest.mark.parametrize("payload", [b"not json", b"[1, 2]"])
 def test_correctly_tagged_foreign_payload_is_refused(store, payload):
     doc = secret_doc(store)

@@ -351,6 +351,19 @@ def test_import_settings_only_and_errors(u):
     assert "not understood" in flash(u)
 
 
+@pytest.mark.parametrize("lang,text", [("en", "This is not a valid backup file."), ("de", "Das ist keine gültige Sicherungsdatei.")])
+def test_import_with_kdf_parameters_above_the_memory_limit_is_an_invalid_file(u, lang, text):
+    """Review N-9: such a file used to raise ValueError inside scrypt -> HTTP 500. Now: the normal refusal, nothing changed."""
+    u.svc.store.update({"language": lang})
+    raw = u.c.post("/settings/backup/export", {"include_secrets": "on", "passphrase": "long enough pass", "confirm": "long enough pass"}).body
+    doc = json.loads(raw)
+    doc["secrets"].update(n=2 ** 16, r=16)
+    u.svc.store.update({"device_name": "Changed"})
+    r = import_file(u, json.dumps(doc).encode(), "long enough pass")
+    assert r.status == 303 and r.getheader("Location") == "/settings/backup" and text in flash(u)
+    assert u.svc.store.get("device_name") == "Changed"
+
+
 def test_import_socket_error(u, monkeypatch):
     monkeypatch.setattr(views_update, "parse_multipart", lambda *a, **k: (_ for _ in ()).throw(OSError("reset")))
     import_file(u, b"{}")

@@ -49,6 +49,7 @@ EXCLUDED = ("instance_id", "setup_complete")            # stay with the device
 EXPORTED_SECRETS = ("admin_password_hash", "stream_token", "mqtt_password")
 MIN_PASSPHRASE = 10
 SCRYPT = {"n": 2 ** 14, "r": 8, "p": 1}
+SCRYPT_MAXMEM = 64 * 1024 * 1024
 CIPHER, OPENSSL_MODE = "aes-256-ctr", "enc-pbkdf2-sha256-iter1-nosalt"
 OPENSSL_ENC = ("enc", "-aes-256-ctr", "-pbkdf2", "-iter", "1", "-md", "sha256", "-nosalt")
 OPENSSL: str | None = None                             # path of the openssl binary (None = from PATH); tests may wrap it
@@ -76,8 +77,19 @@ def _unb64(s) -> bytes:
         raise BackupError("invalid_file", "bad base64") from None
 
 
+def kdf_acceptable(n: int, r: int, p: int) -> bool:
+    """Bounded work (no CPU/RAM bomb from an imported file) AND what OpenSSL's scrypt itself accepts: N a power of two below 2^(16 r),
+    memory 128 r (N + p + 2) bytes within SCRYPT_MAXMEM (OpenSSL's own formula). Review N-9: parameters inside the old bounds but above
+    the memory limit made scrypt raise ValueError -> HTTP 500."""
+    return (2 ** 10 <= n <= 2 ** 16 and n & (n - 1) == 0 and 1 <= r <= 16 and 1 <= p <= 4 and n < 2 ** (16 * r)
+            and 128 * r * (n + p + 2) <= SCRYPT_MAXMEM)
+
+
 def _keys(passphrase: str, salt: bytes, n: int, r: int, p: int) -> tuple[bytes, bytes]:
-    k = hashlib.scrypt(passphrase.encode("utf-8"), salt=salt, n=n, r=r, p=p, maxmem=64 * 1024 * 1024, dklen=64)
+    try:
+        k = hashlib.scrypt(passphrase.encode("utf-8"), salt=salt, n=n, r=r, p=p, maxmem=SCRYPT_MAXMEM, dklen=64)
+    except ValueError:                                   # any parameter OpenSSL refuses: the file is not usable, never an HTTP 500
+        raise BackupError("invalid_file", "kdf parameters") from None
     return k[:32], k[32:]
 
 
@@ -174,7 +186,7 @@ def decrypt(doc: dict, passphrase: str) -> dict:
         n, r, p = int(s["n"]), int(s["r"]), int(s["p"])
     except (KeyError, TypeError, ValueError):
         raise BackupError("invalid_file", "kdf parameters") from None
-    if not (2 ** 10 <= n <= 2 ** 16 and n & (n - 1) == 0 and 1 <= r <= 16 and 1 <= p <= 4):     # bounded work (no CPU/RAM bomb)
+    if not kdf_acceptable(n, r, p):
         raise BackupError("invalid_file", "kdf parameters")
     salt, ct, tag = (_unb64(s.get(k)) for k in ("salt", "ciphertext", "tag"))
     enc, mac = _keys(passphrase, salt, n, r, p)
