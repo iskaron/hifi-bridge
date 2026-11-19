@@ -7,6 +7,11 @@ Change protocol (docs/NETWORK.md "Owner changes"):
    rolls back; whenever the agent no longer has this trial pending, the pending file is promoted (confirmed) or deleted (rolled back).
 A power cut during a trial therefore always comes back with the previous, working ``network.json``.
 
+Consistency rules (review N-2/N-3): a status answer whose request started before the last ``save()`` ended is never used to judge the
+pending file (generation counter); a request that reached the agent but got no answer (timeout) keeps the pending file - the next status
+decides by trial id, and ``trial_request`` (received, not yet applied) keeps it too; only a request that never reached the agent, or an
+agent that does not know the trial (restarted, rolled back, superseded), removes it.
+
 Without an agent (Docker lab, development host) the service is *unmanaged*: it shows the kernel's view (netlink) and changes nothing.
 """
 from __future__ import annotations
@@ -25,7 +30,11 @@ WATCH_S = 5.0
 
 
 class AgentUnavailable(Exception):
-    pass
+    """``sent``: the request reached the agent completely before the failure (it may act on it; only the answer is missing)."""
+
+    def __init__(self, message: str = "", sent: bool = False):
+        super().__init__(message)
+        self.sent = sent
 
 
 class NotManaged(Exception):
@@ -40,11 +49,13 @@ class AgentClient:
         return os.path.exists(self.path)
 
     def call(self, op: str, **kw) -> dict:
+        sent = False
         try:
             with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
                 s.settimeout(self.timeout)
                 s.connect(self.path)
                 s.sendall(json.dumps({"op": op, **kw}).encode() + b"\n")
+                sent = True
                 data = b""
                 while not data.endswith(b"\n"):
                     chunk = s.recv(65536)
@@ -53,9 +64,9 @@ class AgentClient:
                     data += chunk
             reply = json.loads(data.decode("utf-8"))
         except (OSError, ValueError) as e:
-            raise AgentUnavailable(f"network agent not reachable: {type(e).__name__}") from None
+            raise AgentUnavailable(f"network agent {'did not answer' if sent else 'not reachable'}: {type(e).__name__}", sent) from None
         if not isinstance(reply, dict):
-            raise AgentUnavailable("network agent: bad reply")
+            raise AgentUnavailable("network agent: bad reply", True)
         return reply
 
 
@@ -75,6 +86,7 @@ class NetworkService:
         self._last: dict | None = None
         self._synced: bool | None = None
         self._addr_key = None
+        self._gen = 0                                                    # bumped when a save() ends (review N-2)
         try:
             self._register(self.config())
         except netconfig.NetConfigError:
@@ -128,6 +140,8 @@ class NetworkService:
             return
         if t.get("id") == pid and t.get("state") == "confirmed":
             self._promote()
+        elif t.get("id") != pid and st.get("trial_request") == pid:
+            return                                                       # received, not applied yet (the agent is busy)
         else:
             self._drop_pending()                                         # rolled back, superseded, or the agent restarted
 
@@ -146,6 +160,7 @@ class NetworkService:
     def status(self) -> dict:
         if not self.managed():
             return self._unmanaged_status()
+        gen = self._gen
         try:
             st = self.client.call("status")
         except AgentUnavailable as e:
@@ -153,7 +168,8 @@ class NetworkService:
             st.update(state="agent_unreachable", error=str(e))
             return st
         with self._lock:
-            self._sync_pending(st)
+            if gen == self._gen:                                         # else: asked before the last save() ended - stale
+                self._sync_pending(st)
         st["pending_change"] = os.path.exists(self.pending_path)
         return st
 
@@ -163,23 +179,33 @@ class NetworkService:
         if not self.managed():
             raise NotManaged()
         with self._lock:
-            raw = netconfig.write_private(self.pending_path, new)      # validates; raises NetConfigError
-            tid = netconfig.digest(raw)
-            self._register(netconfig.parse(raw))
             try:
-                r = self.client.call("trial", id=tid)
-            except AgentUnavailable:
-                self._drop_pending()
-                raise
-            if r.get("error"):
-                self._drop_pending()
-                return {"result": "error", "error": r["error"], "problems": r.get("problems") or []}
-            if r.get("result") in ("confirmed", "unchanged"):
-                self._promote()
-            self.log(f"network: change {tid[:8]} -> {r.get('result')}")
-            return {"result": r.get("result"), "id": tid}
+                return self._save(new)
+            finally:
+                self._gen += 1
 
-    def confirm(self) -> bool:
+    def _save(self, new: dict) -> dict:
+        raw = netconfig.write_private(self.pending_path, new)          # validates; raises NetConfigError
+        tid = netconfig.digest(raw)
+        self._register(netconfig.parse(raw))
+        try:
+            r = self.client.call("trial", id=tid)
+        except AgentUnavailable as e:
+            if e.sent:                                                   # the agent may apply it: the next status decides
+                self.log(f"network: change {tid[:8]} handed over, no answer yet ({e})")
+            else:
+                self._drop_pending()
+            raise
+        if r.get("error"):
+            self._drop_pending()
+            return {"result": "error", "error": r["error"], "problems": r.get("problems") or []}
+        if r.get("result") in ("confirmed", "unchanged"):
+            self._promote()
+        self.log(f"network: change {tid[:8]} -> {r.get('result')}")
+        return {"result": r.get("result"), "id": tid}
+
+    def confirm(self) -> bool | None:
+        """True kept, False nothing (any more) to keep, None = no answer from the agent (the next status tells)."""
         with self._lock:
             pid = self._pending_id()
             if pid is None or not self.managed():
@@ -187,19 +213,22 @@ class NetworkService:
             try:
                 ok = bool(self.client.call("confirm", id=pid).get("ok"))
             except AgentUnavailable:
-                return False
+                return None                                              # pending file kept: _sync_pending reconciles
             if ok:
                 self._promote()
             return ok
 
-    def revert(self) -> bool:
+    def revert(self) -> bool | None:
+        """True undone, False nothing to undo, None = no answer from the agent."""
         with self._lock:
             if not self.managed():
                 return False
             try:
                 ok = bool(self.client.call("revert").get("ok"))
-            except AgentUnavailable:
-                ok = False
+            except AgentUnavailable as e:
+                if not e.sent:
+                    self._drop_pending()                                 # never reached the agent (it is down: a restart rolls back)
+                return None
             self._drop_pending()
             return ok
 

@@ -297,7 +297,7 @@ def test_agent_unreachable_and_rejected_change(net_ui, monkeypatch):
         raise C.AgentUnavailable("x")
     monkeypatch.setattr(u.svc.network, "save", down)
     u.c.post("/settings/network/forget")
-    assert "Network service not reachable" in flash(u)
+    assert "network service of the device is not reachable" in flash(u)
 
     def unmanaged(new):
         raise C.NotManaged()
@@ -306,6 +306,30 @@ def test_agent_unreachable_and_rejected_change(net_ui, monkeypatch):
     assert "no network service of its own" in flash(u)
     monkeypatch.setattr(u.svc.network, "status", lambda: (_ for _ in ()).throw(RuntimeError("x")))
     assert "Network service not reachable" in u.c.get("/settings").body
+
+
+@pytest.mark.parametrize("lang,busy,down", [("en", "did not answer in time", "Wait a minute and reload"),
+                                            ("de", "nicht rechtzeitig geantwortet", "Warten Sie eine Minute")])
+def test_an_agent_without_an_answer_tells_the_owner_what_to_do(net_ui, monkeypatch, lang, busy, down):
+    """Review N-3/N-11: a save handed over without an answer is not "not reachable" (the agent may be applying it); every case says
+    what to do next."""
+    u = net_ui
+    u.svc.store.update({"language": lang})
+
+    def no_answer(new):
+        raise C.AgentUnavailable("x", sent=True)
+    monkeypatch.setattr(u.svc.network, "save", no_answer)
+    r = u.c.post("/settings/network/hotspot", {"country": "DE", "hotspot_ssid": "x", "hotspot_password": ""})
+    assert r.getheader("Location") == "/settings/network" and busy in flash(u)
+    monkeypatch.setattr(u.svc.network, "save", lambda new: (_ for _ in ()).throw(C.AgentUnavailable("x")))
+    r = u.c.post("/settings/network/hotspot", {"country": "DE", "hotspot_ssid": "x", "hotspot_password": ""})
+    assert r.getheader("Location") == "/settings/network/hotspot" and down in flash(u)
+    for action, method in (("confirm", "confirm"), ("revert", "revert")):
+        monkeypatch.setattr(u.svc.network, method, lambda: None)
+        u.c.post(f"/settings/network/{action}")
+        assert flash(u).startswith("e:") and busy in flash(u)
+    monkeypatch.setattr(u.svc.network, "status", lambda: {"managed": True, "state": "agent_unreachable", "interfaces": []})
+    assert down in u.c.get("/settings/network").body
 
 
 def test_every_network_key_exists_in_both_languages():

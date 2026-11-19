@@ -83,6 +83,17 @@ stateDiagram-v2
    `confirmed`. After a power cut or agent restart the agent starts from `network.json`, i.e. the last confirmed configuration.
    (Remaining window: a power cut in the milliseconds between the agent's `confirm` and the bridge's rename keeps the previous
    configuration - the safe direction.)
+6. Consistency between bridge and agent (review N-2/N-3, package 7b-1):
+   * A status answer whose request started before the last `save()` ended is never used to judge the pending file (generation
+     counter): an old answer cannot delete the pending file of a trial that started meanwhile.
+   * The agent's lock covers the state machine **and** the system actions it starts (`iw scan` up to 20 s, `systemctl` up to 30 s).
+     `status` waits for it at most 0.25 s; otherwise it answers with the last consistent snapshot plus `busy: true`, so pages and the
+     5 s watch never hang behind a slow action. Trial/confirm/undo still wait for the lock (they must be serialised with it).
+   * A request that reached the agent but got no answer within the client's 15 s keeps the pending file: the page says the device
+     did not answer in time (reload and confirm if asked); the next status decides by trial id. The agent reports a received but not
+     yet applied trial as `trial_request`, which also keeps the file. Only a request that never reached the agent (connection
+     refused), or an agent that does not know the trial (restarted, rolled back, superseded), removes it. Confirm/undo without an
+     answer return "unknown" and keep the file for the same reason.
 
 “Affects a path in use” = Ethernet change with carrier; Wi-Fi/country change while the client is connected; hotspot/Wi-Fi/country change
 while the hotspot runs.

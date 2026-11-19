@@ -1,6 +1,8 @@
 {
  "live.net_remaining": "Automatic undo in {time}",
  "net.addresses_of": "Addresses ({name})",
+ "net.agent_unreachable.help": "The network service of the device is not reachable, so nothing was changed. Wait a minute and reload this page; if it stays like this, restart the device (unplug it briefly). The current network settings stay in effect.",
+ "net.busy": "The network service did not answer in time – the device may still be applying the change. Reload this page in a moment: if “Keep the new network settings?” appears, confirm it.",
  "net.change": "change",
  "net.config_error": "Settings file",
  "net.config_error.text": "unreadable – Ethernet with automatic address only",

@@ -70,6 +70,14 @@ k("net.trial.rolled_back", "Previous network settings restored", "Vorherige Netz
 k("net.trial.had_address", "The device had reached the new network as {addresses} – try that address next time.",
   "Das Gerät war im neuen Netz als {addresses} erreichbar – versuchen Sie beim nächsten Mal diese Adresse.")
 k("net.trial.kept", "Network settings kept.", "Netzwerkeinstellungen behalten.")
+k("net.busy", "The network service did not answer in time – the device may still be applying the change. Reload this page in a moment: "
+  "if “Keep the new network settings?” appears, confirm it.",
+  "Der Netzwerkdienst hat nicht rechtzeitig geantwortet – das Gerät übernimmt die Änderung eventuell noch. Laden Sie diese Seite gleich "
+  "neu: Erscheint „Neue Netzwerkeinstellungen behalten?“, bestätigen Sie sie.")
+k("net.agent_unreachable.help", "The network service of the device is not reachable, so nothing was changed. Wait a minute and reload this "
+  "page; if it stays like this, restart the device (unplug it briefly). The current network settings stay in effect.",
+  "Der Netzwerkdienst des Geräts ist nicht erreichbar, daher wurde nichts geändert. Warten Sie eine Minute und laden Sie die Seite neu; "
+  "bleibt es so, starten Sie das Gerät neu (kurz vom Strom trennen). Die aktuellen Netzwerkeinstellungen bleiben wirksam.")
 k("net.trial.undone", "Change undone.", "Änderung rückgängig gemacht.")
 k("net.trial.too_late", "There is no change waiting for confirmation (it may have been undone already).",
   "Keine Änderung wartet auf Bestätigung (sie wurde eventuell schon zurückgesetzt).")
