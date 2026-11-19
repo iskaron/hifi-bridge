@@ -119,3 +119,4 @@ if [ -n "$CERT" ]; then
 fi
 docker run --rm --name "hifi-ota-bundle-$$" --cpus 2 --memory 1g --network none -u "$(id -u):$(id -g)" -e HOME=/tmp \
 	-e SOURCE_DATE_EPOCH="$EPOCH" "${mounts[@]}" btbridge-os:dev bash /os_bundle.sh "${args[@]}"
+echo "os_bundle: output directory on this host: $OUT"

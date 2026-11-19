@@ -53,7 +53,7 @@
 [manager]	WARNING	Test in comment: see is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: appliance is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: py is not a test name or id, ignoring
-Run started:2026-11-18 23:15:07.605854
+Run started:2026-11-19 00:43:47.113341
 
 Test results:
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -212,6 +212,58 @@ Test results:
 267	            return r.returncode, (r.stdout + r.stderr)
 
 --------------------------------------------------
+>> Issue: [B107:hardcoded_password_default] Possible hardcoded password: ''
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b107_hardcoded_password_default.html
+   Location: bridge/btbridge/ota/backup.py:83:0
+82	
+83	def export(store, include_secrets: bool = False, passphrase: str = "", version: str = __version__, clock=time.time) -> bytes:
+84	    from ..config.store import SCHEMA_VERSION
+85	    settings = {k: v for k, v in store.all().items() if k not in EXCLUDED}
+86	    doc = {"format": FORMAT, "format_version": FORMAT_VERSION, "created": int(clock()), "app_version": version,
+87	           "settings_schema": SCHEMA_VERSION, "device_name": settings.get("device_name", ""), "settings": settings, "secrets": None}
+88	    if include_secrets:
+89	        if len(passphrase) < MIN_PASSPHRASE:
+90	            raise BackupError("weak_passphrase")
+91	        plain = json.dumps({k: store.secret(k) for k in EXPORTED_SECRETS if store.secret(k)}, sort_keys=True).encode("utf-8")
+92	        salt, nonce = os.urandom(16), os.urandom(16)
+93	        enc, mac = _keys(passphrase, salt, **SCRYPT)
+94	        doc["secrets"] = {"kdf": "scrypt", **SCRYPT, "salt": _b64(salt), "nonce": _b64(nonce), "cipher": "hmac-sha256-ctr"}
+95	        ct = _stream(enc, nonce, plain)
+96	        doc["secrets"]["ciphertext"] = _b64(ct)
+97	        doc["secrets"]["tag"] = _b64(hmac.new(mac, _header(doc) + nonce + ct, hashlib.sha256).digest())
+98	    return (json.dumps(doc, indent=1, sort_keys=True) + "\n").encode("utf-8")
+99	
+
+--------------------------------------------------
+>> Issue: [B107:hardcoded_password_default] Possible hardcoded password: ''
+   Severity: Low   Confidence: Medium
+   CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
+   More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b107_hardcoded_password_default.html
+   Location: bridge/btbridge/ota/backup.py:148:0
+147	
+148	def plan(doc: dict, passphrase: str = "") -> dict:
+149	    """Everything that a restore would do, fully validated; raises BackupError before anything is changed."""
+150	    from ..config import SETTINGS, SettingError, validate
+151	    settings, skipped, invalid = {}, [], []
+152	    for k, v in doc["settings"].items():
+153	        if k in EXCLUDED:
+154	            continue
+155	        if k not in SETTINGS:
+156	            skipped.append(k)                            # from a newer release: reported, not applied
+157	            continue
+158	        try:
+159	            settings.update(validate({k: v}))
+160	        except SettingError:
+161	            invalid.append(k)
+162	    if invalid:
+163	        raise BackupError("invalid_settings", ", ".join(sorted(invalid)))
+164	    return {"settings": settings, "skipped": sorted(skipped), "secrets": decrypt(doc, passphrase),
+165	            "had_secrets": bool(doc.get("secrets")), "app_version": str(doc.get("app_version", "")), "created": doc.get("created")}
+166	
+
+--------------------------------------------------
 >> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
    Severity: Low   Confidence: High
    CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
@@ -283,19 +335,19 @@ Test results:
 --------------------------------------------------
 
 Code scanned:
-	Total lines of code: 9557
+	Total lines of code: 11585
 	Total lines skipped (#nosec): 0
 	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 6
 
 Run metrics:
 	Total issues (by severity):
 		Undefined: 0
-		Low: 21
+		Low: 23
 		Medium: 0
 		High: 0
 	Total issues (by confidence):
 		Undefined: 0
 		Low: 0
-		Medium: 0
+		Medium: 2
 		High: 21
 Files skipped (0):
