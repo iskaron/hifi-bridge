@@ -115,3 +115,12 @@ Scope: owner work package of 2026-11-18 (DECISIONS #73/#74).
 - Full run (`reports/evidence/full_run_pkg4_ota.log`): **integration 55/55** (the lab cold-start fix works), unit 817, OTA 12, network,
   browser 11, demo stack, HA, OS 49 etc. green; mDNS red (host environment). Python 3.14: 11 errors + 1 failure - the 3.14 image had no
   `dbus-daemon` for the new RAUC client tests; added to `docker/Dockerfile.py314` (the appliance has D-Bus) → 816 passed, 1 skipped.
+- CI on `fe7f59e`: 15/16 - python314 red on the negative-Content-Length memory test (client body allocated after the baseline, 4 MiB margin
+  too tight: +4.1 MiB) → body allocated first, 32 MiB vs. a 12 MiB limit (`fc13b0d`). CI on `fc13b0d`: python314 green, but two other jobs red:
+  * demo: the new runtime isolation check reported "tcp 172.29.253.1:9000 connected" - a **false positive**: with `inhibit_ipv4` the bridge
+    does not take the gateway address, so Docker gave `.1` to one of the project's own containers (Lyrion). Seen on Engine 28.0.4 in CI and
+    locally on 29.1.3. The host-address check (no IPv4 on the bridge) already covers the host; candidates owned by a project container are
+    now skipped and reported as a note.
+  * pipewire (bookworm, 0.3.65): pipewire-pulse refused connections for 30 s on a cold runner (OPEN_QUESTIONS #26 again); the start script
+    now restarts a pipewire-pulse that exited during start-up once (recorded in its log) and prints all three daemon logs on failure.
+  Both suites green locally (demo stack rc=0, PipeWire 11+1/12, static 0, entry 90).

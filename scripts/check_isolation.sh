@@ -117,7 +117,13 @@ hb_ensure_image btbridge-entry:dev >/dev/null
 for name in "${!NET_INTERNAL_ONLY[@]}"; do
   gw=$(docker network inspect "$name" --format '{{range .IPAM.Config}}{{.Gateway}} {{end}}' | tr ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | tr '\n' ',')
   first=$(docker network inspect "$name" --format '{{range .IPAM.Config}}{{.Subnet}} {{end}}' | tr ' ' '\n' | grep -E '^[0-9]+\.' | sed -E 's#\.[0-9]+/.*#.1#' | tr '\n' ',')
-  cands="$gw$first"
+  cands=""
+  # With inhibit_ipv4 the bridge does not take the gateway address, so Docker may give ".1" to one of the project's own containers
+  # (seen on Engine 28.0.4 in CI: the demo's Lyrion answered on .1). An address owned by a project container cannot be the host - the
+  # check above already proves the host has no address on this bridge - so it is not probed as a host candidate.
+  for a in $(echo "$gw$first" | tr ',' '\n' | sort -u); do
+    case ",$OWN" in *",$a,"*) echo "note  $a belongs to a container of this project on $name: not a host candidate" ;; *) cands="$cands$a," ;; esac
+  done
   out=$(printf '%s' "$PROBE" | docker run --rm -i --network "$name" --cap-drop ALL --read-only \
         btbridge-entry:dev python3 -I - "${cands%,}" "${OWN%,}" 2>&1) || { fail "network $name: probe could not run: $out"; continue; }
   if [ -n "$out" ]; then fail "containers on $name can reach the host or LAN: $(echo "$out" | tr '\n' ';')"

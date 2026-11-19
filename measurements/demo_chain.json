@@ -1,29 +1,29 @@
 {
  "after_track_change": {
-  "offset_s": 5.32,
-  "phone_to_dac_s": 2.2,
+  "offset_s": 5.46,
+  "phone_to_dac_s": 2.22,
   "score": 1.0
  },
  "chain": {
-  "offset_s": 6.53,
-  "phone_to_dac_s": 2.1,
+  "offset_s": 6.72,
+  "phone_to_dac_s": 2.12,
   "score": 1.0
  },
  "label": "SIMULATED phone and rooms; real bridge, Lyrion 9, Squeezelite, PipeWire 1.4 (Docker, no hardware)",
- "link_loss_to_stop_s": 0.02,
+ "link_loss_to_stop_s": 0.01,
  "manual_change_respected": true,
  "multiroom_schlafzimmer": {
-  "offset_s": 23.45,
-  "phone_to_dac_s": 2.21,
+  "offset_s": 23.43,
+  "phone_to_dac_s": 2.24,
   "score": 1.0
  },
  "notification_vs_radio": {
   "radio_kept": true
  },
- "play_to_first_audio_at_room_s": 4.81,
- "play_to_lyrion_play_s": 2.17,
+ "play_to_first_audio_at_room_s": 4.97,
+ "play_to_lyrion_play_s": 2.32,
  "resume_to_lyrion_play_s": 0.27,
- "takeover_from_radio_s": 2.33,
+ "takeover_from_radio_s": 2.08,
  "volume": {
   "after_phone_40_of_127": 65,
   "before": 75

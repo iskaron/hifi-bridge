@@ -1,6 +1,6 @@
 {
  "_hwkit_silent_retries": 0,
- "_node_ready_after_s": 0.05,
+ "_node_ready_after_s": 0.06,
  "_stand_in_reloads": 0,
  "_version": "0.3.65",
  "auto_choice": {
@@ -46,7 +46,7 @@
   "starts": 3
  },
  "node_vanishes": {
-  "bytes_before": 342216,
+  "bytes_before": 345744,
   "bytes_total": 345744,
   "mic_frames": 0
  },
@@ -103,7 +103,7 @@
   "consecutive_pairs": 219617,
   "dropped_frames": 0,
   "drops": 0,
-  "first_index": 316929,
+  "first_index": 320001,
   "foreign_frames": 0,
   "frames": 219618,
   "garbage_prefix_frames": 0,
@@ -123,7 +123,7 @@
   "chunks_while_node_missing": 0,
   "mic_frames_total": 0,
   "resume_asserted": false,
-  "resumed_pattern_frames": 94374,
+  "resumed_pattern_frames": 96138,
   "starts": 8,
   "tool": "parec"
  },
@@ -154,7 +154,7 @@
    "s16",
    "-"
   ],
-  "bytes": 522144,
-  "mic_frames": 130536
+  "bytes": 525672,
+  "mic_frames": 131418
  }
 }
