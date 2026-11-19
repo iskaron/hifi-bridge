@@ -417,5 +417,48 @@ def test_linux_and_mac_default_device_factories_are_wired(monkeypatch):
     assert made == [("/dev/sdb", "linux"), ("/dev/rdisk4", "darwin")]
 
 
+class CachedFakeCard:
+    """Review M12: a fake-capacity card (keeps only the first ``real`` bytes, the rest reads back as zeros) BEHIND an OS page cache that
+    serves recently written blocks from RAM until the cache is dropped - the situation of a real block device after fsync."""
+
+    def __init__(self, size, real, drop_works=True):
+        self.size, self.sector, self.real, self.drop_works = size, 512, real, drop_works
+        self.media, self.cache = bytearray(size), {}
+
+    def pwrite(self, off, data):
+        keep = max(0, min(len(data), self.real - off))
+        self.media[off:off + keep] = data[:keep]
+        for i in range(0, len(data), self.sector):
+            self.cache[off + i] = bytes(data[i:i + self.sector])
+
+    def pread(self, off, n):
+        out = bytearray(self.media[off:off + n])
+        for i in range(0, n, self.sector):
+            if off + i in self.cache:
+                out[i:i + self.sector] = self.cache[off + i]
+        return bytes(out)
+
+    def sync(self):
+        pass
+
+    def drop_cache(self):
+        if self.drop_works:
+            self.cache.clear()
+
+    def close(self):
+        pass
+
+
+@pytest.mark.parametrize("drop_works", [True, False])
+def test_m12_read_back_detects_a_fake_card_only_because_the_cache_is_dropped(tmp_path, drop_works):
+    im = F.image(tmp_path)
+    t = BlockTarget(CachedFakeCard(64 * F.MB, real=3 * F.MB, drop_works=drop_works), "/dev/sdb", "R1")
+    if drop_works:                    # what PosixDeviceIO (BLKFLSBUF + POSIX_FADV_DONTNEED / F_NOCACHE) and Windows NO_BUFFERING do
+        with pytest.raises(W.WriteError, match="read-back verification failed"):
+            W.write_card(open(im["path"], "rb"), im["manifest"], t, t.identity(), None)
+    else:                             # a target that verified from the cache would accept the fake card: the reason for M12
+        assert W.write_card(open(im["path"], "rb"), im["manifest"], t, t.identity(), None)["result"] == "ok"
+
+
 def test_threads_do_not_leak():
     assert threading.active_count() < 50

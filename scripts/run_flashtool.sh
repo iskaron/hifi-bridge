@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
-# Flash tool (core + PySide6 GUI + privileged helper) in Docker only (hifi-flash:dev, docker/Dockerfile.flashtool).
+# Flash tool (core + PySide6 GUI + privileged helper) in Docker only (btbridge-flash:dev, docker/Dockerfile.flashtool).
 #   scripts/run_flashtool.sh test [pytest args]   tests/flashtool + tests/flashtool_gui (QT_QPA_PLATFORM=offscreen, SIMULATED cards only)
 #   scripts/run_flashtool.sh coverage             line + branch coverage of flashtool/hififlash -> reports/evidence/flashtool_coverage.txt
 #   scripts/run_flashtool.sh screenshots          offscreen screenshots -> reports/screenshots/flashtool-*.png
 #   scripts/run_flashtool.sh package              Linux one-folder package (PyInstaller) + offscreen smoke test -> build/flashtool/
 # Nothing here enumerates host disks or writes a block device: the container sees no host device (no --device, no --privileged), it has
-# no network for tests (--network none), and the tests fail if a platform command (lsblk, diskutil, ...) is started.
+# no network (--network none; download tests use a loopback server inside the container), and the tests fail if a process such as
+# lsblk/diskutil/PowerShell is started.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
-IMAGE=hifi-flash:dev
-docker image inspect "$IMAGE" >/dev/null 2>&1 || docker build -q -f docker/Dockerfile.flashtool -t "$IMAGE" docker >/dev/null || exit 1
+# shellcheck source=lib/common.sh
+. scripts/lib/common.sh
+hb_require
+hb_ensure_images btbridge-flash:dev || exit 1
+IMAGE=btbridge-flash:dev
 NAME="hifi-flash-$$"
 run() {
   docker run --rm --init --name "$NAME" --cpus 2 --memory 3g --network none -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD":/work "$IMAGE" "$@"

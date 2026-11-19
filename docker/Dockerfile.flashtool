@@ -2,7 +2,7 @@
 # one-folder package (PyInstaller). Lab/CI only - never shipped. No host device is visible inside: tests use SIMULATED cards (regular files)
 # and recorded tool outputs only. The OS tools (openssl, mtools, dosfstools, fdisk) are here so tests/flashtool (core) runs in the same
 # image and the coverage of the whole flash tool is measured in one place.
-FROM debian:trixie-slim
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
 RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 python3-venv ca-certificates openssl mtools dosfstools fdisk binutils file xz-utils \
       libgl1 libegl1 libxkbcommon0 libfontconfig1 libfreetype6 libglib2.0-0 libdbus-1-3 \
