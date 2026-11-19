@@ -5,6 +5,6 @@ os_bundle: output directory on this host: /home/olm/bluetooth-audio-bridge/.lab/
 ### rauc info with the image s keyring (1 certificate(s): O=Hi-Fi Bridge development, OU=temporary, not for release, CN=Hi-Fi Bridge DEV update CA a8324dbd)
 PASS accepted by the image keyring (bundle compatible hifi-bridge-rpizero2w)
 PASS bundle compatible = image compatible (hifi-bridge-rpizero2w)
-     version 0.3.0-dev | image sha256 550b9c4ad3b1e2ed9fc9109b5e90e8d354e6af34f357abea2564dc21f39fb0e5
+     version 0.3.0-dev | image sha256 d24f5bcd32a6067049a196eb016c71a2710bf40825c67b32ddfcee77ec20b8ee
 PASS a foreign-signed bundle is refused
 bundle size: 77170127 bytes
