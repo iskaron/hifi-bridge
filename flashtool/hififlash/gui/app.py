@@ -7,9 +7,11 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import os
 import sys
 
+from PySide6.QtCore import QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
@@ -17,6 +19,17 @@ from . import theme
 from .i18n import I18n, resolve
 from .services import default_services
 from .window import LOGO, MainWindow
+
+
+def gui_thread_gc(app, interval_ms: int = 2000) -> QTimer:
+    """Python's cyclic garbage collector may run in ANY thread (downloads, the helper session and the trust check run in worker threads).
+    If it frees Qt objects there, Qt crashes - observed as a segfault in the test suite. Automatic collection is therefore switched off
+    and the GUI thread collects periodically instead."""
+    gc.disable()
+    timer = QTimer(app)
+    timer.timeout.connect(gc.collect)
+    timer.start(interval_ms)
+    return timer
 
 
 def main(argv=None, services=None) -> int:
@@ -32,6 +45,7 @@ def main(argv=None, services=None) -> int:
     app = QApplication.instance() or QApplication(sys.argv[:1])
     app.setApplicationName("Hi-Fi Bridge")
     app.setWindowIcon(QIcon(LOGO))
+    app._hififlash_gc = getattr(app, "_hififlash_gc", None) or gui_thread_gc(app)
     services = services or default_services(simulate=a.simulate)
     if a.lang:
         services.settings.values["lang"] = a.lang

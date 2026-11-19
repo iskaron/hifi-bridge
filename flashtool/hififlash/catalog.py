@@ -102,9 +102,9 @@ def list_entries(source: str = DEFAULT_SOURCE, opener: Opener = urllib.request.u
                 continue
             assets = {}
             for a in rel.get("assets") or []:
-                name, url, size = a["name"], a["browser_download_url"], int(a["size"])
-                if NAME_RE.match(name) and size >= 0:
-                    assets[name] = Asset(name, check_url(url), size)
+                name, url, size = a["name"], str(a["browser_download_url"]), int(a["size"])
+                if NAME_RE.match(name) and size >= 0 and url.startswith(("https://", "http://")):   # anything else: ignored
+                    assets[name] = Asset(name, url, size)
             for name in sorted(assets):
                 if not name.endswith(".manifest.json"):
                     continue
@@ -115,8 +115,6 @@ def list_entries(source: str = DEFAULT_SOURCE, opener: Opener = urllib.request.u
                 out.append(Entry(str(rel.get("tag_name") or ""), bool(rel.get("prerelease")), str(rel.get("published_at") or ""),
                                  image, assets[name], assets.get(name + ".sig")))
         return out
-    except SourceError:
-        raise
     except (ValueError, KeyError, TypeError, AttributeError) as e:
         raise SourceError("bad_response", str(e)) from None
 
@@ -209,8 +207,6 @@ class Downloader:
 
     @staticmethod
     def _finish(part: str, metaf: str, final: str, asset: Asset) -> str:
-        if os.path.getsize(part) != asset.size:
-            raise DownloadError("download incomplete")
-        os.replace(part, final)
+        os.replace(part, final)                              # both callers checked that the partial file has the announced size
         os.remove(metaf)                                     # exists on both paths that reach here
         return final

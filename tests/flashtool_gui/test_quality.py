@@ -12,6 +12,7 @@ from PySide6.QtCore import QLocale, Qt, QTimer
 from PySide6.QtWidgets import (QAbstractButton, QApplication, QComboBox, QLabel, QLineEdit, QListWidget, QProgressBar, QTextBrowser,
                                QWidget)
 
+import flashfixtures as F
 from hififlash import boards as BD
 from hififlash import catalog as C
 from hififlash import disks as D
@@ -197,19 +198,23 @@ def test_closing_during_a_download_cancels_it(qtbot, win, env):
 # ------------------------------------------------------------------ entry point and services
 def test_app_self_test_root_refusal_and_event_loop(qtbot, env, monkeypatch, capsys):
     assert APP.main(["--self-test", "--lang", "de", "--theme", "dark"], services=env.services) == 0
+    timer = QApplication.instance()._hififlash_gc
+    assert timer.isActive() and timer.interval() == 2000 and not __import__("gc").isenabled()
     assert "self-test ok: 7 pages, language de" in capsys.readouterr().out
     monkeypatch.setattr(os, "geteuid", lambda: 0)
     assert APP.main([], services=env.services) == 2 and "do not run the GUI as root" in capsys.readouterr().err
     monkeypatch.setattr(os, "geteuid", lambda: 1000)
     app = QApplication.instance()
-
-    def later():
-        app.styleHints().colorSchemeChanged.emit(Qt.ColorScheme.Dark)       # "follow the system" re-applies the theme
-        for w in app.topLevelWidgets():
-            w.close()
-        app.quit()
-    QTimer.singleShot(200, later)
-    assert APP.main(["--theme", "system"], services=env.services) == 0
+    loops = []
+    monkeypatch.setattr(QApplication, "exec", lambda *a: loops.append(1) or 0)   # no real event loop inside pytest-qt
+    before = {id(w) for w in app.topLevelWidgets()}
+    assert APP.main(["--theme", "system"], services=env.services) == 0 and loops == [1]
+    shown = [w for w in app.topLevelWidgets() if id(w) not in before and w.isVisible()]
+    assert len(shown) == 1 and shown[0].windowTitle() == "Hi-Fi Bridge – Flash-Werkzeug"          # --lang de of the call above
+    monkeypatch.setattr(T, "system_is_dark", lambda app=None: True)
+    app.styleHints().colorSchemeChanged.emit(Qt.ColorScheme.Dark)           # "follow the system" re-applies the theme
+    assert app.palette().window().color().name() == T.DARK["bg"]
+    shown[0].close()
     called = []
     monkeypatch.setattr(APP, "main", lambda: called.append(1) or 0)
     with pytest.raises(SystemExit):
@@ -276,3 +281,47 @@ def test_error_text_covers_every_error_family():
     from hififlash.helper.client import HelperFailed
     assert "write-protected" in error_text(tr, HelperFailed("disk_refused", "m", ["read_only"]))
     assert D.Disk("/dev/sdb", "sdb", 1).label().startswith("sdb")
+
+
+def test_owner_sheet_variants():
+    from hififlash import provision as FP
+    from hififlash.gui import ownersheet as OS
+    tr = I.I18n("de").tr
+    doc, _ = FP.new_document("DE", hotspot=False, wifi=("Zuhause", "wifi-secret-123"))
+    text = OS.to_text(doc, tr)
+    assert "Einrichtungs-WLAN" not in text and "Zuhause" in text and "wifi-secret-123" not in text and "10.42.0.1" not in text
+    assert "Hi-Fi Bridge" in OS.rows(doc, tr)[0][1] and OS.address(doc) == "hifi-bridge.local"
+
+
+def test_remaining_page_branches(qtbot, win, env, tmp_path):
+    win.back()                                                                   # nothing before step 1
+    assert win.index == 0
+    page0 = win.pages[0]
+    page0.radios["rpi3"].setChecked(True)
+    page0._choose(win.ctx.state.board)                                            # choosing the same board again changes nothing
+    assert win.ctx.state.board.id == "rpi3"
+    pre = F.image(tmp_path, "hifi-bridge-rpi3", "0.6.0-rc1")                      # an unsigned pre-release is listed and labelled
+    env.server.publish("v0.6.0-rc1", [pre], prerelease=True)
+    win.next()
+    page = win.pages[1]
+    qtbot.waitUntil(lambda: page.list.count() == 2, timeout=TIMEOUT)
+    labels = [page.list.item(i).text() for i in range(2)]
+    assert any("pre-release" in t and "unsigned" in t for t in labels)
+    page.list.setCurrentRow([i for i, t in enumerate(labels) if "0.5.0" in t][0])
+    page.run_verify()
+    qtbot.waitUntil(lambda: win.ctx.state.image is not None, timeout=TIMEOUT)
+    win.next()
+    env.set_card_meta(mounts=[])
+    disks = win.pages[2]
+    qtbot.waitUntil(lambda: disks.list.count() == 5 and not disks.busy(), timeout=TIMEOUT)
+    choose_card(qtbot, win)
+    provision(qtbot, win)
+    assert "will be unmounted" not in win.pages[4].warning.text()                 # nothing mounted: no unmount note
+    win.pages[5].request_cancel()                                                 # no write running: nothing to cancel
+    assert win.pages[5].task is None
+
+
+def test_app_without_options_keeps_the_saved_theme(qtbot, env, capsys):
+    env.services.settings.values["theme"] = "dark"
+    assert APP.main(["--self-test"], services=env.services) == 0
+    assert QApplication.instance().palette().window().color().name() == T.DARK["bg"]

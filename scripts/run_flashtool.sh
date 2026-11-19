@@ -32,7 +32,7 @@ case "$cmd" in
     rc=$?; tail -4 reports/evidence/flashtool_coverage.txt; exit $rc ;;
   screenshots)
     mkdir -p reports/screenshots
-    run python3 -m hififlash.gui.screenshots /work/reports/screenshots ;;
+    run python3 tests/flashtool_gui/make_screenshots.py /work/reports/screenshots ;;
   package)
     run sh flashtool/packaging/linux/build.sh ;;
   *)

@@ -1,3 +1,4 @@
+import gc
 import os
 import subprocess
 import sys
@@ -19,6 +20,23 @@ def no_subprocess(monkeypatch):
         raise AssertionError(f"a GUI test tried to start a process {a[:1]} - not allowed (CLAUDE.md)")
     for name in ("run", "Popen", "call", "check_call", "check_output"):
         monkeypatch.setattr(subprocess, name, refuse)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def gc_in_the_gui_thread_only():
+    """Like the app (gui.app.gui_thread_gc): no automatic GC, which could free Qt objects in a worker thread and crash Qt."""
+    was = gc.isenabled()
+    gc.disable()
+    yield
+    gc.collect()
+    if was:
+        gc.enable()
+
+
+@pytest.fixture(autouse=True)
+def collect_after_each_test():
+    yield
+    gc.collect()
 
 
 @pytest.fixture
