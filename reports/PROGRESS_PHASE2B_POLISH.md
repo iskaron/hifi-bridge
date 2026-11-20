@@ -95,3 +95,6 @@ Scope: owner work package of 2026-11-20 (DECISIONS #120-#126). Baseline `develop
 - P2 merged as `23a4fa6`. Merged-state suites: run_os exit codes 0/0/0; run_ota tests=0; static exit 0; entry 100 passed; unit 1085
   passed; Gitleaks over 279 commits rc=0. Pushed `23a4fa6`.
 - P3 started (Opus agent, branch `wip/p3-wizard-network`): wizard network step for hotspot-only setup.
+- CI run 44817088946 on `23a4fa6` (P2 merge): 17/17 green.
+- 2026-11-20 ~23:00: P3 agent stopped on the account rate limit. Its uncommitted work was saved unchanged as `88c6d8f` (chore(wip)) on
+  `wip/p3-wizard-network` (new `views_setup_network.py`, tests, i18n, CSS in progress); the agent was resumed on the same branch.
