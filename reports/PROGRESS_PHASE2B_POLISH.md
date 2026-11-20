@@ -15,3 +15,11 @@ Scope: owner work package of 2026-11-20 (DECISIONS #120-#126). Baseline `develop
 
 ## 2026-11-20
 - Owner decisions recorded as DECISIONS #120-#126.
+- P1 started (Opus agent, worktree branch `wip/p1-persist-layout`).
+- Coordinator, in parallel and without touching P1's files:
+  * `8ace337` fix(mqtt): the stream title survived a Bluetooth disconnect (WebUI and retained MQTT state kept showing the last track);
+    a clean MQTT stop now publishes a cleared retained state before `offline` (DECISIONS #124, OPEN_QUESTIONS #50 resolved). UNIT: unit
+    suite 1067 passed.
+  * `87d0b23` build(flashtool): macOS signing/notarisation prepared (DECISIONS #126): manual workflow `flashtool-macos.yml`, `macos/build.sh`,
+    `macos/sign_and_notarize.sh`, empty entitlements, docs/MACOS_SIGNING.md, STATIC `tests/entry/test_workflows.py` (entry suite 100 passed,
+    static exit 0, flash tool suite 158 passed, Linux package rebuilt ok). Never run on macOS.
