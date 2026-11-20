@@ -18,6 +18,9 @@ DATAS = [(os.path.join(GUI_DIR, "i18n"), "hififlash/gui/i18n"), (os.path.join(GU
 WIN = sys.platform == "win32"
 ICO = os.path.join(HERE, "windows", "hifi-bridge-flash.ico")      # to be rendered from logo.svg on Windows (not in the repository)
 MAC = sys.platform == "darwin"
+sys.path.insert(0, os.path.join(REPO, "flashtool"))
+from hififlash import __version__                       # noqa: E402
+VERSION = __version__.split("-")[0]                     # CFBundleShortVersionString of the macOS .app: numbers only ("0.1.0-dev" -> "0.1.0")
 
 gui = Analysis([os.path.join(HERE, "entry_gui.py")], pathex=PATHS, datas=DATAS,                  # noqa: F821
                hiddenimports=["PySide6.QtSvg", "PySide6.QtSvgWidgets", "PySide6.QtPrintSupport", "hififlash.platforms.linux",
@@ -37,6 +40,7 @@ helper_exe = EXE(PYZ(helper.pure), helper.scripts, [], exclude_binaries=True, na
 coll = COLLECT(gui_exe, gui.binaries, gui.datas, helper_exe, helper.binaries, helper.datas, name="hifi-bridge-flash")   # noqa: F821
 
 if MAC:
-    app = BUNDLE(coll, name="Hi-Fi Bridge Flash.app", bundle_identifier="io.github.iskaron.hifibridge.flash",   # noqa: F821
+    # signing, notarisation, entitlements: flashtool/packaging/macos/ and docs/MACOS_SIGNING.md
+    app = BUNDLE(coll, name="Hi-Fi Bridge Flash.app", bundle_identifier="io.github.iskaron.hifibridge.flash", version=VERSION,   # noqa: F821
                  info_plist={"CFBundleDisplayName": "Hi-Fi Bridge Flash", "NSHighResolutionCapable": True,
                              "LSMinimumSystemVersion": "12.0"})

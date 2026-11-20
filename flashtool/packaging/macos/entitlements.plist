@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Hardened-runtime entitlements of the flash tool's two executables (docs/MACOS_SIGNING.md section 4). Deliberately EMPTY:
+  * no sandbox (com.apple.security.app-sandbox): a sandboxed app cannot start the elevated helper or open /dev/rdiskN;
+  * no com.apple.security.cs.disable-library-validation: every bundled library (Python, Qt, PySide6, cryptography) is re-signed with
+    the same Developer ID team, so library validation passes;
+  * no com.apple.security.cs.allow-unsigned-executable-memory / allow-jit: the code uses no JIT and no ctypes callbacks on macOS
+    (hififlash.platforms.darwin runs diskutil and uses fcntl only).
+  Add an entitlement only after a signed build demonstrably fails without it, and record why next to it.
+-->
+<plist version="1.0">
+<dict/>
+</plist>

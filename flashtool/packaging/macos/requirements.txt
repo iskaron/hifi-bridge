@@ -1,0 +1,5 @@
+# Build dependencies of the macOS flash-tool package (GitHub Actions workflow flashtool-macos.yml or the owner's Mac).
+# Exactly the versions of docker/Dockerfile.flashtool (tests/entry/test_workflows.py keeps them equal). PySide6 = LGPL-3.0.
+PySide6==6.12.0
+cryptography==50.0.2
+pyinstaller==6.22.3

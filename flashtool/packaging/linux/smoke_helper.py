@@ -7,7 +7,8 @@ import os
 import subprocess
 import sys
 
-sys.path[:0] = ["/work/bridge", "/work/flashtool"]
+REPO = os.environ.get("HIFI_REPO", "/work")                # the macOS build (flashtool/packaging/macos/build.sh) runs outside Docker
+sys.path[:0] = [os.path.join(REPO, "bridge"), os.path.join(REPO, "flashtool")]
 
 from btbridge import provisioning as P                 # noqa: E402
 from hififlash import manifest as M                     # noqa: E402

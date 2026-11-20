@@ -1,0 +1,125 @@
+# macOS build of the flash tool, optionally signed with the owner's Developer ID and notarised (DECISIONS #126, docs/MACOS_SIGNING.md).
+# PREPARED, NEVER RUN YET: no macOS runner has executed it and no certificate exists (G3 F-6). It starts ONLY by hand (workflow_dispatch):
+# never on push or pull request, so it spends no macOS minutes by itself and code from a fork can never reach the signing secrets.
+#   build  unsigned .app for arm64 and x86_64 + offscreen smoke tests (simulated card); needs no secret
+#   sign   only when the dispatch input `sign` is true; runs in the GitHub environment `macos-signing` (the owner adds required reviewers and
+#          the secrets there - docs/MACOS_SIGNING.md section 3); imports the certificate into a temporary keychain that is deleted afterwards
+# Unlike ci.yml this workflow installs Python packages on the runner: macOS has no Docker on GitHub-hosted runners. Exact pins in
+# flashtool/packaging/macos/requirements.txt (= docker/Dockerfile.flashtool). Third-party actions are pinned to full commit SHAs.
+# The offline RAUC release key is unrelated and never comes near GitHub (docs/UPDATE_TRUST.md).
+name: flashtool-macos
+on:
+  workflow_dispatch:
+    inputs:
+      sign:
+        description: "Sign with Developer ID and notarise (needs the macos-signing environment)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flashtool-macos-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x86_64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0   # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install the pinned build dependencies
+        run: python3 -m pip install --no-cache-dir -r flashtool/packaging/macos/requirements.txt
+      - name: Build the unsigned .app and smoke-test it (simulated card only)
+        run: sh flashtool/packaging/macos/build.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
+        with:
+          name: flashtool-macos-${{ matrix.arch }}-unsigned
+          path: build/flashtool-macos/*-unsigned.app.tar.gz*
+          retention-days: 7
+
+  sign:
+    if: ${{ inputs.sign }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x86_64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    environment: macos-signing
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333   # v8.0.2
+        with:
+          name: flashtool-macos-${{ matrix.arch }}-unsigned
+          path: build/flashtool-macos
+      - name: Unpack the unsigned .app
+        run: |
+          mkdir -p build/flashtool-macos/dist
+          tar -C build/flashtool-macos/dist -xzf build/flashtool-macos/*-unsigned.app.tar.gz
+      - name: Import the Developer ID certificate into a temporary keychain
+        env:
+          CERT_P12_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          set -eu
+          KC="$RUNNER_TEMP/signing.keychain-db"
+          KC_PW=$(openssl rand -hex 24)
+          umask 077
+          printf '%s' "$CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KC_PW" "$KC"
+          security set-keychain-settings -lut 3600 "$KC"
+          security unlock-keychain -p "$KC_PW" "$KC"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KC_PW" "$KC" > /dev/null
+          # put the temporary keychain first in the search list, keep the existing ones (names without spaces on GitHub runners)
+          # shellcheck disable=SC2046
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$KC"
+          echo "KEYCHAIN=$KC" >> "$GITHUB_ENV"
+      - name: Write the App Store Connect API key for notarytool
+        env:
+          NOTARY_KEY_P8_BASE64: ${{ secrets.MACOS_NOTARY_KEY_P8_BASE64 }}
+        run: |
+          set -eu
+          umask 077
+          printf '%s' "$NOTARY_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+          echo "NOTARY_KEY_FILE=$RUNNER_TEMP/notary.p8" >> "$GITHUB_ENV"
+      - name: Sign inside-out, notarise, staple, build the .dmg
+        env:
+          IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          NOTARY_ISSUER: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+        run: sh flashtool/packaging/macos/sign_and_notarize.sh
+      - name: Remove the temporary keychain and the API key
+        if: ${{ always() }}
+        run: |
+          if [ -n "${KEYCHAIN:-}" ]; then security delete-keychain "$KEYCHAIN" || true; fi
+          rm -f "$RUNNER_TEMP/notary.p8" "$RUNNER_TEMP/cert.p12"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
+        with:
+          name: flashtool-macos-${{ matrix.arch }}-signed
+          path: build/flashtool-macos/*.dmg*
+          retention-days: 7

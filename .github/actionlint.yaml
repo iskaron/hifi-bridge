@@ -1,0 +1,5 @@
+# actionlint 1.7.7 (scripts/run_static.sh) predates the GitHub-hosted label `macos-15-intel` (listed in actions/runner-images, 2026-11).
+# Declaring it here only silences the unknown-label check; it is NOT a self-hosted runner (none may ever be attached, ci.yml header).
+self-hosted-runner:
+  labels:
+    - macos-15-intel

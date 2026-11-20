@@ -185,7 +185,8 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 ## Added by package 5 - flash tool (2026-11-19)
 68. **Reverse-DNS namespace** for the polkit action and app IDs: currently `io.github.iskaron.hifibridge` (action
     `io.github.iskaron.hifibridge.flash.write`). Keep, or a project domain?
-69. **Code-signing certificates** for Windows (Authenticode) and macOS (Developer ID + notarisation): who obtains them and at what cost? Without
+69. **Code-signing certificates** - **macOS resolved by DECISIONS #126** (GitHub Actions with the owner's Developer ID; pipeline and guide
+    prepared, docs/MACOS_SIGNING.md; certificates and secrets are the owner's step). **Windows (Authenticode) still open.** Original question: for Windows (Authenticode) and macOS (Developer ID + notarisation): who obtains them and at what cost? Without
     them Windows SmartScreen and macOS Gatekeeper warn or block.
 70. Should the elevated helper also verify the manifest **signature** itself? Today it checks the image hash against the manifest the GUI
     verified (the image is the user's choice either way).

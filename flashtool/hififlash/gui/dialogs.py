@@ -142,9 +142,13 @@ def about_html(tr) -> str:
 
 
 def notices_path() -> str:
-    """THIRD_PARTY_NOTICES.txt next to the executable in a package, or the repository's docs/THIRD_PARTY.md in development."""
+    """THIRD_PARTY_NOTICES.txt in a package (next to the executable; in a macOS .app under Contents/Resources, because Contents/MacOS
+    holds only signed code), or the repository's docs/THIRD_PARTY.md in development."""
     if getattr(sys, "frozen", False):
-        return os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "licenses", "THIRD_PARTY_NOTICES.txt")
+        exe_dir = os.path.dirname(os.path.abspath(sys.executable))
+        if sys.platform == "darwin":
+            return os.path.join(os.path.dirname(exe_dir), "Resources", "licenses", "THIRD_PARTY_NOTICES.txt")
+        return os.path.join(exe_dir, "licenses", "THIRD_PARTY_NOTICES.txt")
     return os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "docs", "THIRD_PARTY.md"))
 
 

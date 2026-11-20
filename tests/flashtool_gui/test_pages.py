@@ -133,6 +133,10 @@ def test_about_shows_the_lgpl_notice_and_sources(qtbot, win, monkeypatch):
     import sys
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     assert DLG.notices_path().endswith(os.path.join("licenses", "THIRD_PARTY_NOTICES.txt"))
+    # a macOS .app keeps only code in Contents/MacOS (code signing); the licence texts live in Contents/Resources/licenses
+    monkeypatch.setattr(sys, "executable", "/Applications/Hi-Fi Bridge Flash.app/Contents/MacOS/hifi-bridge-flash")
+    monkeypatch.setattr(sys, "platform", "darwin")
+    assert DLG.notices_path() == "/Applications/Hi-Fi Bridge Flash.app/Contents/Resources/licenses/THIRD_PARTY_NOTICES.txt"
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QApplication
     QTimer.singleShot(50, lambda: QApplication.activeModalWidget() and QApplication.activeModalWidget().reject())

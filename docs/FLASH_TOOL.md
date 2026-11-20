@@ -142,9 +142,10 @@ itself: the owner installs the saved certificate or compares the fingerprint. Fa
 |---|---|---|
 | Linux | PyInstaller **one-folder** spec (GUI + Qt-free helper), licence collection, `.desktop`, polkit policy `io.github.iskaron.hifibridge.flash.policy`, `install.sh` (DESTDIR-aware), tarball + SHA-256 | **built and smoke-tested in Docker** (`scripts/run_flashtool.sh package`): GUI `--self-test` offscreen, the frozen helper writes a simulated card over stdio, `install.sh` into a scratch DESTDIR. Not run on a desktop, polkit prompt not exercised |
 | Windows | same spec (`uac_admin`, `windows/hififlash-helper.manifest`), Inno Setup script `windows/installer.iss` (signing placeholder), ctypes bindings `platforms/win32api.py` | **prepared only** – no Windows runtime; not compiled, not signed |
-| macOS | same spec with `BUNDLE` (.app), `macos/notarize.sh` (codesign/notarytool/staple placeholder) | **prepared only** – no macOS runtime; not built, not signed, not notarised |
+| macOS | same spec with `BUNDLE` (.app), `macos/build.sh` (build + offscreen smoke tests on a Mac), `macos/sign_and_notarize.sh` (inside-out Developer ID signing, hardened runtime, notarytool, staple, `.dmg`), empty `macos/entitlements.plist`; manual GitHub Actions workflow `flashtool-macos.yml` (DECISIONS #126, docs/MACOS_SIGNING.md) | **prepared only** – no macOS runtime; workflow never run; not built, not signed, not notarised |
 
-No signing key or certificate is in the repository; signing is an owner task (G3 F-6). AppImage/Flatpak were not chosen: the tarball +
+No signing key or certificate is in the repository; signing is an owner task (G3 F-6). macOS: Developer ID + notarisation on GitHub
+Actions with the owner's certificate in the protected environment `macos-signing` (setup guide docs/MACOS_SIGNING.md); Windows: open. AppImage/Flatpak were not chosen: the tarball +
 installer keeps pkexec's exact-path policy working (an AppImage mounts at a random path).
 
 ## 10. Tested vs. not tested
