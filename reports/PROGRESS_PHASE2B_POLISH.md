@@ -91,3 +91,7 @@ Scope: owner work package of 2026-11-20 (DECISIONS #120-#126). Baseline `develop
   four known ccache-affected files: libwireplumber, two WirePlumber modules, pylibmount.so); boot FAT and data partition bit-identical;
   image check of the repro build 0 FAIL / 128 PASS / 21 INFO, secret scan 0 (its evidence copies were reverted, the committed rpi3_64
   evidence is the main build's).
+- CI run 44783605532 on `8475549` (P1 merge): 17/17 green.
+- P2 merged as `23a4fa6`. Merged-state suites: run_os exit codes 0/0/0; run_ota tests=0; static exit 0; entry 100 passed; unit 1085
+  passed; Gitleaks over 279 commits rc=0. Pushed `23a4fa6`.
+- P3 started (Opus agent, branch `wip/p3-wizard-network`): wizard network step for hotspot-only setup.
