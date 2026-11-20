@@ -24,7 +24,13 @@
           ]
         }
       ]
-    }
+    },
+    "properties": [
+      {
+        "name": "hifi-bridge:evidence",
+        "value": "final polish P2 rebuild of rpizero2w_64 (2026-11-20, branch wip/p2-uboot-firmware on 8475549: libubootenv + image default environment, per-board firmware; incremental retarget build, U-Boot and host-uboot-tools rebuilt). BUILD/SIMULATED only, nothing booted"
+      }
+    ]
   },
   "components": [
     {
@@ -4431,6 +4437,67 @@
       ]
     },
     {
+      "bom-ref": "libubootenv",
+      "type": "library",
+      "name": "libubootenv",
+      "version": "0.3.7",
+      "licenses": [
+        {
+          "license": {
+            "id": "LGPL-2.1+"
+          }
+        },
+        {
+          "license": {
+            "id": "MIT"
+          }
+        },
+        {
+          "license": {
+            "id": "CC0-1.0"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "source-distribution",
+          "url": "https://github.com/sbabic/libubootenv/archive/v0.3.7/libubootenv-0.3.7.tar.gz",
+          "hashes": [
+            {
+              "alg": "SHA-256",
+              "content": "92021fc5a0a965030588d0c867a771d28b28c0d17c9fd022f0dafe9f01de714e"
+            }
+          ]
+        }
+      ],
+      "pedigree": {
+        "patches": [
+          {
+            "type": "unofficial",
+            "diff": {
+              "text": {
+                "content": "From 5ccdd0f15ca3fc1c57b517bf325d572a5398e3cd Mon Sep 17 00:00:00 2001\nFrom: Pierre-Jean Texier <pjtexier@koncepto.io>\nDate: Wed, 22 May 2019 10:26:27 +0200\nSubject: [PATCH] src/CMakeLists.txt: do not force the build of a shared\n library\n\nBy definition, projects using CMake which can build either static or shared\nlibraries use a BUILD_SHARED_LIBS flag to allow selecting between both.\nSo, let CMake rely on the standard BUILD_SHARED_LIBS variable to decide\nwhether a static or shared library should be built.\n\nhowever, we can control the behaviour as follows:\n\n   $. cmake -DBUILD_SHARED_LIBS=OFF ...\n\n   $. cmake -DBUILS_SHARED_LIBS=ON ...\n\nWith Yocto/OE, just add the following option into the libubootenv recipe :\n\nEXTRA_OECMAKE = \"-DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON\"\n\nSigned-off-by: Pierre-Jean Texier <pjtexier@koncepto.io>\n[Upstream status: http://patchwork.ozlabs.org/patch/1103437/]\n---\n src/CMakeLists.txt | 6 ++----\n 1 file changed, 2 insertions(+), 4 deletions(-)\n\ndiff --git a/src/CMakeLists.txt b/src/CMakeLists.txt\nindex 3370232..efa9840 100644\n--- a/src/CMakeLists.txt\n+++ b/src/CMakeLists.txt\n@@ -19,11 +19,9 @@ SET(include_HEADERS\n \n include(GNUInstallDirs) # for the CMAKE_INSTALL_LIBDIR variable\n \n-add_library(ubootenv SHARED ${libubootenv_SOURCES} ${include_HEADERS})\n+add_library(ubootenv ${libubootenv_SOURCES} ${include_HEADERS})\n SET_TARGET_PROPERTIES(ubootenv PROPERTIES VERSION ${VERSION} SOVERSION ${SOVERSION})\n \n-ADD_LIBRARY(ubootenv_static STATIC ${libubootenv_SOURCES} ${include_HEADERS})\n-SET_TARGET_PROPERTIES(ubootenv_static PROPERTIES OUTPUT_NAME ubootenv)\n add_executable(fw_printenv fw_printenv.c)\n target_link_libraries(ubootenv z)\n if (NOT NO_YML_SUPPORT)\n@@ -33,7 +31,7 @@ endif(NOT NO_YML_SUPPORT)\n target_link_libraries(fw_printenv ubootenv)\n add_custom_target(fw_setenv ALL ${CMAKE_COMMAND} -E create_symlink fw_printenv fw_setenv)\n \n-install (TARGETS ubootenv ubootenv_static DESTINATION ${CMAKE_INSTALL_LIBDIR})\n+install (TARGETS ubootenv DESTINATION ${CMAKE_INSTALL_LIBDIR})\n install (FILES libuboot.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})\n install (TARGETS fw_printenv DESTINATION ${CMAKE_INSTALL_BINDIR})\n install (PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/fw_setenv DESTINATION ${CMAKE_INSTALL_BINDIR})\n-- \n2.43.0\n\n"
+              }
+            }
+          },
+          {
+            "type": "unofficial",
+            "diff": {
+              "text": {
+                "content": "From: Oliver Meyer <olm@cativa.net>\nDate: Fri, 20 Nov 2026 18:00:00 +0100\nSubject: [PATCH] uboot_env: use the other copy when one redundant copy cannot\n be read completely\n\nlibuboot_load() returned -EIO as soon as one copy of a redundant\nenvironment could not be read completely, even when the other copy was\nvalid. fw_printenv/fw_setenv then fell back to the default environment\nfile, and the next store wrote that default (plus the change) as the\nnewest copy: the valid environment was replaced. On a FAT file a short\ncopy is what a power cut during U-Boot's saveenv can leave behind.\n\nTreat such a copy as invalid (like a bad CRC), as U-Boot's\nenv_check_redund() does: the valid copy is used and the next store\nrewrites the bad one. A non-redundant environment still fails with\n-EIO.\n\nSigned-off-by: Oliver Meyer <olm@cativa.net>\nUpstream: not submitted (Hi-Fi Bridge, docs/OTA.md section 4.1)\n---\n src/uboot_env.c | 17 +++++++++++++++--\n 1 file changed, 15 insertions(+), 2 deletions(-)\n\ndiff --git a/src/uboot_env.c b/src/uboot_env.c\n--- a/src/uboot_env.c\n+++ b/src/uboot_env.c\n@@ -645,8 +645,21 @@\n \t\tdev = &ctx->envdevs[i];\n \t\tret = devread(ctx, i, buf[i]);\n \t\tif (ret != ctx->size) {\n-\t\t\tfree(buf[0]);\n-\t\t\treturn -EIO;\n+\t\t\t/*\n+\t\t\t * A copy that cannot be read completely (file missing or\n+\t\t\t * shorter than the environment, e.g. after a power cut\n+\t\t\t * while it was rewritten) is an invalid copy. With a\n+\t\t\t * redundant environment the other copy is still used,\n+\t\t\t * as U-Boot does (env_check_redund), and the next store\n+\t\t\t * rewrites the bad one.\n+\t\t\t */\n+\t\t\tif (!ctx->redundant) {\n+\t\t\t\tfree(buf[0]);\n+\t\t\t\treturn -EIO;\n+\t\t\t}\n+\t\t\tcrcenv[i] = false;\n+\t\t\tdev->flags = 0;\n+\t\t\tcontinue;\n \t\t}\n \t\tcrc = *(uint32_t *)(buf[i] + offsetcrc);\n \t\tdev->crc = crc32(0, (uint8_t *)data, usable_envsize);\n"
+              }
+            }
+          }
+        ]
+      },
+      "properties": [
+        {
+          "name": "BR_TYPE",
+          "value": "target"
+        }
+      ]
+    },
+    {
       "bom-ref": "libxcrypt",
       "type": "library",
       "name": "libxcrypt",
@@ -4450,6 +4517,38 @@
             {
               "alg": "SHA-256",
               "content": "71513a31c01a428bccd5367a32fd95f115d6dac50fb5b60c779d5c7942aec071"
+            }
+          ]
+        }
+      ],
+      "properties": [
+        {
+          "name": "BR_TYPE",
+          "value": "target"
+        }
+      ]
+    },
+    {
+      "bom-ref": "libyaml",
+      "type": "library",
+      "name": "libyaml",
+      "version": "0.2.5",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "cpe": "cpe:2.3:a:pyyaml:libyaml:0.2.5:-:*:*:*:*:*:*",
+      "externalReferences": [
+        {
+          "type": "source-distribution",
+          "url": "http://pyyaml.org/download/libyaml/yaml-0.2.5.tar.gz",
+          "hashes": [
+            {
+              "alg": "SHA-256",
+              "content": "c642ae9b75fee120b2d96c712538bd2cf283228d2337df2cf2988e3c02678ef4"
             }
           ]
         }
@@ -5254,58 +5353,6 @@
       ]
     },
     {
-      "bom-ref": "uboot-tools",
-      "type": "library",
-      "name": "uboot-tools",
-      "version": "2025.10",
-      "licenses": [
-        {
-          "license": {
-            "id": "GPL-2.0+"
-          }
-        }
-      ],
-      "cpe": "cpe:2.3:a:denx:u-boot:2025.10:-:*:*:*:*:*:*",
-      "externalReferences": [
-        {
-          "type": "source-distribution",
-          "url": "https://ftp.denx.de/pub/u-boot/u-boot-2025.10.tar.bz2",
-          "hashes": [
-            {
-              "alg": "SHA-256",
-              "content": "b4f032848e56cc8f213ad59f9132c084dbbb632bc29176d024e58220e0efdf4a"
-            }
-          ]
-        }
-      ],
-      "pedigree": {
-        "patches": [
-          {
-            "type": "unofficial",
-            "diff": {
-              "text": {
-                "content": "From ab8b54cfc9d3fddba297c343a2d8dea9dbe20017 Mon Sep 17 00:00:00 2001\nFrom: =?UTF-8?q?J=C3=B6rg=20Krause?= <joerg.krause@embedded.rocks>\nDate: Tue, 4 Aug 2015 22:13:20 +0200\nSubject: [PATCH] drop configh from tools\nMIME-Version: 1.0\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\n\nWe need to build u-boot tools without a board configuration for the target.\nfw_env just uses config.h to define the default environment of the created\nimage, so it really isn't mandatory.\n\nSigned-off-by: Gustavo Zacarias <gustavo@zacarias.com.ar>\n[J\u00f6rg Krause: update for version 2015.07]\nSigned-off-by: J\u00f6rg Krause <joerg.krause@embedded.rocks>\n[Romain: update for version 2017.05\n    after commit 9d80b49a671c9922931adcd823aab0ed319a42d1]\nSigned-off-by: Romain Naour <romain.naour@gmail.com>\n[Pierre-Jean: update for version 2019.04]\nSigned-off-by: Pierre-Jean Texier <pjtexier@koncepto.io>\n---\n tools/env/fw_env_private.h | 11 -----------\n 1 file changed, 11 deletions(-)\n\ndiff --git a/tools/env/fw_env_private.h b/tools/env/fw_env_private.h\nindex 86be16d..3c62ac4 100644\n--- a/tools/env/fw_env_private.h\n+++ b/tools/env/fw_env_private.h\n@@ -4,17 +4,6 @@\n  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.\n  */\n \n-/* Pull in the current config to define the default environment */\n-#include <linux/kconfig.h>\n-\n-#ifndef __ASSEMBLY__\n-#define __ASSEMBLY__ /* get only #defines from config.h */\n-#include <config.h>\n-#undef\t__ASSEMBLY__\n-#else\n-#include <config.h>\n-#endif\n-\n /*\n  * To build the utility with the static configuration\n  * comment out the next line.\n-- \n2.9.4\n\n"
-              }
-            }
-          },
-          {
-            "type": "unofficial",
-            "diff": {
-              "text": {
-                "content": "From 3b89170333ef0fdfffee14751ce3e1d66d7dfa00 Mon Sep 17 00:00:00 2001\nFrom: Fabrice Fontaine <fontaine.fabrice@gmail.com>\nDate: Tue, 14 Sep 2021 19:08:02 +0200\nSubject: [PATCH] tools/Makefile: fix {C,LD}FLAGS with CROSS_BUILD_TOOLS\n\nWhen CROSS_BUILD_TOOLS is set, set KBUILD_HOST{CF,LD}FLAGS to\n{C,LD}FLAGS otherwise CC will be used with HOST{C,LD}FLAGS which seems\nwrong.\n\nIt should be noted that, for an unknown reason, overriding\nHOST{C,LD}FLAGS don't work.\n\nSigned-off-by: Fabrice Fontaine <fontaine.fabrice@gmail.com>\n---\n tools/Makefile | 3 ++-\n 1 file changed, 2 insertions(+), 1 deletion(-)\n\ndiff --git a/tools/Makefile b/tools/Makefile\nindex 4a86321f64..98bb92990d 100644\n--- a/tools/Makefile\n+++ b/tools/Makefile\n@@ -316,7 +316,8 @@ subdir- += env\n \n ifneq ($(CROSS_BUILD_TOOLS),)\n override HOSTCC = $(CC)\n-override HOSTCFLAGS = $(CFLAGS)\n+override KBUILD_HOSTCFLAGS = $(CFLAGS)\n+override KBUILD_HOSTLDFLAGS = $(LDFLAGS)\n \n quiet_cmd_crosstools_strip = STRIP   $^\n       cmd_crosstools_strip = $(STRIP) $^; touch $@\n-- \n2.33.0\n\n"
-              }
-            }
-          }
-        ]
-      },
-      "properties": [
-        {
-          "name": "BR_TYPE",
-          "value": "target"
-        }
-      ]
-    },
-    {
       "bom-ref": "util-linux",
       "type": "library",
       "name": "util-linux",
@@ -5635,6 +5682,7 @@
         "hostapd",
         "iw",
         "kbd",
+        "libubootenv",
         "libzlib",
         "linux",
         "nftables",
@@ -5646,7 +5694,6 @@
         "toolchain-external-bootlin",
         "tzdata",
         "uboot",
-        "uboot-tools",
         "wireplumber",
         "wpa_supplicant"
       ]
@@ -6612,7 +6659,29 @@
       ]
     },
     {
+      "ref": "libubootenv",
+      "dependsOn": [
+        "host-ccache",
+        "host-cmake",
+        "host-fakedate",
+        "host-pkgconf",
+        "host-skeleton",
+        "libyaml",
+        "libzlib",
+        "skeleton-init-systemd"
+      ]
+    },
+    {
       "ref": "libxcrypt",
+      "dependsOn": [
+        "host-ccache",
+        "host-fakedate",
+        "host-skeleton",
+        "skeleton-init-systemd"
+      ]
+    },
+    {
+      "ref": "libyaml",
       "dependsOn": [
         "host-ccache",
         "host-fakedate",
@@ -6851,15 +6920,6 @@
         "host-flex",
         "host-gnutls",
         "host-pkgconf",
-        "host-skeleton",
-        "skeleton-init-systemd"
-      ]
-    },
-    {
-      "ref": "uboot-tools",
-      "dependsOn": [
-        "host-ccache",
-        "host-fakedate",
         "host-skeleton",
         "skeleton-init-systemd"
       ]
