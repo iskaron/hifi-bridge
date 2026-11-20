@@ -116,6 +116,14 @@ class MqttBridge:
         if off is not None:
             off(self._on_event)                          # a restarted bridge must not leave its listener behind (review L1)
         if self.client.connected:
+            # the retained state must not keep the last phone and title (DECISIONS #124); a crash leaves them, but the broker's last
+            # will marks every entity unavailable and the next start publishes the real state
+            try:
+                st = self.state_payload()
+            except Exception:                            # a half-stopped service must not prevent the goodbye
+                st = {}
+            st.update(device=None, now_playing=None, bluetooth_connection="disconnected", bt_media_activity="idle")
+            self.client.publish(self.topic("state"), json.dumps(st), retain=True)
             self.client.publish(self.topic("availability"), "offline", retain=True)
         self.client.stop()
 

@@ -82,6 +82,19 @@ def test_disconnect_releases_immediately_no_grace():
     assert ("release", PLAYER, u) in r.lms.commands and r.ctl.session is None
 
 
+def test_disconnect_clears_the_now_playing_title():
+    """DECISIONS #124: the current title is reset when the phone disconnects (no stale 'now playing' in the WebUI or MQTT)."""
+    r = Rig(); r.connect_and_play(); r.ctl.on_metadata("Band - Song"); assert r.stream.title == "Band - Song"
+    r.ctl.on_disconnected("phone")
+    assert r.stream.title == ""
+
+
+def test_a_rejected_second_phone_does_not_clear_the_first_phones_title():
+    r = Rig(); r.connect_and_play(); r.ctl.on_metadata("Band - Song")
+    r.ctl.on_disconnected("other-phone")
+    assert r.stream.title == "Band - Song"
+
+
 def test_manual_source_change_then_all_late_events_are_silent():
     """Acceptance: switch from bridge to radio, then BT timeout/disconnect/pause/toggle - never touch radio."""
     r = Rig(pause_strategy="keepalive_silence"); r.connect_and_play(); r.run(2)

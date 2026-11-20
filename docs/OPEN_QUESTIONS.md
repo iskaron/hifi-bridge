@@ -146,7 +146,8 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
     Should the demo preset the rooms higher? (cosmetic)
 
 ## Added by package 1 - review fixes (2026-11-18)
-50. **Privacy of MQTT state:** the bridge publishes the connected phone's name and the track title as **retained** MQTT state, readable by
+50. ~~**Privacy of MQTT state:**~~ **resolved by DECISIONS #124** (phone name, title and artist stay published by default, no extra switch;
+    the bridge clears them on disconnect and on a clean stop, keeps no playback history). Original question: the bridge publishes the connected phone's name and the track title as **retained** MQTT state, readable by
     every broker subscriber and stored in Home Assistant's history. Keep, make it an opt-in setting, or publish without retain? (Logs,
     syslog and the diagnostics bundle now use salted pseudonyms `dev-<8 hex>` for MAC addresses and leave phone names out.)
 51. LMS player IDs look like MAC addresses and are now pseudonymised in logs as well. Should player IDs stay in clear for debugging?

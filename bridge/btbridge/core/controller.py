@@ -207,6 +207,7 @@ class Controller:
                 return
             self.device, self.media_playing, self.play_edge_at, self.paused_at = None, False, None, None
             self.blocked_reason = None
+            self.stream.set_title("")                         # no stale "now playing" after the phone left (DECISIONS #124)
             self._ev("bt_disconnected")
             acts = self._release_locked("disconnect")        # immediate, no grace
         self._run(acts)

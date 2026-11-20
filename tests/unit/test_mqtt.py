@@ -104,6 +104,34 @@ def test_on_connect_publishes_retained_discovery_availability_state_thermal_and_
     assert state["headline"] == "playing" and state["device"] == "Pixel" and state["audio_permission"] == "allowed"
 
 
+def test_a_clean_stop_clears_the_retained_phone_and_title_before_going_offline():
+    """DECISIONS #124: the retained state must not keep the last phone name and title after the bridge stops."""
+    _, b = bridge(); b._on_connect(); b.client.sent.clear()
+    b.stop()
+    (t1, p1, r1), (t2, p2, r2) = b.client.sent
+    assert (t1, r1, t2, p2, r2) == ("btbridge/ab12cd34/state", True, "btbridge/ab12cd34/availability", "offline", True)
+    state = json.loads(p1)
+    assert state["device"] is None and state["now_playing"] is None and state["bluetooth_connection"] == "disconnected"
+
+
+def test_stop_still_clears_the_state_and_says_goodbye_when_the_service_status_fails():
+    svc, b = bridge(); b._on_connect(); b.client.sent.clear()
+    def broken(): raise RuntimeError("runtime already torn down")
+    svc.status = broken
+    b.stop()
+    assert [t for t, _, _ in b.client.sent] == ["btbridge/ab12cd34/state", "btbridge/ab12cd34/availability"]
+    assert json.loads(b.client.sent[0][1]) == {"device": None, "now_playing": None, "bluetooth_connection": "disconnected",
+                                                 "bt_media_activity": "idle"}
+
+
+def test_state_payload_after_a_disconnect_has_no_phone_and_no_title():
+    svc, b = bridge()
+    st = svc.status(); st["bluetooth"]["connected_device"] = None; st["now_playing"] = None
+    st["bridge"]["bluetooth_connection"] = "disconnected"
+    p = b.state_payload(st)
+    assert p["device"] is None and p["now_playing"] is None
+
+
 def test_unique_ids_are_unique_and_every_entity_has_availability():
     for allow in ({"pairing": False, "audio": False, "test": False}, {"pairing": True, "audio": True, "test": True}):
         cfgs = [cfg for _, _, cfg in entities("b", "x", allow) if cfg]
