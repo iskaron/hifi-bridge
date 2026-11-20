@@ -67,3 +67,22 @@ Scope: owner work package of 2026-11-20 (DECISIONS #120-#126). Baseline `develop
   `os_build.sh retarget`; evidence labels (`HIFI_EVIDENCE_LABEL`).
 - Tests during development: tests/os 102 passed (new: test_uboot_env.py 15, test_radio_firmware.py 16, licence test x3 boards);
   `scripts/run_ota.sh` 13 passed with the image's libubootenv; `os_defconfigs.sh check` PASS x3 + libubootenv pin PASS.
+- BUILD (incremental `retarget` builds, HIFI_LAB = main checkout's .lab, 3 CPUs / 8 GB): rpi3_64 make 542 s (+153 s after the
+  file-list fix below), rpizero2w_64 627 s and rpi4_64 607 s (both `HIFI_OS_REBUILD="uboot host-uboot-tools"`: first rebuild since
+  package 6, so the 7b-2 U-Boot fragment, boot.cmd and the P1 layout reach these boards for the first time). Buildroot applied our
+  libubootenv patch ("Applying 0001-uboot_env-..." in the build log).
+- Finding: after `retarget` the rpi3_64 image check failed `rauc.env-tool-single` - `packages-file-list.txt` concatenates every
+  `build/*/.files-list.txt`, so the removed uboot-tools were still listed (target tree clean). `retarget` now also deletes those lists.
+- Image checks (all three): 0 FAIL, 128 PASS, 21 INFO; corruption matrix 13/13; secret scans 0 findings (6073/6069/6074 files + raw
+  card); OTA checks pass, bundles 76 056 010 / 75 945 422 / 76 289 483 bytes. Size plan regenerated for all three boards (rootfs
+  191.4-191.9 MiB of 384, all checks ok). Evidence labelled "final polish P2".
+- Source bundle rpi3_64 (`scripts/os_source_bundle.sh`, commit 6030a84): 11 files + legal-info (512 files, hard links), overlays
+  source 957fc9f9 (358 overlay .dts), 21 toolchain runtime files listed, 1.2 GB apparent, under .lab/source-bundle/ only.
+- Suites: `scripts/run_os.sh` defconfigs PASS x3 + libubootenv pin PASS, licences 53 packages/board 0 review, tests "215 passed";
+  `scripts/run_static.sh` "static exit: 0"; `scripts/run_entry_tests.sh` "100 passed"; `scripts/run_ota.sh` "13 passed"; Gitleaks
+  (pinned image, dir mode over the 8 branch patches) rc=0.
+- Reproducibility (repeated, disk 135-144 GB free): `rpi3_64-repro` rebuilt from scratch in its existing directory (`clean`,
+  `HIFI_OS_CCACHE=0`, make 6426 s) vs. the incremental P2 `rpi3_64` build: rootfs 7347 entries, 0 added, 0 removed, 4 changed (the
+  four known ccache-affected files: libwireplumber, two WirePlumber modules, pylibmount.so); boot FAT and data partition bit-identical;
+  image check of the repro build 0 FAIL / 128 PASS / 21 INFO, secret scan 0 (its evidence copies were reverted, the committed rpi3_64
+  evidence is the main build's).

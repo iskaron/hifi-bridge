@@ -137,6 +137,14 @@ with the shared ccache (and later incremental runs), build B clean **without cca
 Also: the Zero 2 W build (independent, fresh output directory) has bit-identical rootfs files to the Pi 3 B+ build except the expected
 board files (its DTB, no `eth0.network`, `system.conf`, `os-release`, `build-info.json`).
 
+**P2 repetition (2026-11-20, code commit `6030a84`):** build A = `rpi3_64` (ccache, incremental `retarget` build of section 10), build B
+= `rpi3_64-repro` rebuilt from scratch in the same directory as before (`clean`, **no ccache**, 6426 s). Result identical in kind to
+package 6: **7347 rootfs entries, 0 added, 0 removed, 4 changed** - the same four ccache-affected files (`libwireplumber-0.5.so.0.510.0`,
+two WirePlumber modules, `pylibmount.so`); **boot FAT partition and data partition bit-identical** (sha256 `0ac0c398…` / `0d8a1f2c…`);
+rootfs.ext4 and the card image differ only through those files. So the `retarget` path (fresh target, packages reinstalled without
+recompiling) gives the same files as a clean build, and the per-board firmware pruning and libubootenv are reproducible. Two ccache-free
+builds against each other are still not shown.
+
 **What is and is not bit-reproducible, and why:**
 * Reproducible: every file of the rootfs and the boot FAT, the boot FAT image, the data partition, the MBR; the rootfs and card image
   **when the ccache setting is the same** (consequence: build releases **without ccache**, as CI would).
@@ -239,4 +247,5 @@ BUILD/SIMULATED/STATIC only; nothing booted.
   Buildroot source 7.2 MB, repository 10.3 MB, raspberrypi/linux@957fc9f9 246.9 MB (contains the 358 `*-overlay.dts` sources), toolchain
   metadata + LGPL-2.1/GPL-3.0/GCC Runtime Library Exception texts + 21 toolchain runtime files of the image listed, MANIFEST.json and
   SHA256SUMS; 1.2 GB apparent (legal-info hard-linked). Not published.
-* **Reproducibility:** section 5 ("P2 repetition").
+* **Reproducibility:** clean ccache-free rebuild of rpi3_64 vs. the retarget build: only the 4 known ccache files differ, boot FAT and
+  data partition bit-identical (section 5, "P2 repetition").

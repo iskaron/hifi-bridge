@@ -58,6 +58,7 @@ that was not tested.
 - [ ] P1-1 The image from `hifi_bridge_<board>_defconfig` builds reproducibly in Docker. Two builds give the same rootfs hash, or the
   differences are explained.
   *Software evidence (BUILD-VERIFIED, package 6, not a hardware result):* all three boards build in Docker; two clean rpi3_64 builds (with and without ccache) compared file by file, see docs/IMAGE_BUILD.md §5.
+  *Repeated in final polish P2 (BUILD-VERIFIED):* clean ccache-free rpi3_64 build vs. the incremental P2 build: the same 4 ccache files differ, boot FAT and data partition bit-identical (docs/IMAGE_BUILD.md §5).
 - [ ] P1-2 Firmware → U-Boot → kernel from slot A → `multi-user.target` (serial or HDMI log). Measure the time to the WebUI.
 - [ ] P1-3 `config.txt` without `miniuart-bt`: Bluetooth on PL011 is stable during 30 min of A2DP (repeat E1). Compare with
   `miniuart-bt` if problems occur.
