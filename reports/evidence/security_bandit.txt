@@ -23,6 +23,21 @@
 [manager]	WARNING	Test in comment: https is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: in is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: __init__ is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: replies is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: to is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: the is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: LAN is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: broadcast is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: arrive is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: on is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: any is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: interface is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: firewall is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: only is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: sport is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: 3483 is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: dport is not a test name or id, ignoring
+[manager]	WARNING	Test in comment: 3484 is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: root is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: hifi is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: bridge is not a test name or id, ignoring
@@ -57,7 +72,7 @@
 [manager]	WARNING	Test in comment: checked is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: https is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: only is not a test name or id, ignoring
-Run started:2026-11-19 19:08:51.940783
+Run started:2026-11-20 09:19:04.089036
 
 Test results:
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -203,17 +218,17 @@ Test results:
    Location: bridge/btbridge/net/netsys.py:16:0
 15	import struct
 16	import subprocess
-17	from typing import Callable
+17	import threading
 
 --------------------------------------------------
 >> Issue: [B603:subprocess_without_shell_equals_true] subprocess call - check for execution of untrusted input.
    Severity: Low   Confidence: High
    CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
    More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
-   Location: bridge/btbridge/net/netsys.py:266:16
-265	        try:
-266	            r = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
-267	            return r.returncode, (r.stdout + r.stderr)
+   Location: bridge/btbridge/net/netsys.py:274:16
+273	        try:
+274	            r = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+275	            return r.returncode, (r.stdout + r.stderr)
 
 --------------------------------------------------
 >> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
@@ -230,63 +245,63 @@ Test results:
    Severity: Low   Confidence: High
    CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
    More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
-   Location: bridge/btbridge/ota/backup.py:91:15
-90	    try:
-91	        proc = subprocess.Popen([exe, *OPENSSL_ENC, "-d" if decrypt else "-e", "-pass", f"fd:{r}"], stdin=subprocess.PIPE,
-92	                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, pass_fds=(r,), env={"PATH": "/usr/bin:/bin", "LC_ALL": "C"})
-93	    except OSError as e:
+   Location: bridge/btbridge/ota/backup.py:103:15
+102	    try:
+103	        proc = subprocess.Popen([exe, *OPENSSL_ENC, "-d" if decrypt else "-e", "-pass", f"fd:{r}"], stdin=subprocess.PIPE,
+104	                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, pass_fds=(r,), env={"PATH": "/usr/bin:/bin", "LC_ALL": "C"})
+105	    except OSError as e:
 
 --------------------------------------------------
 >> Issue: [B107:hardcoded_password_default] Possible hardcoded password: ''
    Severity: Low   Confidence: Medium
    CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
    More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b107_hardcoded_password_default.html
-   Location: bridge/btbridge/ota/backup.py:125:0
-124	
-125	def export(store, include_secrets: bool = False, passphrase: str = "", version: str = __version__, clock=time.time) -> bytes:
-126	    from ..config.store import SCHEMA_VERSION
-127	    settings = {k: v for k, v in store.all().items() if k not in EXCLUDED}
-128	    doc = {"format": FORMAT, "format_version": FORMAT_VERSION, "created": int(clock()), "app_version": version,
-129	           "settings_schema": SCHEMA_VERSION, "device_name": settings.get("device_name", ""), "settings": settings, "secrets": None}
-130	    if include_secrets:
-131	        if len(passphrase) < MIN_PASSPHRASE:
-132	            raise BackupError("weak_passphrase")
-133	        plain = json.dumps({k: store.secret(k) for k in EXPORTED_SECRETS if store.secret(k)}, sort_keys=True).encode("utf-8")
-134	        salt = os.urandom(16)
-135	        enc, mac = _keys(passphrase, salt, **SCRYPT)
-136	        doc["secrets"] = {"kdf": "scrypt", **SCRYPT, "salt": _b64(salt), "cipher": CIPHER, "openssl": OPENSSL_MODE}
-137	        ct = _openssl(False, enc, plain)
-138	        doc["secrets"]["ciphertext"] = _b64(ct)
-139	        doc["secrets"]["tag"] = _b64(_tag(mac, doc, ct))
-140	    return (json.dumps(doc, indent=1, sort_keys=True) + "\n").encode("utf-8")
-141	
+   Location: bridge/btbridge/ota/backup.py:137:0
+136	
+137	def export(store, include_secrets: bool = False, passphrase: str = "", version: str = __version__, clock=time.time) -> bytes:
+138	    from ..config.store import SCHEMA_VERSION
+139	    settings = {k: v for k, v in store.all().items() if k not in EXCLUDED}
+140	    doc = {"format": FORMAT, "format_version": FORMAT_VERSION, "created": int(clock()), "app_version": version,
+141	           "settings_schema": SCHEMA_VERSION, "device_name": settings.get("device_name", ""), "settings": settings, "secrets": None}
+142	    if include_secrets:
+143	        if len(passphrase) < MIN_PASSPHRASE:
+144	            raise BackupError("weak_passphrase")
+145	        plain = json.dumps({k: store.secret(k) for k in EXPORTED_SECRETS if store.secret(k)}, sort_keys=True).encode("utf-8")
+146	        salt = os.urandom(16)
+147	        enc, mac = _keys(passphrase, salt, **SCRYPT)
+148	        doc["secrets"] = {"kdf": "scrypt", **SCRYPT, "salt": _b64(salt), "cipher": CIPHER, "openssl": OPENSSL_MODE}
+149	        ct = _openssl(False, enc, plain)
+150	        doc["secrets"]["ciphertext"] = _b64(ct)
+151	        doc["secrets"]["tag"] = _b64(_tag(mac, doc, ct))
+152	    return (json.dumps(doc, indent=1, sort_keys=True) + "\n").encode("utf-8")
+153	
 
 --------------------------------------------------
 >> Issue: [B107:hardcoded_password_default] Possible hardcoded password: ''
    Severity: Low   Confidence: Medium
    CWE: CWE-259 (https://cwe.mitre.org/data/definitions/259.html)
    More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b107_hardcoded_password_default.html
-   Location: bridge/btbridge/ota/backup.py:192:0
-191	
-192	def plan(doc: dict, passphrase: str = "") -> dict:
-193	    """Everything that a restore would do, fully validated; raises BackupError before anything is changed."""
-194	    from ..config import SETTINGS, SettingError, validate
-195	    settings, skipped, invalid = {}, [], []
-196	    for k, v in doc["settings"].items():
-197	        if k in EXCLUDED:
-198	            continue
-199	        if k not in SETTINGS:
-200	            skipped.append(k)                            # from a newer release: reported, not applied
-201	            continue
-202	        try:
-203	            settings.update(validate({k: v}))
-204	        except SettingError:
-205	            invalid.append(k)
-206	    if invalid:
-207	        raise BackupError("invalid_settings", ", ".join(sorted(invalid)))
-208	    return {"settings": settings, "skipped": sorted(skipped), "secrets": decrypt(doc, passphrase),
-209	            "had_secrets": bool(doc.get("secrets")), "app_version": str(doc.get("app_version", "")), "created": doc.get("created")}
-210	
+   Location: bridge/btbridge/ota/backup.py:204:0
+203	
+204	def plan(doc: dict, passphrase: str = "") -> dict:
+205	    """Everything that a restore would do, fully validated; raises BackupError before anything is changed."""
+206	    from ..config import SETTINGS, SettingError, validate
+207	    settings, skipped, invalid = {}, [], []
+208	    for k, v in doc["settings"].items():
+209	        if k in EXCLUDED:
+210	            continue
+211	        if k not in SETTINGS:
+212	            skipped.append(k)                            # from a newer release: reported, not applied
+213	            continue
+214	        try:
+215	            settings.update(validate({k: v}))
+216	        except SettingError:
+217	            invalid.append(k)
+218	    if invalid:
+219	        raise BackupError("invalid_settings", ", ".join(sorted(invalid)))
+220	    return {"settings": settings, "skipped": sorted(skipped), "secrets": decrypt(doc, passphrase),
+221	            "had_secrets": bool(doc.get("secrets")), "app_version": str(doc.get("app_version", "")), "created": doc.get("created")}
+222	
 
 --------------------------------------------------
 >> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
@@ -410,9 +425,9 @@ Test results:
 --------------------------------------------------
 
 Code scanned:
-	Total lines of code: 15037
+	Total lines of code: 15350
 	Total lines skipped (#nosec): 0
-	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 7
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 8
 
 Run metrics:
 	Total issues (by severity):

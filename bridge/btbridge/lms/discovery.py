@@ -42,7 +42,7 @@ def discover(timeout: float = 2.0, port: int = SERVER_PORT, local_port: int = RE
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            s.bind(("0.0.0.0", local_port))
+            s.bind(("0.0.0.0", local_port))  # nosec B104 - replies to the LAN broadcast arrive on any interface; firewall: only sport 3483 -> dport 3484
             s.settimeout(0.3)
             return _ask(s, timeout, port)
         finally:
