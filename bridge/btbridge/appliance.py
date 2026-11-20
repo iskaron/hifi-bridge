@@ -40,7 +40,9 @@ def build_source(spec: str, dbus: str):
 
 def parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="btbridge.appliance")
-    ap.add_argument("--data", required=True, help="persistent data directory (settings, secrets, faults)")
+    ap.add_argument("--data", required=True, help="persistent data directory (settings, secrets, network, certificates)")
+    ap.add_argument("--run-dir", help="runtime directory in RAM for the fault history (kept across service restarts, gone after a reboot; "
+                                      "default: in memory only). Never the data directory (DECISIONS #121)")
     ap.add_argument("--http-host", default="0.0.0.0")  # nosec B104 - LAN appliance: owner UI/players must reach it; protected by Host validation, auth and the stream token
     ap.add_argument("--http-port", type=int, default=8080)
     ap.add_argument("--https-port", type=int, default=8443, help="HTTPS listener (local CA or custom certificate); 0 = disabled")
@@ -97,7 +99,7 @@ def run(a, source, ready: Callable[[ApplianceService, WebUI], None] | None = Non
             print(f"snapshot restore step failed ({type(e).__name__}: {e}) - the bridge starts without it", file=sys.stderr, flush=True)
     svc = ApplianceService(a.data, source=source, stream_port=a.stream_port, advertise_host=a.advertise_host,
                            monitor=SystemMonitor(proc=a.proc_root, thermal=a.thermal_path or None, data_dir=a.data),
-                           mqtt_factory=None if a.no_mqtt else MqttBridge)
+                           mqtt_factory=None if a.no_mqtt else MqttBridge, run_dir=getattr(a, "run_dir", None))
     if a.no_mdns:
         svc.store.update({"mdns_enabled": False})
     svc.access = LocalAccess(svc.store, a.data, svc.instance_id(), a.http_port, a.https_port or 0, log=svc.logs)

@@ -10,7 +10,7 @@ Before=hifi-bridge.service
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/bin/python3 -m btbridge.bootfiles --data /var/lib/hifi-bridge --boot /boot
-Environment=PYTHONPATH=/usr/lib/hifi-bridge PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/usr/lib/hifi-bridge PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 User=hifi-bridge
 Group=hifi-bridge
 StateDirectory=hifi-bridge

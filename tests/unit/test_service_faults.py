@@ -291,8 +291,9 @@ def test_a_mqtt_connection_that_cannot_be_stopped_is_logged_and_replaced(svc):
 
 def test_the_log_survives_an_unwritable_fault_file_and_an_empty_secret(tmp_path):
     from btbridge.service import LogBuffer
-    lb = LogBuffer(str(tmp_path / "missing-directory"), echo=None)         # e.g. the data partition went read-only
+    lb = LogBuffer(str(tmp_path / "missing-directory"), echo=None)         # e.g. the runtime directory is gone
     lb.secrets.extend(["", "s3cret-token"])                                  # an unset secret must not blank out every line
     lb.fault("storage", "write failed with s3cret-token")
     text = " ".join(m for _, m in lb.recent(5))
-    assert "write failed with" in text and "s3cret-token" not in text and lb.faults() == []
+    assert "write failed with" in text and "s3cret-token" not in text
+    assert [(f["kind"], f["detail"]) for f in lb.faults()] == [("storage", "write failed with ***")]   # kept in RAM anyway

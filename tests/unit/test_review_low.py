@@ -100,14 +100,20 @@ def test_critical_also_has_hysteresis():
     assert m.thermal_state(79.5) == "critical" and m.thermal_state(76.9) == "warning" and m.thermal_state(71.0) == "ok"
 
 
-def test_fault_log_is_fsynced(tmp_path, monkeypatch):
+def test_fault_log_is_never_written_to_the_data_partition(tmp_path, monkeypatch):
+    """Review L5 made the fault file survive power cuts (fsync on the data partition). DECISIONS #121 (owner, 2026-11-20) supersedes it:
+    diagnostics live in bounded RAM only. The service passes its runtime directory (tmpfs), so no fsync and no file on the card."""
     import os
-    from btbridge.service import LogBuffer
+    from btbridge.service import ApplianceService
     calls = []
     real = os.fsync
     monkeypatch.setattr(os, "fsync", lambda fd: (calls.append(fd), real(fd))[1])
-    LogBuffer(str(tmp_path), echo=None).fault("thermal", "warning: 75 C")
-    assert calls                                                            # was: rewritten without fsync
+    data, run = tmp_path / "data", tmp_path / "run"
+    run.mkdir()
+    svc = ApplianceService(str(data), source=None, stream_port=0, echo=None, auth_iterations=1000, run_dir=str(run))
+    calls.clear()
+    svc.logs.fault("thermal", "warning: 75 C")
+    assert calls == [] and not (data / "faults.jsonl").exists() and svc.logs.faults()[-1]["kind"] == "thermal"
 
 
 # ---------------------------------------------------------------- L6: a malformed discovery answer never breaks the wizard

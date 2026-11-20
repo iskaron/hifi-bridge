@@ -176,6 +176,58 @@ def snapshot_meta(ota_dir: str, bootname: str) -> dict | None:
 
 
 RESTORE_REQUEST = "restore-request.json"
+TRANSIENT = (BUNDLE + ".upload",)                      # an upload can never be resumed: its HTTP connection is gone
+PARTIAL = (BUNDLE + ".part", BUNDLE + ".part.json")    # a paused/interrupted download: resumable while the device keeps running
+TMP_NAME = re.compile(r"^state\.json\.tmp-\d+$|^\.health-probe$")
+
+
+def cleanup_staging(data_dir: str, at_boot: bool = True) -> list[str]:
+    """Persistence rule (DECISIONS #121, docs/PERSISTENCE.md): remove every update file that no persistent state needs any more.
+    Runs in the boot step (``at_boot``: nothing transient survives a reboot, e.g. after a power cut during an upload or a download;
+    nothing else writes the directory at that point) and at every bridge start (``at_boot=False``: only what the previous bridge
+    process left behind; a paused download stays resumable until the next reboot, and the health check, which may run concurrently,
+    keeps its own temporary files). Kept: the bundle that the persistent state still references (phase ``staged`` = verified, waiting
+    for the owner's install; ``installing`` = RAUC reads it, and after a power cut the owner can retry), the snapshots,
+    ``slots.json``/``health.json``/``state.json``. Removed: an interrupted upload, a bundle no state refers to (e.g. a verification
+    interrupted by a restart), and at boot a partial download, temporary files of atomic writes and half-written snapshots.
+    Returns the removed paths relative to the data directory."""
+    ota_dir = os.path.join(data_dir, "ota")
+    if not os.path.isdir(ota_dir):
+        return []
+    removed = []
+
+    def rm(name: str) -> None:
+        p = os.path.join(ota_dir, name)
+        if os.path.isdir(p) and not os.path.islink(p):
+            shutil.rmtree(p)
+        elif os.path.lexists(p):
+            os.unlink(p)
+        else:
+            return
+        removed.append("ota/" + name)
+    for name in TRANSIENT + (PARTIAL if at_boot else ()):
+        rm(name)
+    st = load_json(os.path.join(ota_dir, "state.json"), {})
+    staged = st.get("staged") if isinstance(st, dict) else None
+    needed = isinstance(staged, dict) and st.get("phase") in ("staged", "installing") \
+        and staged.get("path") == os.path.join(ota_dir, BUNDLE)
+    if not needed:
+        rm(BUNDLE)
+    if not at_boot:
+        if removed:
+            _fsync_dir(ota_dir)
+        return removed
+    for name in sorted(os.listdir(ota_dir)):
+        if TMP_NAME.match(name):
+            rm(name)
+    snaps = os.path.join(ota_dir, "snapshots")
+    if os.path.isdir(snaps):
+        for name in sorted(os.listdir(snaps)):
+            if name.startswith(".") and name.endswith((".tmp", ".old")):
+                rm(os.path.join("snapshots", name))
+    if removed:
+        _fsync_dir(ota_dir)
+    return removed
 
 
 def forget_owner_data(data_dir: str) -> list[str]:
@@ -701,7 +753,14 @@ class UpdateManager:
         self._progress = {"done": 0, "total": 0}
 
     def resume(self) -> None:
-        """Bridge start: reconcile with what booted; continue watching an installation that RAUC is still running."""
+        """Bridge start: drop staging files of a flow that ended with the previous process (an interrupted upload, an unverified
+        bundle), reconcile with what booted; continue watching an installation that RAUC is still running."""
+        try:
+            removed = cleanup_staging(self.data_dir, at_boot=False)
+            if removed:
+                self.log(f"update: removed {', '.join(removed)} (left behind by an interrupted transfer)")
+        except OSError as e:
+            self.log(f"update: could not clean up the staging files ({type(e).__name__}: {e})")
         try:
             props = self.rauc.properties()
         except (RaucUnavailable, RaucError):

@@ -186,8 +186,18 @@ def boot_request(data_dir: str, boot_dir: str, hooks: dict | None = None) -> str
 
 
 def write_boot_status(boot_dir: str, lines: list[str]) -> None:
-    """Device status for the owner on the boot partition (name, CA fingerprint; a one-time setup code only while needed)."""
-    _write_status(boot_dir, "".join(f"{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())} {line}\n" for line in lines))
+    """Device status for the owner on the boot partition (name, CA fingerprint; a one-time setup code only while needed). Written
+    only when the lines differ from the file's (time stamps ignored): an ordinary boot causes no FAT write (DECISIONS #121), and the
+    time stamps then tell when the status last changed."""
+    try:
+        with open(os.path.join(boot_dir, STATUS_FILE), encoding="utf-8") as fh:
+            old = [ln.split(" ", 1)[1] if " " in ln else ln for ln in fh.read().splitlines()]
+    except (OSError, ValueError):
+        old = None
+    if old == list(lines):
+        return
+    stamp = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+    _write_status(boot_dir, "".join(f"{stamp} {line}\n" for line in lines))
 
 
 def _drop_to(uid: int, gid: int) -> None:
