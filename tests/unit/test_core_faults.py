@@ -3,6 +3,7 @@ unwritable data partition, a configuration file that is not JSON, a reader that 
 encoder that died, a systemd that is not listening. Each must degrade as documented, not raise into the audio path. Coverage 7b-3."""
 import json
 import os
+import shutil
 import signal
 import socket
 import threading
@@ -116,6 +117,7 @@ def test_bounded_lists_trim_on_every_way_in():
 
 
 # ---------------------------------------------------------------- encoder child, systemd, signals
+@pytest.mark.skipif(not shutil.which("flac"), reason="flac not installed in this image (the lab image and the device have it)")
 def test_an_encoder_whose_child_died_returns_silence_instead_of_raising():
     enc = FlacEncoder()
     enc.proc.kill(); enc.proc.wait()
