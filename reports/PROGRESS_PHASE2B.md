@@ -182,3 +182,7 @@ Scope: owner work package of 2026-11-18 (DECISIONS #73/#74).
   real bug found: login back-off overflow (`94504e0`); PipeWire flakes root-caused (pulse runtime-dir race 9/150 -> 0/300; pipewire-pulse
   1.4.2 SIGSEGV on unload-module); local mDNS suite 18/18 (multicast dropped on internal Docker networks; own non-internal network without
   host address); demo shows Network and Software update against SIMULATED back-ends. DECISIONS #116-#119, OPEN_QUESTIONS #83-#85.
+- Final full run on `b995068` (`reports/evidence/full_run_final.log`): every suite green (mDNS 18/18 and PipeWire 12/12 now also
+  locally) except integration 54/55 (first-test-after-recreate flake, 3/3 green on rerun, OPEN_QUESTIONS #86) and Python 3.14 (new FLAC
+  fault test needs a `flac` binary; now skipped there like the existing FLAC test; 1061 passed, 2 skipped). CI 44710523221: 16/17, same
+  python314 cause. README updated; handoff `reports/HANDOFF_FOR_CHATGPT.md` written. **Phase 2b done in software; stop here.**

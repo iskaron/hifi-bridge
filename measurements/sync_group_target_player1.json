@@ -6,82 +6,51 @@
   ],
   "bridge_target": "player1",
   "max_player_spread_ms_at_3_frames": [
-    18.0,
-    17.9,
-    18.1
+    9.3,
+    9.0,
+    9.4
   ],
   "sync_correction_jumps_frames": {
-    "player1": [
-      573,
-      441
-    ],
-    "player2": [
-      441
-    ],
+    "player1": [],
+    "player2": [],
     "player3": [
-      529,
-      573
+      705,
+      441
     ]
   },
   "integrity": {
     "player1": {
-      "blocks": 144,
-      "matched": 140,
-      "mismatched": 4,
-      "jumps": [
-        [
-          20,
-          0
-        ],
-        [
-          21,
-          573
-        ],
-        [
-          140,
-          0
-        ],
-        [
-          141,
-          441
-        ]
-      ]
+      "blocks": 143,
+      "matched": 143,
+      "mismatched": 0,
+      "jumps": []
     },
     "player2": {
-      "blocks": 144,
-      "matched": 142,
-      "mismatched": 2,
-      "jumps": [
-        [
-          121,
-          0
-        ],
-        [
-          122,
-          441
-        ]
-      ]
+      "blocks": 143,
+      "matched": 143,
+      "mismatched": 0,
+      "jumps": []
     },
     "player3": {
-      "blocks": 144,
-      "matched": 140,
+      "blocks": 143,
+      "matched": 139,
       "mismatched": 4,
       "jumps": [
         [
+          19,
+          0
+        ],
+        [
           20,
+          705
+        ],
+        [
+          136,
           0
         ],
         [
-          21,
-          529
-        ],
-        [
-          140,
-          0
-        ],
-        [
-          141,
-          573
+          137,
+          441
         ]
       ]
     }
@@ -92,7 +61,7 @@
   ],
   "label": "INTEGRATION real LMS sync + SIMULATED BT; virtual DACs, NOT acoustic",
   "env": {
-    "date_utc": "2026-11-19T18:45:42Z",
+    "date_utc": "2026-11-20T09:40:19Z",
     "lms": "9.1.2",
     "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
     "kernel": "7.0.0-43-generic",
