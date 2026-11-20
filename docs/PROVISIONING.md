@@ -54,17 +54,20 @@ can be secrets.
 3. **Scrub:** overwrite the whole file **in place** with the placeholder (same length), then `fsync` the file and the directory. The name
    stays, so the slot remains.
 
-### First setup without a working home network (review N-1, package 7b-1)
+### First setup without a working home network (review N-1, package 7b-1; wizard network step since DECISIONS #122)
 A card written **without** the home Wi-Fi password (recommended in section 4) or with a mistyped one, and no Ethernet: the device opens
 its setup hotspot (name and password from the card; `hifi-status.txt` names it and `http://10.42.0.1/`).
 1. Join the hotspot with the phone, open `http://10.42.0.1/`, enter the setup code and choose the owner password (as always).
-2. The wizard's Lyrion step cannot find a server behind the hotspot (it has no uplink by design). That step
-   links to **Settings → Network**, which is reachable before the wizard is finished (same login, CSRF and origin checks as every other
-   page; every other settings page still waits for the wizard). Join the home Wi-Fi there (or correct its password).
-3. The hotspot closes; connect the phone to the home Wi-Fi, open the device again (its name or the address the router shows), log in,
-   and press **Keep** in the "Keep the new network settings?" banner, which the wizard pages show too, within 3 minutes - otherwise
-   the change is undone and the hotspot returns. Then continue the wizard (Lyrion server, player).
-
+2. The wizard continues with its **network step** (docs/NETWORK.md section 12): choose the home Wi-Fi from the list (or enter a hidden
+   network's name), type its password. Above *Connect* the step explains what happens next and shows the address to open afterwards
+   (`http://<local_hostname>.local/`). A mistyped password from the card is shown as "last problem" and corrected here.
+3. *Connect*: the hotspot closes and the page loses its connection. Connect the phone to the home Wi-Fi, open the shown address (or the
+   one the router lists), log in: the wizard opens at the network step with "Keep the new network settings?" - press **Keep** within
+   3 minutes; the wizard continues (Bluetooth name, Lyrion server, player).
+4. If the device cannot join (wrong password, network not found) the change is undone after about a minute, or after 3 minutes without
+   *Keep*; the hotspot returns. Rejoin it and reload `http://10.42.0.1/`: the step shows the reason - try again, or skip the step.
+With Ethernet the step only confirms "Connected via Ethernet as <address>" and offers Wi-Fi as an option. **Settings → Network** stays
+reachable before the wizard is finished (DECISIONS #105), e.g. for fixed addresses.
 
 | Aspect | Finding | Measure |
 |---|---|---|

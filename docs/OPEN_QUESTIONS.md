@@ -217,8 +217,8 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
     machine id (journal directory names, D-Bus) need a persistent id under `/data`.
 
 ## Added by package 7 - final QA (2026-11-19)
-78. **Wizard network step:** network settings are reachable before setup via a link (DECISIONS #105). Is a dedicated network step in the
-    setup wizard wanted instead?
+78. ~~**Wizard network step:** network settings are reachable before setup via a link (DECISIONS #105). Is a dedicated network step in the
+    setup wizard wanted instead?~~ **resolved by DECISIONS #122 (owner), implemented in P3 (#137-#140, docs/NETWORK.md 12).**
 79. Show a boot with a reset U-Boot environment (`hifi.bootenv=reset`) on the update page?
 80. ~~Switch the image to libubootenv with `/etc/u-boot-initial-env` as its default~~ **resolved by DECISIONS #123/#133 (P2):** libubootenv
     0.3.7 + one patch, `/etc/u-boot-initial-env` = U-Boot's default + fail-safe slot state. Evidence (SIMULATED, image check of all three
@@ -272,3 +272,12 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
     source bundle), build them from our kernel tree, or drop them (our `config.txt` uses none; a HAT EEPROM could request one)?
 96. **Hosting of the source bundles:** a legal-info source bundle is ~1 GB per board and release. Publish it next to each release (GitHub
     Release assets, separate storage) or give a written offer (OPEN_QUESTIONS #43)? Who keeps the Bootlin toolchain sources mirrored?
+97. **Finding the device after the hotspot (P3, DECISIONS #137):** the network step tells the owner to open `http://<name>.local/` or the
+    address the router lists. Some phone browsers (notably older Android versions) do not resolve `.local` names, and the device's new DHCP
+    address is not known before the switch. Is the router's device list acceptable as the fallback, or should the hotspot page later
+    show the address the device had on the home network (it learns it only after joining - today shown after an unconfirmed trial)? Real
+    phones: hardware items N-2/N-5. A QR code with the address was not added (no existing page has one; no new V1 feature).
+98. **The 3-minute confirmation window from the hotspot (P3):** it starts when the agent applies the change and includes the association
+    (seconds), the owner switching the phone's Wi-Fi, opening the address and logging in again (cookies are per host). Enough for an owner
+    on a phone, or should a trial started from the setup hotspot get a longer window (a reversible constant, `netmanager.TRIAL_S`)?
+    Not changed without a real-phone measurement.
