@@ -1,7 +1,11 @@
 """Static checks of a BUILT Hi-Fi Bridge card image (Python stdlib + host tools in btbridge-os). Hardware-free: nothing is booted.
 
     python3 image_check.py --board B --image IMG --manifest M --rootfs DIR --boot DIR --config .config \
-        [--rootfs-img rootfs.ext4] [--dev-ca ca.pem] [--file-list packages-file-list.txt] --json OUT --md OUT
+        [--rootfs-img rootfs.ext4] [--dev-ca ca.pem] [--file-list packages-file-list.txt] [--data-img p4] [--storage storage.json] \
+        --json OUT --md OUT
+
+The persistence checks (``persist.*``, DECISIONS #121) and the layout checks (``size.layout``, ``size.card-fits-2gb``,
+``size.data-holds-update``, ``size.slot-headroom``; DECISIONS #120) take their numbers and the allow-list from os/storage.json.
 
 --rootfs/--boot are the extracted slot-A root file system and boot FAT (scripts/os_check_image.sh extracts them from the card image with
 debugfs/mtools as container root, so owners and modes are the image's). Every check is PASS, FAIL or INFO; INFO never fails. Items that
@@ -38,7 +42,11 @@ HARDWARE_PENDING = [
     "Wi-Fi/Bluetooth firmware loads (brcmfmac, hci_uart on PL011) and A2DP is stable (G2 P1-3)",
     "provisioning file is processed and scrubbed on real vfat (G2 P6-3)",
     "RAM/CPU at idle and while playing (G2 P4-4)",
+    "at runtime nothing outside the allow-list of os/storage.json is written to the card; the journal stays in RAM (G2 P4-5)",
+    "a nominal 2 GB card boots and grows the data partition; a 16 GB card likewise (G2 P4-1)",
 ]
+STORAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "storage.json")
+MIB = 1 << 20
 
 
 class Report:
@@ -548,6 +556,178 @@ def check_network_and_misc(r, root):
           f"/etc/machine-id {r.facts['machine_id']} (must not be shared by all devices; with a read-only /etc systemd uses a transient id per boot)")
 
 
+def size_bytes(text):
+    """systemd size value (16M, 2M, 512K, 1G, plain bytes) -> bytes, or None."""
+    m = re.fullmatch(r"\s*(\d+)\s*([KMGT]?)\s*", text or "")
+    return int(m.group(1)) * 1024 ** " KMGT".index(m.group(2) or " ") if m else None
+
+
+def conf_values(root, main, dropins, section):
+    """{key: value} of a systemd configuration file + its drop-ins (later files win), for one section."""
+    files = [os.path.join(root, main)] if main else []
+    for d in dropins:
+        files += sorted(glob.glob(os.path.join(root, d, "*.conf")))
+    out = {}
+    for f in files:
+        if os.path.isfile(f):
+            out.update(ini(f).get(section, {}))
+    return out
+
+
+def unit_alias_target(root, unit):
+    """The real unit name behind an alias symlink (e.g. dbus-org.bluez.service -> bluetooth.service); the name itself otherwise."""
+    for base in ("etc/systemd/system", "usr/lib/systemd/system"):
+        p = os.path.join(root, base, unit)
+        if os.path.islink(p) and not os.readlink(p).startswith("/dev/null"):
+            return os.path.basename(os.readlink(p))
+    return unit
+
+
+def persistent_locations(storage):
+    """Directories whose content lives on the card: the data partition, the boot FAT and the bind mounts from /data."""
+    return ["/data", "/boot"] + [p["bind"] for p in storage["persistent"] if p.get("bind")]
+
+
+def under(path, places):
+    return any(path == p or path.startswith(p.rstrip("/") + "/") for p in places)
+
+
+def check_persistence(r, root, storage):
+    """DECISIONS #121 ("persist only what must survive a reboot"; docs/PERSISTENCE.md, allow-list os/storage.json)."""
+    lim = storage["ram_limits"]
+    j = conf_values(root, "etc/systemd/journald.conf", ["usr/lib/systemd/journald.conf.d", "etc/systemd/journald.conf.d"], "Journal")
+    use, fsz = size_bytes(j.get("RuntimeMaxUse")), size_bytes(j.get("RuntimeMaxFileSize"))
+    r.add("persist.journald-volatile", j.get("Storage") == "volatile" and use is not None and use <= size_bytes(lim["journald_runtime_max_use"])
+          and fsz is not None and fsz <= use,
+          f"journald Storage={j.get('Storage')}, RuntimeMaxUse={j.get('RuntimeMaxUse')}, RuntimeMaxFileSize={j.get('RuntimeMaxFileSize')} "
+          f"(RAM only, bounded; limit {lim['journald_runtime_max_use']})")
+    r.add("persist.no-persistent-journal-dir", not os.path.lexists(os.path.join(root, "var/log/journal")),
+          "no /var/log/journal in the image (journald would store persistently there)")
+    mgr = conf_values(root, "etc/systemd/system.conf", ["usr/lib/systemd/system.conf.d", "etc/systemd/system.conf.d"], "Manager")
+    sysctl = {}
+    for f in sorted(glob.glob(os.path.join(root, "usr/lib/sysctl.d/*.conf")) + glob.glob(os.path.join(root, "etc/sysctl.d/*.conf")),
+                    key=os.path.basename):
+        sysctl.update(kv_file(f))
+    cd = conf_values(root, "etc/systemd/coredump.conf", ["usr/lib/systemd/coredump.conf.d", "etc/systemd/coredump.conf.d"], "Coredump")
+    has_cd = os.path.exists(os.path.join(root, "usr/lib/systemd/systemd-coredump"))
+    r.add("persist.coredumps-off", mgr.get("DefaultLimitCORE") == "0" and sysctl.get("kernel.core_pattern") == "|/bin/false"
+          and (not has_cd or cd.get("Storage") == "none"),
+          f"DefaultLimitCORE={mgr.get('DefaultLimitCORE')}, kernel.core_pattern={sysctl.get('kernel.core_pattern')}, systemd-coredump "
+          f"{'present, Storage=' + str(cd.get('Storage')) if has_cd else 'absent'}")
+    units = merged_units(root)
+    py = sorted(u for u, t in units.items() if any("python3" in v for v in unit_values(t, "ExecStart")))
+    nobc = [u for u in py if not any("PYTHONDONTWRITEBYTECODE=1" in v.split() for v in unit_values(units[u], "Environment"))]
+    r.add("persist.python-no-bytecode-writes", bool(py) and not nobc,
+          f"Python units: {', '.join(py)}; " + (f"WITHOUT PYTHONDONTWRITEBYTECODE=1: {', '.join(nobc)}" if nobc else
+                                                "all set PYTHONDONTWRITEBYTECODE=1") + " (bytecode is precompiled into the read-only root)")
+    allowed = {p["path"] for p in storage["persistent"]}
+    fstab = [ln.split() for ln in open(os.path.join(root, "etc/fstab")) if ln.strip() and not ln.startswith("#")]
+    binds = {x[0]: x[1] for x in fstab if len(x) > 2 and x[2] == "none" and x[0].startswith("/data")}
+    data_unit = units.get("hifi-bridge-data.service", "")
+    made = [p for v in unit_values(data_unit, "ExecStart") if v.startswith("/bin/mkdir") for p in v.split()[1:] if p.startswith("/")]
+    rauc = ini(os.path.join(root, "etc/rauc/system.conf")).get("system", {}).get("data-directory") \
+        if os.path.isfile(os.path.join(root, "etc/rauc/system.conf")) else None
+    want_binds = {p["path"]: p["bind"] for p in storage["persistent"] if p.get("bind")}
+    used = set(binds) | set(made) | ({rauc} if rauc else set())
+    bad = sorted(p for p in used if p not in allowed)
+    r.add("persist.data-allowlist", not bad and binds == want_binds and rauc in allowed,
+          f"/data paths in use: {', '.join(sorted(used))}; bind mounts {binds}; RAUC data-directory {rauc}"
+          + (f"; NOT in os/storage.json: {', '.join(bad)}" if bad else "; all in the allow-list (os/storage.json)"))
+    places = persistent_locations(storage)
+    ok_pairs = {tuple(x) for x in storage["unit_writers"]["allowed"]}
+    writers, offenders = set(), set()
+    for u, t in sorted(units.items()):
+        u = unit_alias_target(root, u)                         # dbus-org.bluez.service is bluetooth.service
+        paths = [p.lstrip("-+:") for v in unit_values(t, "ReadWritePaths") for p in v.split()]
+        paths += ["/var/lib/" + s.split(":")[0] for v in unit_values(t, "StateDirectory") for s in v.split()]
+        for p in paths:
+            if under(p, places):
+                (writers if (u, p) in ok_pairs else offenders).add(f"{u}:{p}")
+    writers, offenders = sorted(writers), sorted(offenders)
+    r.add("persist.unit-write-paths", not offenders, f"units writing persistent locations: {', '.join(writers)}"
+          + (f"; NOT allowed: {', '.join(offenders)}" if offenders else " (all allowed by os/storage.json)"))
+    bad_tmp = []
+    for f in sorted(glob.glob(os.path.join(root, "usr/lib/tmpfiles.d/*.conf")) + glob.glob(os.path.join(root, "etc/tmpfiles.d/*.conf"))):
+        for ln in open(f, errors="replace"):
+            x = ln.split()
+            if len(x) > 1 and not x[0].startswith("#") and under(x[1], places):
+                bad_tmp.append(f"{os.path.basename(f)}: {' '.join(x[:2])}")
+    r.add("persist.tmpfiles-no-persistent-paths", not bad_tmp, "no tmpfiles.d entry creates or changes anything on /data, /boot or a "
+          "bind mount" + (": " + "; ".join(bad_tmp) if bad_tmp else ""))
+    br = units.get("hifi-bridge.service", "")
+    ex = " ".join(unit_values(br, "ExecStart"))
+    r.add("persist.bridge-faults-in-ram", "--run-dir /run/hifi-bridge" in ex and unit_values(br, "RuntimeDirectory") == ["hifi-bridge"],
+          "hifi-bridge.service keeps the fault history in its runtime directory /run/hifi-bridge (tmpfs), not on /data")
+    src = lambda p: open(os.path.join(root, "usr/lib/hifi-bridge/btbridge", p), errors="replace").read() \
+        if os.path.isfile(os.path.join(root, "usr/lib/hifi-bridge/btbridge", p)) else ""  # noqa: E731
+    r.add("persist.ota-staging-cleanup", "storage.boot_cleanup(" in src("bootfiles.py") and "def boot_cleanup" in src("storage.py")
+          and "cleanup_staging(self.data_dir, at_boot=False)" in src("ota/manager.py"),
+          "the boot step removes interrupted uploads/downloads, unreferenced bundles and temporary files; the bridge start removes an "
+          "interrupted upload (btbridge.storage, ota.manager.cleanup_staging)")
+    ts = conf_values(root, "etc/systemd/timesyncd.conf", ["usr/lib/systemd/timesyncd.conf.d", "etc/systemd/timesyncd.conf.d"], "Time")
+    iv = int(ts.get("SaveIntervalSec", "60") or 60)
+    r.add("persist.timesync-save-interval", iv >= lim["timesyncd_save_interval_s_min"],
+          f"timesyncd saves the clock file on /data every {iv} s (minimum {lim['timesyncd_save_interval_s_min']} s)")
+
+
+def ext4_numbers(img):
+    d = sh("dumpe2fs", "-h", img).stdout
+    g = {k: int(v) for k, v in re.findall(r"^(Block count|Free blocks|Reserved block count|Block size|Inode count|Free inodes):\s+(\d+)",
+                                          d, re.M)}
+    if "Block size" not in g:
+        return None
+    feats = (re.search(r"^Filesystem features:\s+(.*)$", d, re.M) or [None, ""])[1].split()
+    return {"bytes": g["Block count"] * g["Block size"], "block_size": g["Block size"], "inodes": g["Inode count"],
+            "free_bytes": g["Free blocks"] * g["Block size"], "reserved_bytes": g["Reserved block count"] * g["Block size"],
+            "avail_bytes": (g["Free blocks"] - g["Reserved block count"]) * g["Block size"], "features": feats}
+
+
+def check_layout(r, image, data_img, storage):
+    """DECISIONS #120: boot 64 MiB, slots 384 MiB, data as measured (os/storage.json), the whole card within a nominal 2 GB card; the data
+    partition holds one update of a full slot even if it never grew (the update manager's free-space rule)."""
+    lay, bud = storage["layout"], storage["data_budget"]
+    parts = r.facts.get("partitions", [])
+    if len(parts) != 4:
+        r.add("size.layout", False, "four partitions expected")
+        return
+    got = [p["size"] // MIB for p in parts]
+    want = [lay["boot_mib"], lay["slot_mib"], lay["slot_mib"], lay["data_initial_mib"]]
+    r.add("size.layout", got == want, f"partitions {got} MiB, os/storage.json {want} MiB (boot | A | B | data before growth)")
+    total = os.path.getsize(image)
+    end = max(p["start"] + p["size"] for p in parts)
+    usable = lay["card_target"]["usable_bytes"]
+    r.add("size.card-fits-2gb", end <= total <= usable,
+          f"card image {total} bytes ({total / MIB:.0f} MiB) <= {usable} bytes, the usable size of a nominal 2 GB card; after growth the "
+          f"data partition gets ~{(usable - parts[3]['start']) / MIB:.0f} MiB of such a card")
+    if not data_img:
+        return
+    e = ext4_numbers(data_img)
+    if not e:
+        r.add("size.data-holds-update", False, "data partition: not an ext4 file system")
+        return
+    r.facts["data_ext4"] = e
+    need = (bud["largest_bundle_mib"] + bud["space_margin_mib"] + bud["state_mib"]) * MIB
+    r.add("size.data-holds-update", e["avail_bytes"] >= need,
+          f"data partition before growth: {e['avail_bytes'] / MIB:.1f} MiB available to the bridge (of {e['bytes'] / MIB:.0f} MiB; reserved "
+          f"{e['reserved_bytes'] / MIB:.1f} MiB, metadata+journal {(e['bytes'] - e['free_bytes']) / MIB:.1f} MiB) >= {need / MIB:.0f} MiB = "
+          f"largest bundle {bud['largest_bundle_mib']} + free-space margin {bud['space_margin_mib']} + state {bud['state_mib']}")
+    r.add("size.data-ext4-layout", e["block_size"] == 4096 and e["inodes"] <= e["bytes"] // 65536 and "has_journal" in e["features"],
+          f"data ext4: {e['block_size']} B blocks, {e['inodes']} inodes, journal: {'has_journal' in e['features']} (grows with the card)")
+    ls = sh("debugfs", "-R", "ls -p /", data_img).stdout
+    names = sorted({x.split("/")[5] for x in ls.splitlines() if x.count("/") >= 6} - {".", ".."})
+    r.add("persist.data-partition-empty", names == ["lost+found"], f"fresh data partition contains: {', '.join(names) or 'nothing'} "
+          "(everything else is created on the device by the allow-listed units)")
+
+
+def check_slot_headroom(r, storage):
+    s, parts = r.facts.get("sizes", {}), r.facts.get("partitions", [])
+    if "rootfs_ext4_used_bytes" not in s or len(parts) != 4:
+        return
+    used, slot = s["rootfs_ext4_used_bytes"], parts[1]["size"]
+    r.add("size.slot-headroom", used <= 0.8 * slot, f"rootfs uses {used / MIB:.1f} of {slot / MIB:.0f} MiB ({100 * used / slot:.0f} %; "
+          f"limit 80 %, the rest is room for later releases in the same slot size)")
+
+
 def sizes(r, root, boot_dir, image, rootfs_img, file_list):
     s = {"card_image": os.path.getsize(image), "rootfs_tree_bytes": tree_size(root), "boot_files_bytes": tree_size(boot_dir)}
     if rootfs_img:
@@ -614,9 +794,11 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     for a in ("board", "image", "manifest", "rootfs", "boot", "config", "json", "md"):
         ap.add_argument(f"--{a}", required=True)
-    for a in ("rootfs-img", "slot-a", "dev-ca", "file-list", "uboot-config", "bootargs", "fw-printenv", "boot-script"):
+    for a in ("rootfs-img", "slot-a", "dev-ca", "file-list", "uboot-config", "bootargs", "fw-printenv", "boot-script", "data-img"):
         ap.add_argument(f"--{a}")
+    ap.add_argument("--storage", default=STORAGE, help="layout + allow-list of persistent paths (default: os/storage.json)")
     a = ap.parse_args(argv)
+    storage = json.load(open(a.storage))
     r = Report()
     cfgv = cfg_values(a.config)
     man = json.load(open(a.manifest))
@@ -636,7 +818,10 @@ def main(argv=None):
     check_units(r, a.rootfs, enabled_units(a.rootfs))
     systemd_verify(r, a.rootfs)
     check_network_and_misc(r, a.rootfs)
+    check_persistence(r, a.rootfs, storage)
+    check_layout(r, a.image, a.data_img, storage)
     sizes(r, a.rootfs, a.boot, a.image, a.rootfs_img, a.file_list)
+    check_slot_headroom(r, storage)
     json.dump({"board": a.board, "checks": r.checks, "facts": r.facts, "hardware_pending": HARDWARE_PENDING}, open(a.json, "w"), indent=1)
     write_md(r, a.md, a.board)
     for c in r.checks:

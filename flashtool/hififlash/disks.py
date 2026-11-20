@@ -24,7 +24,9 @@ import subprocess
 from dataclasses import dataclass, field
 from typing import Callable
 
-MIN_BYTES = 1 * 1000 ** 3            # PHASE2B_PLAN: >= 1 GB minimum (to be confirmed by measurement)
+# Technical target (DECISIONS #120): a nominal 2 GB card. Real "2 GB" cards report less than 2*10^9 bytes, so the limit is the usable size
+# os/storage.json assumes for one (10 % below the label; the whole image fits in it). A 16 GB card is recommended, never required.
+MIN_BYTES = 1_800_000_000
 MAX_BYTES = 256 * 1000 ** 3          # above: explicit confirmation (an SD card bigger than this is unusual; a USB hard disk is likely)
 SYSTEM_MOUNTS = ("/", "/boot", "/boot/efi", "/usr", "/var", "/home", "/System/Volumes/Data", "C:\\", "[SWAP]")
 STACKED_TYPES = ("crypt", "lvm", "dm", "md", "mpath")

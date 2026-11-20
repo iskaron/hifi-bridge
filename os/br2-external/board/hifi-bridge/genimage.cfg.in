@@ -1,4 +1,7 @@
-# Hi-Fi Bridge card layout (P4: boot + rootfs-A + rootfs-B + data). Sizes are PLACEHOLDERS until measured (PHASE2B_PLAN section 3).
+# Hi-Fi Bridge card layout (DECISIONS #120): boot FAT 64 MiB | rootfs-A 384 MiB | rootfs-B 384 MiB | data 256 MiB, grown to the rest of
+# the card on first boot. The sizes are fixed for the life of a device (an update cannot repartition the card); the single source of the
+# numbers is os/storage.json (checked against this file by tests/os/test_persistence_layout.py, the data size is derived in
+# docs/PERSISTENCE.md). The slot size comes from BR2_TARGET_ROOTFS_EXT2_SIZE (rootfs.ext4 = slot A; slot B gets the same size).
 # MBR because the Pi 3 / Zero 2 W boot ROM cannot read GPT. The boot file list is filled in by post-image.sh.
 image boot.vfat {
 	vfat {
@@ -16,11 +19,13 @@ image data.ext4 {
 	ext4 {
 		label = "hifi-data"
 		use-mke2fs = true
-		# fixed UUID and hash seed: otherwise every build differs (mounted by partition, never by UUID; docs/IMAGE_BUILD.md)
+		# fixed UUID and hash seed: otherwise every build differs (mounted by partition, never by UUID; docs/IMAGE_BUILD.md).
+		# 4 KiB blocks and one inode per 64 KiB: mke2fs would choose 1 KiB blocks and one inode per 4 KiB below 512 MiB (16 MiB of
+		# inode tables for a few hundred files, and 1 KiB blocks forever after the growth to the card size; docs/PERSISTENCE.md).
 		fs-timestamp = "#FS_TIMESTAMP#"
-		extraargs = "-U 3f6c2a91-7d4e-4b8a-a1c5-92e0d7b46f13 -E hash_seed=3f6c2a91-7d4e-4b8a-a1c5-92e0d7b46f13"
+		extraargs = "-b 4096 -i 65536 -U 3f6c2a91-7d4e-4b8a-a1c5-92e0d7b46f13 -E hash_seed=3f6c2a91-7d4e-4b8a-a1c5-92e0d7b46f13"
 	}
-	size = 64M
+	size = 256M
 }
 
 image sdcard.img {

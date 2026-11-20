@@ -13,7 +13,7 @@ RequiresMountsFor=/var/lib/hifi-bridge
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/bin/python3 -m btbridge.ota.health --data /var/lib/hifi-bridge --healthz http://127.0.0.1:80/healthz --data-mount /data --timeout 300
-Environment=PYTHONPATH=/usr/lib/hifi-bridge PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/usr/lib/hifi-bridge PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 # the check gives up after 300 s by itself; this only catches a hang
 TimeoutStartSec=420
 FailureAction=reboot

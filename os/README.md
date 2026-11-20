@@ -29,7 +29,7 @@ tools/
   image_check.py                     static checks of a built card image (used by scripts/os_check_image.sh)
   secret_scan.py                     credentials/private keys/tokens in image trees and raw images
   tree_manifest.py                   per-file manifest + comparison (reproducibility)
-  size_plan.py                       partition sizes and minimum card size from the measured builds
+  size_plan.py                       card layout arithmetic (DECISIONS #120) checked against the measured builds
 ```
 
 ## Commands (all in Docker; Buildroot pinned at `679b9ea`, 2026.02.x LTS)

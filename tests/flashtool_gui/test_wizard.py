@@ -79,7 +79,7 @@ def test_happy_path_official_image_to_trusted_device(qtbot, win, env):
                   if disk_page.list.item(i).flags() & Qt.ItemFlag.ItemIsSelectable]
     assert selectable == ["sdcard"]                                             # system, small, large, read-only: refused
     texts = "\n".join(disk_page.list.item(i).text() for i in range(5))
-    for reason in ("system disk", "smaller than 1 GB", "unusually large", "write-protected", "not removable"):
+    for reason in ("system disk", "smaller than 2 GB", "unusually large", "write-protected", "not removable"):
         assert reason in texts
     choose_card(qtbot, win)
     assert "will be unmounted" in disk_page.details.text()
