@@ -327,7 +327,7 @@ def check_uboot_env(r, root, boot_dir, uboot_config, fw_printenv=None, boot_scri
     if fw_printenv:
         env_tool_fallback(r, copies, size, fw_printenv)
     if boot_script and os.path.isfile(boot_script):
-        src = [ln.split("#")[0].strip() for ln in open(boot_script)]
+        src = [ln.split("#")[0].strip() for ln in open(boot_script, errors="replace")]   # dumpimage keeps the binary length header
         ok = 'if test "${hifi_env}" != "1"; then' in src and "setenv BOOT_B_LEFT 3" in src and "setenv hifi_bootenv hifi.bootenv=reset" in src
         bootargs = next((ln for ln in src if ln.startswith('setenv bootargs "')), "")
         r.add("boot.uboot-script-failsafe", ok and "${hifi_bootenv}" in bootargs and re.search(r"\bpanic=\d+\b", bootargs) is not None,
