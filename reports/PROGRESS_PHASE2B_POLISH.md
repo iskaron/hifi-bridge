@@ -6,7 +6,7 @@ Scope: owner work package of 2026-11-20 (DECISIONS #120-#126). Baseline `develop
 ## Plan (one subagent at a time; each package merged, tested and pushed before the next)
 | # | Package | Model | Status |
 |---|---|---|---|
-| P1 | Persistence audit + RAM-only logs, partition layout 64/384/384/data, measured data minimum, size checks, manifest, provisioning, flash tool | Opus | pending |
+| P1 ✔ | Persistence audit + RAM-only logs, partition layout 64/384/384/data, measured data minimum, size checks, manifest, provisioning, flash tool | Opus | pending |
 | P2 | U-Boot env with libubootenv + full default env, corruption simulation; per-board firmware pruning, licence texts, source-bundle prep; rebuild all three boards | Opus | pending |
 | P3 | Wizard network step (hotspot-only setup), reusing the network state machine | Opus | pending |
 | P4 | Integration flake #86: cold-lab reproduction, root cause, isolation fix | Opus | pending |
@@ -47,3 +47,8 @@ Scope: owner work package of 2026-11-20 (DECISIONS #120-#126). Baseline `develop
   worktree's .git cannot be mounted for `git` mode) no leaks.
 - Evidence: reports/evidence/os_image_rpi3_64.md, os_ota_rpi3_64.txt (header line "Final polish P1 rebuild ... commit 85b25d3"),
   os_secret_scan_rpi3_64.json, os_size_plan.{md,json} (rpi3_64 only; the other boards follow in P2).
+- P1 merged as `8475549` (conflict only in this file). Coordinator: PRODUCT_SPEC log line updated to #121 (OPEN_QUESTIONS #89 resolved),
+  OPEN_QUESTIONS #92 (macOS helper signature check). Merged-state suites: unit 1085 passed; run_os exit codes 0/0/0; entry 100 passed;
+  static exit 0; flash tool 159 passed; Gitleaks over 268 commits rc=0. Pushed `8475549` to origin/develop.
+- P2 started (Opus agent, branch `wip/p2-uboot-firmware`): libubootenv + full default env, corruption simulation, per-board firmware,
+  source-bundle preparation, rebuild of all three boards.
