@@ -68,7 +68,14 @@ cp -al "$OUT/legal-info" legal-info
 tc=$(ls /lab/br-dl/toolchain-external-bootlin/*.tar.xz | head -1)
 tcdir=$(basename "$tc" .tar.xz)
 tar xJf "$tc" -C toolchain --strip-components=1 "$tcdir/README.txt" "$tcdir/summary.csv" "$tcdir/buildroot.config"
-grep "^toolchain-external-bootlin," "$OUT/build/packages-file-list.txt" | cut -d, -f2- | sort > toolchain/files-in-image.txt || true
+# runtime files the image takes from the toolchain: in the target, named like a file of the toolchain sysroot, owned by no package
+# (Buildroot does not record the external toolchain in packages-file-list.txt)
+tar tJf "$tc" | sed -n "s#^$tcdir/aarch64-buildroot-linux-gnu/sysroot/\(lib\|lib64\|usr/lib\)/\([^/]*\)\$#\2#p" | sort -u > /tmp/tc-names
+cut -d, -f2- "$OUT/build/packages-file-list.txt" | sed "s#^\./##" | sort -u > /tmp/owned
+(cd "$OUT/target" && find usr/lib -maxdepth 1 \( -type f -o -type l \)) | sort | while read -r p; do
+	grep -qxF "${p##*/}" /tmp/tc-names && ! grep -qxF "$p" /tmp/owned && echo "/$p"
+done > toolchain/files-in-image.txt || true
+[ -s toolchain/files-in-image.txt ] || { echo "no toolchain runtime files found in the target"; exit 1; }
 cp /usr/share/common-licenses/LGPL-2.1 toolchain/LGPL-2.1.txt
 cp /usr/share/common-licenses/GPL-3 toolchain/GPL-3.0.txt
 awk "/^GCC RUNTIME LIBRARY EXCEPTION/{f=1} f{print} f && /requirements of the license of GCC\\./{exit}" /usr/share/doc/libgcc-s1/copyright \
