@@ -26,6 +26,27 @@ def test_owner_setup_and_pairing_window():
         page.fill('input[name="confirm"]', PASSWORD)
         with page.expect_navigation():
             page.press('input[name="confirm"]', "Enter")
+        # network step (DECISIONS #122): the demo's SIMULATED radio has no Ethernet link; join the simulated home Wi-Fi "Home"
+        expect(page).to_have_url(BRIDGE + "/setup/network")
+        expect(page.locator("h1")).to_have_text("Heimnetz")
+        for _ in range(30):                                                # the step asks the (simulated) radio for a list itself
+            if page.locator('input[name="ssid"][value="Home"]').count():
+                break
+            page.wait_for_timeout(1000)
+            page.goto(BRIDGE + "/setup/network")
+        page.get_by_role("radio", name="Home").check()
+        page.fill('input[name="password"]', "wifi-secret-123")
+        with page.expect_navigation():
+            page.locator('form[action="/setup/network/wifi"] button').click()
+        for _ in range(30):                                                # SIMULATED association takes ~3 s
+            page.goto(BRIDGE + "/setup/network")
+            if page.locator(".net-online").count():
+                break
+            page.wait_for_timeout(1000)
+        expect(page.locator(".net-online")).to_contain_text("Mit dem WLAN „Home“ verbunden")
+        page.screenshot(path=f"{SHOTS}/demo-01b-bridge-network.png", full_page=True)
+        with page.expect_navigation():
+            page.locator('a.button.primary[href="/setup/bluetooth"]').click()
         expect(page).to_have_url(BRIDGE + "/setup/bluetooth")
         page.fill('input[name="device_name"]', "Hi-Fi Bridge Wohnzimmer")
         with page.expect_navigation():

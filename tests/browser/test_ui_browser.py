@@ -16,6 +16,7 @@ from playwright.sync_api import expect, sync_playwright
 BASE = os.environ.get("BASE_URL", "http://hifi-bridge.local:8080")
 HTTPS = os.environ.get("HTTPS_URL", "https://hifi-bridge.local:8443")
 SIM = os.environ.get("SIM_URL", "http://appliance:8099")
+NET = os.environ.get("NET_URL", "http://appliance:8098")                       # SIMULATED radio/Ethernet of the lab appliance
 SHOTS = "/work/reports/screenshots"
 PW = "a good long passphrase"
 MOBILE = dict(viewport={"width": 390, "height": 844}, device_scale_factor=2, is_mobile=True, has_touch=True)
@@ -103,18 +104,37 @@ def test_01_keyboard_only_setup_with_error_focus_and_skip_link(chromium):
     tab_to(page, 'input[name="password"]'); page.keyboard.type(PW)
     tab_to(page, 'input[name="confirm"]'); page.keyboard.type(PW)
     submit(page)
+    # the network step (DECISIONS #122): the lab appliance has no Ethernet link and no hotspot credentials yet (SIMULATED radio)
+    expect(page).to_have_url(BASE + "/setup/network")
+    expect(page.locator("h1")).to_have_text("Home network")
+    expect(page.locator('form[action="/setup/network/wifi"]')).to_be_visible()
+    no_overflow(page); axe_ok(page, "wizard-network-offline"); shot(page, "01b-wizard-network-offline-mobile-light")
+    urllib.request.urlopen(NET + "/ethernet/on", timeout=5).read()                # plug in the (simulated) cable and look again
+    for _ in range(30):                                                         # the agent observes the link once per second
+        page.reload()
+        if page.locator(".net-online").count():
+            break
+        time.sleep(0.5)
+    expect(page.locator(".net-online")).to_contain_text("Connected via Ethernet as 192.168.1.20")
+    expect(page.locator("details.net-more summary")).to_have_text("Set up Wi-Fi anyway")
+    no_overflow(page); axe_ok(page, "wizard-network-ethernet"); shot(page, "01c-wizard-network-ethernet-mobile-light")
+    tab_to(page, 'a.button.primary[href="/setup/bluetooth"]'); submit(page)
+    urllib.request.urlopen(NET + "/ethernet/off", timeout=5).read()
     expect(page).to_have_url(BASE + "/setup/bluetooth")
     tab_to(page, 'input[name="device_name"]'); page.keyboard.press("Control+A"); page.keyboard.type("Wohnzimmer"); submit(page)
     expect(page).to_have_url(BASE + "/setup/lyrion")
     no_overflow(page); axe_ok(page, "lyrion"); shot(page, "02-lyrion-mobile-light")
-    # review N-1: before the wizard is finished, the network settings are reachable (hotspot-only onboarding) and lead back to it
-    tab_to(page, 'a[href="/settings/network"]'); submit(page)
-    expect(page).to_have_url(BASE + "/settings/network")
+    # the Lyrion step leads back to the wizard's network step; the network settings stay reachable before the wizard is finished
+    # (review N-1) and lead back to the step shown last
+    tab_to(page, 'a[href="/setup/network"]'); submit(page)
+    expect(page).to_have_url(BASE + "/setup/network")
+    page.goto(BASE + "/settings/network")
     expect(page.locator("h1")).to_have_text("Network")
     expect(page.locator('form[action="/settings/network/wifi"]')).to_be_visible()
     no_overflow(page); axe_ok(page, "network-during-setup"); shot(page, "02b-network-during-setup-mobile-light")
-    tab_to(page, 'a[href="/setup/lyrion"]'); submit(page)
-    expect(page).to_have_url(BASE + "/setup/lyrion")
+    tab_to(page, 'a[href="/setup/network"]'); submit(page)
+    expect(page).to_have_url(BASE + "/setup/network")
+    page.goto(BASE + "/setup/lyrion")
     tab_to(page, "form.server button.choice"); submit(page)     # real UDP discovery of the lab LMS
     expect(page).to_have_url(BASE + "/setup/target")
     tab_to(page, 'input[name="target_player"]')

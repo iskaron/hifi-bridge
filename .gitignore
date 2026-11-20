@@ -59,6 +59,12 @@ reports/screenshots/*.png
 !reports/screenshots/net-05-addresses-mobile-light.png
 !reports/screenshots/net-06-hotspot-desktop-dark.png
 !reports/screenshots/net-07-network-desktop-light-de.png
+# curated wizard network step (scripts/run_browser.sh: tests/browser/test_ui_wizard_network.py, test_ui_browser.py; SIMULATED radio)
+!reports/screenshots/wiz-01-network-hotspot-mobile-light.png
+!reports/screenshots/wiz-02-network-failed-mobile-light.png
+!reports/screenshots/wiz-03-network-keep-mobile-dark.png
+!reports/screenshots/wiz-04-network-online-desktop-light-de.png
+!reports/screenshots/01c-wizard-network-ethernet-mobile-light.png
 !reports/screenshots/upd-01-update-mobile-light.png
 !reports/screenshots/upd-02-staged-mobile-light.png
 !reports/screenshots/upd-03-installing-mobile-light.png

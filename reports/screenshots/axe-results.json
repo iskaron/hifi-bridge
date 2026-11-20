@@ -15,5 +15,7 @@
  "setup": [],
  "system": [],
  "target": [],
- "trust": []
+ "trust": [],
+ "wizard-network-ethernet": [],
+ "wizard-network-offline": []
 }

@@ -37,6 +37,22 @@ services:
       lab:
         aliases: ["hifi-bridge.local"]       # the device's mDNS name, so Host validation and the certificate apply as on hardware
 
+  # A second fresh appliance for the wizard's network step (tests/browser/test_ui_wizard_network.py): started like a card from the flash
+  # tool with a setup hotspot and a country but no home Wi-Fi and no Ethernet, i.e. the hotspot-only first setup (DECISIONS #122). SIMULATED
+  # radio; the provisioning file is copied (the device scrubs it in place) and its data lives in the container only (fresh on every run).
+  appliance-setup:
+    <<: *lab
+    profiles: ["browser"]
+    hostname: appliance-setup
+    volumes:
+      - ..:/work
+    command: ["sh", "-c", "mkdir -p /tmp/boot && cp /work/tests/browser/setup-provision.json /tmp/boot/hifi-provision.json &&
+              exec python3 -m btkit.appliance_lab --data /tmp/data --boot-dir /tmp/boot --http-port 8080 --https-port 0 --stream-port 8090
+              --advertise-host appliance-setup --source none --thermal-path '' --no-mdns --no-mqtt --sim-port 8099 --sim-network 8098"]
+    networks:
+      lab:
+        aliases: ["hifi-setup.local"]        # its mDNS name (local_hostname from the provisioning file)
+
   browser:
     image: btbridge-browser:dev
     build:

@@ -6,7 +6,9 @@ manual tests can 'press Play on the phone'.  The control API exists only here (t
 
 ``--sim-rauc`` runs the SIMULATED RAUC D-Bus service (btkit.fake_rauc), so the update pages are managed.
 ``--sim-network [PORT]`` also runs the REAL network agent with the SIMULATED radio (btkit.sim_net) on a socket in /tmp, so the network
-pages are managed; its control API (``/ethernet/on|off``, ``/stations/<n>``) listens on PORT (default 8098).
+pages are managed; its control API (``/ethernet/on|off``, ``/stations/<n>``) listens on PORT (default 8098). With ``--boot-dir`` the
+provisioning file there is applied BEFORE the agent starts (as hifi-bridge-boot.service runs before hifi-netd on the image), so a lab
+device can start like a card from the flash tool: setup hotspot and country, no home Wi-Fi (tests/browser/test_ui_wizard_network.py).
 """
 from __future__ import annotations
 
@@ -99,6 +101,10 @@ def main(argv=None) -> int:
         if i < len(argv) and argv[i].isdigit():
             port = int(argv.pop(i))
         data = argv[argv.index("--data") + 1]
+        if "--boot-dir" in argv:                     # as on the image: the boot step (provisioning) runs before hifi-netd reads
+            from btbridge.bootfiles import run as bootfiles    # network.json; appliance.run sees the scrubbed file again (no-op)
+            r = bootfiles(data, argv[argv.index("--boot-dir") + 1], log=lambda m: print(m, flush=True))
+            print(f"boot files before the network agent: provisioning={r['provisioning']['result']}", flush=True)
         argv += ["--net-agent", start_sim_network(data, port)]
     a = appliance.parser().parse_args(argv)
     sim = SimulatedA2dpSource()
