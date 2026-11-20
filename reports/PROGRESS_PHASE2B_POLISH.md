@@ -47,3 +47,23 @@ Scope: owner work package of 2026-11-20 (DECISIONS #120-#126). Baseline `develop
   worktree's .git cannot be mounted for `git` mode) no leaks.
 - Evidence: reports/evidence/os_image_rpi3_64.md, os_ota_rpi3_64.txt (header line "Final polish P1 rebuild ... commit 85b25d3"),
   os_secret_scan_rpi3_64.json, os_size_plan.{md,json} (rpi3_64 only; the other boards follow in P2).
+
+### P2 (U-Boot environment, firmware per board, source provision, rebuild of all boards; branch `wip/p2-uboot-firmware` from `8475549`)
+- 2026-11-20 start. libubootenv 0.3.7 (Buildroot pin, sha256 = Buildroot's hash) read in Docker: regular files in `fw_env.config` =
+  `DEVICE_FILE`, incremental serials, writes the copy not read (in place, `fsync`), same selection rules as U-Boot 2026.01
+  `env_check_redund()` (read in the U-Boot build tree); both copies bad -> `/etc/u-boot-initial-env`; a missing listed file fails the
+  configuration (`realpath`); **finding:** a copy shorter than the environment makes the whole read fail (`-EIO`) -> default used and
+  stored over the valid copy (upstream master unchanged). Patch written (`patches/libubootenv/0001`).
+- SIMULATED comparison on the existing rpi3_64 copies (`os/tools/uboot_env_sim.py`, 13 cases): patched libubootenv all as intended;
+  stock 0.3.7 loses the slot state on every truncated-copy case; the previous images' uboot-tools 2025.10 stored `bootcmd=bootp; setenv
+  bootargs root=/dev/nfs ...` with both copies bad and spun at 100 % CPU (killed after 15 s) on every short copy.
+- Implemented: `BR2_PACKAGE_LIBUBOOTENV=y`, target uboot-tools removed, `BR2_GLOBAL_PATCH_DIR` + our patch, `uboot/linux-default-env.txt`
+  + post-build writing `/etc/u-boot-initial-env`; image check `boot.uboot-env-linux-default`, `boot.uboot-builtin-env`,
+  `boot.uboot-env-corruption-matrix` (+ INFO comparison with the uboot-tools host build), `rauc.env-tool-libubootenv`,
+  `rauc.env-tool-single`; `os/tools/build_libubootenv.sh` (native compile of the same source + patches, source in btbridge-os
+  `/opt/src`, pin checked by `os_defconfigs.sh check`); real-RAUC suite now uses these tools (13 passed). Per-board radio firmware lists
+  `firmware/radio-<compatible>.txt` (kernel name tables of our kernel read: brcmfmac `sdio.c`, `btbcm.c`), post-build pruning with
+  sha256 check, post-image licence texts + NOTICE per board, image checks `firmware.*`; `scripts/os_source_bundle.sh`;
+  `os_build.sh retarget`; evidence labels (`HIFI_EVIDENCE_LABEL`).
+- Tests during development: tests/os 102 passed (new: test_uboot_env.py 15, test_radio_firmware.py 16, licence test x3 boards);
+  `scripts/run_ota.sh` 13 passed with the image's libubootenv; `os_defconfigs.sh check` PASS x3 + libubootenv pin PASS.
