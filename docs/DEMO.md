@@ -10,6 +10,7 @@ Try Hi-Fi Bridge on an ordinary Linux notebook - no Bluetooth adapter, no Raspbe
 | Lyrion Media Server with three Squeezelite players: Wohnzimmer, Schlafzimmer, Arbeitszimmer | the rooms' speakers (a virtual DAC per player) |
 | Mosquitto; Home Assistant (optional) | the "internet radio" (a generated programme on the internal network) |
 | the flash-tool core that provisions the setup code and trust key | the SD card (a Docker volume) |
+| the product's **Network** and **Software update** pages and the real root network agent behind the first | the Wi-Fi radio the agent drives (`btkit.sim_net`) and **RAUC** (`btkit.fake_rauc`) - section 7 |
 
 What you hear in the audio monitor is the **output of the Squeezelite players behind Lyrion** - not the phone's source signal.
 Nothing in this demo proves real Bluetooth, real phones or a Raspberry Pi: that is the hardware gate (`docs/HARDWARE_GATE_CHECKLIST.md`).
@@ -167,9 +168,29 @@ not part of the bridge's latency.
 * **Browser warning on HTTPS**: import the CA (section 3) and use exactly https://127.0.0.1:18443.
 * **Start over**: `make demo-reset`.
 
-## 7. How it is built (for developers)
+## 7. Network and software update pages (SIMULATED back-ends)
+Settings -> **Network** and Settings -> **Software update** of the bridge work in the demo. Their back-ends are simulated, and the demo
+console's overview page says so in a card marked SIMULATED (the bridge's own pages are the unchanged product and do not).
+
+| | Real in the demo | SIMULATED in the demo |
+|---|---|---|
+| Network | the bridge's pages and the **root network agent** (`btbridge.net.netagent`: validation, trial with confirm/undo, hotspot fallback decision, status, diagnostics) | the Wi-Fi radio and everything it would configure: scan results (`Home`, `Gartenhaus`, `Nachbar 5G`, `Cafe Gast` (open, refused by the UI), a hidden `Versteckt`), joining (wrong password -> failure), the hotspot and its stations, the Ethernet link, time sync. No hostapd, dnsmasq, wpa_supplicant, systemd-networkd or nftables runs; nothing on the notebook's or the container's network changes |
+| Software update | the bridge's update manager, state machine, snapshot/backup pages, DE/EN texts | **RAUC**: a D-Bus stand-in on the demo's private bus that accepts **any uploaded file** as a signed bundle of version 0.4.0 (installs in about 5 s), with slot A booted and version 0.2.0 in slot B. No signature is checked (the trust record is labelled "lab update CA (SIMULATED)"), nothing is written to a slot, there is no bootloader, so **"Restart now" reports that the device cannot restart itself here** |
+
+Things to try (all labelled in the console): set the **country** and the setup **hotspot** under Network, then join **Home** (password
+`wifi-secret-123`; also `Gartenhaus` / `garden-pass-1`) and keep or undo the trial within its countdown; under Software update upload any
+file, install it, watch the progress bar and decline the restart. A wrong Wi-Fi password makes the trial fail and the previous setting returns.
+
+**Not shown, and why:** real Wi-Fi association, the hotspot with real clients, DHCP, the firewall, a host-name change on a real network, A/B
+slot switching, the bootloader environment, rollback after a failed boot and real bundle signatures all need a kernel with the hardware,
+a root device or an image - exactly what is deferred to the hardware gate. The stack test proves only that the product's pages are
+connected to the back-ends (`tests/demo/stack/test_1_setup_ui.py`); the real tools are tested separately (`scripts/run_net.sh`,
+`scripts/run_ota.sh`, `tests/os`).
+
+## 8. How it is built (for developers)
 `demo/compose.yml`, image `demo/Dockerfile` (one image), code `demo/hifidemo/`:
-`node.py` (the "Pi": private D-Bus, PipeWire, `vbluez.py` = simulated bluetoothd, the unchanged `btbridge.appliance --source bluez`),
+`node.py` (the "Pi": private D-Bus, PipeWire, `vbluez.py` = simulated bluetoothd, `btkit.sim_net` = the real network agent on a simulated radio,
+`btkit.fake_rauc` = simulated RAUC on the same bus (screenshots: `reports/screenshots/demo-bridge-network-simulated.png`, `demo-bridge-update-simulated.png`), the unchanged `btbridge.appliance --source bluez --updates rauc`),
 `phones.py`/`console.py` (virtual phones; they only act over the simulated radio), `player.py`/`monitor.py` (Squeezelite -> virtual DAC ->
 monitor tap), `gateway.py` (the only published ports), `provision.py` (flash-tool core), `music.py` (generated audio), `hasetup.py`.
 Tests: `scripts/run_demo_tests.sh` (unit, incl. the virtual bluetoothd against the product's real BlueZ adapter) and `scripts/test_demo.sh`
