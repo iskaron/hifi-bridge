@@ -112,11 +112,24 @@ class RealRauc:
         for slot in ("A", "B"):
             with open(os.path.join(self.dir, f"slot{slot}.img"), "wb") as fh:
                 fh.truncate(8 << 20)
-        self.env_file = os.path.join(self.dir, "uboot.env")
-        open(os.path.join(self.dir, "env.txt"), "w").write("BOOT_ORDER=A B\nBOOT_A_LEFT=3\nBOOT_B_LEFT=0\n")
-        sh("mkenvimage", "-s", "0x4000", "-o", self.env_file, os.path.join(self.dir, "env.txt"))
+        # the PRODUCT's environment layout (review N-6): both copies as post-image.sh writes them (slot state from uboot-env.txt, serials
+        # 1 and 0) and the image's fw_env.config with /boot/ replaced by the scratch directory
+        self.env_files = []
+        lines = []
+        for ln in open(os.path.join(BOARD, "uboot", "fw_env.config")):
+            if ln.strip() and not ln.startswith("#"):
+                path, off, size = ln.split()
+                local = os.path.join(self.dir, os.path.basename(path))
+                sh("mkenvimage", "-r", "-s", size, "-o", local, os.path.join(BOARD, "uboot", "uboot-env.txt"))
+                self.env_files.append(local)
+                lines.append(f"{local} {off} {size}\n")
+        assert len(self.env_files) == 2
+        with open(self.env_files[1], "r+b") as fh:                       # serial byte of the redundant copy
+            fh.seek(4)
+            fh.write(b"\0")
+        self.env_file = self.env_files[0]
         with open("/etc/fw_env.config", "w") as fh:                    # disposable container only
-            fh.write(f"{self.env_file} 0x0000 0x4000\n")
+            fh.write("".join(lines))
         tpl = open(os.path.join(BOARD, "rauc", "system.conf.in")).read().replace("@COMPATIBLE@", COMPAT)
         tpl = (tpl.replace("/etc/rauc/keyring.pem", keyring).replace("/data/rauc", os.path.join(self.dir, "rauc-data"))
                .replace("/dev/mmcblk0p2", os.path.join(self.dir, "slotA.img")).replace("/dev/mmcblk0p3", os.path.join(self.dir, "slotB.img")))
