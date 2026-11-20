@@ -177,6 +177,7 @@ class WebUI:
                  static_dir: str | None = None):
         self.svc, self.host, self.port, self.tls_port = service, host, port, tls_port
         self.static_dir = static_dir or views.STATIC_DIR
+        self.wizard_at: str | None = None          # the wizard step shown last (RAM only; views.wizard_resume, DECISIONS #137)
         self.routes: dict[tuple[str, str], Callable[[Request], Response]] = views.routes(self)
         self._httpd: ThreadingHTTPServer | None = None
         self._httpsd: ThreadingHTTPServer | None = None
@@ -333,7 +334,7 @@ class WebUI:
         if req.session is not None and not public and not self.svc.store.get("setup_complete") \
                 and not req.path.startswith(("/setup", "/api/", "/logout")) and req.path not in WIZARD_ACTIONS \
                 and not any(req.path == p or req.path.startswith(p + "/") for p in SETUP_REACHABLE):
-            return redirect("/setup/bluetooth")                 # finish the wizard first
+            return redirect(views.wizard_resume(req))           # finish the wizard first, where it was left
         return handler(req)
 
     def _route_stream(self, req: Request, handler, limit: int) -> Response:
@@ -348,7 +349,7 @@ class WebUI:
         elif not self.svc.auth.sessions.check_csrf(req.sid, req.h.headers.get("X-CSRF-Token") or (req.query.get("csrf") or [""])[-1]):
             resp = json_response({"error": "csrf"}, 403) if api else redirect("/login", req.t("flash.session_expired"), req.secure)
         elif not self.svc.store.get("setup_complete"):
-            resp = redirect("/setup/bluetooth")
+            resp = redirect(views.wizard_resume(req))
         else:
             try:
                 req.body_length = req.content_length(limit)

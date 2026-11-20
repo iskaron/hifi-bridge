@@ -22,11 +22,86 @@ for s, en, de in [("connected", "Wi-Fi connected", "WLAN verbunden"), ("connecti
                   ("agent_unreachable", "Network service not reachable", "Netzwerkdienst nicht erreichbar")]:
     k("net.state." + s, en, de)
 k("net.setup.back", "Back to the setup", "Zurück zur Einrichtung")
-k("net.setup.link", "Network settings", "Netzwerkeinstellungen")
+k("net.setup.link", "Back to the network step", "Zurück zum Netzwerk-Schritt")
 k("net.setup.hint", "Not connected to your home network yet – for example only to the device's setup hotspot, or no Ethernet cable? "
-  "Then no Lyrion server can be found. Set up the network first; the setup continues here afterwards.",
+  "Then no Lyrion server can be found.",
   "Noch nicht mit Ihrem Heimnetz verbunden – zum Beispiel nur mit dem Einrichtungs-Hotspot des Geräts, oder ohne Ethernet-Kabel? "
-  "Dann kann kein Lyrion-Server gefunden werden. Richten Sie zuerst das Netzwerk ein; danach geht die Einrichtung hier weiter.")
+  "Dann kann kein Lyrion-Server gefunden werden.")
+
+# ---- setup wizard, network step (views_setup_network.py, DECISIONS #122)
+k("wizard.net.title", "Home network", "Heimnetz")
+k("wizard.net.text", "The bridge plays through your Lyrion server, so it needs your home network. Choose how the device connects; the "
+  "rest of the setup continues afterwards.",
+  "Die Bridge spielt über Ihren Lyrion-Server und braucht dafür Ihr Heimnetz. Wählen Sie, wie sich das Gerät verbindet; danach geht "
+  "die Einrichtung weiter.")
+k("wizard.net.online.ethernet", "Connected via Ethernet as {address}.", "Über Ethernet verbunden als {address}.")
+k("wizard.net.online.wifi", "Connected to the Wi-Fi “{ssid}” as {address}.", "Mit dem WLAN „{ssid}“ verbunden als {address}.")
+k("wizard.net.online.host", "Connected to the network as {address} (managed by the host system).",
+  "Mit dem Netzwerk verbunden als {address} (vom Host-System verwaltet).")
+k("wizard.net.wifi_anyway", "Set up Wi-Fi anyway", "Trotzdem WLAN einrichten")
+k("wizard.net.wifi_anyway.help", "For example if the device should later work without the cable. The Ethernet connection stays as it is.",
+  "Zum Beispiel, wenn das Gerät später ohne Kabel laufen soll. Die Ethernet-Verbindung bleibt, wie sie ist.")
+k("wizard.net.wifi_other", "Use another Wi-Fi", "Anderes WLAN verwenden")
+k("wizard.net.wifi_other.help", "The device then leaves the current Wi-Fi. Read the steps above the Connect button first.",
+  "Das Gerät verlässt dann das aktuelle WLAN. Lesen Sie vorher die Schritte über der Schaltfläche „Verbinden“.")
+k("wizard.net.offline.hotspot", "You are connected through the device's setup hotspot “{ssid}”. Choose your home Wi-Fi so the device can "
+  "join it.", "Sie sind über den Einrichtungs-Hotspot „{ssid}“ des Geräts verbunden. Wählen Sie Ihr Heim-WLAN, damit sich das Gerät "
+  "damit verbindet.")
+k("wizard.net.offline.connecting", "The device is trying to join the Wi-Fi “{ssid}” …", "Das Gerät versucht, sich mit dem WLAN „{ssid}“ zu verbinden …")
+k("wizard.net.offline.none", "The device is not connected to a network yet. Choose your Wi-Fi below, or plug in an Ethernet cable and "
+  "reload this page.", "Das Gerät ist noch mit keinem Netzwerk verbunden. Wählen Sie unten Ihr WLAN, oder stecken Sie ein Ethernet-Kabel "
+  "ein und laden Sie diese Seite neu.")
+k("wizard.net.choose", "Choose your Wi-Fi", "Ihr WLAN wählen")
+k("wizard.net.next.title", "What happens when you press “Connect”", "Was beim Tippen auf „Verbinden“ passiert")
+k("wizard.net.next.lose_hotspot", "The setup hotspot {hotspot} closes and this page loses its connection. That is expected.",
+  "Der Einrichtungs-Hotspot {hotspot} schließt sich und diese Seite verliert ihre Verbindung. Das ist so gewollt.")
+k("wizard.net.next.lose_wifi", "The device leaves the Wi-Fi {ssid} and this page loses its connection. That is expected.",
+  "Das Gerät verlässt das WLAN {ssid} und diese Seite verliert ihre Verbindung. Das ist so gewollt.")
+k("wizard.net.next.rejoin", "Connect your phone or computer to the Wi-Fi you chose here.",
+  "Verbinden Sie Ihr Telefon oder Ihren Computer mit dem hier gewählten WLAN.")
+k("wizard.net.next.open", "Open {url} (or the address your router lists for {name}) and log in. Press “Keep settings” within 3 minutes – "
+  "the setup then continues where you left it.",
+  "Öffnen Sie {url} (oder die Adresse, die Ihr Router für {name} anzeigt) und melden Sie sich an. Tippen Sie innerhalb von 3 Minuten auf "
+  "„Einstellungen behalten“ – die Einrichtung geht dann an dieser Stelle weiter.")
+k("wizard.net.next.fail_hotspot", "If it does not work, nothing is lost: the device restores the previous settings by itself – after about "
+  "a minute if the Wi-Fi does not connect (for example a wrong password), otherwise after 3 minutes without confirmation – and the "
+  "hotspot {hotspot} returns. Join it again and open {address}: this page then says what went wrong.",
+  "Klappt es nicht, geht nichts verloren: Das Gerät stellt die vorherigen Einstellungen selbst wieder her – nach etwa einer Minute, "
+  "wenn das WLAN nicht verbindet (zum Beispiel bei falschem Passwort), sonst nach 3 Minuten ohne Bestätigung – und der Hotspot "
+  "{hotspot} kommt zurück. Verbinden Sie sich wieder damit und öffnen Sie {address}: Diese Seite zeigt dann, was nicht geklappt hat.")
+k("wizard.net.next.fail_wifi", "If it does not work, nothing is lost: the device returns to {ssid} by itself – after about a minute if "
+  "the new Wi-Fi does not connect, otherwise after 3 minutes without confirmation. Open this page again at its usual address: it then "
+  "says what went wrong.",
+  "Klappt es nicht, geht nichts verloren: Das Gerät kehrt von selbst zu {ssid} zurück – nach etwa einer Minute, wenn das neue WLAN "
+  "nicht verbindet, sonst nach 3 Minuten ohne Bestätigung. Öffnen Sie diese Seite dann wieder unter der gewohnten Adresse: Sie zeigt, "
+  "was nicht geklappt hat.")
+k("wizard.net.next.keep_ethernet", "The Ethernet connection stays as it is and this page stays reachable; the device joins the Wi-Fi in "
+  "addition. The result shows on this page.",
+  "Die Ethernet-Verbindung bleibt bestehen und diese Seite erreichbar; das Gerät verbindet sich zusätzlich mit dem WLAN. Das Ergebnis "
+  "erscheint auf dieser Seite.")
+k("wizard.net.next.keep", "The device joins the Wi-Fi; the result shows on this page.",
+  "Das Gerät verbindet sich mit dem WLAN; das Ergebnis erscheint auf dieser Seite.")
+k("wizard.net.skip", "Skip this step", "Diesen Schritt überspringen")
+k("wizard.net.skip.help", "Without the home network the next steps cannot find a Lyrion server. You can come back to this step at any "
+  "time during the setup, or use Settings → Network later.",
+  "Ohne Heimnetz finden die nächsten Schritte keinen Lyrion-Server. Sie können während der Einrichtung jederzeit zu diesem Schritt "
+  "zurückkehren oder später Einstellungen → Netzwerk verwenden.")
+k("wizard.net.reload", "Check again", "Erneut prüfen")
+k("wizard.net.unmanaged", "The network of this installation is managed by the host system (for example the Docker lab), so there is "
+  "nothing to set up here.", "Das Netzwerk dieser Installation wird vom Host-System verwaltet (zum Beispiel im Docker-Labor); hier ist "
+  "nichts einzurichten.")
+k("wizard.net.no_wifi", "No Wi-Fi hardware was found. Connect the device with an Ethernet cable and reload this page.",
+  "Es wurde keine WLAN-Hardware gefunden. Verbinden Sie das Gerät mit einem Ethernet-Kabel und laden Sie diese Seite neu.")
+k("wizard.net.pending.joined", "The device has joined “{ssid}” as {addresses}.", "Das Gerät ist mit „{ssid}“ verbunden als {addresses}.")
+k("wizard.net.pending.trying", "The device is connecting to “{ssid}” …", "Das Gerät verbindet sich mit „{ssid}“ …")
+k("wizard.net.pending.help", "After “Keep settings” the setup continues with the next step.",
+  "Nach „Einstellungen behalten“ geht die Einrichtung mit dem nächsten Schritt weiter.")
+k("wizard.net.failed.hotspot", "The setup hotspot is active again and you are connected through it. Check the network and the password "
+  "and try again below, or skip this step.", "Der Einrichtungs-Hotspot ist wieder aktiv und Sie sind darüber verbunden. Prüfen Sie Netz "
+  "und Passwort und versuchen Sie es unten erneut, oder überspringen Sie diesen Schritt.")
+k("wizard.net.failed.retry", "Check the network and the password and try again below, or skip this step.",
+  "Prüfen Sie Netz und Passwort und versuchen Sie es unten erneut, oder überspringen Sie diesen Schritt.")
+k("wizard.net.failed.online", "The device keeps its current connection.", "Das Gerät behält seine aktuelle Verbindung.")
 k("net.setup.note", "The setup is not finished yet. After joining your home Wi-Fi, connect your phone to the same Wi-Fi, open the device's "
   "page again (its name or the address your router shows), confirm the new network settings and continue with the setup.",
   "Die Einrichtung ist noch nicht abgeschlossen. Verbinden Sie nach dem Wechsel ins Heim-WLAN Ihr Telefon mit demselben WLAN, öffnen "
