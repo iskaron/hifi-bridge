@@ -19,8 +19,18 @@ def boot_scr(out):
     sh("mkimage", "-A", "arm64", "-O", "linux", "-T", "script", "-C", "none", "-n", "hifi-bridge", "-d", f"{BOARD}/uboot/boot.cmd", str(out))
 
 
+# U-Boot's default environment as `make u-boot-initial-env` writes it (BR2_TARGET_UBOOT_INITIAL_ENV installs it into the target);
+# an excerpt of the real rpi_arm64 one
+INITIAL_ENV = "bootcmd=bootflow scan\nbootdelay=2\nfdt_addr_r=0x05600000\nkernel_addr_r=0x00080000\nscriptaddr=0x05400000\n"
+
+
 @pytest.fixture
 def built_image(tmp_path, tools):
+    return make_image(tmp_path)
+
+
+def make_image(tmp_path, initial_env=INITIAL_ENV, check=True):
+    """post-image.sh over dummy board content. Returns (image, manifest, BINARIES_DIR), or the post-image result if check is False."""
     b = tmp_path / "images"; fw = b / "rpi-firmware"; (fw / "overlays").mkdir(parents=True)
     for f in ("bootcode.bin", "start.elf", "fixup.dat"):
         (fw / f).write_bytes(os.urandom(2048))
@@ -32,10 +42,15 @@ def built_image(tmp_path, tools):
     boot_scr(b / "boot.scr")
     root = tmp_path / "rootdir"; (root / "boot").mkdir(parents=True); (root / "boot" / "Image").write_bytes(os.urandom(8192))
     sh("mke2fs", "-q", "-t", "ext4", "-L", "rootfs", "-d", str(root), str(b / "rootfs.ext4"), "16M")
+    target = tmp_path / "target"; (target / "etc").mkdir(parents=True)
+    if initial_env is not None:
+        (target / "etc" / "u-boot-initial-env").write_text(initial_env)
     cfg = tmp_path / ".config"; cfg.write_text('BR2_PACKAGE_HIFI_BRIDGE_COMPATIBLE="hifi-bridge-rpi3"\n')
     build = tmp_path / "build"; build.mkdir()
     r = sh(f"{BOARD}/post-image.sh", env={"BINARIES_DIR": str(b), "BUILD_DIR": str(build), "BR2_CONFIG": str(cfg),
-                                          "PYTHONPATH": f"{REPO}/bridge:{REPO}/flashtool"})
+                                          "TARGET_DIR": str(target), "PYTHONPATH": f"{REPO}/bridge:{REPO}/flashtool"}, check=check)
+    if not check:
+        return r
     from btbridge import __version__ as version
     img = b / f"hifi-bridge-hifi-bridge-rpi3-{version}.img"
     assert img.exists(), r.stdout + r.stderr
@@ -55,7 +70,8 @@ def test_layout_boot_a_b_data_and_slot(built_image):
     assert all(p["start"] * 512 % (4 << 20) == 0 for p in pt["partitions"])      # SD erase-block alignment
     boot_off = pt["partitions"][0]["start"] * 512
     listing = sh("mdir", "-b", "-i", f"{img}@@{boot_off}", "::").stdout
-    for f in ("boot.scr", "u-boot.bin", "config.txt", "hifi-provision.json", "bcm2710-rpi-3-b-plus.dtb", "overlays", "licenses"):
+    for f in ("boot.scr", "u-boot.bin", "config.txt", "hifi-provision.json", "bcm2710-rpi-3-b-plus.dtb", "overlays", "licenses",
+              "uboot.env", "uboot-redund.env"):
         assert f in listing, listing
     assert "AGPL-3.0-only" in sh("mtype", "-i", f"{img}@@{boot_off}", "::licenses/NOTICE.txt").stdout
     cfgtxt = [x for x in sh("mtype", "-i", f"{img}@@{boot_off}", "::config.txt").stdout.splitlines() if x and not x.startswith("#")]
@@ -152,7 +168,10 @@ def _card(base, mtime):
     cfg = base / ".config"
     cfg.write_text('BR2_PACKAGE_HIFI_BRIDGE_COMPATIBLE="hifi-bridge-rpi3"\n')
     (base / "build").mkdir()
+    (base / "target" / "etc").mkdir(parents=True)
+    (base / "target" / "etc" / "u-boot-initial-env").write_text(INITIAL_ENV)
     sh(f"{BOARD}/post-image.sh", env={"BINARIES_DIR": str(b), "BUILD_DIR": str(base / "build"), "BR2_CONFIG": str(cfg),
+                                      "TARGET_DIR": str(base / "target"),
                                       "PYTHONPATH": f"{REPO}/bridge:{REPO}/flashtool", "SOURCE_DATE_EPOCH": "1770000000"})
     return next(b.glob("hifi-bridge-*.img")).read_bytes()
 

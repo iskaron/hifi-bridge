@@ -55,9 +55,27 @@ with the hardware it was made for (the Raspberry Pi and its Broadcom/Cypress/Syn
     SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt (synaptics/*.hcd, Raspberry Pi Zero 2 W Bluetooth).
 EOF
 
+# both copies of the U-Boot environment (review N-6, uboot.fragment). They must exist from the first boot on: fw_setenv (RAUC) refuses
+# to work while one of the files is missing, and U-Boot would create the second only on the second boot. U-Boot imports a valid copy
+# INSTEAD of its built-in defaults, so each copy = the complete default environment (u-boot-initial-env, BR2_TARGET_UBOOT_INITIAL_ENV)
+# + the slot state of a fresh card (uboot-env.txt). Copy 1 carries serial 1, the redundant copy 0: both U-Boot and fw_env start from
+# copy 1 and write the other one next.
+initial_env="${TARGET_DIR:-}/etc/u-boot-initial-env"
+[ -n "${TARGET_DIR:-}" ] && [ -s "$initial_env" ] || {
+	echo "post-image: U-Boot default environment ${initial_env} (u-boot-initial-env) not found - BR2_TARGET_UBOOT_INITIAL_ENV=y?" >&2; exit 1; }
+MKENVIMAGE=mkenvimage
+[ -n "${HOST_DIR:-}" ] && [ -x "${HOST_DIR}/bin/mkenvimage" ] && MKENVIMAGE="${HOST_DIR}/bin/mkenvimage"
+env_size=$(awk '!/^#/ && $1 == "/boot/uboot.env" {print $3}' "${BOARD_DIR}/uboot/fw_env.config")
+hifi_keys=$(sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' "${BOARD_DIR}/uboot/uboot-env.txt" | paste -sd'|')
+envtxt="${BINARIES_DIR}/uboot-env.txt"
+{ grep -Ev "^(${hifi_keys})=" "$initial_env" || true; grep -Ev '^(#|$)' "${BOARD_DIR}/uboot/uboot-env.txt"; } > "$envtxt"
+"$MKENVIMAGE" -r -s "$env_size" -o "${BINARIES_DIR}/uboot.env" "$envtxt"
+"$MKENVIMAGE" -r -s "$env_size" -o "${BINARIES_DIR}/uboot-redund.env" "$envtxt"
+printf '\000' | dd of="${BINARIES_DIR}/uboot-redund.env" bs=1 seek=4 conv=notrunc status=none		# serial byte after the CRC
+
 FILES=()
 for i in "${BINARIES_DIR}"/rpi-firmware/* "${BINARIES_DIR}"/*.dtb "${BINARIES_DIR}/u-boot.bin" "${BINARIES_DIR}/boot.scr" \
-         "${BINARIES_DIR}/hifi-provision.json" "$lic"; do
+         "${BINARIES_DIR}/uboot.env" "${BINARIES_DIR}/uboot-redund.env" "${BINARIES_DIR}/hifi-provision.json" "$lic"; do
 	[ -e "$i" ] || { echo "post-image: missing $i" >&2; exit 1; }
 	FILES+=( "${i#"${BINARIES_DIR}"/}" )
 done

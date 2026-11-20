@@ -1,5 +1,6 @@
 # Processes the boot partition BEFORE the bridge starts (P6 provisioning, P8 recovery request, P7 CA + non-secret status file).
-# The only unit with write access to /boot; the main service has none.
+# The only unit with write access to /boot; the main service has none. On the image the FAT is root-owned and this unit gets write
+# access through the group hifi-boot (drop-in hifi-bridge-boot.service.d/boot-fat.conf in the OS overlay, review N-14).
 [Unit]
 Description=Hi-Fi Bridge boot-partition files (provisioning, recovery, status)
 RequiresMountsFor=/boot /var/lib/hifi-bridge

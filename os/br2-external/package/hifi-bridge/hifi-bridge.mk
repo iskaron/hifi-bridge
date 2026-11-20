@@ -37,8 +37,11 @@ define HIFI_BRIDGE_INSTALL_INIT_SYSTEMD
 		$(TARGET_DIR)/usr/lib/systemd/system/hifi-bridge-boot.service
 endef
 
+# hifi-boot (group only, no members): write access to the root-owned boot FAT (fstab in post-build.sh). Only hifi-bridge-boot.service
+# joins it (SupplementaryGroups); the service user itself is not a member (review N-14).
 define HIFI_BRIDGE_USERS
 	hifi-bridge 990 hifi-bridge 990 * /var/lib/hifi-bridge - bluetooth,audio Hi-Fi Bridge service
+	- - hifi-boot 991 * - - - Hi-Fi Bridge boot partition writers
 endef
 
 $(eval $(generic-package))

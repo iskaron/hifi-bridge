@@ -7,8 +7,10 @@
 #
 # Checks (os/tools/image_check.py): identity (development variant), MBR layout and slot sizes, manifest + provisioning slot, boot FAT
 # (firmware, U-Boot, config.txt), kernel in the slot, read-only root (fstab, bootargs, /var overlay), data partition + bind mounts, RAUC
-# (system.conf, keyring = public dev CA only, fw_env vs. U-Boot's CONFIG_ENV_SIZE), users locked, no remote login, setuid list, bridge +
-# bytecode, enabled units, `systemd-analyze verify --root` and offline `security` of our units, network/firewall/firmware facts, sizes.
+# (system.conf, keyring = public dev CA only, fw_env vs. U-Boot's CONFIG_ENV_SIZE), both U-Boot environment copies (content, serials,
+# defaults, torn-copy fallback with this build's fw_printenv/fw_setenv, boot.scr fail-safe), root-owned boot FAT and its only writer,
+# users locked, no remote login, setuid list, bridge + bytecode, enabled units, `systemd-analyze verify --root` and offline `security` of
+# our units, network/firewall/resolved/firmware facts, sizes.
 # Then the secret scan (os/tools/secret_scan.py) over the rootfs tree, the boot tree and the RAW card image, and a file manifest of the
 # rootfs (os/tools/tree_manifest.py) for reproducibility comparisons.
 #
@@ -59,6 +61,7 @@ ucfg=$(ls -d $O/build/uboot-*/.config 2>/dev/null | grep -v tools | head -1)
 python3 $T/image_check.py --board $BOARD --image $img --manifest $img.manifest.json --rootfs $W/rootfs --boot $W/boot \
 	--config $O/.config --rootfs-img $O/images/rootfs.ext4 --slot-a $W/p2 --dev-ca /devca/ca.pem \
 	--file-list $O/build/packages-file-list.txt --uboot-config "$ucfg" --bootargs "$bootargs" \
+	--fw-printenv $O/host/bin/fw_printenv --boot-script $W/boot.cmd \
 	--json $C/image-check.json --md $C/image-check.md
 rc=$?
 [ $slotb -eq 0 ] || rc=1

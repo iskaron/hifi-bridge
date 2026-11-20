@@ -1,0 +1,7 @@
+# Hi-Fi Bridge U-Boot configuration fragment (applied on top of rpi_arm64_defconfig; review N-6, docs/IMAGE_BUILD.md section 9).
+# The environment lives on the boot FAT TWICE (uboot.env, uboot-redund.env). U-Boot's saveenv and fw_setenv (RAUC) always rewrite the
+# OLDER copy and raise its serial (flags byte), so a power cut during a write leaves the previous copy intact and both read the newest
+# valid one. Without this a torn uboot.env made U-Boot fall back to its built-in default environment (slot state lost).
+# Same file names on every board; /etc/fw_env.config lists both (board/hifi-bridge/uboot/fw_env.config). NOT booted yet (gate P3-1/5/6).
+CONFIG_ENV_REDUNDANT=y
+CONFIG_ENV_FAT_FILE_REDUND="uboot-redund.env"

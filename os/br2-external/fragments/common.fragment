@@ -72,6 +72,10 @@ BR2_TARGET_UBOOT_BUILD_SYSTEM_KCONFIG=y
 BR2_TARGET_UBOOT_BOARD_DEFCONFIG="rpi_arm64"
 BR2_TARGET_UBOOT_NEEDS_OPENSSL=y
 BR2_TARGET_UBOOT_NEEDS_GNUTLS=y
+# two copies of the U-Boot environment on the boot FAT (review N-6); the default environment (u-boot-initial-env) is the base of the
+# copies the card ships (post-image.sh) and is installed as /etc/u-boot-initial-env
+BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_HIFI_BRIDGE_PATH)/board/hifi-bridge/uboot/uboot.fragment"
+BR2_TARGET_UBOOT_INITIAL_ENV=y
 # rootfs + images (sizes are placeholders until measured, P4)
 BR2_TARGET_ROOTFS_EXT2=y
 BR2_TARGET_ROOTFS_EXT2_4=y

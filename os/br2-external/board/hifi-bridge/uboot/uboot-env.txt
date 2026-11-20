@@ -1,0 +1,10 @@
+# Slot state of a freshly flashed card (review N-6). post-image.sh appends these lines to U-Boot's complete default environment
+# (u-boot-initial-env) and writes the result as BOTH environment copies onto the boot FAT. U-Boot imports a valid copy INSTEAD of its
+# built-in defaults, so the copies must carry the defaults too (bootcmd).
+#  * slot B is empty on a fresh card: no attempts until RAUC has installed it (RAUC then sets BOOT_ORDER/BOOT_B_LEFT itself);
+#  * hifi_env=1 marks an environment that came from the card or from a later save. boot.cmd treats its absence as "U-Boot runs on its
+#    built-in default environment" (both copies unreadable) and then fails safe.
+BOOT_ORDER=A B
+BOOT_A_LEFT=3
+BOOT_B_LEFT=0
+hifi_env=1
