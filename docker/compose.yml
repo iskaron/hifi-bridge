@@ -58,6 +58,7 @@ services:
   mdns-responder:
     <<: *lab
     profiles: ["mdns"]
+    networks: [mdns]
     hostname: responder
     command: ["python3", "-m", "btbridge.net.mdns", "--hostname", "hifi-bridge", "--instance", "Hi-Fi Bridge (Lab)"]
 
@@ -65,7 +66,7 @@ services:
   mdns-avahi-pub:
     image: btbridge-avahi:dev
     profiles: ["mdns"]
-    networks: [lab]
+    networks: [mdns]
     hostname: avahipub
     volumes:
       - ..:/work:ro
@@ -79,9 +80,23 @@ services:
       context: .
       dockerfile: Dockerfile.avahi
     profiles: ["mdns"]
-    networks: [lab]
+    networks: [mdns]
     hostname: avahipeer
     command: ["sh", "-c", "mkdir -p /run/dbus && dbus-daemon --system --fork && avahi-daemon --no-drop-root --no-rlimits -D && sleep infinity"]
+
+  # A device on a LAN WITHOUT a gateway (no default route; e.g. an isolated hotspot or a switch-only network): the bridge's own responder
+  # must still announce and answer (it sends per interface with IP_MULTICAST_IF). NET_ADMIN only to delete the default route.
+  mdns-nogw:
+    image: btbridge-avahi:dev
+    profiles: ["mdns"]
+    networks: [mdns]
+    hostname: nogw
+    cap_add: [NET_ADMIN]
+    volumes:
+      - ..:/work:ro
+    environment:
+      - PYTHONPATH=/work/bridge
+    command: ["sh", "-c", "ip route del default && ip route && exec python3 -m btbridge.net.mdns --hostname hifi-nogw --instance 'Hi-Fi Bridge (no gateway)'"]
 
   # REAL Home Assistant for MQTT-discovery integration tests (profile "ha", scripts/run_homeassistant.sh). Fresh config per run.
   homeassistant:
@@ -173,6 +188,15 @@ networks:
       # No host address on the lab bridge: lab containers cannot reach services of the host (e.g. a real Lyrion server answering the
       # wizard's discovery broadcast). Found by the demo stack test on 2026-11-17 (DECISIONS #71).
       com.docker.network.bridge.inhibit_ipv4: "true"
+
+  # mDNS suite only (scripts/test_mdns.sh). Docker's isolation rules for INTERNAL networks drop every packet whose destination lies outside the
+  # subnet, which includes the mDNS group 224.0.0.251 (observed on Engine 29.1.3: multicast between two containers never arrives, while
+  # unicast and subnet broadcast do). So this network is not `internal`, but - like the hotspot test network of scripts/run_net.sh - it gets
+  # NO host address and NO masquerading: nothing on it can reach the host or the outside (checked by scripts/test_mdns.sh).
+  mdns:
+    driver_opts:
+      com.docker.network.bridge.inhibit_ipv4: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "false"
 
 volumes:
   lms-config:

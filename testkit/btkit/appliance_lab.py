@@ -59,16 +59,17 @@ def start_sim_network(data: str, port: int) -> str:
     return path
 
 
-def start_sim_rauc() -> list[str]:
+def start_sim_rauc(bus=None) -> list[str]:
     """The SIMULATED RAUC service (btkit.fake_rauc) on a private bus: booted slot A, an earlier release 0.2.0 in slot B, any uploaded
     file counts as a signed bundle of 0.4.0 and installs in ~5 s. Returns the appliance options that use it. No restart helper exists
-    in the lab, so "Restart now" reports that it is unavailable."""
+    in the lab, so "Restart now" reports that it is unavailable. ``bus``: an existing private bus to register on (the interactive demo shares
+    the one of its simulated Bluetooth stack); by default a new one."""
     import json
     import tempfile
 
     from .fake_bluez import PrivateBus
     from .fake_rauc import FakeRauc
-    bus = PrivateBus()
+    bus = bus or PrivateBus()
     rauc = FakeRauc(bus.address)
     rauc.accept_any = True
     rauc.install_plan = {"result": 0, "steps": 12, "step_s": 0.4}

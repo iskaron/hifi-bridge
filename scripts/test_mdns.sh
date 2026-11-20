@@ -24,7 +24,7 @@ gone() { local t0; t0=$(date +%s.%N); if wait_for 10 "! \$C exec -T avahi timeou
   GONE_S=$(awk -v a="$(date +%s.%N)" -v b="$t0" "BEGIN{printf \"%.1f\", a-b}"); return 0; fi; GONE_S=">10"; return 1; }
 diag() { echo "  diag: pkill rc=$1; processes:"; $C exec -T "$2" ps -eo pid,stat,args 2>&1 | sed 's/^/    /'; logs "$2" | tail -4 | sed 's/^/    /'; }
 $C build -q avahi >/dev/null
-$C rm -sf mdns-responder avahi >/dev/null 2>&1
+$C rm -sf mdns-responder mdns-avahi-pub mdns-nogw avahi >/dev/null 2>&1
 $C up -d avahi mdns-responder >/dev/null 2>&1
 wait_for 30 'logs mdns-responder | grep -q "mdns name:"'
 RIP=$($C exec -T mdns-responder python3 -c "from btbridge.net.addresses import local_ipv4; print(local_ipv4()[0])")
@@ -88,5 +88,43 @@ echo "$LOGB"
 check "avahi backend: conflict -> hifi-bridge-2.local" 'echo "$LOGB" | grep -q "mdns name: hifi-bridge-2.local"'
 OUT=$($C exec -T avahi avahi-resolve-host-name -4 hifi-bridge-2.local 2>&1)
 check "avahi backend: peer resolves hifi-bridge-2.local to the publisher" '[[ "$OUT" == *"$PIP"* ]]'
-$C rm -sf mdns-responder mdns-avahi-pub avahi >/dev/null 2>&1
+
+echo "### a device on a LAN without a gateway (no default route) must still announce (the bridge's own responder)"
+$C exec -T avahi sh -c 'pkill -f avahi-publish; true' >/dev/null 2>&1
+$C up -d mdns-nogw >/dev/null 2>&1
+wait_for 30 'logs mdns-nogw | grep -q "mdns name:"'
+NIP=$($C exec -T mdns-nogw python3 -c "from btbridge.net.addresses import local_ipv4; print(local_ipv4()[0])" 2>/dev/null)
+[ -n "$NIP" ] || { echo "FAIL gateway-less device: responder not running (no IP)"; fail=1; NIP=unset-nogw-ip; }
+check "gateway-less device really has no default route" '! $C exec -T mdns-nogw awk '"'"'$2 == "00000000"'"'"' /proc/net/route | grep -q .'
+OUT=$($C exec -T avahi avahi-resolve-host-name -4 hifi-nogw.local 2>&1)
+echo "avahi-resolve: $OUT (responder ip $NIP)"
+check "gateway-less device: peer resolves hifi-nogw.local" '[[ "$OUT" == *"$NIP"* ]]'
+BR=$($C exec -T avahi timeout 8 avahi-browse -rpt _https._tcp 2>&1)
+check "gateway-less device: peer browses its _https._tcp service" 'echo "$BR" | grep -q "^=;.*;Hi-Fi\\\\032Bridge\\\\032\\\\040no\\\\032gateway\\\\041;Secure Web Site;local;hifi-nogw.local;$NIP;8443;"'
+$C rm -sf mdns-nogw >/dev/null 2>&1
+
+echo "### isolation of the mDNS test network (not internal, but no host address and no masquerading)"
+NETINFO=$(docker network inspect btbridge-lab_mdns --format '{{.Internal}} masq={{index .Options "com.docker.network.bridge.enable_ip_masquerade"}} inhibit={{index .Options "com.docker.network.bridge.inhibit_ipv4"}}' 2>&1)
+echo "$NETINFO"
+check "mDNS test network: bridge without host address, no masquerading" '[[ "$NETINFO" == *"masq=false"* && "$NETINFO" == *"inhibit=true"* ]]'
+# Docker still reserves .1 as the "gateway" and installs a default route to it, but nobody holds that address (inhibit_ipv4): connections to it
+# and to a documentation address (RFC 5737, never routed) must fail, from a container on that network.
+GWIP=$($C exec -T avahi python3 -c "
+import socket, struct
+for line in open('/proc/net/route').read().splitlines()[1:]:
+    f = line.split()
+    if f[1] == '00000000':
+        print(socket.inet_ntoa(struct.pack('<I', int(f[2], 16)))); break" 2>/dev/null)
+echo "default gateway on the test network: ${GWIP:-none} (reserved by Docker, held by nobody)"
+check "mDNS test network: nothing answers for the gateway or for an outside address" '$C exec -T avahi python3 -c "
+import socket, sys
+for host in (sys.argv[1], \"192.0.2.1\"):
+    if not host: continue
+    s = socket.socket(); s.settimeout(4)
+    try:
+        s.connect((host, 80)); sys.exit(1)
+    except OSError:
+        pass
+" "$GWIP"'
+$C rm -sf mdns-responder mdns-avahi-pub mdns-nogw avahi >/dev/null 2>&1
 exit $fail

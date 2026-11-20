@@ -3,6 +3,7 @@ A `module-pipe-source` node named like a BlueZ phone node is fed from a FIFO wit
 Label: INTEGRATION (real PipeWire tools) / SIMULATED source node. NOT a BlueZ node, NOT a phone, NOT a Pi."""
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -129,10 +130,47 @@ def start_keepalive(pw) -> None:
                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+def _pipewire_major() -> int:
+    return int(subprocess.run(["pipewire", "--version"], capture_output=True, text=True, timeout=10).stdout.strip().splitlines()[-1].split()[-1]
+               .split(".")[0])
+
+
+def vanish_node(name: str, module: str, timeout: float = 5.0) -> None:
+    """Make the simulated phone node disappear, like a phone leaving the BlueZ monitor.
+
+    PipeWire 1.x: destroy the node (`pw-cli destroy`) and let its module clean itself up. NOT `pactl unload-module`: unloading a
+    module-pipe-source while streams are attached or reconnecting crashes pipewire-pulse 1.4.2 with SIGSEGV and no log line (reproduced: 2 of 3
+    containers within ~100 load/unload cycles with a supervised capture, the pattern of these tests; none in 450 cycles with node destruction;
+    docs/PIPEWIRE_CAPTURE.md, OPEN_QUESTIONS #26).
+    PipeWire 0.3.x: `pactl unload-module`. There, destroying the node leaves a reader behind that keeps stealing the FIFO's frames, so the next
+    node on that FIFO delivers only silence (seen in test_zz_restart after the kit capture test); no crash is known for the unload there."""
+    if _pipewire_major() < 1:
+        pactl("unload-module", module)
+        return
+    dump = json.loads(subprocess.run(["pw-dump"], capture_output=True, text=True, timeout=20, check=True).stdout)
+    ids = [o["id"] for o in dump if (o.get("info") or {}).get("props", {}).get("node.name") == name]
+    if not ids:
+        raise RuntimeError(f"no PipeWire node named {name}")
+    for i in ids:
+        subprocess.run(["pw-cli", "destroy", str(i)], capture_output=True, timeout=10, check=True)
+    end = time.monotonic() + timeout
+    while name in pactl("list", "short", "sources"):
+        if time.monotonic() > end:
+            raise RuntimeError(f"node {name} still listed {timeout} s after it was destroyed")
+        time.sleep(0.1)
+    # The module unloads itself together with its node, a moment later: wait for that; if it never happens, unload the (now idle) module.
+    gone_by = time.monotonic() + 3.0
+    while re.search(rf"^{module}\t", pactl("list", "short", "modules"), re.M):
+        if time.monotonic() > gone_by:
+            pactl("unload-module", module)
+            break
+        time.sleep(0.05)
+
+
 def reload_node(pw, unload: bool = True) -> None:
-    """Load the simulated phone node again (optionally unloading it first) together with its keep-alive consumer."""
+    """Load the simulated phone node again (optionally making it vanish first) together with its keep-alive consumer."""
     if unload:
-        pactl("unload-module", pw["module"])
+        vanish_node(NODE, pw["module"])
     pw["module"] = load_source(NODE, FIFO)
     start_keepalive(pw)
 

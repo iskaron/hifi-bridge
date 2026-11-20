@@ -26,6 +26,20 @@ The publication is checked every 60 s: if avahi-daemon restarted (its entry grou
 retrying while the daemon is down. Any mDNS error degrades to "unavailable" instead of stopping the start. The built-in responder runs one
 re-probe at a time and, after 15 conflicts within 10 s, waits 5 s before each further probe (RFC 6762 §8.1).
 
+**No gateway needed.** The built-in responder joins the multicast group and sends once per interface address (`IP_ADD_MEMBERSHIP` /
+`IP_MULTICAST_IF`), so a device on a LAN without a default route (isolated hotspot, switch-only network) still announces. Proof:
+`scripts/test_mdns.sh`, section "without a gateway" - the bridge's responder runs in a container whose default route was deleted and a real
+Avahi peer resolves and browses it.
+
+**Test-environment note (2026-11-20).** The Docker lab's `internal` networks cannot carry mDNS on Engine 29.1.3 (measured with two
+containers and plain sockets: unicast and subnet broadcast arrive, 224.0.0.251 and 255.255.255.255 do not, although the sender's frames do
+leave `eth0`; on a non-internal network without any other change they arrive). The product was not at fault - it sends with
+`IP_MULTICAST_IF`, and a first hypothesis (ENETUNREACH for lack of a default route) was wrong: the send succeeds. Most likely cause: Docker's
+isolation rules for internal networks drop frames whose destination lies outside the network's subnet (the host's firewall rules were
+deliberately not inspected; the symptom and the cure are what was verified). The mDNS suite therefore runs on its own network `mdns` (compose profile `mdns`): not `internal`, but **no host address
+(`inhibit_ipv4`) and no masquerading**, so it leads nowhere; the suite checks both settings and that nothing answers for the reserved
+gateway address. `tests/entry/test_compose_isolation.py` allows exactly this exception (and `NET_ADMIN` only for `mdns-nogw`).
+
 ## 3. Certificates
 **Mode `local_ca` (default):**
 * **Per-device CA:** ECDSA P-256, valid 10 years, `pathlen:0`, and **name-constrained (critical)** to `local`, `home.arpa`, `lan` and `internal`

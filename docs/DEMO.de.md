@@ -5,7 +5,8 @@ Ausführlich (Englisch): [DEMO.md](DEMO.md).
 
 **Echt:** die unveränderte Bridge-Software mit ihrem BlueZ-Adapter, PipeWire, Lyrion mit drei Squeezelite-Playern (Wohnzimmer,
 Schlafzimmer, Arbeitszimmer), Mosquitto, optional Home Assistant, der Kern des Flash-Tools.
-**SIMULIERT** (überall gekennzeichnet): Smartphones, Bluetooth-Funk, die Lautsprecher der Räume, das „Internetradio“.
+**SIMULIERT** (überall gekennzeichnet): Smartphones, Bluetooth-Funk, die Lautsprecher der Räume, das „Internetradio“, das WLAN-Funkmodul
+hinter der Netzwerk-Seite und RAUC hinter der Update-Seite (Abschnitt „Netzwerk und Software-Update“).
 Der Audiomonitor spielt die **Ausgabe der Squeezelite-Player hinter Lyrion** ab, nicht das Signal des Telefons.
 Echte Bluetooth-Verbindungen, echte Telefone und ein Raspberry Pi sind damit **nicht** nachgewiesen (Hardware-Gate).
 
@@ -56,6 +57,23 @@ Schlüssel absichtlich gelöscht; `make demo-trust` vergleicht dann den Fingerab
 * **Zweites Smartphone:** Ben verbinden, während Anna spielt: wird abgelehnt, Anna spielt weiter. Unter Bridge → Kopplung „Entfernen“.
 * **Eigene Musik:** am Telefon „Eigene Datei hinzufügen“ (WAV, FLAC, MP3, Ogg; bleibt in der Demo).
 * **MQTT/Home Assistant:** Bridge → Einstellungen → MQTT mit den Daten aus `make demo-status`; dann `make demo-ha`.
+
+## Netzwerk und Software-Update (SIMULIERTE Gegenstellen)
+Einstellungen → **Netzwerk** und Einstellungen → **Software-Update** der Bridge funktionieren in der Demo. **Echt:** die Seiten der
+Bridge und der **Netzwerk-Agent** (Prüfung, Probe mit Behalten/Rückgängig, Hotspot-Rückfall, Status) sowie Update-Manager und
+Zustandsautomat. **SIMULIERT** (die Übersichtsseite der Demo-Konsole sagt es in einer Karte mit dem Hinweis SIMULIERT; die Seiten der
+Bridge selbst sind das unveränderte Produkt und sagen es nicht): das WLAN-Funkmodul (Netze `Home`, `Gartenhaus`, `Nachbar 5G`,
+`Cafe Gast` (offen, von der Oberfläche abgelehnt) und ein verstecktes `Versteckt`; Verbinden, Hotspot, Ethernet-Link, Zeitabgleich –
+hostapd, dnsmasq, wpa_supplicant, systemd-networkd und nftables laufen **nicht**, am Netz des Notebooks ändert sich nichts) und **RAUC**
+(ein D-Bus-Ersatz, der **jede hochgeladene Datei** als signiertes Paket der Version 0.4.0 annimmt; Slot A läuft, Version 0.2.0 liegt in
+Slot B; keine Signaturprüfung, kein Schreiben in einen Slot, kein Bootloader – „Jetzt neu starten“ meldet daher, dass das Gerät sich hier
+nicht neu starten kann).
+Ausprobieren: unter Netzwerk **Land** und Einrichtungs-**Hotspot** festlegen, dann **Home** verbinden (Passwort `wifi-secret-123`; auch
+`Gartenhaus` / `garden-pass-1`) und die Probe innerhalb des Countdowns behalten oder rückgängig machen; unter Software-Update eine beliebige
+Datei hochladen, installieren, den Fortschritt ansehen und den Neustart ablehnen.
+**Nicht zeigbar:** echte WLAN-Anmeldung, Hotspot mit echten Clients, DHCP, Firewall, A/B-Slotwechsel, Bootloader-Umgebung, Rückfall nach
+fehlgeschlagenem Start und echte Paketsignaturen – das braucht Hardware bzw. ein Image und gehört zum Hardware-Gate. Die echten Werkzeuge
+werden getrennt getestet (`scripts/run_net.sh`, `scripts/run_ota.sh`, `tests/os`).
 
 ## Lautstärke
 Die Räume starten mit Lyrion-Lautstärke 75 (früher 50 = −25 dB), die erzeugte Musik ist lauter (−13,6 dBFS RMS statt −17,7) und der

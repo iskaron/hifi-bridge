@@ -3,7 +3,11 @@
 Started processes (supervised; if one exits, all stop and Docker restarts the container):
   * a private D-Bus (stands in for the system bus) and PipeWire + WirePlumber + pipewire-pulse (real, no audio hardware);
   * ``hifidemo.vbluez`` - the simulated bluetoothd the phones talk to over the air;
-  * ``btbridge.appliance --source bluez --dbus <private bus>`` - the product, exactly as on the device (no simulated adapter inside it).
+  * ``btbridge.appliance --source bluez --dbus <private bus>`` - the product, exactly as on the device (no simulated adapter inside it);
+  * SIMULATED network and update back-ends, so the product's Network and Software update pages work in the demo (docs/DEMO.md section 7):
+    ``btkit.sim_net`` runs the REAL root network agent (``btbridge.net.netagent``) against a simulated Wi-Fi radio - no real interface,
+    no hostapd/dnsmasq/nftables - and ``btkit.fake_rauc`` is a SIMULATED RAUC on the same private bus (any uploaded file counts as a signed
+    bundle; there is no slot, no bootloader and no restart). Neither is the real thing; neither touches the host or the notebook's network.
 """
 from __future__ import annotations
 
@@ -43,11 +47,22 @@ def seed_settings(bridge_data: str) -> None:
     log(f"first start: demo defaults {DEMO_DEFAULTS}")
 
 
-def appliance_argv(bus: str) -> list[str]:
+def appliance_argv(bus: str, extra: list[str] | None = None) -> list[str]:
     return [sys.executable, "-m", "btbridge.appliance", "--data", os.path.join(DATA, "bridge"), "--boot-dir", BOOT,
             "--http-port", os.environ.get("DEMO_HTTP_PORT", "18080"), "--https-port", os.environ.get("DEMO_HTTPS_PORT", "18443"),
             "--stream-port", "8090", "--advertise-host", "hifi-bridge.local", "--source", "bluez", "--dbus", bus,
-            "--thermal-path", ""]
+            "--thermal-path", "", *(extra or [])]
+
+
+def sim_net_argv() -> list[str]:
+    """The REAL network agent against the SIMULATED Wi-Fi radio (btkit.sim_net); the socket the bridge talks to is <RUN>/net/agent.sock."""
+    return [sys.executable, "-m", "btkit.sim_net", "--bridge-data", os.path.join(DATA, "bridge"), "--run-dir", os.path.join(RUN, "net")]
+
+
+def sim_backend_options(bus) -> list[str]:
+    """Appliance options for the SIMULATED network agent and the SIMULATED RAUC (registered on the demo's private bus)."""
+    from btkit.appliance_lab import start_sim_rauc
+    return ["--net-agent", os.path.join(RUN, "net", "agent.sock")] + start_sim_rauc(bus)
 
 
 def vbluez_argv(bus: str) -> list[str]:
@@ -64,9 +79,13 @@ def main() -> int:
     bus = PrivateBus()
     log(f"private D-Bus for the (simulated) Bluetooth stack: {bus.address}")
     procs = [subprocess.Popen(vbluez_argv(bus.address), env=env)]
+    procs.append(subprocess.Popen(sim_net_argv(), env=env))
+    log("SIMULATED network agent started (real agent, simulated Wi-Fi radio)")
+    extra = sim_backend_options(bus)
+    log("SIMULATED RAUC registered on the private bus (any file is a signed bundle; no slots, no restart)")
     time.sleep(1.0)                                     # bluetoothd first (the product also copes with a late one)
-    procs.append(subprocess.Popen(appliance_argv(bus.address), env=env))
-    log("bridge product started: " + " ".join(appliance_argv(bus.address)[1:]))
+    procs.append(subprocess.Popen(appliance_argv(bus.address, extra), env=env))
+    log("bridge product started: " + " ".join(appliance_argv(bus.address, extra)[1:]))
     stop = {"flag": False}
     signal.signal(signal.SIGTERM, lambda *a: stop.update(flag=True))
     signal.signal(signal.SIGINT, lambda *a: stop.update(flag=True))
