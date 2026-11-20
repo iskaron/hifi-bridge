@@ -12,7 +12,7 @@ Before=avahi-daemon.service hifi-bridge.service network.target
 Type=notify
 NotifyAccess=main
 ExecStart=/usr/bin/python3 -m btbridge.net.netagent --bridge-data /var/lib/hifi-bridge --bridge-user hifi-bridge --run-dir /run/hifi-net --http-port 80 --https-port 443 --stream-port 8090
-Environment=PYTHONPATH=/usr/lib/hifi-bridge PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/usr/lib/hifi-bridge PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 Restart=always
 RestartSec=2
 # wpa_supplicant/hostapd keep running across an agent restart: their configuration and sockets stay in /run/hifi-net

@@ -44,7 +44,10 @@ greyed out and not selectable):
   on macOS the mount points of APFS volumes (which live on synthesized container disks) are attributed to the physical disk that holds the
   container's physical store, and the disk behind `/` (`diskutil info -plist /`) is always the system disk;
 * no open crypt/LVM/RAID device on it (`in_use_by_volume_manager`): unmounting would not release it, so it is refused;
-* writable (`read_only`); at least 1 GB and at least the image (`too_small_for_product`, `smaller_than_image`);
+* writable (`read_only`); at least the usable size of a nominal 2 GB card (1.8 × 10^9 bytes, `os/storage.json`, DECISIONS #120; message
+  "smaller than 2 GB" / "kleiner als 2 GB") and at least the image (`too_small_for_product`, `smaller_than_image`). 16 GB is recommended,
+  never required. The tool writes and reads back the whole image (1092 MiB, including the empty slot B), so a card takes ~70 % longer
+  than with the old 644 MiB layout;
 * at most 256 GB unless the user ticks "also allow unusually large disks" (`unusually_large_confirm_explicitly`).
 
 A disk with ordinary mounted partitions (for example `/media/user/BOOT`) is offered; the GUI says that its volumes will be unmounted, and

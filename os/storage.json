@@ -1,0 +1,101 @@
+{
+ "format": "hifi-bridge-storage/1",
+ "about": "Single source of the card layout (DECISIONS #120) and of the allow-list of persistent write paths (DECISIONS #121). Read by os/tools/image_check.py, os/tools/size_plan.py, tests/os/test_persistence_layout.py and tests/unit/test_persistence_allowlist.py; explained in docs/PERSISTENCE.md. Sizes in MiB (2^20 bytes) unless the key says bytes.",
+ "layout": {
+  "alignment_mib": 4,
+  "boot_mib": 64,
+  "slot_mib": 384,
+  "data_initial_mib": 256,
+  "data_mkfs": "-b 4096 -i 65536",
+  "card_target": {
+   "nominal_bytes": 2000000000,
+   "usable_bytes": 1800000000,
+   "why": "a nominal 2 GB card has 2*10^9 bytes on the label; real cards report less (typically 1.9-1.98*10^9). 10 % below the label is the conservative usable size the whole image must fit in."
+  },
+  "card_recommended_gb": 16
+ },
+ "data_budget": {
+  "largest_bundle_mib": 192,
+  "largest_bundle_why": "a completely full 384 MiB slot compressed 2:1 (measured: the 74 MiB development bundle holds a rootfs with 185 MiB in use, 2.5:1). RAUC streaming is off, so the whole bundle is stored on /data while it is verified and installed.",
+  "space_margin_mib": 16,
+  "space_margin_why": "btbridge.ota.transfer.SPACE_MARGIN: the update manager refuses an upload/download unless this much stays free after it",
+  "state_mib": 8,
+  "state_why": "settings, secrets, network, certificates, journals, two pre-update snapshots, update state, RAUC status, Bluetooth bonds of ~100 phones, clock file (measured: well below 1 MiB on a set-up lab device)"
+ },
+ "persistent": [
+  {"path": "/data/hifi-bridge", "bind": "/var/lib/hifi-bridge", "owner": "hifi-bridge.service, hifi-bridge-boot.service, hifi-bridge-health.service (hifi-netd reads it)",
+   "content": "owner settings and secrets, network configuration, device certificates and keys, setup code, journals, update state and staging",
+   "why": "administrator credentials, device keys, Wi-Fi/network/LMS/MQTT configuration, OTA/rollback state (DECISIONS #121)",
+   "size": "< 1 MiB; + one update bundle (<= 192 MiB) only while an update is staged/installed", "frequency": "on owner changes, session start/end, updates"},
+  {"path": "/data/bluetooth", "bind": "/var/lib/bluetooth", "owner": "bluetooth.service (BlueZ)",
+   "content": "adapter settings, bonds (link keys) and device attributes of paired phones, BlueZ name cache",
+   "why": "Bluetooth bonds: a paired phone reconnects after a reboot without pairing again",
+   "size": "a few KiB per phone", "frequency": "on pairing, connection, removal"},
+  {"path": "/data/timesync", "bind": "/var/lib/systemd/timesync", "owner": "systemd-timesyncd.service",
+   "content": "empty file 'clock' whose modification time is the last known time",
+   "why": "a Pi has no RTC: after a reboot without network the clock starts at the last known time instead of the build date (TLS validity, certificates)",
+   "size": "0 bytes (one inode)", "frequency": "every SaveIntervalSec=900 s and at each NTP synchronisation"},
+  {"path": "/data/rauc", "bind": null, "owner": "rauc.service",
+   "content": "RAUC central status (data-directory): per-slot install status, bundle version and hash",
+   "why": "OTA/rollback state: which bundle is in which slot",
+   "size": "< 4 KiB", "frequency": "per update install"},
+  {"path": "/data/lost+found", "bind": null, "owner": "e2fsck",
+   "content": "ext4 recovery directory (created by mke2fs)", "why": "ext4 file system check after a power cut",
+   "size": "16 KiB", "frequency": "only when e2fsck repairs the file system"}
+ ],
+ "bridge_files": {
+  "about": "Every file the bridge may create below /var/lib/hifi-bridge (= /data/hifi-bridge). Glob patterns relative to that directory; anything else is a violation of DECISIONS #121 (tests/unit/test_persistence_allowlist.py).",
+  "patterns": [
+   ["settings.json", "owner settings incl. LMS, MQTT, syslog target, device name and labels", "on owner changes"],
+   ["settings.json.corrupt-*", "a damaged settings file moved aside (defaults are used)", "only after damage"],
+   ["secrets.json", "owner password hash, setup code hash, session key, stream token, MQTT password, flash-tool trust key, log salt", "on owner changes"],
+   ["secrets.json.corrupt-*", "a damaged secrets file moved aside", "only after damage"],
+   ["network.json", "Wi-Fi client, Ethernet/Wi-Fi addresses, setup hotspot, country", "on owner changes"],
+   ["network.pending.json", "a network change on trial (Keep/Undo survives a restart of the bridge)", "during a network trial"],
+   ["setup-code.txt", "the one-time setup code until the owner password is set", "first start, password reset"],
+   ["session.json", "the LMS item the bridge owns (player + stream URL, no title): released after a crash or power cut", "playback session start/end"],
+   ["provision-journal.json", "exactly-once processing of the provisioning file across power cuts", "once per provisioning"],
+   ["recovery-journal.json", "exactly-once processing of a recovery request across power cuts", "once per recovery request"],
+   ["certs", "device certificate directory", "-"],
+   ["certs/ca.key", "device CA private key (never leaves the card)", "first start"],
+   ["certs/ca.crt", "device CA certificate", "first start"],
+   ["certs/server.key", "HTTPS server key", "issue/renewal"],
+   ["certs/server.crt", "HTTPS server certificate", "issue/renewal"],
+   ["certs/custom.key", "owner-supplied HTTPS key", "owner upload"],
+   ["certs/custom.crt", "owner-supplied HTTPS certificate", "owner upload"],
+   ["certs/state.json", "certificate state (names, expiry)", "issue/renewal"],
+   ["ota", "update directory", "-"],
+   ["ota/state.json", "update state machine (staged/installing/installed/confirming, last result)", "per update step"],
+   ["ota/state.lock", "empty lock file shared with the health check", "created once"],
+   ["ota/slots.json", "which version is in which slot (for the rollback offer)", "per update/boot of a new slot"],
+   ["ota/health.json", "result of the last post-boot health check (mark-good / rollback decision)", "once per boot"],
+   ["ota/restore-request.json", "an owner-requested snapshot restore for the next start", "on owner request"],
+   ["ota/snapshots", "pre-update snapshots", "-"],
+   ["ota/snapshots/[AB]", "settings, secrets, network and certificates before an update, per slot", "per update"],
+   ["ota/snapshots/[AB]/*", "", ""],
+   ["ota/snapshots/[AB]/certs/*", "", ""],
+   ["ota/bundle.raucb", "the update bundle (staged / being installed); removed after a successful install, on discard, and at boot when no state needs it", "per update"],
+   ["ota/bundle.raucb.upload", "an upload in progress; removed on failure, cancel, and at the next start", "during an upload"],
+   ["ota/bundle.raucb.part", "a download in progress or paused; removed on discard and at the next boot", "during a download"],
+   ["ota/bundle.raucb.part.json", "URL and size of that download (resume)", "during a download"]
+  ]
+ },
+ "boot_fat_writes": [
+  {"path": "/boot/uboot.env", "owner": "U-Boot (boot counter), RAUC via fw_setenv (install, mark-good)", "why": "A/B boot selection and boot counter (boot/recovery metadata)", "frequency": "every boot (U-Boot) + every healthy boot (mark-good) + per update"},
+  {"path": "/boot/uboot-redund.env", "owner": "same, alternating copy (review N-6)", "why": "power-cut safety of the boot selection", "frequency": "as uboot.env"},
+  {"path": "/boot/hifi-status.txt", "owner": "hifi-bridge-boot.service", "why": "offline status for the owner: name, CA fingerprint, setup code while needed, recovery results", "frequency": "only when its content changes"},
+  {"path": "/boot/hifi-provision.json", "owner": "hifi-bridge-boot.service", "why": "provisioning slot: scrubbed after it was applied (it held secrets)", "frequency": "once after flashing"},
+  {"path": "/boot/hifi-recovery", "owner": "hifi-bridge-boot.service", "why": "recovery request placed by the owner: removed once processed", "frequency": "only on an owner request"}
+ ],
+ "unit_writers": {
+  "about": "The only units allowed to name a persistent location (/data, /boot or one of the bind targets above) in ReadWritePaths= or StateDirectory= (image check persist.unit-write-paths). Every other unit can write RAM only.",
+  "allowed": [["hifi-bridge.service", "/var/lib/hifi-bridge"], ["hifi-bridge-boot.service", "/var/lib/hifi-bridge"],
+              ["hifi-bridge-boot.service", "/boot"], ["hifi-bridge-health.service", "/var/lib/hifi-bridge"],
+              ["bluetooth.service", "/var/lib/bluetooth"], ["systemd-timesyncd.service", "/var/lib/systemd/timesync"]]
+ },
+ "ram_limits": {
+  "journald_runtime_max_use": "16M",
+  "journald_runtime_max_file_size": "2M",
+  "timesyncd_save_interval_s_min": 900
+ }
+}

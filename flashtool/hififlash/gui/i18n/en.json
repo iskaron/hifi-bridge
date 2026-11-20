@@ -71,7 +71,7 @@
  "disk.reload": "Refresh",
  "disk.large": "Also allow unusually large disks (over 256 GB)",
  "disk.list": "Drives",
- "disk.none": "No suitable card found. Insert an SD card (at least 1 GB) and press Refresh.",
+ "disk.none": "No suitable card found. Insert an SD card (at least 2 GB; 16 GB recommended) and press Refresh.",
  "disk.choose": "Choose a card.",
  "disk.selected": "Selected: {label}",
  "disk.mounted": "Its mounted volumes ({mounts}) will be unmounted before writing.",
@@ -82,7 +82,7 @@
  "disk.reason.not_removable": "not removable",
  "disk.reason.read_only": "write-protected",
  "disk.reason.in_use_by_volume_manager": "in use by an encrypted or LVM volume",
- "disk.reason.too_small_for_product": "smaller than 1 GB",
+ "disk.reason.too_small_for_product": "smaller than 2 GB",
  "disk.reason.smaller_than_image": "smaller than the image",
  "disk.reason.unusually_large_confirm_explicitly": "unusually large (allow it above if this really is the card)",
 

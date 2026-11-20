@@ -76,7 +76,7 @@ If a signed build fails at run time without an entitlement, add exactly that one
   privileges`, one write per prompt; the helper authenticates to the GUI with a one-time token over loopback and re-checks the target disk
   itself. No `SMJobBless`/`SMAppService` daemon, no setuid, nothing stays installed or elevated after the write.
 * Location: users should drag the app to `/Applications` (admin-owned). A quarantined app started from `~/Downloads` runs translocated from a
-  read-only path, which also prevents swapping the helper. Open point (OPEN_QUESTIONS #88): should the GUI check the helper's code signature
+  read-only path, which also prevents swapping the helper. Open point (OPEN_QUESTIONS #92): should the GUI check the helper's code signature
   (same Team ID, `codesign --verify -R`) before elevating it?
 
 ## 6. Not verified / risks

@@ -1,85 +1,125 @@
-"""Partition size recommendation from MEASURED builds (PRODUCT_SPEC: storage is measured, not guessed). Python stdlib only.
+"""Card layout check from MEASURED builds (PRODUCT_SPEC: storage is measured, not guessed). Python stdlib only.
 
-    python3 size_plan.py --board NAME=CHECK_JSON[:BUNDLE_FILE] ... --md OUT.md
+    python3 size_plan.py --board NAME=CHECK_JSON[:BUNDLE_FILE] ... --md OUT.md [--storage os/storage.json] [--note TEXT]
 
 CHECK_JSON is $OUT/hifi/check/image-check.json from scripts/os_check_image.sh; BUNDLE_FILE the development RAUC bundle from
-scripts/os_check_ota.sh, i.e. `make ota` (its size is what an update upload needs on the data partition, because RAUC streaming is disabled).
+scripts/os_check_ota.sh (`make ota`). The layout itself is the owner's decision (DECISIONS #120) and lives in os/storage.json; this tool
+shows the arithmetic behind it with the measured numbers and fails (exit 1) when a measurement no longer fits it:
 
-Rules (documented in docs/IMAGE_BUILD.md; all sizes in MiB, rounded up):
-  * slot (rootfs A = B), fixed for the life of a device because an update cannot repartition the card:
-      minimum     = largest used rootfs + 15 % (ext4 metadata, reserved blocks, small fixes), to 16 MiB
-      recommended = max(2 x largest used, largest used + 128 MiB), to 64 MiB  (room for future releases)
-  * boot FAT (shared by both slots, holds firmware, DTBs, overlays, U-Boot, uboot.env, licences, provisioning slot):
-      minimum = used x 1.5 to 16 MiB; recommended = max(64, used x 3) to 32 MiB (a firmware update may need old + new side by side)
-  * data (grows to the card on first boot): must hold one uploaded update bundle plus state and logs:
-      minimum = largest bundle + 64 MiB; recommended = 2 x largest bundle + 256 MiB
-  * card = 4 MiB (MBR + alignment) + boot + 2 x slot + data. Nominal card sizes are decimal (1 GB = 10^9 bytes) and real cards are
-    often a little smaller, so a card size is "enough" only with >= 3 % spare.
+  * slot (A = B, fixed for the life of a device): rootfs used <= 80 % of the slot (the rest is room for later releases);
+  * largest update bundle: RAUC streaming is off, so a whole bundle is stored on /data. Measured compression ratio r = bundle / rootfs
+    used; a completely full slot would give slot x r. The budget in os/storage.json (slot / 2, i.e. 2:1) must be >= that;
+  * data partition before growth: available to the bridge (free - reserved blocks, measured on the built data.ext4) >= largest bundle +
+    the update manager's free-space margin + state;
+  * card = 4 MiB (MBR + alignment) + boot + 2 x slot + data <= the usable size of a nominal 2 GB card (os/storage.json, 10 % below the
+    label). Nominal card sizes are decimal (2 GB = 2 x 10^9 bytes).
 """
 from __future__ import annotations
 
 import argparse
 import json
-import math
 import os
+import sys
 
 MIB = 1 << 20
+STORAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "storage.json")
 
 
-def up(x_mib: float, step: int) -> int:
-    return int(math.ceil(x_mib / step) * step)
-
-
-def main(argv=None):
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--board", action="append", required=True)
-    ap.add_argument("--md", required=True)
-    a = ap.parse_args(argv)
+def measure(specs: list[str]) -> list[dict]:
     rows = []
-    for spec in a.board:
+    for spec in specs:
         name, rest = spec.split("=", 1)
         check, _, bundle = rest.partition(":")
         facts = json.load(open(check))["facts"]
         s = facts["sizes"]
         boot_part = next(p for p in facts["partitions"] if p["type"] == "c")
+        data = facts.get("data_ext4") or {}
         rows.append({
             "board": name,
             "rootfs_used": s["rootfs_ext4_used_bytes"] / MIB, "rootfs_ext4": s["rootfs_ext4_bytes"] / MIB,
             "rootfs_tree": s["rootfs_tree_bytes"] / MIB, "boot_used": s["boot_files_bytes"] / MIB, "boot_part": boot_part["size"] / MIB,
             "kernel": (s["kernel_image_bytes"] + s["kernel_modules_bytes"]) / MIB, "firmware": s["firmware_bytes"] / MIB,
             "python": s["python_stdlib_bytes"] / MIB, "bridge": s["bridge_bytes"] / MIB, "card": s["card_image"] / MIB,
+            "slot": facts["partitions"][1]["size"] / MIB, "data_part": facts["partitions"][3]["size"] / MIB,
+            "data_avail": data.get("avail_bytes", 0) / MIB if data else None,
             "bundle": os.path.getsize(bundle) / MIB if bundle and os.path.exists(bundle) else None,
         })
+    return rows
+
+
+def plan(rows: list[dict], storage: dict) -> dict:
+    lay, bud = storage["layout"], storage["data_budget"]
     used = max(r["rootfs_used"] for r in rows)
-    boot = max(r["boot_used"] for r in rows)
-    bundles = [r["bundle"] for r in rows if r["bundle"]]
-    bundle = max(bundles) if bundles else used          # fallback: an uncompressed image (pessimistic)
-    plan = {
-        "minimum": {"slot": up(used * 1.15, 16), "boot": up(boot * 1.5, 16), "data": up(bundle + 64, 16)},
-        "recommended": {"slot": up(max(2 * used, used + 128), 64), "boot": up(max(64, boot * 3), 32), "data": up(2 * bundle + 256, 64)},
+    ratios = [r["bundle"] / r["rootfs_used"] for r in rows if r["bundle"]]
+    ratio = max(ratios) if ratios else 1.0                      # no bundle measured: assume no compression (pessimistic)
+    avail = [r["data_avail"] for r in rows if r["data_avail"] is not None]
+    need = bud["largest_bundle_mib"] + bud["space_margin_mib"] + bud["state_mib"]
+    card = lay["alignment_mib"] + lay["boot_mib"] + 2 * lay["slot_mib"] + lay["data_initial_mib"]
+    usable = lay["card_target"]["usable_bytes"] / MIB
+    checks = {
+        "slot_headroom": used <= 0.8 * lay["slot_mib"],
+        "bundle_budget": lay["slot_mib"] * ratio <= bud["largest_bundle_mib"],
+        "data_holds_update": bool(avail) and min(avail) >= need,
+        "card_fits_2gb": card <= usable,
+        "layout_as_built": all(round(r["slot"]) == lay["slot_mib"] and round(r["data_part"]) == lay["data_initial_mib"]
+                               and round(r["boot_part"]) == lay["boot_mib"] for r in rows),
     }
-    for p in plan.values():
-        p["card"] = 4 + p["boot"] + 2 * p["slot"] + p["data"]
-    lines = ["# Partition sizes from measured builds", "",
-             "Generated by `os/tools/size_plan.py` from the image checks (BUILD-VERIFIED sizes; nothing booted). MiB = 2^20 bytes.", "",
-             "| Board | rootfs used | rootfs tree (files) | kernel+modules | firmware | Python | bridge | boot FAT used | dev bundle | card image |",
-             "|---|---|---|---|---|---|---|---|---|---|"]
+    return {"used": used, "ratio": ratio, "full_slot_bundle": lay["slot_mib"] * ratio, "data_avail_min": min(avail) if avail else None,
+            "need": need, "card": card, "usable": usable, "data_after_growth_2gb": usable - card + lay["data_initial_mib"],
+            "checks": checks}
+
+
+def render(rows: list[dict], p: dict, storage: dict, note: str = "") -> list[str]:
+    lay, bud = storage["layout"], storage["data_budget"]
+    ok = lambda b: "**ok**" if b else "**NOT OK**"  # noqa: E731
+    lines = ["# Card layout from measured builds", "",
+             "Generated by `os/tools/size_plan.py` from the image checks of real builds (**BUILD**: built and taken apart in Docker, nothing "
+             "booted). MiB = 2^20 bytes, GB = 10^9 bytes. Layout: DECISIONS #120, numbers: `os/storage.json`, reasoning: docs/PERSISTENCE.md."]
+    if note:
+        lines += ["", note]
+    lines += ["", "| Board | slot | rootfs used | rootfs tree (files) | kernel+modules | firmware | Python | bridge | boot FAT used | "
+              "data before growth (available) | dev bundle | card image |", "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for r in rows:
-        lines.append(f"| {r['board']} | {r['rootfs_used']:.1f} | {r['rootfs_tree']:.1f} | {r['kernel']:.1f} | {r['firmware']:.1f} | "
-                     f"{r['python']:.1f} | {r['bridge']:.2f} | {r['boot_used']:.1f} | "
+        da = f"{r['data_part']:.0f} ({r['data_avail']:.1f})" if r["data_avail"] is not None else f"{r['data_part']:.0f} (-)"
+        lines.append(f"| {r['board']} | {r['slot']:.0f} | {r['rootfs_used']:.1f} | {r['rootfs_tree']:.1f} | {r['kernel']:.1f} | "
+                     f"{r['firmware']:.1f} | {r['python']:.1f} | {r['bridge']:.2f} | {r['boot_used']:.1f} | {da} | "
                      f"{'%.1f' % r['bundle'] if r['bundle'] else '-'} | {r['card']:.1f} |")
-    lines += ["", "| Plan | slot (each of A, B) | boot FAT | data (initial, grows) | card total |", "|---|---|---|---|---|"]
-    for k, p in plan.items():
-        lines.append(f"| {k} | {p['slot']} MiB | {p['boot']} MiB | {p['data']} MiB | {p['card']} MiB = {p['card'] * MIB / 1e9:.2f} GB |")
-    lines += [""]
-    for k, p in plan.items():
-        need = p["card"] * MIB * 1.03 / 1e9
-        fits = [g for g in (1, 2, 4, 8, 16, 32) if g >= need]
-        lines.append(f"* {k}: needs {need:.2f} GB incl. 3 % spare -> smallest nominal card: **{fits[0] if fits else '>32'} GB**")
+    c = p["checks"]
+    lines += ["", "## Arithmetic", "",
+              f"* **Slot** {lay['slot_mib']} MiB: largest rootfs in use {p['used']:.1f} MiB = {100 * p['used'] / lay['slot_mib']:.0f} % "
+              f"(limit 80 %) -> {ok(c['slot_headroom'])}; {lay['slot_mib'] - p['used']:.0f} MiB left for later releases.",
+              f"* **Largest bundle**: measured compression bundle / rootfs used = {p['ratio']:.3f}; a completely full slot -> "
+              f"{lay['slot_mib']} x {p['ratio']:.3f} = {p['full_slot_bundle']:.0f} MiB <= budget {bud['largest_bundle_mib']} MiB "
+              f"(slot / 2) -> {ok(c['bundle_budget'])}.",
+              f"* **Data before growth** {lay['data_initial_mib']} MiB (`mke2fs {lay['data_mkfs']}`): need = bundle {bud['largest_bundle_mib']} + "
+              f"free-space margin {bud['space_margin_mib']} + state {bud['state_mib']} = {p['need']} MiB available to the bridge; measured "
+              + (f"{p['data_avail_min']:.1f} MiB" if p["data_avail_min"] is not None else "(not measured)") + f" -> {ok(c['data_holds_update'])}.",
+              f"* **Card** = {lay['alignment_mib']} + {lay['boot_mib']} + 2 x {lay['slot_mib']} + {lay['data_initial_mib']} = {p['card']} MiB "
+              f"= {p['card'] * MIB / 1e9:.3f} GB <= usable 2 GB card {lay['card_target']['usable_bytes'] / 1e9:.2f} GB ({p['usable']:.0f} MiB) "
+              f"-> {ok(c['card_fits_2gb'])}. After the first-boot growth the data partition has ~{p['data_after_growth_2gb']:.0f} MiB on such a "
+              f"card (~{(lay['card_recommended_gb'] * 1e9 / MIB - p['card'] + lay['data_initial_mib']) / 1024:.1f} GiB on a nominal "
+              f"{lay['card_recommended_gb']} GB card, the recommendation).",
+              f"* Built images use this layout: {ok(c['layout_as_built'])}.", ""]
+    return lines
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--board", action="append", required=True)
+    ap.add_argument("--md", required=True)
+    ap.add_argument("--storage", default=STORAGE)
+    ap.add_argument("--note", default="", help="a line for the report header, e.g. the commit and date of the builds")
+    a = ap.parse_args(argv)
+    storage = json.load(open(a.storage))
+    rows = measure(a.board)
+    p = plan(rows, storage)
+    lines = render(rows, p, storage, a.note)
     open(a.md, "w").write("\n".join(lines) + "\n")
     print("\n".join(lines))
-    json.dump({"boards": rows, "plan": plan}, open(os.path.splitext(a.md)[0] + ".json", "w"), indent=1)
+    json.dump({"boards": rows, "plan": p, "layout": storage["layout"], "data_budget": storage["data_budget"]},
+              open(os.path.splitext(a.md)[0] + ".json", "w"), indent=1)
+    return 0 if all(p["checks"].values()) else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

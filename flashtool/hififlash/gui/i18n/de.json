@@ -71,7 +71,7 @@
  "disk.reload": "Aktualisieren",
  "disk.large": "Auch ungewöhnlich große Laufwerke erlauben (über 256 GB)",
  "disk.list": "Laufwerke",
- "disk.none": "Keine geeignete Karte gefunden. Stecken Sie eine SD-Karte (mindestens 1 GB) ein und klicken Sie auf Aktualisieren.",
+ "disk.none": "Keine geeignete Karte gefunden. Stecken Sie eine SD-Karte (mindestens 2 GB, empfohlen 16 GB) ein und klicken Sie auf Aktualisieren.",
  "disk.choose": "Bitte eine Karte wählen.",
  "disk.selected": "Gewählt: {label}",
  "disk.mounted": "Ihre eingebundenen Laufwerke ({mounts}) werden vor dem Schreiben ausgehängt.",
@@ -82,7 +82,7 @@
  "disk.reason.not_removable": "kein Wechseldatenträger",
  "disk.reason.read_only": "schreibgeschützt",
  "disk.reason.in_use_by_volume_manager": "von einem verschlüsselten oder LVM-Laufwerk belegt",
- "disk.reason.too_small_for_product": "kleiner als 1 GB",
+ "disk.reason.too_small_for_product": "kleiner als 2 GB",
  "disk.reason.smaller_than_image": "kleiner als das Image",
  "disk.reason.unusually_large_confirm_explicitly": "ungewöhnlich groß (oben erlauben, wenn es wirklich die Karte ist)",
 

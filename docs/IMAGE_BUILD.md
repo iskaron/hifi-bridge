@@ -11,6 +11,11 @@ name `…-development.img`). Their update trust is `own` with a temporary develo
 scan 0 findings). The reports of **rpi4_64 and rpizero2w_64 predate these fixes** (not rebuilt; same br2-external tree, so the same
 changes apply when they are built next).
 
+**Final polish P1 (2026-11-20):** card layout of DECISIONS #120 (boot 64 | A 384 | B 384 | data 256 MiB, 1092 MiB image) and the
+persistence rule of DECISIONS #121 (docs/PERSISTENCE.md). Only **rpi3_64 was rebuilt** (incrementally, ~10 min): 0 FAIL, 119 PASS,
+20 INFO (new checks `persist.*` and `size.*`), secret scan 0 findings, OTA check passes. rpizero2w_64 and rpi4_64 keep the old layout until
+their rebuild (package P2).
+
 ## 1. Commands
 ```bash
 export HIFI_LAB=$PWD/.lab                       # a git worktree points this at the main checkout's .lab
@@ -42,7 +47,8 @@ After changing an already built package's configuration: `HIFI_OS_REBUILD="pkg .
   growdata without a guard below `/data`; discovery firewall rule; resolved without LLMNR/mDNS (section 9).
 * *Added after the evidence builds:* `network.dhcp-duid-link-layer` (networkd DUID from the MAC, OPEN_QUESTIONS #77) - a rebuild reports 90 checks.
 * **Identity:** development variant in os-release and build-info.json; RAUC compatible `hifi-bridge-rpi3|rpizero2w|rpi4`.
-* **Layout:** MBR, boot FAT 64 MiB | rootfs-A 256 MiB | rootfs-B 256 MiB (all zero on a fresh card) | data 64 MiB (grows on first boot);
+* **Layout:** MBR, boot FAT 64 MiB | rootfs-A 256 MiB | rootfs-B 256 MiB (all zero on a fresh card) | data 64 MiB (grows on first boot)
+  - package-6 images; since P1: 64 | 384 | 384 | 256 MiB (`size.layout`, docs/PERSISTENCE.md);
   every partition on a 4 MiB boundary; slot A = `rootfs.ext4`; manifest size/sha256 and the provisioning-slot offset match the image.
 * **Boot FAT:** firmware (`bootcode.bin`/`start.elf`/`fixup.dat`, Pi 4: `start4.elf`/`fixup4.dat`), DTBs, 358 overlays, `u-boot.bin`,
   `boot.scr` (bootargs contain `ro`), `config.txt` with `kernel=u-boot.bin` and no `miniuart-bt`, the 4096-byte empty provisioning slot,
@@ -81,15 +87,14 @@ Largest packages (rpi3_64): linux 46.7 MiB (kernel 23.2 + modules 23.4 of the ge
 libopenssl 7.8, pipewire 6.7, util-linux 5.8, toolchain runtime 5.4, glib 4.5. "rootfs used" minus "files" (~28 MiB) is ext4 metadata,
 mostly the 16 MiB inode table for 65536 inodes (6.9 k used). The earlier estimate of 100–150 MB per slot (PHASE2B_PLAN §3) was low.
 
-**Recommendation (os/tools/size_plan.py; slots cannot be resized by an update, so the slot size is chosen once):**
-| | slot (A = B) | boot FAT | data (min. after growth) | card |
-|---|---|---|---|---|
-| minimum | 224 MiB (largest used + 15 %) | 16 MiB | 144 MiB (one uploaded bundle + 64 MiB state) | 612 MiB → **1 GB card** |
-| **recommended** | **384 MiB** (2 × used, room for later releases) | **64 MiB** (firmware may need old + new during an update) | **448 MiB** | 1284 MiB → **2 GB card** |
-
-The builds still use 256 MiB slots (70 MiB free each). Switching to 384 MiB is a one-line change (`BR2_TARGET_ROOTFS_EXT2_SIZE`) but fixes
-the layout for every device ever flashed: owner decision (proposed below). Possible savings if a smaller card is wanted: a trimmed kernel
-configuration (modules are 23 MiB), fewer inodes, dropping the 358 overlays (unused by our config.txt), per-board firmware pruning.
+The table above is from the package-6 builds (256 MiB slots). **Decided layout (DECISIONS #120, implemented in P1; numbers in
+`os/storage.json`, derivation and consequences in docs/PERSISTENCE.md sections 2 and 8):** boot FAT 64 MiB, slots 384 MiB, data 256 MiB
+before growth (one bundle of a full slot + free-space margin + state; measured 225.8 MiB available to the bridge), card image 1092 MiB →
+fits a nominal 2 GB card (technical target; 16 GB recommended). rpi3_64 rebuilt with it: rootfs 193.3 MiB used of 384 (more inode tables
+in the bigger slot), bundle unchanged at 73.6 MiB, card image 1092 MiB apparent / 192 MiB on disk (sparse). `os/tools/size_plan.py` now
+checks the measured builds against this layout (`reports/evidence/os_size_plan.md`). The earlier proposal (minimum 224/16/144 MiB → 1 GB,
+recommended 384/64/448 MiB) is superseded. Possible savings if ever needed: a trimmed kernel configuration (modules are 23 MiB), fewer
+inodes in the rootfs, dropping the 358 overlays (unused by our config.txt), per-board firmware pruning.
 
 ## 5. Reproducibility (G2 P1-1, software part)
 Settings: `BR2_REPRODUCIBLE` (SOURCE_DATE_EPOCH = commit date of the pinned Buildroot, TZ=UTC, LANG=C), the same container paths for

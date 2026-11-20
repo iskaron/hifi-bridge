@@ -2,59 +2,58 @@
  "boards": [
   {
    "board": "rpi3_64",
-   "rootfs_used": 185.05078125,
-   "rootfs_ext4": 256.0,
-   "rootfs_tree": 156.75438404083252,
-   "boot_used": 4.574528694152832,
+   "rootfs_used": 193.25390625,
+   "rootfs_ext4": 384.0,
+   "rootfs_tree": 156.8247833251953,
+   "boot_used": 4.607688903808594,
    "boot_part": 64.0,
    "kernel": 46.620816230773926,
    "firmware": 2.7957983016967773,
    "python": 15.126248359680176,
-   "bridge": 1.918715476989746,
-   "card": 644.0,
-   "bundle": 73.5912561416626
-  },
-  {
-   "board": "rpizero2w_64",
-   "rootfs_used": 184.98046875,
-   "rootfs_ext4": 256.0,
-   "rootfs_tree": 156.6889419555664,
-   "boot_used": 4.509108543395996,
-   "boot_part": 64.0,
-   "kernel": 46.620816230773926,
-   "firmware": 2.7957983016967773,
-   "python": 15.126248359680176,
-   "bridge": 1.918715476989746,
-   "card": 644.0,
-   "bundle": 73.5951681137085
-  },
-  {
-   "board": "rpi4_64",
-   "rootfs_used": 185.171875,
-   "rootfs_ext4": 256.0,
-   "rootfs_tree": 156.93289184570312,
-   "boot_used": 3.946812629699707,
-   "boot_part": 64.0,
-   "kernel": 46.75474262237549,
-   "firmware": 2.7957983016967773,
-   "python": 15.118435859680176,
-   "bridge": 1.918715476989746,
-   "card": 644.0,
-   "bundle": 73.73578834533691
+   "bridge": 1.9848575592041016,
+   "card": 1092.0,
+   "slot": 384.0,
+   "data_part": 256.0,
+   "data_avail": 225.78125,
+   "bundle": 73.61469554901123
   }
  ],
  "plan": {
-  "minimum": {
-   "slot": 224,
-   "boot": 16,
-   "data": 144,
-   "card": 612
-  },
-  "recommended": {
-   "slot": 384,
-   "boot": 64,
-   "data": 448,
-   "card": 1284
+  "used": 193.25390625,
+  "ratio": 0.3809221607856179,
+  "full_slot_bundle": 146.27410974167728,
+  "data_avail_min": 225.78125,
+  "need": 216,
+  "card": 1092,
+  "usable": 1716.61376953125,
+  "data_after_growth_2gb": 880.61376953125,
+  "checks": {
+   "slot_headroom": true,
+   "bundle_budget": true,
+   "data_holds_update": true,
+   "card_fits_2gb": true,
+   "layout_as_built": true
   }
+ },
+ "layout": {
+  "alignment_mib": 4,
+  "boot_mib": 64,
+  "slot_mib": 384,
+  "data_initial_mib": 256,
+  "data_mkfs": "-b 4096 -i 65536",
+  "card_target": {
+   "nominal_bytes": 2000000000,
+   "usable_bytes": 1800000000,
+   "why": "a nominal 2 GB card has 2*10^9 bytes on the label; real cards report less (typically 1.9-1.98*10^9). 10 % below the label is the conservative usable size the whole image must fit in."
+  },
+  "card_recommended_gb": 16
+ },
+ "data_budget": {
+  "largest_bundle_mib": 192,
+  "largest_bundle_why": "a completely full 384 MiB slot compressed 2:1 (measured: the 74 MiB development bundle holds a rootfs with 185 MiB in use, 2.5:1). RAUC streaming is off, so the whole bundle is stored on /data while it is verified and installed.",
+  "space_margin_mib": 16,
+  "space_margin_why": "btbridge.ota.transfer.SPACE_MARGIN: the update manager refuses an upload/download unless this much stays free after it",
+  "state_mib": 8,
+  "state_why": "settings, secrets, network, certificates, journals, two pre-update snapshots, update state, RAUC status, Bluetooth bonds of ~100 phones, clock file (measured: well below 1 MiB on a set-up lab device)"
  }
 }

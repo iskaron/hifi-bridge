@@ -201,9 +201,9 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 75. **Release source obligations:** the prebuilt DT overlays come from raspberrypi/linux `957fc9f9`, not our kernel commit `21b41014`;
     `make legal-info` does not save the Buildroot source itself and lacks the Bootlin toolchain licence files. All three must be added to a
     release's source bundle (G4 L-1).
-76. **Partition sizes (cannot change after the first flash):** the images use 256 MiB slots; rootfs uses ~185 MiB, leaving ~70 MiB for
-    future updates. Recommendation (reports/evidence/os_size_plan.md): slot 384 MiB, boot 64 MiB, data at least 448 MiB -> **2 GB minimum
-    card**; the tight alternative is 224/16/144 MiB -> 1 GB card. Owner decision needed before the first release image.
+76. ~~**Partition sizes (cannot change after the first flash)**~~ **resolved by DECISIONS #120** (owner, 2026-11-20): boot 64 MiB, slots
+    384 MiB, data 256 MiB before growth (measured minimum, docs/PERSISTENCE.md 2.1), 2 GB target card, 16 GB recommended. Implemented in
+    the final polish package P1 (`os/storage.json`, genimage, defconfigs, image check `size.*`, flash tool `MIN_BYTES`).
 77. ~~machine-id on a read-only `/etc`~~ **fixed** (networkd drop-in `DUIDType=link-layer`, image check `network.dhcp-duid-link-layer`; in
     images built after 2026-11-19, the package-6 evidence images predate it). Original finding: `/etc/machine-id` is empty, so each boot gets a transient id; networkd derives its DHCP DUID from
     it, so DHCPv6 leases (and DHCPv4 with a DUID-based client id) may change on every boot. Open only: whether other users of the
@@ -225,3 +225,24 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
     65536 this time, so the earlier volume cause (fixed in `c76c541`) is excluded. New observation: on reconnect after the recreate, Lyrion
     immediately resumed a stale bridge stream URL from an earlier run. Harness-side (lab state in `.lab/lms-config`), not seen with fresh
     state; root cause still open.
+
+## Added by the final polish package (2026-11-20)
+87. **Staged update bundle across a reboot** (P1, docs/PERSISTENCE.md 5): a verified bundle waiting for the owner's "install" (phase
+    `staged`, up to ~192 MiB) and the bundle of an installation cut by a power cut are kept across a reboot, so the owner can install or
+    retry without uploading again; every other staging file is removed at boot. Should a staged-but-not-installed bundle rather be dropped
+    at boot (stricter reading of DECISIONS #121, the owner uploads again)?
+88. **External syslog for the whole system:** the bridge forwards its own log over TLS syslog (bounded in-memory queue, never spooled).
+    The journal of BlueZ, PipeWire, RAUC and the kernel is not forwarded. A journald forwarder (`systemd-journal-upload`, or an
+    rsyslog/syslog-ng client reading the journal) would do it without writing to the card; not built (no new V1 feature). Wanted?
+89. ~~**PRODUCT_SPEC wording:**~~ **resolved:** the owner's rule #121 (logs and diagnostics only in RAM) supersedes the old line; PRODUCT_SPEC
+    updated with a reference to #121. Original: PRODUCT_SPEC ("mostly RAM logs with persistent critical fault history") predates DECISIONS #121; the
+    fault history is now RAM-only (kept across a service restart in `/run/hifi-bridge`, lost on reboot; DECISIONS #127). Update the
+    PRODUCT_SPEC line accordingly?
+90. **Write volume per update and per flash:** RAUC writes the whole 384 MiB slot image (it is not known whether RAUC 1.13 skips the
+    empty blocks of an ext4 image on a block device - check on hardware, gate P3); the flash tool writes and reads back all 1092 MiB
+    of the card image, including the empty slot B (correct and simple; skipping zero areas would need a discard plus a zero read-back).
+91. **BlueZ name cache:** `/var/lib/bluetooth/<adapter>/cache/` (persistent, BlueZ-managed) gets an entry for every phone that connected,
+    paired or not; small (a few hundred bytes each) but not bounded by the bridge. Prune entries of unpaired devices at boot?
+92. **macOS helper signature check** (DECISIONS #126, docs/MACOS_SIGNING.md 5): should the GUI verify the bundled helper's code signature
+    (same Team ID, `codesign --verify -R`) before elevating it, and refuse to run from a user-writable location outside App Translocation?
+    Today the helper is protected by the bundle seal, Gatekeeper and the admin prompt only.

@@ -32,7 +32,8 @@ phase 2b (software completion and hardware readiness) are done in software (`doc
 * OTA updates on RAUC: signed bundles, A/B slots, health check, rollback, configuration backup (`docs/OTA.md`);
 * the graphical flash tool (PySide6, Linux/macOS/Windows, DE/EN), tested with simulated cards only (`docs/FLASH_TOOL.md`);
 * internal Buildroot development images for Pi 3 B+, Pi Zero 2 W and Pi 4 - **built in Docker, never booted** (`docs/IMAGE_BUILD.md`,
-  firmware licences: `docs/IMAGE_LICENSING.md`);
+  firmware licences: `docs/IMAGE_LICENSING.md`; card layout 64/384/384 MiB + data, 2 GB minimum card, 16 GB recommended, and what is
+  stored on the card at all: `docs/PERSISTENCE.md`);
 * device-side provisioning, CA trust proof and recovery.
 
 Real in the tests: Lyrion 9.1.2, Squeezelite, Mosquitto 2.0.20, Home Assistant 2026.11.1, PipeWire 0.3.65/1.4.2, Avahi 0.8, rsyslog 8 (TLS),

@@ -177,3 +177,17 @@ def test_m11_macos_boot_disk_behind_an_apfs_container_is_never_offered(external_
     assert listed["disk4"].system == external_boot and ["diskutil", "info", "-plist", "/"] in calls
     assert D.apfs_containers_on(every, "disk4") == ["disk5"] and D.apfs_containers_on(every, "disk6") == []
     assert D.whole_disk("disk4s2") == "disk4" and D.whole_disk("disk12") == "disk12"
+
+
+def test_a_real_2_gb_card_is_accepted_and_the_limit_matches_the_card_layout():
+    """DECISIONS #120: the technical target is a nominal 2 GB card (real ones report 1.9-1.98*10^9 bytes), 16 GB is only a
+    recommendation. The limit is the usable size os/storage.json assumes for a 2 GB card, which the whole image must fit in."""
+    import os
+    storage = json.load(open(os.path.join(os.path.dirname(__file__), "..", "..", "os", "storage.json")))
+    assert D.MIN_BYTES == storage["layout"]["card_target"]["usable_bytes"]
+    card = lambda size: D.Disk(path="/dev/sdx", name="sdx", size=size, transport="usb", removable=True)  # noqa: E731
+    image = 1092 * 1024 ** 2                                              # 4 + 64 + 2 x 384 + 256 MiB
+    assert D.problems(card(1_931_476_992), image) == []                  # a real "2 GB" card
+    assert D.problems(card(16 * GB), image) == []
+    assert D.problems(card(1_500_000_000), image) == ["too_small_for_product"]
+    assert D.problems(card(1_000_000_000), image) == ["too_small_for_product", "smaller_than_image"]

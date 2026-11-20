@@ -73,14 +73,20 @@ def local_ip_for(host: str, port: int, resolver: "_Resolver | None" = None, conn
 
 
 class LogBuffer:
-    """Recent log lines in RAM (bounded) + persistent critical faults (bounded file), always token-redacted."""
+    """Recent log lines and the critical fault history, both in RAM and bounded, always token-redacted (DECISIONS #121: logs and
+    diagnostics never go to the card). With ``faults_dir`` (the image passes the service's RUNTIME directory, /run/hifi-bridge on a
+    tmpfs) the fault history is mirrored to a bounded file there, so it survives a restart of the service but not a reboot."""
 
-    def __init__(self, data_dir: str, size: int = 600, faults_keep: int = 200, echo: Callable[[str], None] | None = print):
+    def __init__(self, faults_dir: str | None, size: int = 600, faults_keep: int = 200, echo: Callable[[str], None] | None = print):
         self.lines: collections.deque = collections.deque(maxlen=size)
-        self.faults_path, self.faults_keep, self.echo = os.path.join(data_dir, "faults.jsonl"), faults_keep, echo
+        self.faults_path = os.path.join(faults_dir, "faults.jsonl") if faults_dir else None
+        self.faults_keep, self.echo = faults_keep, echo
+        self._faults: collections.deque = collections.deque(maxlen=faults_keep)
         self._lock = threading.Lock()
         self.secrets: list[str] = []
         self.forward: Callable[[str], None] | None = None
+        for rec in self._read_faults():
+            self._faults.append(rec)
 
     def _clean(self, msg: str) -> str:
         m = privacy.scrub(redact(str(msg)))            # MAC addresses -> per-device pseudonyms (review M10)
@@ -101,16 +107,16 @@ class LogBuffer:
 
     def fault(self, kind: str, detail: str) -> None:
         self(f"FAULT {kind}: {detail}")
-        rec = json.dumps({"t": time.time(), "kind": kind, "detail": self._clean(detail)})
+        rec = {"t": time.time(), "kind": kind, "detail": self._clean(detail)}
         with self._lock:
+            self._faults.append(rec)
+            if not self.faults_path:
+                return
             try:
-                old = open(self.faults_path).read().splitlines()[-(self.faults_keep - 1):] if os.path.exists(self.faults_path) else []
                 tmp = self.faults_path + ".tmp"
                 with open(tmp, "w") as fh:
-                    fh.write("\n".join(old + [rec]) + "\n")
-                    fh.flush()
-                    os.fsync(fh.fileno())                  # a fault is exactly what must survive a power cut (review L5)
-                os.replace(tmp, self.faults_path)
+                    fh.write("".join(json.dumps(f) + "\n" for f in self._faults))
+                os.replace(tmp, self.faults_path)      # RAM file system: no fsync (it does not survive a reboot by design)
             except OSError:
                 pass
 
@@ -118,18 +124,25 @@ class LogBuffer:
         with self._lock:
             return list(self.lines)[-n:]
 
-    def faults(self) -> list[dict]:
+    def _read_faults(self) -> list[dict]:
+        if not self.faults_path:
+            return []
         try:
-            return [json.loads(x) for x in open(self.faults_path).read().splitlines() if x.strip()]
+            return [json.loads(x) for x in open(self.faults_path).read().splitlines() if x.strip()][-self.faults_keep:]
         except (OSError, ValueError):
             return []
+
+    def faults(self) -> list[dict]:
+        with self._lock:
+            return list(self._faults)
 
 
 class ApplianceService:
     def __init__(self, data_dir: str, source=None, stream_port: int = 8090, advertise_host: str = "auto",
                  lms_factory: Callable[[str], object] = LmsClient, monitor: SystemMonitor | None = None,
-                 mqtt_factory: Callable | None = None, discover: Callable = discovery.discover, echo=print, auth_iterations: int | None = None):
-        self.logs = LogBuffer(data_dir, echo=echo)
+                 mqtt_factory: Callable | None = None, discover: Callable = discovery.discover, echo=print, auth_iterations: int | None = None,
+                 run_dir: str | None = None):
+        self.logs = LogBuffer(run_dir, echo=echo)      # never the data directory (DECISIONS #121); run_dir is a tmpfs on the image
         self.store = ConfigStore(data_dir, log=self.logs)
         salt = self.store.secret("log_salt")
         if not salt:

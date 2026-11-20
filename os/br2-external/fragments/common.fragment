@@ -76,10 +76,10 @@ BR2_TARGET_UBOOT_NEEDS_GNUTLS=y
 # copies the card ships (post-image.sh) and is installed as /etc/u-boot-initial-env
 BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_HIFI_BRIDGE_PATH)/board/hifi-bridge/uboot/uboot.fragment"
 BR2_TARGET_UBOOT_INITIAL_ENV=y
-# rootfs + images (sizes are placeholders until measured, P4)
+# rootfs + images. Slot size 384 MiB = the A/B layout of DECISIONS #120, fixed for the life of a device (os/storage.json, docs/PERSISTENCE.md)
 BR2_TARGET_ROOTFS_EXT2=y
 BR2_TARGET_ROOTFS_EXT2_4=y
-BR2_TARGET_ROOTFS_EXT2_SIZE="256M"
+BR2_TARGET_ROOTFS_EXT2_SIZE="384M"
 # fixed file-system UUID and directory hash seed: mke2fs otherwise draws both at random, which makes every rootfs.ext4 different.
 # Slots are mounted by partition (/dev/mmcblk0p2/3), never by UUID, and A/B copies share the UUID anyway. Read-only fs: no hash-DoS.
 # 4 KiB blocks always (mke2fs would choose 1 KiB for images below 512 MiB: more metadata, and the choice would depend on the size).
