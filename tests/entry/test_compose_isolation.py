@@ -11,7 +11,12 @@ from conftest import ROOT
 
 COMPOSE = {"lab": ROOT / "docker/compose.yml", "demo": ROOT / "demo/compose.yml"}
 INHIBIT = "com.docker.network.bridge.inhibit_ipv4"
-EDGE_ALLOWED = {"demo": {"edge": {"gateway"}}, "lab": {}}                    # the only non-internal networks and who may be on them
+# The only non-internal networks and who may be on them. Lab "mdns": Docker's rules for INTERNAL networks drop multicast between containers
+# (destination outside the subnet), so the mDNS interoperability suite (scripts/test_mdns.sh, profile "mdns") cannot run on one. That network
+# is not internal but has no host address (inhibit_ipv4) and no masquerading: it leads nowhere. The suite checks this at runtime, too.
+EDGE_ALLOWED = {"demo": {"edge": {"gateway"}}, "lab": {"mdns": {"mdns-responder", "mdns-avahi-pub", "mdns-nogw", "avahi"}}}
+NO_HOST_ADDRESS_NO_NAT = {"lab": {"mdns"}}                                  # non-internal networks that must have neither a host address nor NAT
+NET_ADMIN_ALLOWED = {"mdns-nogw"}                                           # deletes its own default route to prove "announces without a gateway"
 
 
 def load(name):
@@ -31,6 +36,10 @@ def test_every_network_is_internal_without_host_address_unless_it_is_the_gateway
         cfg = cfg or {}
         if net in EDGE_ALLOWED[name]:
             assert not cfg.get("internal", False)                          # needed for Docker to publish the gateway's ports
+            if net in NO_HOST_ADDRESS_NO_NAT.get(name, ()):
+                opts = {k: str(v).lower() for k, v in cfg.get("driver_opts", {}).items()}
+                assert opts.get(INHIBIT) == "true", f"{name}: network {net} needs {INHIBIT}"
+                assert opts.get("com.docker.network.bridge.enable_ip_masquerade") == "false", f"{name}: network {net} must not NAT"
             continue
         assert cfg.get("internal") is True, f"{name}: network {net} must be internal"
         assert str(cfg.get("driver_opts", {}).get(INHIBIT)).lower() == "true", f"{name}: network {net} needs {INHIBIT}: the host would get an address on it"
@@ -55,7 +64,8 @@ def test_nothing_gets_a_path_to_the_host(name):
     for s, cfg in doc["services"].items():
         assert cfg.get("network_mode") is None, f"{name}/{s}: network_mode would bypass the isolated networks"
         assert not cfg.get("extra_hosts"), f"{name}/{s}: extra_hosts (host-gateway) would point at the host"
-        assert not cfg.get("privileged") and "NET_ADMIN" not in str(cfg.get("cap_add", "")) and "NET_RAW" not in str(cfg.get("cap_add", ""))
+        assert not cfg.get("privileged") and "NET_RAW" not in str(cfg.get("cap_add", ""))
+        assert "NET_ADMIN" not in str(cfg.get("cap_add", "")) or (name == "lab" and s in NET_ADMIN_ALLOWED), f"{name}/{s}: NET_ADMIN"
         if s != "browser":                                                 # (the lab's browser shares the host IPC for Chromium only)
             assert not cfg.get("pid") and cfg.get("ipc") != "host"
     assert "host.docker.internal" not in text and "host-gateway" not in text
