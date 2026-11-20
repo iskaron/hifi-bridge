@@ -58,6 +58,29 @@ RAUC's U-Boot backend works with `BOOT_ORDER` and `BOOT_<slot>_LEFT`; `boot.cmd`
 real RAUC writing a file-backed environment: `mark-good` sets `BOOT_A_LEFT=3`, `mark-active other` puts B first with `BOOT_B_LEFT=3`,
 `mark-bad` sets the counter to 0 and removes the slot from `BOOT_ORDER`.
 
+**Two copies of the environment (review N-6, package 7b-2).** U-Boot rewrites the environment on every boot (counter) and RAUC on every
+mark-good/activation. It now exists twice on the boot FAT (`uboot.env`, `uboot-redund.env`; `CONFIG_ENV_REDUNDANT`, `uboot.fragment`;
+`/etc/fw_env.config` lists both). Every write goes to the **older** copy with the next serial byte, readers take the newest copy with a
+valid CRC, so a power cut during a write leaves the previous state. Both copies ship with the card (U-Boot's default environment from
+`u-boot-initial-env` + `BOOT_ORDER=A B`, `BOOT_A_LEFT=3`, `BOOT_B_LEFT=0`, `hifi_env=1`, serials 1/0): fw_setenv refuses to work while one
+file is missing. Verified in Docker with the real RAUC 1.13 + libubootenv `fw_setenv` (`tests/ota`: writes alternate; tearing the newest
+copy gives exactly the previous state; RAUC activates a slot with **two** writes - `BOOT_B_LEFT=3` first, then `BOOT_ORDER` - and the
+state between them still boots A) and with the build's own uboot-tools `fw_printenv`/`fw_setenv` on the image's copies (image check).
+
+`boot.cmd` fails safe when U-Boot has to use its **built-in** default environment (both copies invalid; recognised by the missing
+`hifi_env`): it does not behave like a fresh card (which would never try B), but gives A and then B three attempts each, saves that, and
+passes `hifi.bootenv=reset` on the kernel command line of that boot. `panic=10` makes a slot whose kernel loads but cannot run restart, so
+the attempt counter can fall back. Residual risks (HARDWARE-PENDING, G2 P3-5/P3-6):
+* both copies invalid at once (FAT damage, not a single torn write): the previous slot choice is lost; A is tried first, so the device may
+  run the older version after an update (the update page still shows both slots and offers the switch). The marker is visible only in
+  `/proc/cmdline` and the U-Boot console today (OPEN_QUESTIONS proposal: show it on the update page);
+* Linux-side: if fw_setenv ever saw both copies invalid it would write uboot-tools' **generic** default environment (`bootcmd=bootp ...`
+  NFS boot) - the device would no longer boot from the card. U-Boot has written a valid copy at the start of the same boot, so this needs
+  independent damage of both copies while Linux runs (proposal: libubootenv with `/etc/u-boot-initial-env` as its default);
+* a torn write of the FAT directory sector itself (not the file data) is not covered by the redundancy;
+* the saved environment keeps board values U-Boot only sets when missing (`serial#`, `usbethaddr`/`ethaddr`, `fdtfile`) from the first Pi
+  the card booted in (unchanged behaviour, noted for card moves between boards).
+
 `hifi-bridge-health.service` (after `hifi-bridge.service`) waits up to 300 s until all checks pass: `/data` is a mount point, the
 state directory is writable (write + fsync + delete), `/healthz` on 127.0.0.1:80 says `ok` or `degraded` (this also proves the WebUI
 answers; `degraded` such as "Lyrion unreachable" is healthy on purpose) and RAUC answers. Then:
@@ -160,7 +183,7 @@ first"). Version 1 (an own keystream construction) existed only on the unmerged 
 | Suite | What is real | Command |
 |---|---|---|
 | `tests/unit/test_ota_*.py`, `test_webui_update.py`, `test_appliance_updates.py` | real HTTP, real ConfigStore, real files; RAUC simulated (in-process fake or `btkit.fake_rauc` on a private dbus-daemon); fault injection for every failure path | `scripts/run_unit.sh` |
-| `tests/ota/test_rauc_real.py` | **real RAUC 1.13 service**, real dbus-daemon with upstream + our policy, real `fw_setenv` on a file-backed U-Boot environment, bundles from `os_bundle.sh` with throw-away keys | `scripts/run_ota.sh` (image `btbridge-ota`) |
+| `tests/ota/test_rauc_real.py` | **real RAUC 1.13 service**, real dbus-daemon with upstream + our policy, real `fw_setenv` on the product's two-copy file-backed U-Boot environment (torn newest copy -> previous state), bundles from `os_bundle.sh` with throw-away keys | `scripts/run_ota.sh` (image `btbridge-ota`) |
 | `tests/os/test_ota_image.py` | `post-build.sh` on a fake target tree; unit/tmpfiles/policy wiring | `scripts/run_os.sh` |
 | `tests/browser/test_ui_update.py` | real Chromium + axe-core against the lab appliance with the simulated RAUC (`--sim-rauc`) | `scripts/run_browser.sh` |
 | units | `systemd-analyze verify` + `security` (health check 1.5 OK) | `scripts/run_static.sh` |
@@ -171,7 +194,8 @@ stops at the mount step, which the tests assert as a clean failure.
 ## 10. Still needed on hardware (add to docs/HARDWARE_GATE_CHECKLIST.md G2/G4)
 * P3-3/P3-4 with **this** flow: upload in the WebUI → install → restart → health check marks good; a deliberately broken bridge in slot B
   → `mark-bad` + reboot → A; a kernel that does not boot → 3 attempts → A. Time from "Restart now" to the page being back.
-* P3-5/P3-6 power cuts during install, during the first boot of B, during the health check.
+* P3-5/P3-6 power cuts during install, during the first boot of B, during the health check - including during U-Boot's `saveenv` and
+  RAUC's two-step activation (the other environment copy must be used; console shows no "bad CRC, using default environment").
 * dm-verity refusing a bundle whose payload was changed after signing.
 * `FailureAction=reboot`, the reboot path unit and the tmpfiles directory under real systemd; the D-Bus policy with the image's dbus 1.14.
 * Space: bundle size vs. data partition (PHASE2B_PLAN section 3); a full data partition during an upload.

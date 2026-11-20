@@ -284,3 +284,47 @@ lines; the 2 partial branches are the pre-existing generator expressions in `ins
 `webui/views_update.py` 100 % -> 100 %, `net/netagent.py` 96 % -> 97 %, `net/netclient.py` 98 % -> 98 %, `net/netsys.py` 95 % -> 95 %,
 `webui/views_network.py` 96 % -> 98 %, `webui/server.py` 92 % -> 92 %, `webui/views.py` 89 % -> 89 %, `bootfiles.py` 98 % -> 98 %,
 `appliance.py` 94 % -> 94 %. Every remaining miss in these modules existed before this package (no new uncovered line or branch).
+
+---
+
+## Fixes (package 7b-2), 2026-11-20
+
+Branch `wip/qa-os` (from develop @ 2112dd8). Scope: N-6, N-8, N-13, N-14. Every fix started with a test or image check that failed on
+the unchanged code (12 new/changed tests/os cases failed first; the source-port filter and the narrowed firewall rule were each checked
+by putting the old code back: the unit test and the live probes then FAIL). Evidence labels: STATIC/UNIT/INTEGRATION in Docker,
+BUILD-VERIFIED for the rebuilt rpi3_64 image - **nothing was booted; every runtime statement is HARDWARE-PENDING.**
+
+| ID | Fix commit | What changed | Proving tests / checks |
+|---|---|---|---|
+| N-6 | `4d62eea` fix(os), `c26e80a` test(ota) | U-Boot `CONFIG_ENV_REDUNDANT=y` + `CONFIG_ENV_FAT_FILE_REDUND="uboot-redund.env"` (`board/hifi-bridge/uboot/uboot.fragment`, `BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES`); `/etc/fw_env.config` lists both copies (`uboot/fw_env.config`). Both copies ship on the FAT (post-image: U-Boot's default environment from `u-boot-initial-env` (`BR2_TARGET_UBOOT_INITIAL_ENV=y`) + `uboot-env.txt` = `BOOT_ORDER=A B`, `BOOT_A_LEFT=3`, `BOOT_B_LEFT=0`, `hifi_env=1`; serials 1/0) - required because fw_setenv refuses to work while one copy is missing, and a valid copy replaces U-Boot's built-in defaults (so it must carry `bootcmd`). `boot.cmd`: without `hifi_env` (U-Boot on its built-in defaults, both copies lost) A then B get 3 attempts each, saved, and the boot is marked `hifi.bootenv=reset` on the kernel command line; `panic=10` so a slot whose kernel cannot run restarts and the counter can fall back. post-build replaces fstab entries of an earlier build instead of appending | tests/os `test_boot_robustness.py` (fragment + defconfigs, fw_env two lines, env parser rejects a torn copy, both copies on the card with defaults + slot state + serials 1/0, post-image refuses a build without `u-boot-initial-env`, boot.cmd fail-safe block); tests/ota `test_rauc_writes_the_older_copy_and_a_torn_newest_copy_keeps_the_previous_state` (real RAUC 1.13 + libubootenv on the product layout); image check `rauc.fw-env`, `rauc.uboot-env-matches-fw_env`, `boot.uboot-env-copies-present/-valid`, `boot.uboot-env-fresh-card`, `boot.uboot-env-defaults-complete`, `boot.uboot-env-torn-copy-fallback` (the build's own fw_printenv/fw_setenv), `boot.uboot-script-failsafe` |
+| N-8 | `a51d8ed` fix(net), `4d62eea` (resolved drop-in) | Discovery binds the fixed local port 3484 (`lms.discovery.REPLY_PORT`, one discovery at a time), ignores answers not from port 3483; firewall `udp sport 3483 udp dport 3484 accept` (renderer + base ruleset). `/etc/systemd/resolved.conf.d/hifi-bridge.conf`: `LLMNR=no`, `MulticastDNS=no` (resolved stays the DNS client; Avahi owns mDNS) | unit `test_lms_discovery.py` (5); tests/net `test_resolved_with_the_image_dropin_answers_no_llmnr_or_mdns` (real resolved: 5355 bound without the drop-in, no 5355/5353 with it); run_net.sh live: from source port 3483, UDP 5355 and 40000 **dropped** (with the old rule: answered = FAIL), 5353 open, real discovery behind the generated ruleset finds a fake Lyrion server; image check `network.firewall-discovery-reply-only`, `network.resolved-no-responders` |
+| N-13 | `4d62eea` fix(os) | `hifi-bridge-growdata.service` without `ConditionPathExists=!/data/.grown` (runs every boot; growdata.sh is idempotent and only reads the partition table once the card is filled); the unused `touch /data/.grown` removed from `hifi-bridge-data.service` | tests/os `test_no_own_unit_checks_a_path_below_a_mount_it_runs_before` (generic: no Condition/Assert path below a mount the unit runs before); existing growdata idempotency test; image check `units.growdata-no-premount-guard` |
+| N-14 | `4d62eea` fix(os) | `/boot` vfat mounted `uid=0,gid=991,fmask=0117,dmask=0007`: root-owned (RAUC/fw_setenv as root), writable for the new group `hifi-boot` (gid 991, **no members**, `hifi-bridge.mk`), nothing for others (the provisioning file holds secrets until scrubbed). Only `hifi-bridge-boot.service` joins the group (overlay drop-in `hifi-bridge-boot.service.d/boot-fat.conf`, `SupplementaryGroups=hifi-boot`); no capability added, exposure unchanged 0.6 | tests/os `test_boot_fat_is_root_owned_and_writable_only_through_the_boot_group`, `test_only_the_boot_step_may_write_the_boot_partition` (packaging + overlay units incl. drop-ins: every other `hifi-bridge` unit `ProtectSystem=strict`, no `/boot` in `ReadWritePaths`); image check `boot.fat-root-owned`, `boot.fat-group-no-members`, `units.boot-fat-writers`; `scripts/run_static.sh` verifies the boot unit with its drop-in |
+
+Remaining / not changed here:
+* N-6 residual (OTA.md section 4): both copies invalid at once (FAT damage, not a single torn write) loses the slot choice - A is tried
+  first and may be the older version; the `hifi.bootenv=reset` marker is only in `/proc/cmdline`/the U-Boot console (no UI notice).
+  Linux side: uboot-tools' fw_setenv, seeing both copies invalid, would write its generic default environment (`bootcmd=bootp ...`, an NFS
+  boot) - needs independent damage of both copies while Linux runs; libubootenv with `/etc/u-boot-initial-env` would avoid it (proposal).
+  A torn FAT directory sector is not covered. RAUC 1.13 activates a slot with two writes (`BOOT_B_LEFT=3`, then `BOOT_ORDER`); the state
+  between them keeps A first (tested). Real power cuts: G2 P3-5/P3-6.
+* N-8 residual: while a discovery runs (2 s), a LAN host can still send forged answers to port 3484; they are parsed defensively and only
+  offered as a choice in the wizard. A local process binding 3484 first makes discovery fail with a logged error (empty list).
+* N-14 residual: the boot step itself can still change everything on the FAT (it must write there); a root process can too. Console
+  `btbridge.recovery ... boot-request --boot /boot` drops to uid 990 without supplementary groups and can no longer write the FAT on the
+  image - the image has no console login; `systemctl restart hifi-bridge-boot.service` does the same work.
+* Not rebuilt: rpi4_64 and rpizero2w_64 (their evidence reports predate these fixes; docs/IMAGE_BUILD.md).
+
+Suite results on `wip/qa-os` (2026-11-20, Docker only):
+
+| Suite | Result |
+|---|---|
+| `scripts/run_os.sh` (defconfigs + licences + tests/os + tests/flashtool) | defconfigs PASS (3 boards, 85 common + board requirements), licences 0, **162 passed** |
+| `scripts/run_static.sh` | shellcheck, compile, `systemd-analyze verify` (boot unit now with its drop-in), actionlint: exit 0; exposure hifi-bridge 1.9, hifi-bridge-boot **0.6** (unchanged), health 1.5 |
+| `scripts/run_net.sh` | **17 passed** (+ real resolved test), live checks PASS incl. spoofed-port UDP probes and discovery through the firewall, exit 0 (`reports/evidence/network_realtools.txt`) |
+| `scripts/run_ota.sh` (real RAUC 1.13) | **13 passed** (+ two-copy environment test), exit 0 (`reports/evidence/ota_realrauc.txt`) |
+| `scripts/run_unit.sh -q` | **895 passed** in 342 s (before: 890) |
+| `scripts/run_entry_tests.sh` | 90 passed |
+| rpi3_64 incremental rebuild (`HIFI_OS_REBUILD="uboot host-uboot-tools" scripts/os_build.sh rpi3_64 build`) | exit 0, 283 s (configure 24 s + make 259 s), 136 GB free on /home |
+| `scripts/os_check_image.sh rpi3_64` | **0 FAIL, 103 PASS, 20 INFO** (before: 90 checks); secret scan 6084 files + boot FAT + raw card (675 282 944 bytes): **0 findings** (`reports/evidence/os_image_rpi3_64.md`) |
+| `scripts/os_check_ota.sh rpi3_64` | bundle 77 170 122 bytes accepted by the image keyring, compatible matches, foreign-signed bundle refused: exit 0 |

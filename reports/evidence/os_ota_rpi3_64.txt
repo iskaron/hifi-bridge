@@ -1,10 +1,10 @@
 ### make ota (compatible hifi-bridge-rpi3, version 0.3.0-dev, development signing key)
       image btbridge-os:dev: present
-os_bundle: /out/hifi-bridge-hifi-bridge-rpi3-0.3.0-dev.raucb (77166025 bytes)
+os_bundle: /out/hifi-bridge-hifi-bridge-rpi3-0.3.0-dev.raucb (77170122 bytes)
 os_bundle: output directory on this host: /home/olm/bluetooth-audio-bridge/.lab/br-out/rpi3_64/ota
 ### rauc info with the image s keyring (1 certificate(s): O=Hi-Fi Bridge development, OU=temporary, not for release, CN=Hi-Fi Bridge DEV update CA a8324dbd)
 PASS accepted by the image keyring (bundle compatible hifi-bridge-rpi3)
 PASS bundle compatible = image compatible (hifi-bridge-rpi3)
-     version 0.3.0-dev | image sha256 3d71f945f064f3e4c5c7d694d9ebe0113c24ed0137cc6caff73cd516c7c72611
+     version 0.3.0-dev | image sha256 c351acea3769e50f56d22c540bdd94b067bec2f8ba6fc84f97e76481b8abefa3
 PASS a foreign-signed bundle is refused
-bundle size: 77166025 bytes
+bundle size: 77170122 bytes
