@@ -8,8 +8,9 @@ in German and English, reached under `hifi-bridge.local` over HTTPS with the dev
 
 > **Development status - please read.** Hi-Fi Bridge is unfinished software. Everything has been developed and tested **only in Docker,
 > without any Bluetooth, Raspberry Pi or audio hardware**. It has **never** run on a Raspberry Pi, **never** received audio from a real
-> phone over real Bluetooth, and **no** device image has been built or booted. A/B updates, rollback and the flash tool are not verified.
-> There are no releases. Do not use it for anything important yet. The hardware gate (`docs/HARDWARE_GATE_CHECKLIST.md`) comes next.
+> phone over real Bluetooth, and the internal development images have been **built but never booted**. Network management, A/B updates,
+> rollback and the flash tool are verified only against simulated radios, simulated partitions and simulated cards. There are no releases.
+> Do not use it for anything important yet. The hardware gate (`docs/HARDWARE_GATE_CHECKLIST.md`) comes next.
 
 **Try it now - interactive demo** (Docker + Compose + make, nothing else on the host; `docs/DEMO.md`, German: `docs/DEMO.de.md`).
 **Requirements: Docker Engine >= 24.0 and Docker Compose (v2 plugin) >= 2.20** - see `docs/DOCKER_REQUIREMENTS.md` for how these minimums were
@@ -26,9 +27,12 @@ The demo runs the **real** bridge software (unchanged, with its BlueZ adapter), 
 **simulated**; a browser audio monitor lets you hear what the rooms output behind Lyrion and Squeezelite.
 
 **Where the project stands:** phase 1 (audio feasibility) is accepted; phase 2a (WebUI, configuration, MQTT/Home Assistant, hardware kit) and
-the phase-2b preparation are done in software (`docs/PHASE2B_PLAN.md`):
-* a Buildroot external tree (`os/`) whose configuration is checked in Docker - **not built**;
-* the flash tool core (`flashtool/`), tested with simulated cards only;
+phase 2b (software completion and hardware readiness) are done in software (`docs/PHASE2B_PLAN.md`, `reports/PROGRESS_PHASE2B.md`):
+* network management: Ethernet/Wi-Fi, IPv4/IPv6, automatic setup hotspot, firewall, mDNS, time sync, recovery (`docs/NETWORK.md`);
+* OTA updates on RAUC: signed bundles, A/B slots, health check, rollback, configuration backup (`docs/OTA.md`);
+* the graphical flash tool (PySide6, Linux/macOS/Windows, DE/EN), tested with simulated cards only (`docs/FLASH_TOOL.md`);
+* internal Buildroot development images for Pi 3 B+, Pi Zero 2 W and Pi 4 - **built in Docker, never booted** (`docs/IMAGE_BUILD.md`,
+  firmware licences: `docs/IMAGE_LICENSING.md`);
 * device-side provisioning, CA trust proof and recovery.
 
 Real in the tests: Lyrion 9.1.2, Squeezelite, Mosquitto 2.0.20, Home Assistant 2026.11.1, PipeWire 0.3.65/1.4.2, Avahi 0.8, rsyslog 8 (TLS),
@@ -44,9 +48,9 @@ bridge/btbridge/   product code, Python stdlib only (+ optional jeepney; openssl
                    adapters/bluez/             BlueZ/PipeWire adapter (prepared, NOT hardware-verified)
                    config/ system/ service.py webui/ mqtt/ net/ supervision.py appliance.py
 hwkit/             hardware validation kit (preflight, guided session, traces, captures, analysis) + pi-setup/
-os/                Buildroot br2-external skeleton (3 boards, update trust, card layout) - configuration-checked, NOT built (os/README.md)
-flashtool/         flash/provisioning tool core (disk policy, signed manifest, write/verify, provisioning, CA trust) - no GUI yet
-packaging/         systemd unit (verified with systemd-analyze) + respawn wrapper - preparation for phase 2b
+os/                Buildroot br2-external tree (3 boards, read-only root, A/B + RAUC, firewall, image checks) - built in Docker, never booted
+flashtool/         flash tool: PySide6 GUI, privileged helper, platform disk adapters, packaging (Linux built; Windows/macOS prepared)
+packaging/         systemd units (verified with systemd-analyze) + respawn wrapper
 testkit/           lab-only tools: simulated phone, fake BlueZ, PipeWire harness, appliance_lab
 demo/              interactive demo (make demo): virtual bluetoothd, virtual phones, audio monitor, rooms, gateway - SIMULATED devices
 tests/             unit/ integration/ pipewire/ hwkit/ browser/ homeassistant/ demo/ fixtures/
@@ -75,7 +79,12 @@ scripts/test_syslog.sh            # optional remote syslog -> REAL rsyslog over 
 scripts/run_py314.sh              # unit suite on Python 3.14
 scripts/run_security.sh           # bandit gate (no unjustified MEDIUM/HIGH finding)
 scripts/run_coverage.sh [--integration]   # line+branch coverage -> reports/evidence/coverage.txt (see docs/TEST_COVERAGE.md)
-scripts/run_os.sh                 # Buildroot defconfig + licence checks, real-RAUC trust matrix, card layout, flash tool (simulated cards)
+scripts/run_os.sh                 # Buildroot defconfig + licence checks, real-RAUC trust matrix, card layout, boot robustness, image tools
+scripts/run_net.sh                # network: real nft/dnsmasq/hostapd/wpa_supplicant/networkd/avahi in containers, live firewall + DHCP
+scripts/run_ota.sh                # OTA against the real RAUC 1.13 service (signatures, two-copy U-Boot environment)
+scripts/run_flashtool.sh [coverage|package]   # flash tool GUI (offscreen Qt) + helper, simulated disks only; Linux package build
+scripts/os_build.sh <board> [clean] build legal sbom   # internal development image in Docker (hours; docs/IMAGE_BUILD.md)
+scripts/os_check_image.sh <board> # image checks + secret scan of a built image (also os_check_ota.sh)
 scripts/run_homeassistant.sh      # REAL Home Assistant 2026.11.1 + Mosquitto: discovery, availability, commands, telemetry, over-temperature
 scripts/run_browser.sh            # Chromium/WebKit: keyboard-only wizard, a11y tree, axe-core, light/dark, phone/desktop, trusted HTTPS
 scripts/run_demo_tests.sh         # demo unit tests (virtual bluetoothd against the real BlueZ adapter, phones, monitor, console)
