@@ -10,7 +10,7 @@ rc=0
 step() { echo "### $1"; shift; "$@" || rc=1; }
 step shellcheck docker run --rm -v "$PWD":/w:ro -w /w koalaman/shellcheck-alpine:v0.10.0@sha256:5921d946dac740cbeec2fb1c898747b6105e585130cc7f0602eec9a10f7ddb63 sh -c \
   'shellcheck -S warning -x scripts/*.sh scripts/lib/*.sh demo/lms/start.sh tests/entry/docker_matrix/*.sh tests/entry/clean/*.sh docker/mosquitto/start.sh demo/mosquitto/start.sh testkit/pw/start_pipewire.sh os/br2-external/board/hifi-bridge/post-image.sh \
-   && shellcheck -s sh packaging/bin/hifi-bridge-respawn os/br2-external/board/hifi-bridge/post-build.sh \
+   && shellcheck -s sh packaging/bin/hifi-bridge-respawn os/br2-external/board/hifi-bridge/post-build.sh os/tools/build_libubootenv.sh \
       os/br2-external/board/hifi-bridge/overlay/usr/libexec/hifi-bridge/growdata.sh flashtool/packaging/linux/*.sh flashtool/packaging/macos/*.sh'
 step licence-copy cmp LICENSE bridge/LICENSE                  # Buildroot needs the licence inside the package directory
 step python-compile docker run --rm -v "$PWD":/w:ro -w /w python:3.11-slim@sha256:07d4824036af339fa1b6ef769cc99d9c10a141769538b52b3b597c84f7a7b535 python3 -c \

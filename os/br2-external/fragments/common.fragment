@@ -62,8 +62,14 @@ BR2_PACKAGE_RAUC=y
 BR2_PACKAGE_RAUC_DBUS=y
 BR2_PACKAGE_RAUC_JSON=y
 # BR2_PACKAGE_RAUC_STREAMING is not set
-BR2_PACKAGE_UBOOT_TOOLS=y
-BR2_PACKAGE_UBOOT_TOOLS_FWPRINTENV=y
+# fw_printenv/fw_setenv (RAUC's U-Boot backend) from libubootenv, NOT uboot-tools (DECISIONS #133): with both environment copies invalid
+# it starts from /etc/u-boot-initial-env (our complete default, post-build.sh) instead of uboot-tools' compiled-in generic default
+# (bootcmd=bootp: an unbootable card); uboot-tools 2025.10 also spins forever on a short copy. Our patch (patches/libubootenv) makes it use
+# the other copy when one cannot be read completely, as U-Boot does. The target uboot-tools are not installed (one implementation only);
+# the HOST uboot-tools stay (mkimage for boot.scr, mkenvimage for the shipped copies).
+BR2_PACKAGE_LIBUBOOTENV=y
+# BR2_PACKAGE_UBOOT_TOOLS is not set
+BR2_GLOBAL_PATCH_DIR="board/raspberrypi/patches $(BR2_EXTERNAL_HIFI_BRIDGE_PATH)/patches"
 BR2_PACKAGE_E2FSPROGS=y
 BR2_PACKAGE_E2FSPROGS_RESIZE2FS=y
 # BR2_PACKAGE_DOSFSTOOLS is not set

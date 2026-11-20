@@ -6,7 +6,9 @@
 #    /etc/hifi-bridge/update-trust.json. Fails on: no choice, missing/non-CA certificate, any private key, unexpected extra input.
 #    Images that accept official bundles also record the FIXED official update source (GitHub Releases of iskaron/hifi-bridge,
 #    DECISIONS #70). The source is transport only: a bundle is installed only if its signature matches the keyring.
-#  * RAUC system.conf with the board's compatible string, U-Boot env access for fw_printenv/fw_setenv,
+#  * RAUC system.conf with the board's compatible string, U-Boot env access for fw_printenv/fw_setenv (libubootenv) and its complete
+#    Linux-side default environment /etc/u-boot-initial-env,
+#  * radio firmware pruned to the board's list (firmware/radio-<compatible>.txt),
 #  * fstab (boot FAT root-owned, writable only through the group of the boot step; data partition), persistent paths, enabled units.
 set -eu
 
@@ -88,6 +90,54 @@ sed "s/@COMPATIBLE@/$compat/" "$BOARD_DIR/rauc/system.conf.in" > "$TARGET_DIR/et
 # rpi_arm64 keeps its environment on the boot FAT (CONFIG_ENV_IS_IN_FAT), here in TWO copies (uboot.fragment, review N-6);
 # fw_setenv must use both like U-Boot (size checked against the U-Boot build by the image check; on a board: gate item P3-1)
 install -m 0644 "$BOARD_DIR/uboot/fw_env.config" "$TARGET_DIR/etc/fw_env.config"
+# Linux-side default environment (DECISIONS #133, docs/OTA.md 4.1): libubootenv's fw_printenv/fw_setenv fall back to
+# /etc/u-boot-initial-env when NEITHER copy is valid, and fw_setenv then stores it. It must be complete and bootable: U-Boot's own
+# compiled-in default (installed there by BR2_TARGET_UBOOT_INITIAL_ENV) with the slot state of uboot/linux-default-env.txt instead of any
+# slot variable (no hifi_env: boot.cmd then fails safe). Idempotent (an incremental build runs this on the already rewritten file).
+if [ "$(cfg BR2_TARGET_UBOOT)" = y ]; then
+	initial_env="$TARGET_DIR/etc/u-boot-initial-env"
+	[ -s "$initial_env" ] || die "$initial_env (U-Boot's default environment) missing - BR2_TARGET_UBOOT_INITIAL_ENV=y?"
+	slot_keys=$(sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' "$BOARD_DIR/uboot/uboot-env.txt" "$BOARD_DIR/uboot/linux-default-env.txt" \
+		| sort -u | paste -sd'|')
+	{ grep -Ev "^(${slot_keys})=" "$initial_env" || true; grep -Ev '^(#|$)' "$BOARD_DIR/uboot/linux-default-env.txt"; } > "$initial_env.tmp"
+	grep -q '^bootcmd=' "$initial_env.tmp" || die "$initial_env has no bootcmd - not U-Boot's default environment"
+	mv "$initial_env.tmp" "$initial_env"
+	chmod 0644 "$initial_env"
+fi
+
+# ---------------------------------------------------------------- radio firmware per board (DECISIONS #134, docs/IMAGE_LICENSING.md 5)
+# Only the Wi-Fi/Bluetooth firmware this board's image can need: every other file below /lib/firmware/{brcm,cypress,synaptics} is
+# deleted, every listed one must be present and unmodified (sha256 / link target). The image check enforces the same list.
+if [ "$(cfg BR2_PACKAGE_BRCMFMAC_SDIO_FIRMWARE_RPI)" = y ]; then
+	fwlist="$BOARD_DIR/firmware/radio-$compat.txt"
+	[ -f "$fwlist" ] || die "no radio firmware list for '$compat' ($fwlist)"
+	fw="$TARGET_DIR/lib/firmware"
+	removed=0
+	for d in brcm cypress synaptics; do
+		[ -d "$fw/$d" ] || continue
+		for f in "$fw/$d"/* "$fw/$d"/.[!.]*; do
+			[ -e "$f" ] || [ -L "$f" ] || continue
+			if ! awk -v p="$d/${f##*/}" '!/^#/ && $1 == p { found = 1 } END { exit !found }' "$fwlist"; then
+				rm -rf "$f"; removed=$((removed + 1))
+			fi
+		done
+		rmdir "$fw/$d" 2>/dev/null || true
+	done
+	kept=0
+	while read -r rel kind val lic; do
+		case "$rel" in ""|"#"*) continue ;; esac
+		p="$fw/$rel"
+		case "$kind" in
+			file) { [ -f "$p" ] && [ ! -L "$p" ]; } || die "radio firmware $rel ($lic) missing"
+			      [ "$(sha256sum < "$p" | cut -d' ' -f1)" = "$val" ] \
+			          || die "radio firmware $rel differs from $fwlist (modified, or a new package version: review the list)" ;;
+			link) { [ -L "$p" ] && [ "$(readlink "$p")" = "$val" ]; } || die "radio firmware link $rel -> $val missing or different" ;;
+			*) die "$fwlist: bad line '$rel $kind'" ;;
+		esac
+		kept=$((kept + 1))
+	done < "$fwlist"
+	echo "hifi-bridge post-build: radio firmware for $compat: $kept entries kept, $removed removed"
+fi
 
 # ---------------------------------------------------------------- build identity (development vs. release)
 # Every image that is not an official release is a DEVELOPMENT build and is marked as such in os-release, build-info.json and the

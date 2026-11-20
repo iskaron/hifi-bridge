@@ -1,0 +1,32 @@
+# Radio firmware shipped in the hifi-bridge-rpizero2w image (DECISIONS #134, docs/IMAGE_LICENSING.md section 5). post-build.sh deletes every
+# other file below /usr/lib/firmware/{brcm,cypress,synaptics} and fails if one of these is missing or differs; the image check
+# (firmware.radio-list) enforces the same list. Package: brcmfmac_sdio-firmware-rpi 6596d332 (Buildroot 2026.02 pin).
+# Columns: path below /usr/lib/firmware | file <sha256> or link <target> | licence (cypress / synaptics-wifi: in the package's
+# LICENSE; synaptics-bt: also needs SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt).
+#
+# Zero 2 W (RP3A0 with CYW43436; the kernel sees chip 43430 rev A1 or rev B0 depending on the board revision). Wi-Fi:
+# brcmfmac43430-sdio.<board> -> 43436s (rev A1), brcmfmac43430b0-sdio.<board> -> 43436 (rev B0); the 43436/43436s board names are kept for
+# kernels that ask for them. The rev-A1 board name has no .clm_blob link, so the kernel falls back to the GENERIC
+# brcmfmac43430-sdio.clm_blob (Cypress), exactly as on Raspberry Pi OS: kept. Bluetooth: BCM43430A1/B0.<board>.hcd ->
+# synaptics/SYN43430A1/B0.hcd (Synaptics End-User Software Tool License).
+brcm/BCM43430A1.raspberrypi,model-zero-2-w.hcd link ../synaptics/SYN43430A1.hcd synaptics-bt
+brcm/BCM43430B0.raspberrypi,model-zero-2-w.hcd link ../synaptics/SYN43430B0.hcd synaptics-bt
+brcm/brcmfmac43430-sdio.clm_blob link ../cypress/cyfmac43430-sdio.clm_blob cypress
+brcm/brcmfmac43430-sdio.raspberrypi,model-zero-2-w.bin link brcmfmac43436s-sdio.bin synaptics-wifi
+brcm/brcmfmac43430-sdio.raspberrypi,model-zero-2-w.txt link brcmfmac43436s-sdio.txt synaptics-wifi
+brcm/brcmfmac43430b0-sdio.raspberrypi,model-zero-2-w.bin link brcmfmac43436-sdio.bin synaptics-wifi
+brcm/brcmfmac43430b0-sdio.raspberrypi,model-zero-2-w.clm_blob link brcmfmac43436-sdio.clm_blob synaptics-wifi
+brcm/brcmfmac43430b0-sdio.raspberrypi,model-zero-2-w.txt link brcmfmac43436-sdio.txt synaptics-wifi
+brcm/brcmfmac43436-sdio.bin file 510a7dd1e056199b309425548ee0bd846993a1837ac7fa1e4d3e641f05a1327a synaptics-wifi
+brcm/brcmfmac43436-sdio.clm_blob file fce7cbb62ffa6a5a65ca97b13f6fbf28d06c02d986c2072d65bf72164755fc34 synaptics-wifi
+brcm/brcmfmac43436-sdio.raspberrypi,model-zero-2-w.bin link brcmfmac43436-sdio.bin synaptics-wifi
+brcm/brcmfmac43436-sdio.raspberrypi,model-zero-2-w.clm_blob link brcmfmac43436-sdio.clm_blob synaptics-wifi
+brcm/brcmfmac43436-sdio.raspberrypi,model-zero-2-w.txt link brcmfmac43436-sdio.txt synaptics-wifi
+brcm/brcmfmac43436-sdio.txt file 4cda90facd8844cff60d80b34b24ecbae76adb9a62508a109461b8bf42b478d1 synaptics-wifi
+brcm/brcmfmac43436s-sdio.bin file 68b9bcc9855d91733cd44c21de4cb507c91b0d32d838c0696def5eb96c99e2de synaptics-wifi
+brcm/brcmfmac43436s-sdio.raspberrypi,model-zero-2-w.bin link brcmfmac43436s-sdio.bin synaptics-wifi
+brcm/brcmfmac43436s-sdio.raspberrypi,model-zero-2-w.txt link brcmfmac43436s-sdio.txt synaptics-wifi
+brcm/brcmfmac43436s-sdio.txt file 37a8b85a5a9742761101b764a07bc4d0c8b09f2e180eaea3b503a834277ad595 synaptics-wifi
+cypress/cyfmac43430-sdio.clm_blob file 3376b9c9b32d16bf762e21c7fafb665365070ae240d092498d0d1987c22022aa cypress
+synaptics/SYN43430A1.hcd file 55071227c94d86369d04f9aff3bbfd4197a78a53dc350295123e1a8b048bba8f synaptics-bt
+synaptics/SYN43430B0.hcd file 338c2c6631131f516bfc7e64ef0872bd0402e1f98ef9d0c900eef0c814d90a25 synaptics-bt

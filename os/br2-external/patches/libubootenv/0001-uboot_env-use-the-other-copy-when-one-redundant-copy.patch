@@ -1,0 +1,50 @@
+From: Oliver Meyer <olm@cativa.net>
+Date: Fri, 20 Nov 2026 18:00:00 +0100
+Subject: [PATCH] uboot_env: use the other copy when one redundant copy cannot
+ be read completely
+
+libuboot_load() returned -EIO as soon as one copy of a redundant
+environment could not be read completely, even when the other copy was
+valid. fw_printenv/fw_setenv then fell back to the default environment
+file, and the next store wrote that default (plus the change) as the
+newest copy: the valid environment was replaced. On a FAT file a short
+copy is what a power cut during U-Boot's saveenv can leave behind.
+
+Treat such a copy as invalid (like a bad CRC), as U-Boot's
+env_check_redund() does: the valid copy is used and the next store
+rewrites the bad one. A non-redundant environment still fails with
+-EIO.
+
+Signed-off-by: Oliver Meyer <olm@cativa.net>
+Upstream: not submitted (Hi-Fi Bridge, docs/OTA.md section 4.1)
+---
+ src/uboot_env.c | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/uboot_env.c b/src/uboot_env.c
+--- a/src/uboot_env.c
++++ b/src/uboot_env.c
+@@ -645,8 +645,21 @@
+ 		dev = &ctx->envdevs[i];
+ 		ret = devread(ctx, i, buf[i]);
+ 		if (ret != ctx->size) {
+-			free(buf[0]);
+-			return -EIO;
++			/*
++			 * A copy that cannot be read completely (file missing or
++			 * shorter than the environment, e.g. after a power cut
++			 * while it was rewritten) is an invalid copy. With a
++			 * redundant environment the other copy is still used,
++			 * as U-Boot does (env_check_redund), and the next store
++			 * rewrites the bad one.
++			 */
++			if (!ctx->redundant) {
++				free(buf[0]);
++				return -EIO;
++			}
++			crcenv[i] = false;
++			dev->flags = 0;
++			continue;
+ 		}
+ 		crc = *(uint32_t *)(buf[i] + offsetcrc);
+ 		dev->crc = crc32(0, (uint8_t *)data, usable_envsize);

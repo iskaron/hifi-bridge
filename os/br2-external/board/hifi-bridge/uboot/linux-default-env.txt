@@ -1,0 +1,11 @@
+# Slot state of the LINUX-side default environment (DECISIONS #133, docs/OTA.md section 4.1). post-build.sh writes /etc/u-boot-initial-env
+# = U-Boot's complete compiled-in default environment (u-boot-initial-env of the U-Boot build: bootcmd=bootflow scan, addresses, ...) with
+# these lines instead of any slot variables. libubootenv's fw_printenv/fw_setenv (RAUC) use that file only when NEITHER copy on the boot
+# FAT is valid; fw_setenv then stores it (+ RAUC's change) as a complete, bootable environment.
+#  * the same attempts boot.cmd gives when U-Boot itself finds both copies invalid: A first, then B, three attempts each;
+#  * deliberately NO hifi_env: boot.cmd treats the stored environment as "lost", runs its fail-safe branch (A then B, 3 attempts each)
+#    and marks that boot with hifi.bootenv=reset - one fail-safe path for a loss seen by U-Boot or by Linux.
+# Keys must be a subset of uboot-env.txt's (post-image.sh strips those to recover U-Boot's own defaults; tests/os checks it).
+BOOT_ORDER=A B
+BOOT_A_LEFT=3
+BOOT_B_LEFT=3

@@ -35,11 +35,25 @@ copy_licence() {	# $1 glob below BUILD_DIR, $2 name on the FAT
 	cp "$f" "$lic/$2"
 }
 if enabled BR2_PACKAGE_RPI_FIRMWARE; then copy_licence "rpi-firmware-*/boot/LICENCE.broadcom" rpi-firmware.LICENCE.broadcom; fi
+radio_note=""
 if enabled BR2_PACKAGE_BRCMFMAC_SDIO_FIRMWARE_RPI; then
 	copy_licence "brcmfmac_sdio-firmware-rpi-*/LICENSE" brcmfmac_sdio-firmware-rpi.LICENSE
-	cp "${BOARD_DIR}/licenses/SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt" "$lic/"
+	# per-board radio firmware (post-build.sh, firmware/radio-<compatible>.txt): the Synaptics End-User Software Tool License only where
+	# Synaptics Bluetooth files remain (Zero 2 W), so the other images carry neither those files nor that licence (DECISIONS #134)
+	fwlist="${BOARD_DIR}/firmware/radio-${compat}.txt"
+	[ -f "$fwlist" ] || { echo "post-image: no radio firmware list $fwlist" >&2; exit 1; }
+	has_lic() { awk -v l="$1" '!/^#/ && NF >= 4 && $4 == l { f = 1 } END { exit !f }' "$fwlist"; }
+	who="Cypress Semiconductor"
+	if has_lic synaptics-wifi; then who="$who, Synaptics (Wi-Fi)"; fi
+	radio_note="  * Wi-Fi and Bluetooth firmware of this board (${compat}) in /usr/lib/firmware of the root file system -
+    brcmfmac_sdio-firmware-rpi.LICENSE (${who}; Broadcom for brcm/brcmfmac*.bin)"
+	if has_lic synaptics-bt; then
+		cp "${BOARD_DIR}/licenses/SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt" "$lic/"
+		radio_note="${radio_note} and
+    SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt (synaptics/*.hcd, Raspberry Pi Zero 2 W Bluetooth)"
+	fi
 fi
-cat > "$lic/NOTICE.txt" <<'EOF'
+cat > "$lic/NOTICE.txt" <<EOF
 Hi-Fi Bridge card image - third-party notices
 
 This image is a collection of separately licensed programs. The Hi-Fi Bridge service is licensed under AGPL-3.0-only; its source
@@ -50,16 +64,15 @@ The following firmware is included as binary only and UNMODIFIED, under the lice
 with the hardware it was made for (the Raspberry Pi and its Broadcom/Cypress/Synaptics wireless chips):
   * Raspberry Pi boot firmware (bootcode.bin, start*.elf, fixup*.dat) - rpi-firmware.LICENCE.broadcom
     Copyright (c) 2006, Broadcom Corporation. Copyright (c) 2015, Raspberry Pi (Trading) Ltd. All rights reserved.
-  * Wi-Fi and Bluetooth firmware in /usr/lib/firmware/{brcm,cypress,synaptics} of the root file system -
-    brcmfmac_sdio-firmware-rpi.LICENSE (Broadcom, Cypress Semiconductor, Synaptics) and
-    SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt (synaptics/*.hcd, Raspberry Pi Zero 2 W Bluetooth).
+${radio_note}
 EOF
 
 # both copies of the U-Boot environment (review N-6, uboot.fragment). They must exist from the first boot on: fw_setenv (RAUC) refuses
 # to work while one of the files is missing, and U-Boot would create the second only on the second boot. U-Boot imports a valid copy
 # INSTEAD of its built-in defaults, so each copy = the complete default environment (u-boot-initial-env, BR2_TARGET_UBOOT_INITIAL_ENV)
 # + the slot state of a fresh card (uboot-env.txt). Copy 1 carries serial 1, the redundant copy 0: both U-Boot and fw_env start from
-# copy 1 and write the other one next.
+# copy 1 and write the other one next. /etc/u-boot-initial-env is the Linux-side default by now (post-build.sh: U-Boot's default + the
+# slot lines of linux-default-env.txt, whose keys are a subset of uboot-env.txt's), so stripping uboot-env.txt's keys gives U-Boot's own.
 initial_env="${TARGET_DIR:-}/etc/u-boot-initial-env"
 [ -n "${TARGET_DIR:-}" ] && [ -s "$initial_env" ] || {
 	echo "post-image: U-Boot default environment ${initial_env} (u-boot-initial-env) not found - BR2_TARGET_UBOOT_INITIAL_ENV=y?" >&2; exit 1; }

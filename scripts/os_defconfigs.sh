@@ -40,4 +40,13 @@ for pair in rpi3_64:raspberrypi3_64 rpi4_64:raspberrypi4_64 rpizero2w_64:raspber
   if ! diff -q /tmp/fresh-$b $EXT/configs/hifi_bridge_${b}_defconfig >/dev/null; then echo "  $b: committed defconfig is stale (run generate)"; missing=1; fi
   [ $missing -eq 0 ] && echo "PASS $b: defconfig resolves, all $(grep -cE "^(BR2_|# BR2_)" $EXT/fragments/common.fragment) common + board requirements kept" || rc=1
 done
+# the libubootenv source the environment simulations compile (docker/Dockerfile.os, os/tools/build_libubootenv.sh) = the image'\''s
+bv=$(sed -n "s/^LIBUBOOTENV_VERSION = //p" /buildroot/package/libubootenv/libubootenv.mk)
+bh=$(awk -v f="libubootenv-$bv.tar.gz" "\$3 == f {print \$2}" /buildroot/package/libubootenv/libubootenv.hash)
+if [ -n "$bv" ] && [ -n "$bh" ] && grep -qx "VERSION=$bv" /work/os/tools/build_libubootenv.sh && grep -qx "SHA256=$bh" /work/os/tools/build_libubootenv.sh \
+   && grep -qx "ARG LIBUBOOTENV_VERSION=$bv" /work/docker/Dockerfile.os && grep -qx "ARG LIBUBOOTENV_SHA256=$bh" /work/docker/Dockerfile.os; then
+  echo "PASS libubootenv $bv: simulation source = Buildroot pin (sha256 ${bh:0:16}...)"
+else
+  echo "  libubootenv: Buildroot pins $bv ($bh) - docker/Dockerfile.os / os/tools/build_libubootenv.sh differ"; rc=1
+fi
 exit $rc'

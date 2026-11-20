@@ -1,0 +1,35 @@
+# Radio firmware shipped in the hifi-bridge-rpi4 image (DECISIONS #134, docs/IMAGE_LICENSING.md section 5). post-build.sh deletes every
+# other file below /usr/lib/firmware/{brcm,cypress,synaptics} and fails if one of these is missing or differs; the image check
+# (firmware.radio-list) enforces the same list. Package: brcmfmac_sdio-firmware-rpi 6596d332 (Buildroot 2026.02 pin).
+# Columns: path below /usr/lib/firmware | file <sha256> or link <target> | licence (cypress / synaptics-wifi: in the package's
+# LICENSE; synaptics-bt: also needs SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt).
+#
+# Pi 4 B (CYW43455: brcmfmac43455, BCM4345C0) - the target board. The image also carries the DTBs of the Pi 400 (CYW43456: brcmfmac43456,
+# BCM4345C5) and CM4 (either chip; CM4S has no radio) from the upstream defconfig, so both chip families stay. brcmfmac43456 is under the
+# Synaptics Wi-Fi EULA (binary distribution, no termination by notice).
+brcm/BCM4345C0.hcd file 51c45e77ddad91a19e96dc8fb75295b2087c279940df2634b23baf71b6dea42c cypress
+brcm/BCM4345C0.raspberrypi,4-compute-module.hcd link BCM4345C0.hcd cypress
+brcm/BCM4345C0.raspberrypi,4-model-b.hcd link BCM4345C0.hcd cypress
+brcm/BCM4345C5.hcd file fb9f4ec2df5301bd35f416384e103c012c5983024c49aa72fbbaf90177512caa cypress
+brcm/BCM4345C5.raspberrypi,4-compute-module.hcd link BCM4345C5.hcd cypress
+brcm/BCM4345C5.raspberrypi,400.hcd link BCM4345C5.hcd cypress
+brcm/brcmfmac43455-sdio.bin link ../cypress/cyfmac43455-sdio.bin cypress
+brcm/brcmfmac43455-sdio.clm_blob link ../cypress/cyfmac43455-sdio.clm_blob cypress
+brcm/brcmfmac43455-sdio.raspberrypi,4-compute-module.bin link ../cypress/cyfmac43455-sdio.bin cypress
+brcm/brcmfmac43455-sdio.raspberrypi,4-compute-module.clm_blob link ../cypress/cyfmac43455-sdio.clm_blob cypress
+brcm/brcmfmac43455-sdio.raspberrypi,4-compute-module.txt link brcmfmac43455-sdio.txt cypress
+brcm/brcmfmac43455-sdio.raspberrypi,4-model-b.bin link ../cypress/cyfmac43455-sdio.bin cypress
+brcm/brcmfmac43455-sdio.raspberrypi,4-model-b.clm_blob link ../cypress/cyfmac43455-sdio.clm_blob cypress
+brcm/brcmfmac43455-sdio.raspberrypi,4-model-b.txt link brcmfmac43455-sdio.txt cypress
+brcm/brcmfmac43455-sdio.txt file ca709be81a78bdb6932936374f39943acbd7af07fae6151011127599a3ce9e3d cypress
+brcm/brcmfmac43456-sdio.bin file ddf83f2100885b166be52d21c8966db164fdd4e1d816aca2acc67ee9cc28d726 synaptics-wifi
+brcm/brcmfmac43456-sdio.clm_blob file 2dbd7d22fc9af0eb560ceab45b19646d211bc7b34a1dd00c6bfac5dd6ba25e8a synaptics-wifi
+brcm/brcmfmac43456-sdio.raspberrypi,4-compute-module.bin link brcmfmac43456-sdio.bin synaptics-wifi
+brcm/brcmfmac43456-sdio.raspberrypi,4-compute-module.clm_blob link brcmfmac43456-sdio.clm_blob synaptics-wifi
+brcm/brcmfmac43456-sdio.raspberrypi,4-compute-module.txt link brcmfmac43456-sdio.txt synaptics-wifi
+brcm/brcmfmac43456-sdio.raspberrypi,400.bin link brcmfmac43456-sdio.bin synaptics-wifi
+brcm/brcmfmac43456-sdio.raspberrypi,400.clm_blob link brcmfmac43456-sdio.clm_blob synaptics-wifi
+brcm/brcmfmac43456-sdio.raspberrypi,400.txt link brcmfmac43456-sdio.txt synaptics-wifi
+brcm/brcmfmac43456-sdio.txt file 44e0bb322dc1f39a4b0a89f30ffdd28bc93f7d7aaf534d06d229fe56f6198194 synaptics-wifi
+cypress/cyfmac43455-sdio.bin file d608f866582519c0a28d86db43040f4f1b98dd1d153e72e9752586546b4a36c3 cypress
+cypress/cyfmac43455-sdio.clm_blob file 9823842cae9fb9a5dd1e5fb31f595516ec7deee341354bef30bb3026eee29cc1 cypress

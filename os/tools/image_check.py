@@ -35,6 +35,8 @@ HARDWARE_PENDING = [
     "boots: firmware -> U-Boot -> kernel from slot A -> multi-user.target (G2 P1-2)",
     "U-Boot reads uboot.env/uboot-redund.env from the FAT, alternates its saves between them; fw_printenv/fw_setenv agree (G2 P3-1)",
     "power cut while U-Boot or fw_setenv writes the environment: the other copy is used, the right slot boots (G2 P3-5/P3-6)",
+    "both copies damaged while Linux runs / a truncated copy on a real FAT / a card moved to another board (G2 P3-12...P3-14)",
+    "each board (and Zero 2 W radio revision) loads its Wi-Fi/Bluetooth firmware from the per-board list (G2 P1-4)",
     "RAUC install into slot B, boot-count switch, rollback, power cuts (G2 P3-*)",
     "root-owned boot FAT: the boot step writes through the group hifi-boot, other hifi-bridge processes cannot (G2 P6-3)",
     "read-only root really stays read-only at runtime; /var overlay + /data bind mounts persist pairings across reboots (G2 P4-2)",
@@ -46,6 +48,7 @@ HARDWARE_PENDING = [
     "a nominal 2 GB card boots and grows the data partition; a 16 GB card likewise (G2 P4-1)",
 ]
 STORAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "storage.json")
+BOARD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "br2-external", "board", "hifi-bridge")
 MIB = 1 << 20
 
 
@@ -198,10 +201,73 @@ def check_boot_partition(r, boot_dir, board, man):
         data = open(prov, "rb").read()
         empty = json.loads(data.decode()) == {"format": "hifi-bridge-provision/1", "state": "empty"}
         r.add("provisioning.placeholder", len(data) == 4096 and empty, f"{len(data)} bytes, empty placeholder: {empty}")
-    lic = os.path.join(boot_dir, "licenses")
-    want = ["NOTICE.txt", "rpi-firmware.LICENCE.broadcom", "brcmfmac_sdio-firmware-rpi.LICENSE", "SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt"]
-    have = sorted(os.listdir(lic)) if os.path.isdir(lic) else []
-    r.add("boot.firmware-licences", all(w in have for w in want), "licenses/ on the FAT: " + ", ".join(have))
+    # boot firmware per board (DECISIONS #134): exactly the variant the board's firmware loads, nothing else
+    boot_fw = sorted(f for f in files if re.match(r"^(start.*\.elf|fixup.*\.dat|bootcode\.bin)$", f))
+    want_fw = BOOT_FIRMWARE.get(board)
+    r.add("firmware.boot-files", boot_fw == want_fw, f"boot firmware on the FAT: {boot_fw} (expected exactly {want_fw})")
+
+
+# boot firmware each board's ROM/EEPROM loads (config.txt start_file/fixup_file): the Pi 3 B+ and Zero 2 W boot ROM reads bootcode.bin,
+# the Pi 4 boots from its EEPROM and reads start4.elf/fixup4.dat (Buildroot BR2_PACKAGE_RPI_FIRMWARE_VARIANT_PI / _PI4)
+BOOT_FIRMWARE = {"rpi3_64": ["bootcode.bin", "fixup.dat", "start.elf"], "rpizero2w_64": ["bootcode.bin", "fixup.dat", "start.elf"],
+                 "rpi4_64": ["fixup4.dat", "start4.elf"]}
+FIRMWARE_LISTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "br2-external", "board", "hifi-bridge", "firmware")
+RADIO_DIRS = ("brcm", "cypress", "synaptics")
+SYNAPTICS_TOOL_LICENCE = "SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt"
+
+
+def radio_list(path):
+    """{path below /usr/lib/firmware: (kind, sha256-or-target, licence)} of a firmware/radio-<compatible>.txt list."""
+    out = {}
+    for ln in open(path, encoding="utf-8"):
+        f = ln.split()
+        if f and not f[0].startswith("#"):
+            out[f[0]] = (f[1], f[2], f[3])
+    return out
+
+
+def radio_tree(root):
+    out = {}
+    base = os.path.join(root, "usr/lib/firmware")
+    for d in RADIO_DIRS:
+        dd = os.path.join(base, d)
+        for fn in sorted(os.listdir(dd)) if os.path.isdir(dd) else []:
+            p = os.path.join(dd, fn)
+            out[f"{d}/{fn}"] = ("link", os.readlink(p)) if os.path.islink(p) else ("file", filecmp_hash(p))
+    return out
+
+
+def check_radio_firmware(r, root, boot_dir, compat, lists_dir=FIRMWARE_LISTS):
+    """DECISIONS #134: the image carries exactly the board's radio firmware list (no missing, no extra, unmodified), no file with the
+    content of a Synaptics Bluetooth file under another licence tag, and exactly the licence texts those files need."""
+    lp = os.path.join(lists_dir, f"radio-{compat}.txt")
+    if not r.add("firmware.radio-list-present", os.path.isfile(lp), f"firmware list {os.path.relpath(lp, os.path.dirname(lists_dir))}"):
+        return
+    want, have = radio_list(lp), radio_tree(root)
+    missing = sorted(set(want) - set(have))
+    extra = sorted(set(have) - set(want))
+    differ = sorted(p for p in set(want) & set(have) if want[p][:2] != have[p])
+    r.facts["radio_firmware"] = sorted(have)
+    r.add("firmware.radio-list", not (missing or extra or differ),
+          f"{len(have)} entries below /usr/lib/firmware/{{{','.join(RADIO_DIRS)}}} = {os.path.basename(lp)} ({len(want)})"
+          + (f"; missing {missing}" if missing else "") + (f"; extra {extra}" if extra else "") + (f"; differ {differ}" if differ else ""))
+    syn_bt = set()
+    for other in glob.glob(os.path.join(lists_dir, "radio-*.txt")):
+        syn_bt |= {v[1] for v in radio_list(other).values() if v[0] == "file" and v[2] == "synaptics-bt"}
+    hidden = sorted(p for p, (k, v) in have.items() if k == "file" and v in syn_bt and want.get(p, ("", "", ""))[2] != "synaptics-bt")
+    r.add("firmware.no-hidden-synaptics-bt", not hidden, "no file with the content of a Synaptics Bluetooth patch under another name or tag"
+          + (f": {hidden}" if hidden else " (BCM43430B0.hcd is byte-identical to synaptics/SYN43430B0.hcd)"))
+    lics = {v[2] for v in want.values()}
+    lic_dir = os.path.join(boot_dir, "licenses")
+    on_fat = sorted(os.listdir(lic_dir)) if os.path.isdir(lic_dir) else []
+    need = ["NOTICE.txt", "brcmfmac_sdio-firmware-rpi.LICENSE", "rpi-firmware.LICENCE.broadcom"]
+    need += [SYNAPTICS_TOOL_LICENCE] if "synaptics-bt" in lics else []
+    r.add("boot.firmware-licences", on_fat == sorted(need),
+          f"licenses/ on the FAT: {', '.join(on_fat)} (needed for {sorted(lics)}: {', '.join(sorted(need))})")
+    notice = open(os.path.join(lic_dir, "NOTICE.txt"), errors="replace").read() if "NOTICE.txt" in on_fat else ""
+    ok = compat in notice and (SYNAPTICS_TOOL_LICENCE in notice) == ("synaptics-bt" in lics) \
+        and ("Synaptics (Wi-Fi)" in notice) == ("synaptics-wifi" in lics)
+    r.add("boot.firmware-notice", ok, f"NOTICE.txt names this board ({compat}) and exactly the licences of its firmware")
 
 
 def check_manifest(r, image, man, boot_dir):
@@ -297,7 +363,7 @@ def read_env_image(path, size, redundant=True):
     return {"flags": raw[4] if redundant and len(raw) > 4 else None, "vars": out, "crc_ok": crc_ok}
 
 
-def check_uboot_env(r, root, boot_dir, uboot_config, fw_printenv=None, boot_script=None):
+def check_uboot_env(r, root, boot_dir, uboot_config, fw_printenv=None, boot_script=None, uboot_bin=None, compare_tool=None):
     """Review N-6: two environment copies on the FAT, matching U-Boot's configuration and fw_env.config; both ship with the card and
     carry U-Boot's complete default environment + the fresh-card slot state; the tools fall back to the older copy when the newer one is
     torn; boot.cmd fails safe on U-Boot's built-in default environment."""
@@ -326,14 +392,34 @@ def check_uboot_env(r, root, boot_dir, uboot_config, fw_printenv=None, boot_scri
     r.add("boot.uboot-env-fresh-card", got == want, f"slot state of a fresh card: {got} (slot B empty: never tried)")
     r.facts["uboot_env_shipped"] = a["vars"]
     init = os.path.join(root, "etc/u-boot-initial-env")
-    if r.add("boot.uboot-env-has-defaults", os.path.isfile(init), "/etc/u-boot-initial-env (U-Boot's default environment)"):
-        defaults = dict(ln.rstrip("\n").split("=", 1) for ln in open(init) if "=" in ln)
-        diff = sorted(k for k, val in defaults.items() if k not in want and a["vars"].get(k) != val)
+    linux_slot = env_text(os.path.join(BOARD_DIR, "uboot", "linux-default-env.txt"))
+    slot_keys = set(want) | set(linux_slot)
+    if r.add("boot.uboot-env-has-defaults", os.path.isfile(init), "/etc/u-boot-initial-env (Linux-side default environment)"):
+        defaults = env_text(init)
+        r.facts["uboot_env_linux_default"] = defaults
+        diff = sorted(k for k, val in defaults.items() if k not in slot_keys and a["vars"].get(k) != val)
         r.add("boot.uboot-env-defaults-complete", not diff and "bootcmd" in a["vars"],
-              f"{len(defaults)} default variables, all in the shipped copies with the same value (U-Boot imports a valid copy INSTEAD of "
-              f"its defaults); bootcmd={a['vars'].get('bootcmd')!r}" + (f"; differing: {', '.join(diff)}" if diff else ""))
+              f"{len(defaults)} variables in /etc/u-boot-initial-env, all of U-Boot's defaults in the shipped copies with the same value "
+              f"(U-Boot imports a valid copy INSTEAD of its defaults); bootcmd={a['vars'].get('bootcmd')!r}"
+              + (f"; differing: {', '.join(diff)}" if diff else ""))
+        uboot_part = {k: v for k, v in a["vars"].items() if k not in slot_keys}
+        got_slot = {k: defaults.get(k) for k in sorted(slot_keys)}
+        want_slot = {k: linux_slot.get(k) for k in sorted(slot_keys)}
+        ok = {k: v for k, v in defaults.items() if k not in slot_keys} == uboot_part and got_slot == want_slot \
+            and defaults.get("bootcmd") == a["vars"].get("bootcmd")
+        r.add("boot.uboot-env-linux-default", ok,
+              "libubootenv's default when no copy is valid = U-Boot's complete default + " + ", ".join(f"{k}={v}" for k, v in linux_slot.items())
+              + f" and no hifi_env (boot.cmd then fails safe); slot variables found: {got_slot}")
+        if uboot_bin and os.path.isfile(uboot_bin):
+            blob = open(uboot_bin, "rb").read()
+            absent = sorted(k for k, v in uboot_part.items() if b"\0" + f"{k}={v}".encode() + b"\0" not in blob)
+            ours = sorted(k for k in slot_keys if b"\0" + k.encode() + b"=" in blob)
+            r.add("boot.uboot-builtin-env", not absent and not ours,
+                  f"u-boot.bin's compiled-in default environment holds all {len(uboot_part)} U-Boot variables of the shipped copies "
+                  f"(both copies bad -> the same bootcmd) and none of the slot variables (-> boot.cmd fails safe)"
+                  + (f"; not found: {absent}" if absent else "") + (f"; unexpected: {ours}" if ours else ""))
     if fw_printenv:
-        env_tool_fallback(r, copies, size, fw_printenv)
+        env_corruption_matrix(r, copies, size, fw_printenv, init, compare_tool)
     if boot_script and os.path.isfile(boot_script):
         src = [ln.split("#")[0].strip() for ln in open(boot_script, errors="replace")]   # dumpimage keeps the binary length header
         ok = 'if test "${hifi_env}" != "1"; then' in src and "setenv BOOT_B_LEFT 3" in src and "setenv hifi_bootenv hifi.bootenv=reset" in src
@@ -343,36 +429,62 @@ def check_uboot_env(r, root, boot_dir, uboot_config, fw_printenv=None, boot_scri
               "panic=N lets a slot that cannot run fall back")
 
 
-def env_tool_fallback(r, copies, size, tool):
-    """The REAL fw_printenv/fw_setenv of this build (host build of the same uboot-tools as the image's) on scratch copies of the shipped
-    environment, configured like the image's fw_env.config: a write goes to the older copy; a torn newest copy -> the previous state."""
-    import tempfile
-    d = tempfile.mkdtemp(prefix="envchk")
-    try:
-        paths = [os.path.join(d, os.path.basename(p)) for p in copies]
-        for s, t in zip(copies, paths):
-            shutil.copyfile(s, t)
-        conf = os.path.join(d, "fw_env.config")
-        open(conf, "w").write("".join(f"{p} 0x0000 {hex(size)}\n" for p in paths))
-        setenv = os.path.join(os.path.dirname(tool), "fw_setenv")
+def check_env_tools(r, root, file_list=None):
+    """DECISIONS #133: fw_printenv/fw_setenv are libubootenv's (default environment /etc/u-boot-initial-env, configuration
+    /etc/fw_env.config), and the target has no second implementation from uboot-tools."""
+    tool = resolve(root, "/usr/bin/fw_printenv")
+    blob = open(tool, "rb").read() if os.path.isfile(tool) else b""
+    setenv = os.path.join(root, "usr/bin/fw_setenv")
+    libs = glob.glob(os.path.join(root, "usr/lib/libubootenv.so*"))
+    r.add("rauc.env-tool-libubootenv", bool(libs) and b"/etc/u-boot-initial-env" in blob and b"/etc/fw_env.config" in blob
+          and os.path.islink(setenv) and os.path.basename(os.readlink(setenv)) == "fw_printenv",
+          f"fw_printenv links libubootenv ({', '.join(sorted(os.path.basename(x) for x in libs)) or 'missing'}), defaults to "
+          "/etc/u-boot-initial-env and /etc/fw_env.config; fw_setenv -> fw_printenv")
+    owners = {}
+    if file_list and os.path.isfile(file_list):
+        for ln in open(file_list, errors="replace"):
+            pkg, _, path = ln.strip().partition(",")
+            owners.setdefault(pkg, []).append(path)
+    leftovers = [b for b in ("usr/bin/mkimage", "usr/bin/dumpimage", "usr/bin/mkenvimage") if os.path.lexists(os.path.join(root, b))]
+    ok = not owners.get("uboot-tools") and not leftovers and (not owners or "./usr/bin/fw_printenv" in owners.get("libubootenv", []))
+    r.add("rauc.env-tool-single", ok, "no target uboot-tools (one environment implementation): "
+          f"uboot-tools files {owners.get('uboot-tools') or 'none'}, leftovers {leftovers or 'none'}, fw_printenv from "
+          f"{[p for p, fs in owners.items() if './usr/bin/fw_printenv' in fs] or 'unknown (no file list)'}")
 
-        def get(name):
-            res = sh(tool, "-c", conf, "-n", name)
-            return res.stdout.strip() if res.returncode == 0 else f"rc={res.returncode} {res.stderr.strip()[:80]}"
-        steps = {"read": get("BOOT_ORDER")}
-        sh(setenv, "-c", conf, "BOOT_B_LEFT", "3")              # like RAUC activating slot B
-        steps["after-write"] = get("BOOT_B_LEFT")
-        steps["serials"] = [read_env_image(p, size)["flags"] for p in paths]
-        raw = bytearray(open(paths[1], "rb").read())           # copy 2 is now the newest: tear it in the middle
-        raw[size // 2] ^= 0xFF
-        open(paths[1], "wb").write(bytes(raw))
-        steps["newest-torn"] = get("BOOT_B_LEFT")
-        r.facts["uboot_env_tool_check"] = steps
-        ok = steps["read"] == "A B" and steps["after-write"] == "3" and steps["serials"] == [1, 2] and steps["newest-torn"] == "0"
-        r.add("boot.uboot-env-torn-copy-fallback", ok, f"{tool}: read {steps['read']!r}; fw_setenv wrote the older copy (serials "
-              f"{steps['serials']}); newest copy torn -> previous state BOOT_B_LEFT={steps['newest-torn']!r}")
-    finally:
-        shutil.rmtree(d, ignore_errors=True)
+
+def env_text(path):
+    """key=value lines of an environment text file (comments and blank lines skipped)."""
+    out = {}
+    for ln in open(path, encoding="utf-8", errors="replace"):
+        ln = ln.rstrip("\n")
+        if ln and not ln.startswith("#") and "=" in ln:
+            k, v = ln.split("=", 1)
+            out[k] = v
+    return out
+
+
+def env_corruption_matrix(r, copies, size, tool, default, compare_tool=None):
+    """DECISIONS #133: the image's environment tools (libubootenv compiled from the image's source + patches by
+    os/tools/build_libubootenv.sh) on scratch copies of the SHIPPED environment and with the image's own /etc/u-boot-initial-env, through
+    every corruption case of uboot_env_sim.py (SIMULATED; U-Boot's choice is a port of env_check_redund). Optionally the same matrix
+    with another fw_printenv (the uboot-tools host build of the previous images) as an INFO comparison."""
+    import uboot_env_sim as sim
+    c1, c2 = (open(p, "rb").read() for p in copies)
+    res = sim.run_matrix(tool, c1, c2, default, size)
+    exp = sim.expectations(res, sim.parse(c1, size)["vars"], default)
+    bad = [f"{c}: {why}" for c, ok, why in exp if not ok]
+    r.facts["uboot_env_matrix"] = res
+    r.facts["uboot_env_matrix_md"] = sim.table_md(res, exp)
+    r.add("boot.uboot-env-corruption-matrix", not bad and res["tool"].startswith("libubootenv"),
+          f"{res['tool']}: {len(exp) - len(bad)}/{len(exp)} corruption cases behave (valid copy used, the other never destroyed, both bad "
+          "-> the image's complete default, fail-safe boot); table below" + (f"; FAILED: {'; '.join(bad)}" if bad else ""))
+    if compare_tool:
+        cres = sim.run_matrix(compare_tool, c1, c2, default, size)
+        r.facts["uboot_env_matrix_compare_md"] = sim.table_md(cres)
+        both_bad = next(x for x in cres["results"] if x["case"] == "both-crc-bad")
+        hang = [x["case"] for x in cres["results"] if x["printenv"]["rc"] == 124]
+        r.add("boot.uboot-env-compare-previous-tool", True, f"comparison {cres['tool']}: both copies bad -> stored bootcmd="
+              f"{(both_bad['uboot_next']['vars'] or {}).get('bootcmd')!r}; did not finish on {hang or 'no case'}", info=True)
 
 
 def merged_units(root):
@@ -544,8 +656,8 @@ def check_network_and_misc(r, root):
     r.add("network.regdb", bool(regdb), "wireless regulatory database")
     bt = glob.glob(os.path.join(root, "usr/lib/firmware/brcm/BCM*.hcd"))
     wifi = glob.glob(os.path.join(root, "usr/lib/firmware/brcm/brcmfmac*"))
-    r.facts["radio_firmware"] = sorted(os.path.basename(p) for p in bt + wifi)
-    r.add("network.radio-firmware", bool(bt) and bool(wifi), f"{len(bt)} Bluetooth + {len(wifi)} Wi-Fi firmware files")
+    r.add("network.radio-firmware", bool(bt) and bool(wifi), f"{len(bt)} Bluetooth + {len(wifi)} Wi-Fi firmware names (exact list: "
+          "firmware.radio-list)")
     duid = os.path.join(root, "etc/systemd/networkd.conf.d/hifi-bridge.conf")
     r.add("network.dhcp-duid-link-layer", os.path.isfile(duid) and open(duid).read().count("DUIDType=link-layer") == 2,
           "networkd DHCPv4/DHCPv6 DUID from the MAC address (stable despite the transient machine id)")
@@ -760,10 +872,10 @@ def sizes(r, root, boot_dir, image, rootfs_img, file_list):
               f"{s['rootfs_ext4_used_bytes']}, free {s['rootfs_ext4_free_bytes']}", info=True)
 
 
-def write_md(r, path, board):
+def write_md(r, path, board, label=None):
     s = r.facts.get("sizes", {})
     mb = lambda b: f"{b / 1048576:.1f} MiB"  # noqa: E731
-    lines = [f"# Image check - {board}", "",
+    lines = [f"# Image check - {board}", ""] + ([f"**Evidence: {label}**", ""] if label else []) + [
              "Generated by `scripts/os_check_image.sh` (os/tools/image_check.py) against the built card image. **BUILD-VERIFIED only: "
              "nothing was booted.** Development build, not hardware-validated.", "",
              f"Result: **{len(r.failed)} FAIL**, {sum(c['status'] == 'PASS' for c in r.checks)} PASS, "
@@ -786,6 +898,12 @@ def write_md(r, path, board):
     if r.facts.get("exposure"):
         lines += ["", "## systemd-analyze security (offline)", ""] + [f"* {u}: {e}" for u, e in r.facts["exposure"].items()]
     lines += ["", "## systemd-analyze verify output", "", "```", r.facts.get("systemd_verify_output", "") or "(no messages)", "```"]
+    if r.facts.get("uboot_env_matrix_md"):
+        lines += ["", "## U-Boot environment corruption matrix (SIMULATED, image's own copies and /etc/u-boot-initial-env)", "",
+                  r.facts["uboot_env_matrix_md"]]
+    if r.facts.get("uboot_env_matrix_compare_md"):
+        lines += ["", "## Comparison: the same matrix with the previous images' uboot-tools fw_printenv (INFO)", "",
+                  r.facts["uboot_env_matrix_compare_md"]]
     lines += ["", "## HARDWARE-PENDING (cannot be shown without a board)", ""] + [f"* {h}" for h in HARDWARE_PENDING]
     open(path, "w").write("\n".join(lines) + "\n")
 
@@ -794,7 +912,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     for a in ("board", "image", "manifest", "rootfs", "boot", "config", "json", "md"):
         ap.add_argument(f"--{a}", required=True)
-    for a in ("rootfs-img", "slot-a", "dev-ca", "file-list", "uboot-config", "bootargs", "fw-printenv", "boot-script", "data-img"):
+    for a in ("rootfs-img", "slot-a", "dev-ca", "file-list", "uboot-config", "bootargs", "fw-printenv", "boot-script", "data-img",
+              "uboot-bin", "compare-fw-printenv", "label"):
         ap.add_argument(f"--{a}")
     ap.add_argument("--storage", default=STORAGE, help="layout + allow-list of persistent paths (default: os/storage.json)")
     a = ap.parse_args(argv)
@@ -810,7 +929,10 @@ def main(argv=None):
     check_kernel(r, a.rootfs, a.boot)
     check_fstab_ro(r, a.rootfs, a.bootargs or "")
     check_rauc(r, a.rootfs, cfgv, a.dev_ca)
-    check_uboot_env(r, a.rootfs, a.boot, a.uboot_config, a.fw_printenv, a.boot_script)
+    check_uboot_env(r, a.rootfs, a.boot, a.uboot_config, a.fw_printenv, a.boot_script,
+                    a.uboot_bin or os.path.join(a.boot, "u-boot.bin"), a.compare_fw_printenv)
+    check_env_tools(r, a.rootfs, a.file_list)
+    check_radio_firmware(r, a.rootfs, a.boot, cfgv.get("BR2_PACKAGE_HIFI_BRIDGE_COMPATIBLE"))
     check_boot_fat_access(r, a.rootfs)
     check_users(r, a.rootfs)
     check_setuid(r, a.rootfs)
@@ -823,7 +945,7 @@ def main(argv=None):
     sizes(r, a.rootfs, a.boot, a.image, a.rootfs_img, a.file_list)
     check_slot_headroom(r, storage)
     json.dump({"board": a.board, "checks": r.checks, "facts": r.facts, "hardware_pending": HARDWARE_PENDING}, open(a.json, "w"), indent=1)
-    write_md(r, a.md, a.board)
+    write_md(r, a.md, a.board, a.label)
     for c in r.checks:
         if c["status"] != "PASS":
             print(f"{c['status']:4} {c['id']}: {c['detail'][:300]}")
