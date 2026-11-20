@@ -89,7 +89,7 @@ line-only tests.
 GitHub Actions (17 jobs, every suite above except the image builds): package runs 44350223892, 44372722429, 44420917417, 44483643387,
 44504983152 green; package 6 run 44597478524 16/17 (Home Assistant test race, fixed); 44612468369 17/17; 44692532202 16/17 (Bandit B104 on
 the new discovery bind, justified); 44710523221 on `b995068` 16/17 (python314: the FLAC fault test above, fixed).
-FINAL_CI_LINE
+**Final CI: run 44721926361 on `48925e8` (all fixes + this handoff) - 17/17 green.** Only this docs line was committed after it.
 
 Real components in the tests: Lyrion 9.1.2, Squeezelite, Mosquitto 2.0.20, Home Assistant 2026.11.1, PipeWire 0.3.65/1.4.2, Avahi 0.8, RAUC
 1.13 (D-Bus service, real signatures, libubootenv), nftables, dnsmasq, hostapd, wpa_supplicant, systemd-networkd/resolved, Qt 6 offscreen,

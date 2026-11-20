@@ -32,7 +32,7 @@ Review findings for package 1: `reports/REVIEW_PHASE2B_EXISTING_CODE.md`; repro 
 | 4 | OTA update management | **done** (CI run 44483643387: 16/16 green) | `e8a95ff` |
 | 5 | Flash tool GUI | **done** (CI run 44504983152: 17/17 green) | `1e8c7c5` |
 | 6 | Buildroot images | merged; full run + CI pending | 3 boards BUILD-VERIFIED, 89/89 image checks each |
-| 7 | Final QA, coverage, screenshots, handoff | done: review (14 findings fixed in 7b-1/7b-2), 7b-3 coverage/flakes/mDNS/demo, final full run (`reports/evidence/full_run_final.log`), README, `reports/HANDOFF_FOR_CHATGPT.md` | final CI: see handoff §4 |
+| 7 | Final QA, coverage, screenshots, handoff | done: review (14 findings fixed in 7b-1/7b-2), 7b-3 coverage/flakes/mDNS/demo, final full run (`reports/evidence/full_run_final.log`), README, `reports/HANDOFF_FOR_CHATGPT.md` | final CI 44721926361 on `48925e8`: 17/17 green |
 
 ## Notes
 * Never touch the owner's demo (`hifi-demo`) or the shared lab (`btbridge-lab`) except through the documented scripts by the coordinator.
