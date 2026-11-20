@@ -364,3 +364,31 @@ Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardwar
     are unchanged, the SIMULATED labelling is on the demo console and in docs/DEMO*.md.
 119. **Login back-off bound:** the rate limiter's exponential back-off exponent is capped (an unbounded `2 ** n` overflowed after ~1,030
     failures and let an attacker bypass the back-off).
+
+## Owner decisions of 2026-11-20 - phase 2b final polish (after the ChatGPT review of the phase-2b handoff)
+120. **Partition layout (resolves OPEN_QUESTIONS #76):** boot FAT 64 MiB, rootfs A 384 MiB, rootfs B 384 MiB, data partition as small as its
+     measured needs allow and grown to the rest of the card on first boot. Technical target: 2 GB cards; practical recommendation: a 16 GB
+     microSD; no artificial 16 GB minimum. The 448 MiB data figure of the size plan is not binding.
+121. **Persistence rule (binding design rule): persist only what must survive a reboot; everything else belongs in RAM.** Persistent:
+     administrator credentials, device certificates and keys, Wi-Fi/network/LMS/MQTT configuration, Bluetooth bonds, the OTA/rollback state
+     that is required, boot and recovery metadata. Logs and diagnostics only in bounded RAM buffers (gone after a reboot); an explicitly
+     configured external syslog server stays possible. Update installation may keep temporary files on the card while it runs and must clean
+     them up reliably; power-loss safety and rollback take precedence over avoiding necessary writes. No audio recording, no playback
+     history, no unbounded log files. Checked automatically.
+122. **Wizard network step (resolves OPEN_QUESTIONS #78):** the setup wizard gets its own network step so a device can be set up entirely
+     over its individual hotspot (choose Wi-Fi, enter credentials, test, explain the network change, handle the lost connection and
+     rediscovery, roll back failures with the existing recovery logic). Ethernet users are not led through Wi-Fi steps. The existing network
+     state machine is reused.
+123. **U-Boot environment (OPEN_QUESTIONS #80/#81):** evaluate libubootenv with a complete image default environment so that two damaged
+     copies never produce a generic, unbootable default. Keep the redundant environment; no switch to raw MMC sectors without real-hardware
+     validation; never claim U-Boot works on real hardware.
+124. **MQTT state (resolves OPEN_QUESTIONS #50):** in the private home network the connected phone's name, the title and the artist are
+     visible and published to Home Assistant by default - explicitly wanted, no extra privacy switch for them. On disconnect / end of
+     playback the current state is reset correctly; the bridge keeps no playback history (Home Assistant's own history is not the bridge's
+     concern).
+125. **Firmware licences (OPEN_QUESTIONS #73-#75):** ship only the firmware files each board needs, where that carries no compatibility risk;
+     include the licence texts completely; prepare source provision for a later public release; document the export-control and Synaptics
+     risks. No publication and no claim of a binding legal clearance.
+126. **Code signing (OPEN_QUESTIONS #69, macOS part):** macOS builds, Developer ID signing and notarisation will run on GitHub Actions with the
+     owner's existing Apple Developer membership (not Xcode Cloud). Prepare the pipeline and a setup guide; no real certificates, secrets or
+     releases yet. The offline RAUC release key is unaffected. Windows code signing stays open.
