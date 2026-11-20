@@ -1,6 +1,7 @@
 # Image licensing: Raspberry Pi boot firmware and Wi-Fi/Bluetooth firmware (G4 L-1, OPEN_QUESTIONS #35)
 
-Status (2026-11-18, legal-info facts added 2026-11-19 from the real builds): the licence texts below were **read from the exact, hash-verified source archives that the build uses**
+Status (2026-11-18, legal-info facts added 2026-11-19 from the real builds; **per-board firmware, source-bundle preparation and the
+export-control/Synaptics risk notes added in the final polish P2, 2026-11-20, sections 5-7**): the licence texts below were **read from the exact, hash-verified source archives that the build uses**
 (Buildroot 2026.02.x @ `679b9ea`) and from the upstream copyright files those archives come from. This is a reading of the texts by the
 project, **not legal advice**; the owner decides on a public release (G4). Nothing here has been published.
 
@@ -8,7 +9,7 @@ project, **not legal advice**; the owner decides on a public release (G4). Nothi
 | Buildroot package (version) | Files in the image | Where | Licence file(s) |
 |---|---|---|---|
 | `rpi-firmware` (`063bcab6`, github.com/raspberrypi/firmware; archive sha256 `812cb646…`) | `bootcode.bin` (Pi 3 B+/Zero 2 W), `start.elf`/`fixup.dat` (Pi 3 B+/Zero 2 W) or `start4.elf`/`fixup4.dat` (Pi 4); 358 prebuilt DT overlays `overlays/*.dtbo` + `overlay_map.dtb` | boot FAT | `boot/LICENCE.broadcom` (sha256 `c7283ff5…`, = Buildroot's hash) for the firmware blobs; the overlays are compiled Linux device-tree sources (see §4) |
-| `brcmfmac_sdio-firmware-rpi` (`6596d332`, github.com/LibreELEC/brcmfmac_sdio-firmware-rpi; archive sha256 `d9835b33…`) | all `brcm/*.hcd`, `synaptics/*.hcd` (Bluetooth), `brcm/brcmfmac*`, `cypress/cyfmac*` (Wi-Fi: `.bin`, `.clm_blob`, NVRAM `.txt`) | rootfs `/usr/lib/firmware` | `LICENSE` (sha256 `ea8b7b7b…`, = Buildroot's hash), a Debian-format copyright file with three licences: *binary-redist-Broadcom-wifi*, *binary-redist-Cypress*, *Synaptics* |
+| `brcmfmac_sdio-firmware-rpi` (`6596d332`, github.com/LibreELEC/brcmfmac_sdio-firmware-rpi; archive sha256 `d9835b33…`) | **since P2 only the board's list** (section 5); before: all 90 entries (`brcm/*.hcd`, `synaptics/*.hcd`, `brcm/brcmfmac*`, `cypress/cyfmac*`: `.bin`, `.clm_blob`, NVRAM `.txt`) on every board | rootfs `/usr/lib/firmware` | `LICENSE` (sha256 `ea8b7b7b…`, = Buildroot's hash), a Debian-format copyright file with three licences: *binary-redist-Broadcom-wifi*, *binary-redist-Cypress*, *Synaptics* |
 
 The repository's README names its upstreams: Wi-Fi from `RPi-Distro/firmware-nonfree` (`debian/config/brcm80211`), Bluetooth from
 `RPi-Distro/bluez-firmware` (`debian/firmware`). Their `debian/copyright` files (branch `bookworm`, retrieved 2026-11-18) map the files we use:
@@ -74,8 +75,9 @@ with other hardware; using Broadcom's name for promotion; distributing it to the
 **Residual risks to record:**
 * **Synaptics Bluetooth firmware (Zero 2 W only) is revocable:** Synaptics may terminate the tool licence by written notice; afterwards no
   *future* release may include `SYN43430*.hcd` without Synaptics' authorisation (§11). Releases for the Pi 3 B+ and Pi 4 do not need the
-  Synaptics files at all (Cypress `BCM4345C0.hcd`/`cyfmac43455`). **Option (not implemented, owner decision):** per-board firmware
-  pruning so that each image only contains its own board's files (also saves ~2 MB).
+  Synaptics files at all (Cypress `BCM4345C0.hcd`/`cyfmac43455`). **Implemented in P2 (owner decision #125):** per-board firmware
+  (section 5) - the Pi 3 B+ and Pi 4 images carry no Synaptics Bluetooth file and not the tool licence; the risk remains for the Zero 2 W
+  image only (section 7).
 * The package's own `LICENSE` file is **incomplete** for the Bluetooth files: it lacks the Synaptics End-User Software Tool License
   (shipped by us now) and does not name the `BCM*.hcd` files explicitly (bluez-firmware maps them to the Cypress EULA, which `LICENSE`
   contains). Worth reporting upstream (LibreELEC / Buildroot).
@@ -87,10 +89,81 @@ with other hardware; using Broadcom's name for promotion; distributing it to the
   most). They were built by Raspberry Pi from `raspberrypi/linux` commit **`957fc9f9`** (6.12.61, `extra/git_hash` in the firmware archive),
   **not** from the kernel tarball we build (`21b41014`). `make legal-info` therefore does not contain their corresponding source. Before a
   public release: add the `raspberrypi/linux@957fc9f9` source to the source offer, or build the overlays from our own kernel tree, or drop
-  them (the product's `config.txt` uses no overlay). Owner decision.
+  them (the product's `config.txt` uses no overlay). Owner decision (OPEN_QUESTIONS #95). **Prepared in P2:** the source bundle
+  includes that source (section 6).
 * GPL/LGPL components: ship `make legal-info` (sources + licence texts + `manifest.csv`) per release, or a written offer (OPEN_QUESTIONS #43).
   Measured: legal-info is **965 MB per board** (sources dominate; the boards share almost all of it). It completes, with two warnings that
   a release must close by hand: **the Buildroot source itself is not saved** (Buildroot is GPL-2.0+ and its skeleton files are in the
   image: add the pinned Buildroot tarball to the source offer) and **the Bootlin toolchain has no licence files defined** (add the glibc
   LGPL-2.1+ and GCC runtime-exception texts for the runtime libraries in the image).
 * AGPL-3.0-only bridge: source link in every WebUI footer (DECISIONS #72) plus `NOTICE.txt` on the FAT.
+
+## 5. Firmware per board (final polish P2, DECISIONS #125/#134)
+Each image keeps only the Wi-Fi/Bluetooth firmware its board can need: `post-build.sh` deletes every other entry below
+`/usr/lib/firmware/{brcm,cypress,synaptics}` and fails if a listed one is missing or differs (sha256 / link target - this also enforces the
+licences' "unmodified" condition). The single source per board is `os/br2-external/board/hifi-bridge/firmware/radio-<compatible>.txt`
+(path, `file <sha256>` or `link <target>`, licence tag); the image check enforces it exactly (`firmware.radio-list`: no missing, no extra,
+no changed entry) and refuses any file with the bytes of a Synaptics Bluetooth patch under another tag (`firmware.no-hidden-synaptics-bt`:
+the package's `brcm/BCM43430B0.hcd` is **byte-identical** to `synaptics/SYN43430B0.hcd`, so a Broadcom file name does not mean a Broadcom
+licence). The names come from the kernel we build (raspberrypi/linux `21b41014`): Wi-Fi `brcmfmac/sdio.c` (`BRCMF_FW_DEF`/`ENTRY`: chip
+43430 rev 1 -> `brcmfmac43430-sdio`, rev >= 2 -> `brcmfmac43430b0-sdio`; 4345 rev 9 -> `brcmfmac43456-sdio`, otherwise
+`brcmfmac43455-sdio`), each file tried first as `<name>.<DT compatible>.<ext>`, then `<name>.<ext>` (the `.clm_blob` is optional);
+Bluetooth `btbcm.c` (`BCM43430A1`, `BCM43430B0`, `BCM4345C0`, `BCM4345C5`: `brcm/<name>.<compatible>.hcd`, then `brcm/<name>.hcd`). The
+images keep the DTBs of the upstream defconfigs, so firmware for the other boards that boot the same image stays (no compatibility risk);
+whether to drop those boards is OPEN_QUESTIONS #94.
+
+| Image | Boards it boots (DTBs) | Kept (90 entries / 25 files / 2.79 MiB before) | Licences of what is kept | Removed (examples) |
+|---|---|---|---|---|
+| `rpi3_64` | **Pi 3 B+** (CYW43455), Pi 3 B (CYW43438), CM3 (no radio) | 20 entries, 8 files, 1.06 MiB: `brcmfmac43455-sdio.*` (generic + `3-model-b-plus`) -> `cypress/cyfmac43455-sdio.{bin,clm_blob}`, NVRAM `brcmfmac43455-sdio.txt`, `BCM4345C0.hcd`; Pi 3 B: `brcmfmac43430-sdio.*` -> `cypress/cyfmac43430-sdio.*`, `brcmfmac43430-sdio.txt`, `BCM43430A1.hcd` | Cypress only (in `brcmfmac_sdio-firmware-rpi.LICENSE`) | every Synaptics file (`synaptics/SYN43430*.hcd`, `BCM43430B0.hcd`), 43436/43436s/43456/43439, `BCM4345C5`, `BCM4343A2`, links of other boards |
+| `rpi4_64` | **Pi 4 B** (CYW43455), Pi 400 (CYW43456), CM4 (either chip), CM4S (no radio) | 26 entries, 8 files, 1.18 MiB: `brcmfmac43455-sdio.*` (generic, `4-model-b`, `4-compute-module`) -> `cypress/cyfmac43455-sdio.*`, `brcmfmac43456-sdio.*` (generic, `400`, `4-compute-module`), `BCM4345C0.hcd`, `BCM4345C5.hcd` + board links | Cypress; **Synaptics Wi-Fi EULA** for `brcmfmac43456-sdio.*` (Pi 400/CM4 only; binary distribution, no termination-by-notice clause) | every Synaptics Bluetooth file, 43430/43436*, 43439, `BCM43430*`, `BCM4343A2` |
+| `rpizero2w_64` | **Zero 2 W** (RP3A0 with CYW43436; the radio reports chip 43430 rev A1 or B0 depending on the board revision) | 21 entries, 8 files, 0.92 MiB: `brcmfmac43430-sdio.raspberrypi,model-zero-2-w.{bin,txt}` -> `43436s`, `brcmfmac43430b0-sdio.<board>.{bin,clm_blob,txt}` -> `43436`, the `43436`/`43436s` names, generic `brcmfmac43430-sdio.clm_blob` -> `cypress/cyfmac43430-sdio.clm_blob` (the rev-A1 board name has no `.clm_blob`, so the kernel falls back to it, as on Raspberry Pi OS); `BCM43430A1/B0.<board>.hcd` -> `synaptics/SYN43430A1/B0.hcd` | Synaptics Wi-Fi EULA, Cypress (the CLM blob), **Synaptics End-User Software Tool License** (Bluetooth) | 43455/43456/43439, all `BCM4345*`, generic `BCM43430A1.hcd`/`BCM43430B0.hcd`, `cyfmac43430-sdio.bin` |
+
+Licence texts on the boot FAT (`licenses/`, written by `post-image.sh` from the same list; checked by `boot.firmware-licences` and
+`boot.firmware-notice`): every image `rpi-firmware.LICENCE.broadcom`, `brcmfmac_sdio-firmware-rpi.LICENSE` (it holds the Broadcom Wi-Fi,
+Cypress and Synaptics Wi-Fi texts) and `NOTICE.txt` naming the board and exactly its licences; **only the Zero 2 W image** also
+`SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt`.
+
+**Boot firmware** was already per board (Buildroot `BR2_PACKAGE_RPI_FIRMWARE_VARIANT_PI` / `_PI4`): Pi 3 B+ and Zero 2 W `bootcode.bin`
+(their boot ROM loads it), `start.elf`, `fixup.dat`; Pi 4 `start4.elf`, `fixup4.dat` (EEPROM boot, no `bootcode.bin`). The image check now
+requires exactly this set (`firmware.boot-files`). The 358 prebuilt DT overlays are unchanged (section 4, OPEN_QUESTIONS #95).
+
+Hardware check of the lists: gate P1-4 (the firmware names in `dmesg` per board and Zero 2 W radio revision).
+
+## 6. Source provision for a later public release (prepared, nothing published; OPEN_QUESTIONS #75)
+`scripts/os_source_bundle.sh <board> [--no-overlay-source]` (after `os_build.sh <board> build legal`) assembles under the git-ignored
+`.lab/source-bundle/<board>-<commit12>/`:
+* `legal-info/` of the build (hard links, no extra space): source tarballs and patches of every package, licence texts, `manifest.csv`,
+  `host-*`, `buildroot.config`, Buildroot's `legal-info.sha256`;
+* `buildroot-<commit>.tar.gz`: the Buildroot source at the pinned commit (closes legal-info's warning "the Buildroot source code has not
+  been saved"; Buildroot is GPL-2.0+ and its skeleton and scripts are in the image);
+* `linux-overlays-<commit>.tar.gz`: raspberrypi/linux at **`957fc9f9724b3b973a7842d5abbd382b7e3f5e2d`**, the commit the prebuilt overlays
+  were built from (rpi-firmware `extra/git_hash`); our kernel `21b41014` is in `legal-info/sources/linux-custom`;
+* `toolchain/`: the Bootlin toolchain's `README.txt`, `summary.csv` (component versions and licences) and `buildroot.config`, the list of
+  toolchain runtime files in the image (`files-in-image.txt`: glibc LGPL-2.1+, libgcc_s/libstdc++/libatomic GPL-3.0+ with the GCC Runtime
+  Library Exception 3.1), those licence texts (from Debian's common licences and the libgcc-s1 copyright in btbridge-os) and pointers to
+  Bootlin's `downloads/releases/sources/` and `.../licenses/` (to be mirrored for a release; not downloaded) - closes legal-info's
+  "toolchain has no licence files defined";
+* `hifi-bridge-<commit>.tar.gz`: this repository at the commit (`git archive`: tracked files only, never `secrets/` or `.lab/`);
+* `MANIFEST.json` + `SHA256SUMS`: commits, versions, URLs, the sha256 of every file outside `legal-info/` (legal-info through the hash of its
+  own `legal-info.sha256`), `"published": false`. A dirty working tree is refused (the bundle must correspond to a commit).
+
+Result of the P2 run: docs/IMAGE_BUILD.md section 10. For a release (G4 L-1/L-3): one bundle per board and release, built from the release
+commit and mirrored next to the image (or a written offer, OPEN_QUESTIONS #43/#96); the Bootlin sources mirrored.
+
+## 7. Export control and Synaptics: what the licences say, what P2 changed, what remains (OPEN_QUESTIONS #73/#74)
+The project's reading of the texts - not legal advice and not a clearance.
+* **Export control (#73).** Broadcom Wi-Fi licence §7.1 (in `brcmfmac_sdio-firmware-rpi.LICENSE`): use and export are subject to U.S.
+  export laws; "YOU MAY NOT EXPORT, RE-EXPORT OR TRANSFER THE SOFTWARE OR ANY DIRECT PRODUCT OF THE SOFTWARE EXCEPT AS PERMITTED UNDER
+  THOSE LAWS"; transfer to Cuba, Iran, North Korea, Sudan and Syria is prohibited. The Cypress and Synaptics texts have their own
+  compliance-with-law clauses. Per-board pruning **does not change this**: every image still contains Broadcom/Cypress Wi-Fi firmware
+  (the `brcm/brcmfmac*.bin` names fall under the Broadcom licence even where they point to Cypress files). Remains for the owner/legal
+  review before any public download (G4 L-3): whether the download page needs an export notice or a restriction, whether GitHub's own
+  trade controls are relied on, and whether the destinations named in the text need a current check.
+* **Synaptics (#74).** Two different texts: (a) the *Synaptics* Wi-Fi binary-distribution EULA (43436/43436s for the Zero 2 W, 43456 for
+  the Pi 400/CM4 in the Pi 4 image): use only with Synaptics chips, no modification, no termination-by-notice clause found; (b) the
+  *Synaptics End-User Software Tool License* for the Bluetooth patches `SYN43430A1/B0.hcd`: limited and revocable - Synaptics may end it by
+  written notice (§10), after which future releases must not include the files without authorisation (§11). **P2:** (b) is in the Zero 2
+  W image only (its byte-identical copy `BCM43430B0.hcd` is gone from the other images too); the Pi 3 B+ image carries no Synaptics file
+  at all; the Pi 4 image carries (a) only for the Pi 400/CM4 chip. **Remains:** Zero 2 W Bluetooth depends on (b); if Synaptics ended it,
+  Zero 2 W releases would need written authorisation or would lose Bluetooth (owner decision whether the Zero 2 W stays a supported board
+  under that risk); dropping Pi 400/CM4 support would remove (a) from the Pi 4 image (OPEN_QUESTIONS #94).

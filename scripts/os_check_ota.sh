@@ -64,6 +64,6 @@ echo "bundle size: $(stat -c %s /bundle.raucb) bytes"
 exit $rc' 2>&1 | tee -a "$REPORT"
 rc=${PIPESTATUS[0]}
 mkdir -p reports/evidence
-grep -v "^rauc-Message\|^Consider setting" "$REPORT" > "reports/evidence/os_ota_$BOARD.txt"
+{ if [ -n "${HIFI_EVIDENCE_LABEL:-}" ]; then echo "# > **Evidence: ${HIFI_EVIDENCE_LABEL}**"; echo; fi; grep -v "^rauc-Message\|^Consider setting" "$REPORT"; } > "reports/evidence/os_ota_$BOARD.txt"
 echo "os_check_ota: $BOARD exit code $rc"
 exit "$rc"

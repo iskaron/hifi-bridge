@@ -66,9 +66,10 @@ mark-good/activation. It now exists twice on the boot FAT (`uboot.env`, `uboot-r
 `/etc/fw_env.config` lists both). Every write goes to the **older** copy with the next serial byte, readers take the newest copy with a
 valid CRC, so a power cut during a write leaves the previous state. Both copies ship with the card (U-Boot's default environment from
 `u-boot-initial-env` + `BOOT_ORDER=A B`, `BOOT_A_LEFT=3`, `BOOT_B_LEFT=0`, `hifi_env=1`, serials 1/0): fw_setenv refuses to work while one
-file is missing. Verified in Docker with the real RAUC 1.13 + libubootenv `fw_setenv` (`tests/ota`: writes alternate; tearing the newest
-copy gives exactly the previous state; RAUC activates a slot with **two** writes - `BOOT_B_LEFT=3` first, then `BOOT_ORDER` - and the
-state between them still boots A) and with the build's own uboot-tools `fw_printenv`/`fw_setenv` on the image's copies (image check).
+file is missing. Verified in Docker with the real RAUC 1.13 + the image's libubootenv `fw_setenv` (`tests/ota`: writes alternate;
+tearing the newest copy gives exactly the previous state; RAUC activates a slot with **two** writes - `BOOT_B_LEFT=3` first, then
+`BOOT_ORDER` - and the state between them still boots A) and with the same tools on the image's own copies (image check). Since the final
+polish P2 the Linux side uses **libubootenv** with a complete image default environment; every corruption case: section 4.1.
 
 `boot.cmd` fails safe when U-Boot has to use its **built-in** default environment (both copies invalid; recognised by the missing
 `hifi_env`): it does not behave like a fresh card (which would never try B), but gives A and then B three attempts each, saves that, and
@@ -77,9 +78,11 @@ the attempt counter can fall back. Residual risks (HARDWARE-PENDING, G2 P3-5/P3-
 * both copies invalid at once (FAT damage, not a single torn write): the previous slot choice is lost; A is tried first, so the device may
   run the older version after an update (the update page still shows both slots and offers the switch). The marker is visible only in
   `/proc/cmdline` and the U-Boot console today (OPEN_QUESTIONS proposal: show it on the update page);
-* Linux-side: if fw_setenv ever saw both copies invalid it would write uboot-tools' **generic** default environment (`bootcmd=bootp ...`
-  NFS boot) - the device would no longer boot from the card. U-Boot has written a valid copy at the start of the same boot, so this needs
-  independent damage of both copies while Linux runs (proposal: libubootenv with `/etc/u-boot-initial-env` as its default);
+* ~~Linux-side: if fw_setenv ever saw both copies invalid it would write uboot-tools' **generic** default environment (`bootcmd=bootp ...`
+  NFS boot)~~ **fixed in P2** (DECISIONS #133, section 4.1): libubootenv then stores the image's complete default environment
+  (`/etc/u-boot-initial-env`: U-Boot's own defaults + A then B, three attempts each, no `hifi_env`), so the next boot fails safe exactly
+  like the U-Boot-side case above. Measured with the previous images' uboot-tools 2025.10 on the same copies: `bootcmd=bootp; setenv
+  bootargs root=/dev/nfs ...` was stored (unbootable from the card), and it **never returned** on a copy shorter than 16 KiB;
 * a torn write of the FAT directory sector itself (not the file data) is not covered by the redundancy;
 * the saved environment keeps board values U-Boot only sets when missing (`serial#`, `usbethaddr`/`ethaddr`, `fdtfile`) from the first Pi
   the card booted in (unchanged behaviour, noted for card moves between boards).
@@ -101,6 +104,58 @@ Upstream RAUC's `rauc-mark-good.service` would mark every boot good and defeat t
 **Manual rollback:** the update page offers "Start version X next time" when the other slot is bootable (`boot-status good`) and its
 version is known (RAUC's `bundle.version`, or recorded by an earlier healthy boot in `ota/slots.json`). It runs `mark-active other`;
 the owner then confirms the restart.
+
+### 4.1 U-Boot environment: tools, defaults and recovery per corruption case (final polish P2, DECISIONS #123/#133)
+**Design.** One Linux writer: RAUC's U-Boot backend (`bootloader=uboot`) runs `fw_printenv KEY` / `fw_setenv KEY VALUE` (RAUC 1.15.2
+`src/bootloaders/uboot.c`, one variable per call); the bridge only talks to RAUC over D-Bus (checked by `tests/os/test_uboot_env.py`). The
+tools are **libubootenv 0.3.7** (Buildroot `BR2_PACKAGE_LIBUBOOTENV`; the target uboot-tools are no longer installed, the host uboot-tools
+stay for `mkimage`/`mkenvimage`) with one local patch (`os/br2-external/patches/libubootenv/0001-...`, via `BR2_GLOBAL_PATCH_DIR`).
+Read from the 0.3.7 source (`src/uboot_env.c`, `src/common.c`, `src/fw_printenv.c`; unchanged on upstream master, checked 2026-11-20):
+* a regular file in `fw_env.config` is a `DEVICE_FILE` with **incremental** serials; two lines = redundant. The store writes the copy that
+  was NOT read (`ctx->current ? 0 : 1`) in place (`open(O_RDWR)`, full size from offset 0, `fsync`), with serial + 1; the reader takes the
+  copy with a valid CRC, both valid -> the higher serial with the 255/0 wrap, equal serials -> copy 1 - the same rules as U-Boot's
+  `env_check_redund()`;
+* a file listed in `fw_env.config` that does not exist fails the configuration (`realpath`): `fw_printenv`/`fw_setenv` exit 1 and write
+  nothing;
+* when neither copy is valid it prints "Cannot read environment, using default", loads `/etc/u-boot-initial-env` (compiled-in default
+  path; Buildroot passes no `DEFAULT_ENV_FILE`) and `fw_setenv` stores that + the change;
+* **stock behaviour fixed by our patch:** a copy that cannot be read completely (shorter than 16 KiB - what a power cut while U-Boot's FAT
+  driver rewrites the file can leave) made the whole read fail (`-EIO`), so the default was used and stored as the NEWEST copy, replacing
+  the valid one. The patch treats such a copy as invalid, like U-Boot does; upstream master still has the old code (not submitted yet).
+* lock file `/var/lock/fw_printenv.lock` (RAM: `/var` is an overlay on tmpfs); Release build (`-DNDEBUG`): no debug lines in the output
+  RAUC parses.
+
+**The image default environment** `/etc/u-boot-initial-env` (written by `post-build.sh`): U-Boot's complete compiled-in default
+(`u-boot-initial-env` of the U-Boot build, `BR2_TARGET_UBOOT_INITIAL_ENV`) with the slot lines of `uboot/linux-default-env.txt` -
+`BOOT_ORDER=A B`, `BOOT_A_LEFT=3`, `BOOT_B_LEFT=3` and **no** `hifi_env`. An environment rebuilt from it is complete and bootable
+(`bootcmd=bootflow scan` finds `boot.scr`), and `boot.cmd` treats it as lost and runs its fail-safe branch, so a loss seen by Linux and a
+loss seen by U-Boot end in the same documented state. U-Boot's own built-in default (both copies bad at boot) is the same U-Boot part: the
+image check finds every default variable of the shipped copies as a compiled-in string in `u-boot.bin` and none of the slot variables
+(`boot.uboot-builtin-env`). The redundant FAT environment stays; raw MMC sectors are **not** used (OPEN_QUESTIONS #81: needs real-hardware
+validation).
+
+**Recovery per case** - SIMULATED: the image's libubootenv (same source + patch, compiled natively by `os/tools/build_libubootenv.sh`) on
+scratch copies of the image's own `uboot.env`/`uboot-redund.env` with its `/etc/u-boot-initial-env`; "U-Boot" = a port of 2026.01's
+`env_check_redund()` + `file_fat_read()` (`os/tools/uboot_env_sim.py`). Run by every image check (`boot.uboot-env-corruption-matrix`,
+table in `reports/evidence/os_image_<board>.md`) and by `tests/os/test_uboot_env.py` (CI). The write is `fw_setenv BOOT_B_LEFT 3`, RAUC's
+first write when it activates slot B.
+
+| Case | U-Boot at the next boot | Linux (`fw_printenv` / `fw_setenv`) | Result |
+|---|---|---|---|
+| both copies valid (as shipped, serials 1/0) | newest copy | reads copy 1, writes copy 2 (serial 2) | slot state kept, alternating copies |
+| newest copy CRC-bad (bit flip) | the older copy | reads the older copy, rewrites the bad one | previous state, then the change |
+| older copy CRC-bad | newest copy | reads the newest, rewrites the bad older one | as above |
+| newest copy half rewritten (power cut mid-write, full length) | the older copy | as CRC-bad | previous state ("power cut keeps the last good state") |
+| newest copy truncated to 8 KiB or 0 bytes / older copy truncated | the other copy (a short FAT read cannot match the CRC) | **patched:** reads the valid copy, rewrites the short one to full size; stock 0.3.7: used the default and overwrote the valid copy | slot state kept (patched) |
+| one file missing | the other copy; its next `saveenv` writes the missing file again (`env/fat.c`) | both tools fail (exit 1), nothing written; RAUC reports the error (mark-good not recorded) | bootable; healed by U-Boot's next save |
+| both valid with equal serials | copy 1 | copy 1 (same rule) | consistent |
+| serials 255 and 0 | the copy with 0 (wrap) | same | consistent |
+| both copies bad (CRC or truncated) | built-in default (= the image's U-Boot part, no slot state) -> `boot.cmd` fail-safe: A then B, 3 attempts each, `hifi.bootenv=reset` | reads `/etc/u-boot-initial-env`, stores it + the change into ONE copy (the other bad copy is left as it is) | bootable, fail-safe; the previous slot choice is lost (documented risk above) |
+
+Not covered by software (HARDWARE-PENDING, docs/HARDWARE_GATE_CHECKLIST.md P3-1/P3-5/P3-6/P3-12...P3-14): U-Boot on each Pi really reading
+and writing the FAT copies; the FAT driver's write order on a real card during a power cut (FAT/directory sector, a file whose size was
+updated before its data); `fsync` + vfat `flush` on a real SD card; card moves between boards (OPEN_QUESTIONS #82). U-Boot's own
+environment code was not executed (a sandbox build of U-Boot was judged too heavy for CI; its selection rule is ported and tested).
 
 ## 5. Failure matrix (what the device does, what the page shows)
 | Fault | Result | Evidence |
@@ -186,7 +241,8 @@ first"). Version 1 (an own keystream construction) existed only on the unmerged 
 | Suite | What is real | Command |
 |---|---|---|
 | `tests/unit/test_ota_*.py`, `test_webui_update.py`, `test_appliance_updates.py` | real HTTP, real ConfigStore, real files; RAUC simulated (in-process fake or `btkit.fake_rauc` on a private dbus-daemon); fault injection for every failure path | `scripts/run_unit.sh` |
-| `tests/ota/test_rauc_real.py` | **real RAUC 1.13 service**, real dbus-daemon with upstream + our policy, real `fw_setenv` on the product's two-copy file-backed U-Boot environment (torn newest copy -> previous state), bundles from `os_bundle.sh` with throw-away keys | `scripts/run_ota.sh` (image `btbridge-ota`) |
+| `tests/os/test_uboot_env.py` | the image's libubootenv (same source + patch, compiled natively) through 13 corruption cases on two-copy file environments; `post-build.sh` writing `/etc/u-boot-initial-env`; the stock 0.3.7 losing the valid copy without the patch | `scripts/run_os.sh` |
+| `tests/ota/test_rauc_real.py` | **real RAUC 1.13 service**, real dbus-daemon with upstream + our policy, real `fw_setenv` (the image's libubootenv since P2) on the product's two-copy file-backed U-Boot environment (torn newest copy -> previous state), bundles from `os_bundle.sh` with throw-away keys | `scripts/run_ota.sh` (image `btbridge-ota`) |
 | `tests/os/test_ota_image.py` | `post-build.sh` on a fake target tree; unit/tmpfiles/policy wiring | `scripts/run_os.sh` |
 | `tests/browser/test_ui_update.py` | real Chromium + axe-core against the lab appliance with the simulated RAUC (`--sim-rauc`) | `scripts/run_browser.sh` |
 | units | `systemd-analyze verify` + `security` (health check 1.5 OK) | `scripts/run_static.sh` |
@@ -199,6 +255,8 @@ stops at the mount step, which the tests assert as a clean failure.
   → `mark-bad` + reboot → A; a kernel that does not boot → 3 attempts → A. Time from "Restart now" to the page being back.
 * P3-5/P3-6 power cuts during install, during the first boot of B, during the health check - including during U-Boot's `saveenv` and
   RAUC's two-step activation (the other environment copy must be used; console shows no "bad CRC, using default environment").
+* The environment cases of section 4.1 on a real card (P3-12...P3-14): both copies deleted/damaged while Linux runs, a truncated copy,
+  `fw_printenv` agreeing with U-Boot's `printenv`.
 * dm-verity refusing a bundle whose payload was changed after signing.
 * `FailureAction=reboot`, the reboot path unit and the tmpfiles directory under real systemd; the D-Bus policy with the image's dbus 1.14.
 * Space: bundle size vs. data partition (docs/PERSISTENCE.md 2.1: 256 MiB before growth holds one bundle of a full slot); a full data

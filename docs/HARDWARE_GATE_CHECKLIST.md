@@ -58,9 +58,15 @@ that was not tested.
 - [ ] P1-1 The image from `hifi_bridge_<board>_defconfig` builds reproducibly in Docker. Two builds give the same rootfs hash, or the
   differences are explained.
   *Software evidence (BUILD-VERIFIED, package 6, not a hardware result):* all three boards build in Docker; two clean rpi3_64 builds (with and without ccache) compared file by file, see docs/IMAGE_BUILD.md §5.
+  *Repeated in final polish P2 (BUILD-VERIFIED):* clean ccache-free rpi3_64 build vs. the incremental P2 build: the same 4 ccache files differ, boot FAT and data partition bit-identical (docs/IMAGE_BUILD.md §5).
 - [ ] P1-2 Firmware → U-Boot → kernel from slot A → `multi-user.target` (serial or HDMI log). Measure the time to the WebUI.
 - [ ] P1-3 `config.txt` without `miniuart-bt`: Bluetooth on PL011 is stable during 30 min of A2DP (repeat E1). Compare with
   `miniuart-bt` if problems occur.
+- [ ] P1-4 **Per-board firmware (DECISIONS #134):** on each board (and each Zero 2 W revision at hand: radio chip rev A1 and B0) the
+  kernel log shows Wi-Fi and Bluetooth firmware loaded from the board's list (`dmesg | grep -E "brcmfmac|Bluetooth: hci0|BCM"`: file name,
+  no "Direct firmware load ... failed" for a file that the list does not ship and the driver did not fall back from). Record the chip
+  revision and the loaded names; compare with `os/br2-external/board/hifi-bridge/firmware/radio-<compatible>.txt` and with stock Raspberry
+  Pi OS on the same board (G1). Pi 3 B, Pi 400 and CM4 are not target boards; their files stay in the images until OPEN_QUESTIONS #94 is decided.
 - [ ] P4-1 Partitions as designed (boot FAT, A, B, data). `hifi-bridge-growdata` grows data to the card size once; `x-systemd.growfs`
   grows ext4; the second boot does nothing. (`hifi-bridge-growdata` runs on every boot without a guard since 7b-2 and only reads the
   partition table once the card is filled.)
@@ -87,6 +93,9 @@ that was not tested.
   (check `CONFIG_ENV_SIZE`/offset of `rpi_arm64`; adjust `/etc/fw_env.config`).
   *Software evidence (BUILD-VERIFIED, package 7b-2, not a hardware result):* rpi3_64 U-Boot built with `CONFIG_ENV_REDUNDANT=y`, both copies on the FAT (CRC ok, serials 1/0, complete default environment); the build's fw_printenv/fw_setenv and real RAUC 1.13 + libubootenv alternate between the copies and fall back to the older one when the newest is torn.
   *Software evidence (BUILD-VERIFIED, package 6, not a hardware result):* U-Boot `rpi_arm64` build: `CONFIG_ENV_SIZE=0x4000`, `uboot.env` on FAT `mmc 0:1` = `/etc/fw_env.config`; reading/writing on a board is pending.
+  *Software evidence (SIMULATED + BUILD-VERIFIED, final polish P2, not a hardware result):* the image's fw_printenv/fw_setenv are
+  libubootenv 0.3.7 + our patch; 13 corruption cases on the image's own copies (docs/OTA.md 4.1, image check `boot.uboot-env-corruption-matrix`).
+  Also check on the device: `fw_printenv` output = U-Boot `printenv` (same variables, same values), `fw_printenv -V` prints `0.3.7`.
 - [ ] P3-2 A fresh card boots slot A; slot B (empty) is **never** tried (`BOOT_B_LEFT=0`).
 - [ ] P3-3 `rauc install` (development-signed bundle) writes slot B, switches, boots B and marks it good (`rauc status`).
 - [ ] P3-4 A deliberately broken B (kernel missing) is tried 3 times, then A boots again automatically.
@@ -96,6 +105,19 @@ that was not tested.
   shows the other copy being used (never "using default environment"). Then delete both copies on a computer: the device boots A (then B
   after three failures) and `/proc/cmdline` contains `hifi.bootenv=reset`. A slot with a damaged root file system panics and restarts
   after 10 s (`panic=10`) until the counter falls back.
+- [ ] P3-12 **Both environment copies damaged while Linux runs** (DECISIONS #133): overwrite both copies on the running device with
+  garbage (as root, `dd` over the files on `/boot`), then `rauc status mark-good`: `fw_printenv` shows `bootcmd=bootflow scan` and
+  `BOOT_ORDER=A B` (never `bootcmd=bootp`), one copy is rewritten, the device reboots into A with `hifi.bootenv=reset` on `/proc/cmdline`,
+  and B gets its three attempts only after A fails. Repeat with the files deleted: `fw_setenv` fails cleanly, nothing is written, the
+  next boot's `saveenv` recreates the missing file.
+- [ ] P3-13 **Truncated copy on a real FAT:** truncate the newest copy to 8 KiB on a computer (or cut the power during U-Boot's `saveenv`
+  until a short copy is observed): U-Boot prints "some problems detected reading environment; recovered successfully" and boots the
+  previous slot state; Linux `fw_printenv` reads the same state (patched libubootenv) and the next `fw_setenv` rewrites the short copy to
+  16 KiB. Note whether vfat ever leaves a short file at all, or only a full-length torn one (FAT driver write order).
+- [ ] P3-14 **Card moved to another board (OPEN_QUESTIONS #82):** a card first booted in a Pi 3 B+ and then in a second Pi 3 B+ (and, for
+  the knowledge, a Zero 2 W card in a Pi 3 B+ although it is the wrong image): record `serial#`, `ethaddr`/`usbethaddr` and `fdtfile` in
+  `fw_printenv` and on the console; check whether the Ethernet MAC, the hostname/mDNS name and the DTB still match the new board. Decide
+  #82 from the result.
 - [ ] P3-7 Firmware/DTB on the shared boot partition: decide and test how they are updated (not A/B today, see PHASE2B_PLAN risks).
 - [ ] P3-8 Alternative per board if U-Boot fails: firmware `tryboot`/`autoboot.txt` (Pi 4 first). Record which mechanism each board uses.
 - [ ] P3-9 The WebUI flow end to end (docs/OTA.md): upload → install with progress → "Restart now" → `hifi-bridge-health.service` marks B
@@ -160,6 +182,11 @@ that was not tested.
 - [ ] L-1 `make legal-info` complete. Review the `brcmfmac_sdio-firmware-rpi` (PROPRIETARY) and Raspberry Pi firmware licence texts.
   Source offer for GPL/LGPL in place.
   *Software evidence (BUILD-VERIFIED, package 6, not a hardware result):* legal-info completes for all boards (warnings: Buildroot source and toolchain licences not saved); licence texts reviewed in docs/IMAGE_LICENSING.md; owner items there.
+  *Prepared in final polish P2 (not a release, not legal clearance):* per-board firmware with exactly the licence texts it needs (image
+  check `firmware.*`, `boot.firmware-licences`); `scripts/os_source_bundle.sh <board>` assembles legal-info + the Buildroot source + the
+  overlay source (`raspberrypi/linux@957fc9f9`) + toolchain licence texts/pointers + our repository with a hashed manifest (docs/IMAGE_LICENSING.md 6).
+- [ ] L-3 Owner/legal review of the export-control clause (Broadcom §7.1) and of the revocable Synaptics Bluetooth licence for the Zero 2 W
+  image (OPEN_QUESTIONS #73/#74, docs/IMAGE_LICENSING.md 7) before any public download; the source bundle mirrored next to each release.
 - [ ] L-2 Project `LICENSE` (AGPL-3.0-only) added; `HIFI_BRIDGE_LICENSE_FILES` set.
 - [ ] U-1 The WebUI update upload refuses unsigned and wrongly signed bundles; it installs only after owner confirmation; the previous release
   can be selected.

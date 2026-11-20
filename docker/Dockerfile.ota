@@ -2,8 +2,9 @@
 # bus inside a disposable container:
 #  * rauc-service: the upstream D-Bus policy, interface XML and service wrapper (the `rauc service` mode itself is in the rauc binary),
 #  * python3-jeepney: the bridge's only optional runtime dependency (DECISIONS #26), for the bridge's RAUC client,
-#  * libubootenv-tool: fw_printenv/fw_setenv, so RAUC's U-Boot backend writes a FILE-BACKED U-Boot environment (no device, no loop).
+#  * fw_printenv/fw_setenv are NOT installed from Debian: scripts/run_ota.sh compiles the image's libubootenv (same source + patches,
+#    os/tools/build_libubootenv.sh, source from btbridge-os) so RAUC's U-Boot backend writes a FILE-BACKED environment with the image's tools.
 # Lab/CI only. Nothing here is installed on the development host.
 FROM btbridge-os:dev
-RUN apt-get update && apt-get install -y --no-install-recommends rauc-service python3-jeepney libubootenv-tool \
+RUN apt-get update && apt-get install -y --no-install-recommends rauc-service python3-jeepney \
  && rm -rf /var/lib/apt/lists/*

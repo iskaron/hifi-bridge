@@ -7,7 +7,7 @@ Scope: owner work package of 2026-11-20 (DECISIONS #120-#126). Baseline `develop
 | # | Package | Model | Status |
 |---|---|---|---|
 | P1 ✔ | Persistence audit + RAM-only logs, partition layout 64/384/384/data, measured data minimum, size checks, manifest, provisioning, flash tool | Opus | pending |
-| P2 | U-Boot env with libubootenv + full default env, corruption simulation; per-board firmware pruning, licence texts, source-bundle prep; rebuild all three boards | Opus | pending |
+| P2 ✔ | U-Boot env with libubootenv + full default env, corruption simulation; per-board firmware pruning, licence texts, source-bundle prep; rebuild all three boards | Opus | pending |
 | P3 | Wizard network step (hotspot-only setup), reusing the network state machine | Opus | pending |
 | P4 | Integration flake #86: cold-lab reproduction, root cause, isolation fix | Opus | pending |
 | P5 | MQTT #50 reset behaviour; macOS signing/notarisation pipeline + guide; firmware risk docs | Sonnet | pending |
@@ -52,3 +52,42 @@ Scope: owner work package of 2026-11-20 (DECISIONS #120-#126). Baseline `develop
   static exit 0; flash tool 159 passed; Gitleaks over 268 commits rc=0. Pushed `8475549` to origin/develop.
 - P2 started (Opus agent, branch `wip/p2-uboot-firmware`): libubootenv + full default env, corruption simulation, per-board firmware,
   source-bundle preparation, rebuild of all three boards.
+
+### P2 (U-Boot environment, firmware per board, source provision, rebuild of all boards; branch `wip/p2-uboot-firmware` from `8475549`)
+- 2026-11-20 start. libubootenv 0.3.7 (Buildroot pin, sha256 = Buildroot's hash) read in Docker: regular files in `fw_env.config` =
+  `DEVICE_FILE`, incremental serials, writes the copy not read (in place, `fsync`), same selection rules as U-Boot 2026.01
+  `env_check_redund()` (read in the U-Boot build tree); both copies bad -> `/etc/u-boot-initial-env`; a missing listed file fails the
+  configuration (`realpath`); **finding:** a copy shorter than the environment makes the whole read fail (`-EIO`) -> default used and
+  stored over the valid copy (upstream master unchanged). Patch written (`patches/libubootenv/0001`).
+- SIMULATED comparison on the existing rpi3_64 copies (`os/tools/uboot_env_sim.py`, 13 cases): patched libubootenv all as intended;
+  stock 0.3.7 loses the slot state on every truncated-copy case; the previous images' uboot-tools 2025.10 stored `bootcmd=bootp; setenv
+  bootargs root=/dev/nfs ...` with both copies bad and spun at 100 % CPU (killed after 15 s) on every short copy.
+- Implemented: `BR2_PACKAGE_LIBUBOOTENV=y`, target uboot-tools removed, `BR2_GLOBAL_PATCH_DIR` + our patch, `uboot/linux-default-env.txt`
+  + post-build writing `/etc/u-boot-initial-env`; image check `boot.uboot-env-linux-default`, `boot.uboot-builtin-env`,
+  `boot.uboot-env-corruption-matrix` (+ INFO comparison with the uboot-tools host build), `rauc.env-tool-libubootenv`,
+  `rauc.env-tool-single`; `os/tools/build_libubootenv.sh` (native compile of the same source + patches, source in btbridge-os
+  `/opt/src`, pin checked by `os_defconfigs.sh check`); real-RAUC suite now uses these tools (13 passed). Per-board radio firmware lists
+  `firmware/radio-<compatible>.txt` (kernel name tables of our kernel read: brcmfmac `sdio.c`, `btbcm.c`), post-build pruning with
+  sha256 check, post-image licence texts + NOTICE per board, image checks `firmware.*`; `scripts/os_source_bundle.sh`;
+  `os_build.sh retarget`; evidence labels (`HIFI_EVIDENCE_LABEL`).
+- Tests during development: tests/os 102 passed (new: test_uboot_env.py 15, test_radio_firmware.py 16, licence test x3 boards);
+  `scripts/run_ota.sh` 13 passed with the image's libubootenv; `os_defconfigs.sh check` PASS x3 + libubootenv pin PASS.
+- BUILD (incremental `retarget` builds, HIFI_LAB = main checkout's .lab, 3 CPUs / 8 GB): rpi3_64 make 542 s (+153 s after the
+  file-list fix below), rpizero2w_64 627 s and rpi4_64 607 s (both `HIFI_OS_REBUILD="uboot host-uboot-tools"`: first rebuild since
+  package 6, so the 7b-2 U-Boot fragment, boot.cmd and the P1 layout reach these boards for the first time). Buildroot applied our
+  libubootenv patch ("Applying 0001-uboot_env-..." in the build log).
+- Finding: after `retarget` the rpi3_64 image check failed `rauc.env-tool-single` - `packages-file-list.txt` concatenates every
+  `build/*/.files-list.txt`, so the removed uboot-tools were still listed (target tree clean). `retarget` now also deletes those lists.
+- Image checks (all three): 0 FAIL, 128 PASS, 21 INFO; corruption matrix 13/13; secret scans 0 findings (6073/6069/6074 files + raw
+  card); OTA checks pass, bundles 76 056 010 / 75 945 422 / 76 289 483 bytes. Size plan regenerated for all three boards (rootfs
+  191.4-191.9 MiB of 384, all checks ok). Evidence labelled "final polish P2".
+- Source bundle rpi3_64 (`scripts/os_source_bundle.sh`, commit 6030a84): 11 files + legal-info (512 files, hard links), overlays
+  source 957fc9f9 (358 overlay .dts), 21 toolchain runtime files listed, 1.2 GB apparent, under .lab/source-bundle/ only.
+- Suites: `scripts/run_os.sh` defconfigs PASS x3 + libubootenv pin PASS, licences 53 packages/board 0 review, tests "215 passed";
+  `scripts/run_static.sh` "static exit: 0"; `scripts/run_entry_tests.sh` "100 passed"; `scripts/run_ota.sh` "13 passed"; Gitleaks
+  (pinned image, dir mode over the 8 branch patches) rc=0.
+- Reproducibility (repeated, disk 135-144 GB free): `rpi3_64-repro` rebuilt from scratch in its existing directory (`clean`,
+  `HIFI_OS_CCACHE=0`, make 6426 s) vs. the incremental P2 `rpi3_64` build: rootfs 7347 entries, 0 added, 0 removed, 4 changed (the
+  four known ccache-affected files: libwireplumber, two WirePlumber modules, pylibmount.so); boot FAT and data partition bit-identical;
+  image check of the repro build 0 FAIL / 128 PASS / 21 INFO, secret scan 0 (its evidence copies were reverted, the committed rpi3_64
+  evidence is the main build's).

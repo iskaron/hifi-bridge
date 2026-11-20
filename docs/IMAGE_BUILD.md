@@ -16,6 +16,14 @@ persistence rule of DECISIONS #121 (docs/PERSISTENCE.md). Only **rpi3_64 was reb
 20 INFO (new checks `persist.*` and `size.*`), secret scan 0 findings, OTA check passes. rpizero2w_64 and rpi4_64 keep the old layout until
 their rebuild (package P2).
 
+**Final polish P2 (2026-11-20):** U-Boot environment hardening (libubootenv + image default environment, DECISIONS #133), firmware per
+board (#134), source-bundle preparation (#135). **All three boards rebuilt** (incremental `retarget` builds, section 10): each image check
+0 FAIL, 128 PASS, 21 INFO; secret scans 0 findings; OTA checks pass. Every `reports/evidence/os_*` file of the three boards and
+`os_size_plan.{md,json}` was regenerated in P2 and carries an "Evidence: final polish P2" line (Markdown header, `"evidence"` key in the
+secret-scan JSON, a `hifi-bridge:evidence` property in the SBOM; the `os_licenses_*.md` and `os_legal_manifest_*.csv` files are
+regenerated from the same builds but have no header by format). Sections 2-8 below still describe the package-6/7b-2/P1 state where they
+say so.
+
 ## 1. Commands
 ```bash
 export HIFI_LAB=$PWD/.lab                       # a git worktree points this at the main checkout's .lab
@@ -24,10 +32,14 @@ scripts/os_check_image.sh rpi3_64               # image checks + secret scan -> 
 scripts/os_check_ota.sh rpi3_64                 # `make ota` bundle of the built rootfs, checked with the image's own keyring
 python3 os/tools/size_plan.py --board rpi3_64=.lab/br-out/rpi3_64/hifi/check/image-check.json:<bundle> ... --md reports/evidence/os_size_plan.md
 HIFI_OS_OUT=$HIFI_LAB/br-out/rpi3_64-repro HIFI_OS_CCACHE=0 scripts/os_build.sh rpi3_64 clean build    # reproducibility rebuild
+scripts/os_build.sh rpi3_64 retarget build legal sbom   # fresh target tree without recompiling (after removing a package, P2)
+HIFI_EVIDENCE_LABEL="..." scripts/os_check_image.sh rpi3_64   # label line in every evidence file of the check
+scripts/os_source_bundle.sh rpi3_64             # source-bundle preparation under .lab/source-bundle/ (never published; IMAGE_LICENSING.md 6)
 python3 os/tools/tree_manifest.py compare <A>/hifi/check/rootfs-manifest.tsv <B>/hifi/check/rootfs-manifest.tsv
 ```
 Incremental: re-running `os_build.sh <board>` re-syncs the bridge sources and re-runs post-build, rootfs and post-image (minutes).
-After changing an already built package's configuration: `HIFI_OS_REBUILD="pkg ..."`; after removing a package: `clean`.
+After changing an already built package's configuration: `HIFI_OS_REBUILD="pkg ..."`; after removing a package: `retarget` (P2) or
+`clean`.
 
 ## 2. Build results (host: 4 CPUs shared with other work; container capped at 3 CPUs / 8 GB; shared download cache + ccache)
 | Board | Result | `make` time | Notes |
@@ -37,10 +49,16 @@ After changing an already built package's configuration: `HIFI_OS_REBUILD="pkg .
 | rpi4_64 | **BUILD-VERIFIED** | 7485 s (clean; Cortex-A72 flags, so few ccache hits) | |
 | incremental (bridge/post-build/image only) | | 147–180 s | |
 | rpi3_64 incremental after 7b-2 (`HIFI_OS_REBUILD="uboot host-uboot-tools"`: U-Boot reconfigured with the fragment, boot.scr regenerated) | **BUILD-VERIFIED** | 283 s (configure 24 s + make 259 s) | |
+| P2 `retarget build legal sbom` (fresh target, libubootenv built, uboot-tools gone, firmware pruned) | **BUILD-VERIFIED** | rpi3_64 542 s (+ 153 s incremental after fixing the file list, section 10) · rpizero2w_64 627 s · rpi4_64 607 s (both with `HIFI_OS_REBUILD="uboot host-uboot-tools"`: first rebuild since package 6) | legal-info 59-69 s, SBOM 9-23 s |
 
 `make legal-info` 61–76 s (965 MB per board, not committed), SBOM 12–25 s. Download cache 791 MB, ccache 1.1 GB, one output directory ~9 GB.
 
 ## 3. What the image check verifies (all three boards: 0 FAIL, 89 PASS, 20 INFO; reports/evidence/os_image_<board>.md)
+* *Since P2 (all three boards rebuilt: 0 FAIL, 128 PASS, 21 INFO):* `boot.uboot-env-linux-default`, `boot.uboot-builtin-env`,
+  `boot.uboot-env-corruption-matrix` (13 SIMULATED cases with the image's libubootenv; table in the report) + INFO comparison with the
+  previous uboot-tools, `rauc.env-tool-libubootenv`, `rauc.env-tool-single`; `firmware.boot-files`, `firmware.radio-list(-present)`,
+  `firmware.no-hidden-synaptics-bt`, `boot.firmware-licences` (now exact per board), `boot.firmware-notice` (section 10). The former
+  `boot.uboot-env-torn-copy-fallback` (uboot-tools host build) is replaced by the matrix.
 * *Added in package 7b-2 (rpi3_64 rebuilt: 0 FAIL, 103 PASS, 20 INFO):* both U-Boot environment copies (present, CRC, serials 1/0, fresh-card
   slot state, complete default environment), U-Boot `CONFIG_ENV_REDUNDANT` = fw_env.config, torn-copy fallback with the build's own
   `fw_printenv`/`fw_setenv`, boot.scr fail-safe; root-owned boot FAT, group `hifi-boot` without members, only the boot step writes it;
@@ -94,7 +112,8 @@ fits a nominal 2 GB card (technical target; 16 GB recommended). rpi3_64 rebuilt 
 in the bigger slot), bundle unchanged at 73.6 MiB, card image 1092 MiB apparent / 192 MiB on disk (sparse). `os/tools/size_plan.py` now
 checks the measured builds against this layout (`reports/evidence/os_size_plan.md`). The earlier proposal (minimum 224/16/144 MiB → 1 GB,
 recommended 384/64/448 MiB) is superseded. Possible savings if ever needed: a trimmed kernel configuration (modules are 23 MiB), fewer
-inodes in the rootfs, dropping the 358 overlays (unused by our config.txt), per-board firmware pruning.
+inodes in the rootfs, dropping the 358 overlays (unused by our config.txt, OPEN_QUESTIONS #95); per-board firmware pruning is done since P2
+(-1.7 MiB per board, section 10).
 
 ## 5. Reproducibility (G2 P1-1, software part)
 Settings: `BR2_REPRODUCIBLE` (SOURCE_DATE_EPOCH = commit date of the pinned Buildroot, TZ=UTC, LANG=C), the same container paths for
@@ -117,6 +136,14 @@ with the shared ccache (and later incremental runs), build B clean **without cca
 
 Also: the Zero 2 W build (independent, fresh output directory) has bit-identical rootfs files to the Pi 3 B+ build except the expected
 board files (its DTB, no `eth0.network`, `system.conf`, `os-release`, `build-info.json`).
+
+**P2 repetition (2026-11-20, code commit `6030a84`):** build A = `rpi3_64` (ccache, incremental `retarget` build of section 10), build B
+= `rpi3_64-repro` rebuilt from scratch in the same directory as before (`clean`, **no ccache**, 6426 s). Result identical in kind to
+package 6: **7347 rootfs entries, 0 added, 0 removed, 4 changed** - the same four ccache-affected files (`libwireplumber-0.5.so.0.510.0`,
+two WirePlumber modules, `pylibmount.so`); **boot FAT partition and data partition bit-identical** (sha256 `0ac0c398…` / `0d8a1f2c…`);
+rootfs.ext4 and the card image differ only through those files. So the `retarget` path (fresh target, packages reinstalled without
+recompiling) gives the same files as a clean build, and the per-board firmware pruning and libubootenv are reproducible. Two ccache-free
+builds against each other are still not shown.
 
 **What is and is not bit-reproducible, and why:**
 * Reproducible: every file of the rootfs and the boot FAT, the boot FAT image, the data partition, the MBR; the rootfs and card image
@@ -170,7 +197,7 @@ seeds (all listed in §7).
 BUILD-VERIFIED on rpi3_64 only; nothing booted.
 * **Two U-Boot environment copies (N-6).** U-Boot 2026.01 (`rpi_arm64`) supports a redundant FAT environment: `CONFIG_ENV_REDUNDANT` +
   `CONFIG_ENV_FAT_FILE_REDUND` (`env/fat.c`: `saveenv` writes the file that was NOT loaded; `env_check_redund` takes the valid copy with
-  the higher serial, 255→0 wrap handled). uboot-tools 2025.10 `fw_env` (image) and libubootenv (Debian, OTA tests) treat two regular files
+  the higher serial, 255→0 wrap handled). uboot-tools 2025.10 `fw_env` (image until P2; since P2 libubootenv 0.3.7 + patch, section 10) and libubootenv (Debian, OTA tests) treat two regular files
   in `fw_env.config` the same way (incremental serial). Configuration: `board/hifi-bridge/uboot/uboot.fragment`
   (`BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES`), `uboot/fw_env.config`. post-image writes both copies: U-Boot's default environment
   (`u-boot-initial-env`, `BR2_TARGET_UBOOT_INITIAL_ENV=y`, also installed as `/etc/u-boot-initial-env`) + `uboot/uboot-env.txt`, serials
@@ -187,3 +214,38 @@ BUILD-VERIFIED on rpi3_64 only; nothing booted.
 * **growdata (N-13)** runs on every boot without a guard (idempotent); **resolved (N-8)** without LLMNR/mDNS responders; the discovery
   firewall rule is `udp sport 3483 udp dport 3484` (docs/NETWORK.md section 6).
 * post-build now replaces an fstab entry of an earlier (incremental) build instead of appending a second one for the same mount point.
+
+## 10. Final polish P2: U-Boot environment, firmware per board, source bundle, rebuild of all boards (2026-11-20)
+BUILD/SIMULATED/STATIC only; nothing booted.
+* **U-Boot environment** (docs/OTA.md 4.1, DECISIONS #133): target `fw_printenv`/`fw_setenv` = libubootenv 0.3.7 + our patch
+  (`os/br2-external/patches/libubootenv/`, applied by Buildroot: "Applying 0001-uboot_env-use-the-other-copy..." in the build log);
+  `/etc/u-boot-initial-env` = U-Boot's 25 default variables + `BOOT_ORDER=A B`, `BOOT_A_LEFT=3`, `BOOT_B_LEFT=3` (28 lines, no
+  `hifi_env`); target uboot-tools removed (`rauc.env-tool-single`: no uboot-tools file, fw_printenv owned by libubootenv). U-Boot side
+  unchanged: `CONFIG_ENV_REDUNDANT`, both copies shipped, U-Boot's built-in default = the same 25 variables (found as strings in
+  `u-boot.bin`), `boot.cmd` fail-safe. Corruption matrix on each image's own copies: 13/13 as intended; the comparison with the previous
+  images' uboot-tools 2025.10 host build stored `bootcmd=bootp; setenv bootargs root=/dev/nfs ...` with both copies bad and did not finish
+  (killed after 15 s) on every truncated copy.
+* **Firmware per board** (docs/IMAGE_LICENSING.md 5, DECISIONS #134): post-build "20 entries kept, 70 removed" (rpi3_64), "21 kept, 69
+  removed" (rpizero2w_64), "26 kept, 64 removed" (rpi4_64); radio firmware 1.1 / 0.9 / 1.2 MiB instead of 2.8 MiB (incl. the regulatory
+  database); the Synaptics tool licence only on the Zero 2 W card. Boot firmware unchanged (`firmware.boot-files`).
+* **Results** (reports/evidence/os_image_<board>.md, os_ota_<board>.txt, os_secret_scan_<board>.json, os_sbom_<board>.cdx.json,
+  os_size_plan.md):
+
+| Board | image check | secret scan | OTA check, bundle | rootfs used / 384 MiB | boot FAT files | card image |
+|---|---|---|---|---|---|---|
+| rpi3_64 | 0 FAIL, 128 PASS, 21 INFO | 0 findings (6073 files + raw card) | pass, 76 056 010 B (72.5 MiB) | 191.6 MiB | 4.6 MiB | 1092 MiB |
+| rpizero2w_64 | 0 FAIL, 128 PASS, 21 INFO | 0 findings (6069 files + raw card) | pass, 75 945 422 B (72.4 MiB) | 191.4 MiB | 4.5 MiB | 1092 MiB |
+| rpi4_64 | 0 FAIL, 128 PASS, 21 INFO | 0 findings (6074 files + raw card) | pass, 76 289 483 B (72.8 MiB) | 191.9 MiB | 4.0 MiB | 1092 MiB |
+
+* **Licence policy:** 53 target packages per board, 0 to review (libubootenv LGPL-2.1+/MIT/CC0-1.0 and libyaml MIT added, uboot-tools
+  removed).
+* **Found by the rebuild:** after `retarget` the first rpi3_64 image check failed `rauc.env-tool-single`: Buildroot's
+  `packages-file-list.txt` is the concatenation of every `build/*/.files-list.txt`, so the removed package's old list was still in it
+  (the target tree itself was clean). `retarget` now deletes those lists too; rpi3_64 was rebuilt incrementally, the other boards used the
+  fixed step.
+* **Source bundle** (rpi3_64, commit `6030a84`): `.lab/source-bundle/rpi3_64-6030a842d1f5/` - legal-info (512 files, hard links),
+  Buildroot source 7.2 MB, repository 10.3 MB, raspberrypi/linux@957fc9f9 246.9 MB (contains the 358 `*-overlay.dts` sources), toolchain
+  metadata + LGPL-2.1/GPL-3.0/GCC Runtime Library Exception texts + 21 toolchain runtime files of the image listed, MANIFEST.json and
+  SHA256SUMS; 1.2 GB apparent (legal-info hard-linked). Not published.
+* **Reproducibility:** clean ccache-free rebuild of rpi3_64 vs. the retarget build: only the 4 known ccache files differ, boot FAT and
+  data partition bit-identical (section 5, "P2 repetition").

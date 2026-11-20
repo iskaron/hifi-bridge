@@ -196,11 +196,18 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 
 ## Added by package 6 - Buildroot development images (2026-11-19)
 73. **Export control:** the Broadcom licence (§7.1) names embargoed destinations. Does a public download page need a notice or restriction?
+    *P2 (2026-11-20):* clause and the unchanged exposure after per-board pruning documented (docs/IMAGE_LICENSING.md 7); still the owner's /
+    legal review before any public download (gate L-3). Open.
 74. **Synaptics Bluetooth licence (Zero 2 W `SYN43430*.hcd`)** can be terminated by Synaptics by written notice. Accept, or prune the firmware
     per board so the Pi 3 B+/Pi 4 images do not carry it (and document the Zero 2 W risk)?
+    *Partly resolved by DECISIONS #125/#134 (P2):* pruned per board - the Pi 3 B+ and Pi 4 images carry no Synaptics Bluetooth file (also not
+    the byte-identical `BCM43430B0.hcd`) and not the tool licence; the Zero 2 W risk is documented (docs/IMAGE_LICENSING.md 7). Still open:
+    whether the Zero 2 W stays a supported board under a revocable licence (owner).
 75. **Release source obligations:** the prebuilt DT overlays come from raspberrypi/linux `957fc9f9`, not our kernel commit `21b41014`;
     `make legal-info` does not save the Buildroot source itself and lacks the Bootlin toolchain licence files. All three must be added to a
     release's source bundle (G4 L-1).
+    *Prepared by DECISIONS #135 (P2):* `scripts/os_source_bundle.sh` assembles all three plus legal-info and the repository with a hashed
+    manifest (run once for rpi3_64, docs/IMAGE_BUILD.md 10). Open: hosting / written offer (#96) and mirroring Bootlin's sources.
 76. ~~**Partition sizes (cannot change after the first flash)**~~ **resolved by DECISIONS #120** (owner, 2026-11-20): boot 64 MiB, slots
     384 MiB, data 256 MiB before growth (measured minimum, docs/PERSISTENCE.md 2.1), 2 GB target card, 16 GB recommended. Implemented in
     the final polish package P1 (`os/storage.json`, genimage, defconfigs, image check `size.*`, flash tool `MIN_BYTES`).
@@ -213,9 +220,18 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 78. **Wizard network step:** network settings are reachable before setup via a link (DECISIONS #105). Is a dedicated network step in the
     setup wizard wanted instead?
 79. Show a boot with a reset U-Boot environment (`hifi.bootenv=reset`) on the update page?
-80. Switch the image to libubootenv with `/etc/u-boot-initial-env` as its default, so a Linux-side write with both env copies bad cannot
-    produce uboot-tools' generic default (`bootcmd=bootp`, an unbootable card)?
+80. ~~Switch the image to libubootenv with `/etc/u-boot-initial-env` as its default~~ **resolved by DECISIONS #123/#133 (P2):** libubootenv
+    0.3.7 + one patch, `/etc/u-boot-initial-env` = U-Boot's default + fail-safe slot state. Evidence (SIMULATED, image check of all three
+    boards and tests/os): 13 corruption cases on the image's own copies; both copies bad -> `bootcmd=bootflow scan`, fail-safe boot; the
+    previous images' uboot-tools 2025.10 stored `bootcmd=bootp; ... root=/dev/nfs ...` in that case and did not return on a short copy.
+    Real U-Boot/FAT behaviour stays HARDWARE-PENDING (gate P3-1, P3-12, P3-13). Original question: switch the image to libubootenv with
+    `/etc/u-boot-initial-env` as its default, so a Linux-side write with both env copies bad cannot produce uboot-tools' generic default
+    (`bootcmd=bootp`, an unbootable card)?
 81. Store the U-Boot environment in raw MMC sectors in the 4 MiB gap instead of FAT files (no FAT writes on every boot)?
+    *Kept open (DECISIONS #123, P2):* raw sectors would avoid the FAT driver (directory/FAT sector updates on every boot and the short-file
+    case of docs/OTA.md 4.1) and the boot FAT writes, but they need `CONFIG_ENV_IS_IN_MMC` + offsets agreed between U-Boot, `fw_env.config`,
+    genimage (the gap must never be overwritten by the flash tool or a repartition) and the SD card's own behaviour on small in-place
+    writes - only real cards and real power cuts can show whether that is safer. Decide after G2 P3-5/P3-6/P3-13 on the FAT variant.
 82. The saved environment pins `serial#`, `usbethaddr`, `fdtfile` of the first Pi the card booted in. Reset them when a card moves boards?
 83. Can removing a real BlueZ node under capture upset PipeWire 1.2.8 the way `unload-module` crashes pipewire-pulse 1.4.2? (hardware A3/A4)
 84. If pipewire-pulse is ever shipped on the appliance, should it be supervised/restarted? (today not shipped; OPEN_QUESTIONS #26 moot)
@@ -246,3 +262,13 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 92. **macOS helper signature check** (DECISIONS #126, docs/MACOS_SIGNING.md 5): should the GUI verify the bundled helper's code signature
     (same Team ID, `codesign --verify -R`) before elevating it, and refuse to run from a user-writable location outside App Translocation?
     Today the helper is protected by the bundle seal, Gatekeeper and the admin prompt only.
+93. **libubootenv patch upstream:** our patch (a short/unreadable redundant copy is treated as invalid, DECISIONS #133) fixes a real data-loss
+    path in stock libubootenv 0.3.7 (upstream master unchanged). Submitting it upstream is a publication - may the patch be sent to the
+    libubootenv maintainers (author identity as in the patch)?
+94. **Boards outside the target list in the images:** the upstream defconfigs also build DTBs for the Pi 3 B and CM3 (rpi3_64) and the
+    Pi 400, CM4 and CM4S (rpi4_64), so their radio firmware stays (DECISIONS #134; for the Pi 4 image this is the only Synaptics-licensed
+    file: `brcmfmac43456`). Drop those DTBs and their firmware (only Pi 3 B+, Pi 4 B, Zero 2 W boot), or keep them as unsupported but working?
+95. **Prebuilt DT overlays:** keep the 358 `overlays/*.dtbo` of rpi-firmware (their source is raspberrypi/linux `957fc9f9`, ~250 MB extra per
+    source bundle), build them from our kernel tree, or drop them (our `config.txt` uses none; a HAT EEPROM could request one)?
+96. **Hosting of the source bundles:** a legal-info source bundle is ~1 GB per board and release. Publish it next to each release (GitHub
+    Release assets, separate storage) or give a written offer (OPEN_QUESTIONS #43)? Who keeps the Bootlin toolchain sources mirrored?

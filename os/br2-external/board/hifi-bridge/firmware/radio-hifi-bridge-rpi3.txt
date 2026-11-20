@@ -1,0 +1,29 @@
+# Radio firmware shipped in the hifi-bridge-rpi3 image (DECISIONS #134, docs/IMAGE_LICENSING.md section 5). post-build.sh deletes every
+# other file below /usr/lib/firmware/{brcm,cypress,synaptics} and fails if one of these is missing or differs; the image check
+# (firmware.radio-list) enforces the same list. Package: brcmfmac_sdio-firmware-rpi 6596d332 (Buildroot 2026.02 pin).
+# Columns: path below /usr/lib/firmware | file <sha256> or link <target> | licence (cypress / synaptics-wifi: in the package's
+# LICENSE; synaptics-bt: also needs SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt).
+#
+# Pi 3 B+ (CYW43455: Wi-Fi brcmfmac43455, Bluetooth BCM4345C0) - the target board. The image also carries the DTBs of the Pi 3 B (CYW43438:
+# brcmfmac43430 rev A1, BCM43430A1) and the CM3 (no radio) from the upstream defconfig, so the Pi 3 B files are kept (Cypress licence, ~430
+# KiB). Generic names are the kernel's fallback when no board-specific file exists.
+brcm/BCM43430A1.hcd file c096ad4a5c3f06ed7d69eba246bf89ada9acba64a5b6f51b1e9c12f99bb1e1a7 cypress
+brcm/BCM43430A1.raspberrypi,3-model-b.hcd link BCM43430A1.hcd cypress
+brcm/BCM4345C0.hcd file 51c45e77ddad91a19e96dc8fb75295b2087c279940df2634b23baf71b6dea42c cypress
+brcm/BCM4345C0.raspberrypi,3-model-b-plus.hcd link BCM4345C0.hcd cypress
+brcm/brcmfmac43430-sdio.bin link ../cypress/cyfmac43430-sdio.bin cypress
+brcm/brcmfmac43430-sdio.clm_blob link ../cypress/cyfmac43430-sdio.clm_blob cypress
+brcm/brcmfmac43430-sdio.raspberrypi,3-model-b.bin link ../cypress/cyfmac43430-sdio.bin cypress
+brcm/brcmfmac43430-sdio.raspberrypi,3-model-b.clm_blob link ../cypress/cyfmac43430-sdio.clm_blob cypress
+brcm/brcmfmac43430-sdio.raspberrypi,3-model-b.txt link brcmfmac43430-sdio.txt cypress
+brcm/brcmfmac43430-sdio.txt file fc3949a4c32f07c18308e7e145c7615be314158e7d714a80e04e4791f16495f9 cypress
+brcm/brcmfmac43455-sdio.bin link ../cypress/cyfmac43455-sdio.bin cypress
+brcm/brcmfmac43455-sdio.clm_blob link ../cypress/cyfmac43455-sdio.clm_blob cypress
+brcm/brcmfmac43455-sdio.raspberrypi,3-model-b-plus.bin link ../cypress/cyfmac43455-sdio.bin cypress
+brcm/brcmfmac43455-sdio.raspberrypi,3-model-b-plus.clm_blob link ../cypress/cyfmac43455-sdio.clm_blob cypress
+brcm/brcmfmac43455-sdio.raspberrypi,3-model-b-plus.txt link brcmfmac43455-sdio.txt cypress
+brcm/brcmfmac43455-sdio.txt file ca709be81a78bdb6932936374f39943acbd7af07fae6151011127599a3ce9e3d cypress
+cypress/cyfmac43430-sdio.bin file 0717f8e798f3962230e76e9d840385ba127a38d31d6a55acd5c97cf53e4acc9d cypress
+cypress/cyfmac43430-sdio.clm_blob file 3376b9c9b32d16bf762e21c7fafb665365070ae240d092498d0d1987c22022aa cypress
+cypress/cyfmac43455-sdio.bin file d608f866582519c0a28d86db43040f4f1b98dd1d153e72e9752586546b4a36c3 cypress
+cypress/cyfmac43455-sdio.clm_blob file 9823842cae9fb9a5dd1e5fb31f595516ec7deee341354bef30bb3026eee29cc1 cypress

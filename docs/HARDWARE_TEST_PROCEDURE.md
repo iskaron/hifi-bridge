@@ -22,7 +22,10 @@
    `/boot/firmware` belongs to root: without write access the bridge reports "boot files NOT processed" and starts anyway; the console log
    then has the setup-code path and the fingerprint). Open `http://<pi>:8080/`, enter the setup
    code from `~/bridge-data/setup-code.txt`, and finish the wizard with the test LMS and the test player.
-7. Create the results file: `python3 -m hwkit results new results.json --board "<model rev>" --operator <name> --phone "<model / OS>" ...`,
+7. Firmware reference for the appliance image (gate P1-4, DECISIONS #134): on the stock Pi OS run
+   `dmesg | grep -E "brcmfmac|Bluetooth: hci0|BCM"` after boot and after the first phone connects; save the output with the results
+   (chip revision and the firmware file names this board loads).
+8. Create the results file: `python3 -m hwkit results new results.json --board "<model rev>" --operator <name> --phone "<model / OS>" ...`,
    then `python3 -m hwkit env -o env.json`.
 
 ## 2. Run, in this order (about 4 h; `python3 -m hwkit guide results.json --address <phone MAC> [--mic <source>]`)

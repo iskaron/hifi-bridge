@@ -21,7 +21,7 @@ network and OTA packages, licence policy passed; SBOM `reports/evidence/os_sbom_
 | Audio graph | pipewire (1.2.8), wireplumber (0.5.10), lua (5.4.8), libsndfile (1.2.2) | MIT, LGPL-2.1+ | **WirePlumber needs Lua ≥ 5.3**: without it Kconfig silently dropped WirePlumber (found by our check). `pw-cat` needs libsndfile. No `parec`, so capture uses `pw-cat --raw` |
 | mDNS | avahi (0.8) daemon, dbus (1.14.10) | LGPL-2.1+ / AFL-2.1 or GPL-2.0+ | DECISIONS #49/#52 |
 | TLS/certificates | libopenssl (3.6.2) + `LIBOPENSSL_BIN` | Apache-2.0 | DECISIONS #50 |
-| Updates | rauc (1.15.2, D-Bus, JSON), uboot (2026.01, `rpi_arm64`), uboot-tools (2025.10, fw_printenv) | LGPL-2.1 / GPL-2.0+ | host tools for tests: Debian RAUC 1.13, mkimage 2025.01 |
+| Updates | rauc (1.15.2, D-Bus, JSON), uboot (2026.01, `rpi_arm64`), libubootenv (0.3.7 + one patch: fw_printenv/fw_setenv since final polish P2, DECISIONS #133; before: uboot-tools 2025.10) | LGPL-2.1 / GPL-2.0+ / LGPL-2.1+, MIT, CC0-1.0 | host tools for tests: Debian RAUC 1.13, mkimage 2025.01 |
 | Init | systemd (258.7), merged /usr | LGPL-2.1+ | units verified with `systemd-analyze` |
 | Network | wpa_supplicant (2.11), hostapd (2.11), dnsmasq (2.92), iw (6.17), wireless-regdb, brcmfmac firmware | BSD-3 / GPL / ISC / **PROPRIETARY** | firmware licence reviewed: docs/IMAGE_LICENSING.md (G4 L-1 owner items remain) |
 | Card tools | util-linux 2.41.4 (sfdisk, partx), e2fsprogs 1.47.3 (resize2fs) | GPL-2.0+ and others | first-boot growth of the data partition |

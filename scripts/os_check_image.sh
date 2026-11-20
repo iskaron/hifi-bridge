@@ -8,7 +8,9 @@
 # Checks (os/tools/image_check.py): identity (development variant), MBR layout and slot sizes, manifest + provisioning slot, boot FAT
 # (firmware, U-Boot, config.txt), kernel in the slot, read-only root (fstab, bootargs, /var overlay), data partition + bind mounts, RAUC
 # (system.conf, keyring = public dev CA only, fw_env vs. U-Boot's CONFIG_ENV_SIZE), both U-Boot environment copies (content, serials,
-# defaults, torn-copy fallback with this build's fw_printenv/fw_setenv, boot.scr fail-safe), root-owned boot FAT and its only writer,
+# defaults, Linux-side default /etc/u-boot-initial-env, U-Boot's compiled-in default, the corruption matrix with the image's libubootenv
+# compiled from the same source + patches, previous uboot-tools as INFO comparison, boot.scr fail-safe), per-board radio and boot
+# firmware + licence texts, root-owned boot FAT and its only writer,
 # users locked, no remote login, setuid list, bridge + bytecode, enabled units, `systemd-analyze verify --root` and offline `security` of
 # our units, network/firewall/resolved/firmware facts, sizes; the persistence rule (journald volatile + bounded, no core dumps, allow-list
 # of persistent paths from os/storage.json, unit/tmpfiles write paths, OTA staging cleanup) and the card layout of DECISIONS #120 (partition
@@ -33,7 +35,7 @@ OUT="${HIFI_OS_OUT:-$LAB/br-out/$BOARD}"
 mkdir -p "$OUT/hifi/check"
 name="hifi-os-check-$BOARD"
 docker rm -f "$name" >/dev/null 2>&1 || true
-docker run --rm --name "$name" --network none --cpus=2 --memory=4g -e BOARD="$BOARD" -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
+docker run --rm --name "$name" --network none --cpus=2 --memory=4g -e BOARD="$BOARD" -e LABEL="${HIFI_EVIDENCE_LABEL:-}" -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
 	-v "$REPO":/work:ro -v "$OUT":/out -v "$LAB/dev-update-ca/ca.pem":/devca/ca.pem:ro btbridge-os:dev bash -c '
 set -uo pipefail
 O=/out; C=$O/hifi/check; W=/tmp/chk; T=/work/os/tools
@@ -60,10 +62,16 @@ if [ -n "$(tr -d "\0" < $W/p3 | head -c 1)" ]; then echo "slot B: NOT EMPTY"; sl
 dumpimage -T script -p 0 -o $W/boot.cmd $W/boot/boot.scr >/dev/null
 bootargs=$(sed -n "s/^setenv bootargs \"\(.*\)\"$/\1/p" $W/boot.cmd | tail -1)
 ucfg=$(ls -d $O/build/uboot-*/.config 2>/dev/null | grep -v tools | head -1)
+# the environment tools of the image for the corruption matrix: libubootenv from the same source + patches, compiled natively (SIMULATED);
+# the uboot-tools host build (the implementation of the previous images) runs the same matrix as an INFO comparison
+/work/os/tools/build_libubootenv.sh $W/libubootenv || exit 3
+cmp=""
+[ -x $O/host/bin/fw_printenv ] && { mkdir -p $W/uboot-tools && cp $O/host/bin/fw_printenv $W/uboot-tools/ && ln -s fw_printenv $W/uboot-tools/fw_setenv \
+	&& cmp="--compare-fw-printenv $W/uboot-tools/fw_printenv"; }
 python3 $T/image_check.py --board $BOARD --image $img --manifest $img.manifest.json --rootfs $W/rootfs --boot $W/boot \
 	--config $O/.config --rootfs-img $O/images/rootfs.ext4 --slot-a $W/p2 --dev-ca /devca/ca.pem \
 	--file-list $O/build/packages-file-list.txt --uboot-config "$ucfg" --bootargs "$bootargs" \
-	--fw-printenv $O/host/bin/fw_printenv --boot-script $W/boot.cmd --data-img $W/p4 \
+	--fw-printenv $W/libubootenv/fw_printenv $cmp --boot-script $W/boot.cmd --data-img $W/p4 --label "$LABEL" \
 	--json $C/image-check.json --md $C/image-check.md
 rc=$?
 [ $slotb -eq 0 ] || rc=1
@@ -73,6 +81,19 @@ python3 $T/tree_manifest.py make $W/rootfs $C/rootfs-manifest.tsv
 python3 $T/tree_manifest.py make $W/boot $C/boot-manifest.tsv
 sha256sum $img $O/images/rootfs.ext4 $W/p1 $W/p4 | sed "s#$W/##; s#$O/##" > $C/hashes.txt
 cp $W/boot.cmd $C/boot.cmd.txt
+# evidence label (HIFI_EVIDENCE_LABEL) inside the JSON evidence too: a top-level "evidence" key in the secret scan, a CycloneDX
+# metadata property in a copy of the SBOM
+if [ -n "$LABEL" ]; then
+	python3 - "$LABEL" $C/secret-scan.json $O/hifi/sbom.cdx.json $C/sbom.cdx.json <<"PY"
+import json, os, sys
+label, scan, sbom, sbom_out = sys.argv[1:]
+d = json.load(open(scan)); d = {"evidence": label, **d}; json.dump(d, open(scan, "w"), indent=1)
+if os.path.isfile(sbom):
+    b = json.load(open(sbom))
+    b.setdefault("metadata", {}).setdefault("properties", []).append({"name": "hifi-bridge:evidence", "value": label})
+    json.dump(b, open(sbom_out, "w"), indent=2)
+PY
+fi
 chown -R $HOST_UID:$HOST_GID $C
 echo "image-check rc=$rc secret-scan rc=$s"
 [ $rc -eq 0 ] && [ $s -eq 0 ]'
@@ -81,7 +102,8 @@ mkdir -p reports/evidence
 [ -f "$OUT/hifi/check/image-check.md" ] && cp "$OUT/hifi/check/image-check.md" "reports/evidence/os_image_$BOARD.md"
 [ -f "$OUT/hifi/check/secret-scan.json" ] && cp "$OUT/hifi/check/secret-scan.json" "reports/evidence/os_secret_scan_$BOARD.json"
 # SBOM, licence policy report and the legal-info manifest of this build (small; legal-info itself is not committed)
-[ -f "$OUT/hifi/sbom.cdx.json" ] && cp "$OUT/hifi/sbom.cdx.json" "reports/evidence/os_sbom_$BOARD.cdx.json"
+if [ -f "$OUT/hifi/check/sbom.cdx.json" ]; then cp "$OUT/hifi/check/sbom.cdx.json" "reports/evidence/os_sbom_$BOARD.cdx.json"
+elif [ -f "$OUT/hifi/sbom.cdx.json" ]; then cp "$OUT/hifi/sbom.cdx.json" "reports/evidence/os_sbom_$BOARD.cdx.json"; fi
 [ -f "$OUT/hifi/licences.md" ] && cp "$OUT/hifi/licences.md" "reports/evidence/os_licenses_$BOARD.md"
 [ -f "$OUT/legal-info/manifest.csv" ] && cp "$OUT/legal-info/manifest.csv" "reports/evidence/os_legal_manifest_$BOARD.csv"
 echo "os_check_image: $BOARD exit code $rc"

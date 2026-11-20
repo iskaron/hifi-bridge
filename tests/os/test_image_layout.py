@@ -127,15 +127,18 @@ def test_growdata_refuses_a_missing_partition(tmp_path, tools):
     assert r.returncode != 0 and "not found" in r.stderr
 
 
-def test_post_image_refuses_an_image_without_the_firmware_licences(tmp_path, tools):
+@pytest.mark.parametrize("compat,synaptics_bt,synaptics_wifi", [("hifi-bridge-rpi3", False, False), ("hifi-bridge-rpi4", False, True),
+                                                                  ("hifi-bridge-rpizero2w", True, True)])
+def test_post_image_refuses_an_image_without_the_firmware_licences(tmp_path, tools, compat, synaptics_bt, synaptics_wifi):
     """The firmware licences require their text with every copy: if the radio firmware is enabled but its licence file is missing from
-    the build, post-image fails instead of producing an image without the notice."""
+    the build, post-image fails instead of producing an image without the notice. The Synaptics End-User Software Tool License ships
+    only with the board whose firmware list keeps Synaptics Bluetooth files (Zero 2 W, DECISIONS #134)."""
     b = tmp_path / "images"
     b.mkdir()
     build = tmp_path / "build"
     build.mkdir()
     cfg = tmp_path / ".config"
-    cfg.write_text('BR2_PACKAGE_HIFI_BRIDGE_COMPATIBLE="hifi-bridge-rpi3"\nBR2_PACKAGE_BRCMFMAC_SDIO_FIRMWARE_RPI=y\n')
+    cfg.write_text(f'BR2_PACKAGE_HIFI_BRIDGE_COMPATIBLE="{compat}"\nBR2_PACKAGE_BRCMFMAC_SDIO_FIRMWARE_RPI=y\n')
     env = {"BINARIES_DIR": str(b), "BUILD_DIR": str(build), "BR2_CONFIG": str(cfg), "PYTHONPATH": f"{REPO}/bridge:{REPO}/flashtool"}
     r = sh(f"{BOARD}/post-image.sh", env=env, check=False)
     assert r.returncode != 0 and "licence file brcmfmac_sdio-firmware-rpi-*/LICENSE not found" in r.stderr
@@ -143,8 +146,11 @@ def test_post_image_refuses_an_image_without_the_firmware_licences(tmp_path, too
     (build / "brcmfmac_sdio-firmware-rpi-123" / "LICENSE").write_text("Broadcom licence text\n")
     r = sh(f"{BOARD}/post-image.sh", env=env, check=False)
     assert "licence file" not in r.stderr                  # passes the licence step (then stops: no firmware/kernel in this test)
-    assert (b / "licenses" / "SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt").exists()
+    assert (b / "licenses" / "SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt").exists() == synaptics_bt
     assert (b / "licenses" / "brcmfmac_sdio-firmware-rpi.LICENSE").read_text() == "Broadcom licence text\n"
+    notice = (b / "licenses" / "NOTICE.txt").read_text()
+    assert compat in notice and ("SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt" in notice) == synaptics_bt
+    assert ("Synaptics (Wi-Fi)" in notice) == synaptics_wifi and "UNMODIFIED" in notice
 
 
 def _card(base, mtime):

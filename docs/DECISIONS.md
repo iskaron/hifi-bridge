@@ -417,3 +417,29 @@ Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardwar
 132. **One source of the numbers:** `os/storage.json` holds the layout, the data budget, the allow-list of persistent paths, the units
      allowed to write them and the RAM limits; the image check (`persist.*`, `size.*`), the size report and the tests read it, and
      `tests/os/test_persistence_layout.py` fails when genimage, the defconfigs, the flash tool or docs/PERSISTENCE.md disagree.
+
+## Implementation decisions of the final polish package P2 - U-Boot environment, firmware per board, source provision (reversible; 2026-11-20; details docs/OTA.md 4.1, docs/IMAGE_LICENSING.md 5-7, docs/IMAGE_BUILD.md 10)
+133. **libubootenv with a complete image default environment (implements #123, resolves OPEN_QUESTIONS #80):** the target's
+     `fw_printenv`/`fw_setenv` (RAUC's U-Boot backend, the only Linux writer of the environment) come from libubootenv 0.3.7
+     (`BR2_PACKAGE_LIBUBOOTENV`); the target uboot-tools are no longer installed (host uboot-tools stay for mkimage/mkenvimage).
+     `/etc/u-boot-initial-env` = U-Boot's compiled-in default + `BOOT_ORDER=A B`, `BOOT_A_LEFT=3`, `BOOT_B_LEFT=3`, no `hifi_env`
+     (`uboot/linux-default-env.txt`, written by post-build.sh), so a Linux-side store with both copies bad writes a bootable environment on
+     which boot.cmd fails safe - the same path as U-Boot's own loss. One local patch (`os/br2-external/patches/libubootenv/0001`, via
+     `BR2_GLOBAL_PATCH_DIR`): a copy that cannot be read completely counts as invalid instead of failing the whole read (stock 0.3.7 then
+     stored the default over the valid copy). The redundant FAT environment stays; raw MMC sectors stay rejected until hardware validation
+     (#81). SIMULATED in Docker with the same source + patch compiled natively (`os/tools/build_libubootenv.sh`, 13 cases,
+     `os/tools/uboot_env_sim.py`); the real-RAUC suite uses the same tools since P2 (Debian's libubootenv-tool 0.3.5 removed from the
+     test image).
+134. **Firmware per board (implements #125, OPEN_QUESTIONS #74):** each image ships exactly the radio firmware of
+     `board/hifi-bridge/firmware/radio-<compatible>.txt` (path, sha256 or link target, licence tag): the files the kernel requests for the
+     boards whose DTBs the image carries (target board + the upstream defconfig's other boards: Pi 3 B/CM3, Pi 400/CM4/CM4S), nothing
+     else; post-build.sh prunes and verifies, the image check enforces the list, the boot firmware set and exactly the licence texts the
+     kept files need. The Synaptics End-User Software Tool License and `SYN43430*.hcd` (and the byte-identical `BCM43430B0.hcd`) remain only
+     in the Zero 2 W image. 90 entries / 2.79 MiB before; 20 / 21 / 26 entries (1.06 / 0.92 / 1.18 MiB) for Pi 3 B+ / Zero 2 W / Pi 4.
+135. **Source provision prepared, never published (OPEN_QUESTIONS #75):** `scripts/os_source_bundle.sh <board>` assembles legal-info, the
+     pinned Buildroot source, raspberrypi/linux at the overlays' commit `957fc9f9`, the toolchain metadata + runtime licence texts + Bootlin
+     source pointers, and the repository at the commit, with `MANIFEST.json`/`SHA256SUMS`, under `.lab/source-bundle/` only.
+136. **Incremental rebuild after removing a package (`os_build.sh <board> retarget build ...`):** the target tree, every
+     `.stamp_target_installed`, the package file lists and the bridge build directory are deleted so every package is reinstalled into a
+     fresh target without recompiling (Buildroot never uninstalls a removed package's files; used for the removed target uboot-tools).
+     Release images are still built with `clean` and without ccache (#102).

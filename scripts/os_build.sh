@@ -8,6 +8,9 @@
 #     legal   `make legal-info` (licence texts, sources, manifest.csv)
 #     sbom    `make show-info` -> show-info.json, CycloneDX SBOM (utils/generate-cyclonedx), licence policy report
 #     clean   remove the board's output directory first (download cache and ccache are kept)
+#     retarget  before `build`: delete the target tree, every .stamp_target_installed and packages-file-list.txt, so `make` reinstalls
+#             every package into a fresh target WITHOUT recompiling (after REMOVING a package from the configuration: Buildroot never
+#             uninstalls its files; used in P2 for the removed target uboot-tools). A release is built with `clean` instead.
 #
 # Environment (all optional):
 #   HIFI_LAB        lab directory on the host filesystem (default: <repo>/.lab); Buildroot source in $HIFI_LAB/buildroot
@@ -24,7 +27,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 REPO="$PWD"
-BOARD="${1:?usage: os_build.sh <rpi3_64|rpi4_64|rpizero2w_64> [build|legal|sbom|clean ...]}"
+BOARD="${1:?usage: os_build.sh <rpi3_64|rpi4_64|rpizero2w_64> [build|legal|sbom|clean|retarget ...]}"
 shift
 case "$BOARD" in rpi3_64|rpi4_64|rpizero2w_64) ;; *) echo "os_build: unknown board $BOARD" >&2; exit 2 ;; esac
 STEPS="${*:-build legal sbom}"
@@ -73,6 +76,13 @@ step() {	# name command...
 	printf "%s\t%s\t%s\t%s\n" "$n" "$(date -u -d @$t0 +%FT%TZ)" "$(( $(date +%s) - t0 ))" "$r" >> $times
 	[ $r = ok ]
 }
+retarget() {
+	rm -rf $O/target $O/build/packages-file-list.txt $O/build/packages-file-list-staging.txt $O/build/packages-file-list-host.txt
+	find $O/build -mindepth 2 -maxdepth 2 -name .stamp_target_installed -delete
+	# packages-file-list.txt is the concatenation of every build/*/.files-list.txt: a removed package would stay in it (found in P2)
+	find $O/build -mindepth 2 -maxdepth 2 -name .files-list.txt -delete
+	rm -rf $O/build/hifi-bridge-*		# the local bridge package is re-synced from the working tree
+}
 configure() {
 	cp $EXT/fragments/dev-build.fragment /tmp/dev.fragment
 	if [ "$CCACHE" = 0 ]; then sed -i "/^BR2_CCACHE/d" /tmp/dev.fragment; echo "# BR2_CCACHE is not set" >> /tmp/dev.fragment; fi
@@ -102,6 +112,7 @@ sbom() {
 for s in $STEPS; do
 	case $s in
 		clean) ;;
+		retarget) step retarget retarget ;;
 		build) step configure configure; step build build ;;
 		legal) step legal-info make -C $O legal-info ;;
 		sbom) step sbom sbom ;;
