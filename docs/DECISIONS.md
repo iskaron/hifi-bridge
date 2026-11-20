@@ -443,3 +443,23 @@ Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardwar
      `.stamp_target_installed`, the package file lists and the bridge build directory are deleted so every package is reinstalled into a
      fresh target without recompiling (Buildroot never uninstalls a removed package's files; used for the removed target uboot-tools).
      Release images are still built with `clean` and without ccache (#102).
+
+## Implementation decisions of the final polish package P3 - wizard network step (reversible; 2026-11-20; details docs/NETWORK.md 12)
+137. **Place and resume point of the network step (implements #122):** Owner → **Network** → Bluetooth → Lyrion → Player → Done. After the
+     account (only the owner may change the network) and before every step that needs the home network (Lyrion discovery, players,
+     test sound). The wizard's position is server-side and **RAM only** (`WebUI.wizard_at`, the step shown last; #121: it need not
+     survive a reboot, after which the wizard starts at the network step, which shows the network as it is). Every redirect into the
+     unfinished wizard (`/`, other pages, `/setup`, after a login - also at another address with a new cookie) goes to the network step
+     while a change waits for confirmation, else to the step shown last. Replaces the fixed redirect to `/setup/bluetooth`.
+138. **Reuse instead of a second flow:** the step renders the network page's Wi-Fi form (`wifi_join`, without *Forget* and without the
+     confirmation dialog, because the change is explained in the page right above *Connect*) and trial card, and its routes
+     `POST /setup/network/{wifi,scan,confirm,revert}` call the network page's handlers with the wizard as the return address; *Keep* in
+     the wizard continues to the next step. The pending banner on the other wizard pages posts to the wizard routes too (the owner stays
+     in the wizard). The network state machine, trials and pending file are unchanged (no bug found).
+139. **One automatic scan:** when the agent has no scan result yet and the radio is not a hotspot, opening the step requests one scan
+     (as "Search again" would); network.js reloads the page when it is done. Never while the hotspot runs (its start already scans;
+     an AP-mode scan may take the hotspot down, hardware item N-3).
+140. **Lab device provisioned with a hotspot:** `btkit.appliance_lab --boot-dir` applies the boot partition's provisioning file before
+     the SIMULATED network agent starts (the image order: `hifi-bridge-boot.service` before `hifi-netd`); `docker/compose.yml` service
+     `appliance-setup` (profile browser, started by `scripts/run_browser.sh`) uses it with `tests/browser/setup-provision.json` (lab-only
+     setup code and hotspot password) for the hotspot-only browser test.

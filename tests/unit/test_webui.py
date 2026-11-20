@@ -75,12 +75,13 @@ def ui(tmp_path):
 
 def setup_account(u):
     r = u.c.post("/setup", {"code": u.code, "password": PW, "confirm": PW}, csrf=False)
-    assert r.status == 303 and r.getheader("Location") == "/setup/bluetooth"
+    assert r.status == 303 and r.getheader("Location") == "/setup/network"          # the network step follows the account (#122)
     return r
 
 
 def finish_wizard(u):
     setup_account(u)
+    assert u.c.get("/setup/network").status == 200
     assert u.c.post("/setup/bluetooth", {"device_name": "Wohnzimmer"}).getheader("Location") == "/setup/lyrion"
     assert u.c.post("/setup/lyrion", {"lms_host": "10.0.0.5", "lms_port": "9000"}).getheader("Location") == "/setup/target"
     assert u.c.post("/setup/target", {"target_player": P1}).getheader("Location") == "/setup/finish"
@@ -109,8 +110,8 @@ def test_setup_rejects_wrong_code_and_mismatch_then_sets_a_strict_session_cookie
     r = setup_account(ui)
     cookie = next(v for k, v in r.headers_list if k == "Set-Cookie" and v.startswith("bab_session="))
     assert "HttpOnly" in cookie and "SameSite=Strict" in cookie and "Path=/" in cookie
-    assert ui.c.get("/setup").getheader("Location") == "/setup/bluetooth"          # setup cannot be repeated
-    assert ui.c.get("/").getheader("Location") == "/setup/bluetooth"               # wizard must be finished first
+    assert ui.c.get("/setup").getheader("Location") == "/setup/network"            # setup cannot be repeated
+    assert ui.c.get("/").getheader("Location") == "/setup/network"                 # wizard must be finished first
 
 
 def test_state_changes_need_csrf_and_same_origin(ui):
@@ -167,7 +168,8 @@ def test_test_sound_button_works_inside_the_wizard(ui):
     ui.c.post("/setup/lyrion", {"lms_host": "10.0.0.5", "lms_port": "9000"}); ui.c.post("/setup/target", {"target_player": P1})
     r = ui.c.post("/diagnostics/test", {"back": "/setup/finish"})
     assert r.getheader("Location") == "/setup/finish"                          # not bounced to the wizard start (regression)
-    assert ui.c.get("/diagnostics").getheader("Location") == "/setup/bluetooth"  # other pages stay locked until the wizard is done
+    assert ui.c.get("/setup/finish").status == 200
+    assert ui.c.get("/diagnostics").getheader("Location") == "/setup/finish"   # other pages stay locked: back to the step shown last
 
 
 def test_full_wizard_configures_the_bridge(ui):

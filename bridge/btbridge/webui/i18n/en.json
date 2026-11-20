@@ -377,6 +377,7 @@
  "wizard.step.bluetooth": "Bluetooth",
  "wizard.step.finish": "Done",
  "wizard.step.lyrion": "Lyrion",
+ "wizard.step.network": "Network",
  "wizard.step.target": "Player",
  "wizard.target.help": "The bridge never creates or changes groups and never switches to another player on its own.",
  "wizard.target.legend": "Available targets",

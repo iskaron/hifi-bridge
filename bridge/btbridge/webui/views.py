@@ -177,14 +177,35 @@ def toggle_form(req, action: str, label: str, value: str, pressed: bool, extra: 
 
 
 # ============================================================== setup wizard
-def wizard_steps(req, current: int) -> str:
+# The steps in order. The network step comes right after the owner account (DECISIONS #122, #137): every later step that talks to the
+# home network (Lyrion discovery, players, the test sound) needs it, and a device set up over its own hotspot must change networks first.
+WIZARD = (("wizard.step.account", "/setup"), ("wizard.step.network", "/setup/network"), ("wizard.step.bluetooth", "/setup/bluetooth"),
+          ("wizard.step.lyrion", "/setup/lyrion"), ("wizard.step.target", "/setup/target"), ("wizard.step.finish", "/setup/finish"))
+WIZARD_FIRST = "/setup/network"                  # where an owner with a password resumes when nothing else is known
+
+
+def wizard_steps(req, current: int, banner: bool = True) -> str:
+    """The progress list. Rendering a step also records it as the point where the wizard resumes (``WebUI.wizard_at``, RAM only:
+    after a reboot the wizard resumes at the network step, which shows the network as it is and lets the owner continue)."""
     from . import views_network
     t = req.t
-    names = ["wizard.step.account", "wizard.step.bluetooth", "wizard.step.lyrion", "wizard.step.target", "wizard.step.finish"]
+    if current:
+        req.ui.wizard_at = WIZARD[current][1]
     items = "".join(f'<li class="{"done" if i < current else ("current" if i == current else "")}"'
-                    f'{" aria-current=step" if i == current else ""}><span>{i + 1}</span>{esc(t(n))}</li>' for i, n in enumerate(names))
-    banner = views_network.pending_banner(req) if current else ""       # a network change made during the setup (review N-1)
-    return f'{banner}<ol class="steps" aria-label="{esc(t("wizard.progress"))}">{items}</ol>'
+                    f'{" aria-current=step" if i == current else ""}><span>{i + 1}</span>{esc(t(n))}</li>' for i, (n, _) in enumerate(WIZARD))
+    shown = views_network.pending_banner(req) if current and banner else ""   # a network change made during the setup (review N-1)
+    return f'{shown}<ol class="steps" aria-label="{esc(t("wizard.progress"))}">{items}</ol>'
+
+
+def wizard_resume(req) -> str:
+    """Where an owner who has a password but has not finished the wizard continues: the network step while a network change waits for
+    confirmation (the owner reached the device again over the new network, possibly at another address and after a new login),
+    else the step shown last. Never raises (it runs on every redirect into the wizard)."""
+    from . import views_network
+    if views_network.trial_pending(req):
+        return WIZARD_FIRST
+    at = getattr(req.ui, "wizard_at", None)
+    return at if at in {p for _, p in WIZARD[1:]} else WIZARD_FIRST
 
 
 def lang_switch(req) -> str:
@@ -198,7 +219,7 @@ def lang_switch(req) -> str:
 def setup_get(req):
     ui, t = req.ui, req.t
     if ui.svc.auth.has_password():
-        return _srv().redirect("/setup/bluetooth" if req.session else "/login")
+        return _srv().redirect(wizard_resume(req) if req.session else "/login")
     body = f"""{wizard_steps(req, 0)}<section class="card narrow"><h1>{esc(t("wizard.welcome"))}</h1>
 <p>{esc(t("wizard.welcome.text"))}</p>{lang_switch(req)}
 <form method="post" action="/setup" class="stack">
@@ -225,7 +246,7 @@ def setup_post(req):
         return _srv().redirect("/setup", err_text(req, e), req.secure, error=True)
     if req.cookies.get("bab_lang") in ("de", "en"):
         ui.svc.store.update({"language": req.cookies["bab_lang"]})
-    return _srv().redirect("/setup/bluetooth", t("flash.account_created"), req.secure).cookie(_srv().COOKIE, sid, req.secure)
+    return _srv().redirect(WIZARD_FIRST, t("flash.account_created"), req.secure).cookie(_srv().COOKIE, sid, req.secure)
 
 
 @public
@@ -242,7 +263,7 @@ def lang_post(req):
 
 def setup_bluetooth_get(req):
     t, svc = req.t, req.ui.svc
-    body = f"""{wizard_steps(req, 1)}<section class="card narrow"><h1>{esc(t("wizard.bluetooth.title"))}</h1>
+    body = f"""{wizard_steps(req, 2)}<section class="card narrow"><h1>{esc(t("wizard.bluetooth.title"))}</h1>
 <p>{esc(t("wizard.bluetooth.text"))}</p><form method="post" action="/setup/bluetooth" class="stack">{csrf(req)}
 <label>{esc(t("field.device_name"))}<input name="device_name" value="{esc(svc.store.get("device_name"))}" maxlength="32" required></label>
 <p class="help">{esc(t("wizard.bluetooth.help"))}</p><button class="primary">{esc(t("wizard.next"))}</button></form></section>"""
@@ -265,7 +286,7 @@ def setup_lyrion_get(req):
 <input type="hidden" name="lms_host" value="{esc(s["host"])}"><input type="hidden" name="lms_port" value="{esc(s["port"])}">
 <button class="choice"><strong>{esc(s["name"] or s["host"])}</strong><small>{esc(s["host"])}:{esc(s["port"])} · Lyrion {esc(s["version"])}</small></button>
 </form>""" for s in found) or f'<p class="muted">{esc(t("wizard.lyrion.none_found"))}</p>'
-    body = f"""{wizard_steps(req, 2)}<section class="card narrow"><h1>{esc(t("wizard.lyrion.title"))}</h1>
+    body = f"""{wizard_steps(req, 3)}<section class="card narrow"><h1>{esc(t("wizard.lyrion.title"))}</h1>
 <p>{esc(t("wizard.lyrion.text"))}</p><h2>{esc(t("wizard.lyrion.found"))}</h2><div class="choices">{opts}</div>
 <h2>{esc(t("wizard.lyrion.manual"))}</h2><form method="post" action="/setup/lyrion" class="stack inline">{csrf(req)}
 <label>{esc(t("field.lms_host"))}<input name="lms_host" value="{esc(svc.store.get("lms_host"))}" required spellcheck="false" autocapitalize="off"></label>
@@ -311,7 +332,7 @@ def target_choices(req, selected: str, action: str) -> str:
 
 def setup_target_get(req):
     t = req.t
-    body = f"""{wizard_steps(req, 3)}<section class="card narrow"><h1>{esc(t("wizard.target.title"))}</h1><p>{esc(t("wizard.target.text"))}</p>
+    body = f"""{wizard_steps(req, 4)}<section class="card narrow"><h1>{esc(t("wizard.target.title"))}</h1><p>{esc(t("wizard.target.text"))}</p>
 {target_choices(req, req.ui.svc.store.get("target_player"), "/setup/target")}</section>"""
     return page(req.ui, req, t("wizard.target.title"), body, wizard=True)
 
@@ -327,7 +348,7 @@ def setup_target_post(req):
 def setup_finish_get(req):
     t, svc = req.t, req.ui.svc
     st = svc.status()
-    body = f"""{wizard_steps(req, 4)}<section class="card narrow"><h1>{esc(t("wizard.finish.title"))}</h1><p>{esc(t("wizard.finish.text"))}</p>
+    body = f"""{wizard_steps(req, 5)}<section class="card narrow"><h1>{esc(t("wizard.finish.title"))}</h1><p>{esc(t("wizard.finish.text"))}</p>
 <dl class="facts"><div><dt>{esc(t("field.device_name"))}</dt><dd>{esc(svc.store.get("device_name"))}</dd></div>
 <div><dt>{esc(t("dash.server"))}</dt><dd>{esc(st["lyrion"]["server"] or "–")}</dd></div>
 <div><dt>{esc(t("dash.target"))}</dt><dd>{esc(target_name(req, st))}</dd></div></dl>
@@ -965,8 +986,9 @@ def api_diagnostics(req):
 
 def routes(ui):
     from .views_network import routes as network_routes
+    from .views_setup_network import routes as setup_network_routes
     from .views_update import routes as update_routes
-    return network_routes(ui) | update_routes(ui) | {
+    return network_routes(ui) | setup_network_routes(ui) | update_routes(ui) | {
         ("GET", "/setup"): setup_get, ("POST", "/setup"): setup_post, ("POST", "/lang"): lang_post,
         ("GET", "/setup/bluetooth"): setup_bluetooth_get, ("POST", "/setup/bluetooth"): setup_bluetooth_post,
         ("GET", "/setup/lyrion"): setup_lyrion_get, ("POST", "/setup/lyrion"): setup_lyrion_post,

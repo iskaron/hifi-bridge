@@ -14,6 +14,7 @@ from ..net import netconfig
 from ..net.netclient import AgentUnavailable, NotManaged
 
 BASE = "/settings/network"
+SETUP = "/setup/network"                 # the wizard's network step (views_setup_network.py) posts to its own routes with the same handlers
 COUNTRIES = (
     "AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK "
     "CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT "
@@ -106,7 +107,7 @@ def _page(req, title_key, inner, back=None):
     if back:
         back_html = f'<p class="back"><a href="{back}">‹ {esc(t("net.title"))}</a></p>'
     elif _in_setup(req):
-        back_html = f'<p class="back"><a href="/setup/lyrion">‹ {esc(t("net.setup.back"))}</a></p>'
+        back_html = f'<p class="back"><a href="{esc(_v().wizard_resume(req))}">‹ {esc(t("net.setup.back"))}</a></p>'
     else:
         back_html = f'<p class="back"><a href="/settings">‹ {esc(t("nav.settings"))}</a></p>'
     body = (f'<link rel="stylesheet" href="/static/network.css">{back_html}<h1>{esc(t(title_key))}</h1>'
@@ -122,24 +123,26 @@ def _status(req) -> dict:
 
 
 # ------------------------------------------------------------------ cards
-def trial_card(req, st) -> str:
+def trial_card(req, st, base: str = BASE, extra: str = "") -> str:
+    """Keep/Undo of a pending change (the forms post to ``base``/confirm and ``base``/revert), or what the last rolled-back change
+    failed on. ``extra``: HTML the caller adds below the explanation (the wizard's network step: where the device is, what to do next)."""
     t, tr = req.t, st.get("trial")
     if not tr:
         return ""
     if tr["state"] == "pending":
         secs = tr.get("confirm_in_s") or 0
         return (f'<section class="card net-trial" role="alert"><h2>{esc(t("net.trial.title"))}</h2>'
-                f'<p>{esc(t("net.trial.text"))}</p><p><strong class="net-countdown" data-remaining="{int(secs)}">'
+                f'<p>{esc(t("net.trial.text"))}</p>{extra}<p><strong class="net-countdown" data-remaining="{int(secs)}">'
                 f'{esc(t("net.trial.remaining", time=f"{secs // 60}:{secs % 60:02d}"))}</strong></p>'
-                f'<div class="actions">{_form(req, BASE + "/confirm", "", "net.trial.keep", cls="inline")}'
-                f'{_form(req, BASE + "/revert", "", "net.trial.undo", cls="inline")}</div></section>')
+                f'<div class="actions">{_form(req, base + "/confirm", "", "net.trial.keep", cls="inline")}'
+                f'{_form(req, base + "/revert", "", "net.trial.undo", cls="inline")}</div></section>')
     if tr["state"] == "rolled_back":
         detail = ""
         addrs = (tr.get("detail") or {}).get("addresses") or []
         if addrs:
             detail = f'<p>{esc(t("net.trial.had_address", addresses=", ".join(addrs)))}</p>'
         return (f'<section class="card net-trial"><h2>{esc(t("net.trial.rolled_back"))}</h2>'
-                f'<p>{esc(t("net.reason." + (tr.get("reason") or "timeout")))}</p>{detail}</section>')
+                f'<p>{esc(t("net.reason." + (tr.get("reason") or "timeout")))}</p>{detail}{extra}</section>')
     return ""
 
 
@@ -188,14 +191,18 @@ def status_card(req, st) -> str:
     return f'<section class="card"><h2>{esc(t("net.status"))}</h2><dl class="facts stacked">{dl}</dl>{note}</section>'
 
 
-def wifi_card(req, st, cfg) -> str:
+def wifi_join(req, st, cfg, base: str = BASE, forget: bool = True, confirm_key: str | None = "net.wifi.join_confirm",
+              before_button: str = "") -> str:
+    """The saved network, the scan list, hidden-network entry, the password (always empty) and the country if none is set; the forms
+    post to ``base``/scan and ``base``/wifi. Shared by the network page and the wizard's network step, which explains the change in
+    ``before_button`` (right above the Connect button) instead of a confirmation dialog."""
     t = req.t
     wifi = cfg.get("wifi")
     parts = []
     if wifi:
-        forget = _form(req, BASE + "/forget", "", "net.wifi.forget", danger=True, confirm_key="net.wifi.forget_confirm")
+        drop = _form(req, BASE + "/forget", "", "net.wifi.forget", danger=True, confirm_key="net.wifi.forget_confirm") if forget else ""
         parts.append(f'<p>{esc(t("net.wifi.saved", ssid=wifi["ssid"]))}{" · " + esc(t("net.wifi.hidden_flag")) if wifi["hidden"] else ""}'
-                     f'</p>{forget}')
+                     f'</p>{drop}')
     scan = st.get("scan") or {}
     results = scan.get("results") or []
     rows = []
@@ -221,12 +228,16 @@ def wifi_card(req, st, cfg) -> str:
             + _input(req, "hidden", "net.wifi.hidden", False, "checkbox", "net.wifi.hidden_help")
             + _input(req, "password", "net.wifi.password", "", "password", "net.wifi.password_help" if not wifi else "net.wifi.password_keep",
                      autocomplete="new-password", maxlength="64")
-            + ("" if cfg.get("country") else _country_select(req, cfg.get("country"))))
+            + ("" if cfg.get("country") else _country_select(req, cfg.get("country"))) + before_button)
     managed = st.get("managed")
-    scan_form = _form(req, BASE + "/scan", "", "net.scan.again", cls="inline") if managed else ""
+    scan_form = _form(req, base + "/scan", "", "net.scan.again", cls="inline") if managed else ""
     body = (f'<p class="help"{scanning} id="scan-state">{esc(t("net.scan.running") if scan.get("pending") else age)}</p>{scan_form}'
-            + (_form(req, BASE + "/wifi", join, "net.wifi.join", confirm_key="net.wifi.join_confirm") if managed else ""))
-    return f'<section class="card"><h2>{esc(t("net.wifi.title"))}</h2>{"".join(parts)}{body}</section>'
+            + (_form(req, base + "/wifi", join, "net.wifi.join", confirm_key=confirm_key) if managed else ""))
+    return "".join(parts) + body
+
+
+def wifi_card(req, st, cfg) -> str:
+    return f'<section class="card"><h2>{esc(req.t("net.wifi.title"))}</h2>{wifi_join(req, st, cfg)}</section>'
 
 
 def links_card(req) -> str:
@@ -264,13 +275,25 @@ def pending_banner(req) -> str:
         return ""
     if (st.get("trial") or {}).get("state") != "pending":
         return ""
-    return '<link rel="stylesheet" href="/static/network.css">' + trial_card(req, st)
+    return '<link rel="stylesheet" href="/static/network.css">' + trial_card(req, st, base=SETUP)    # the owner stays in the wizard
+
+
+def trial_pending(req) -> bool:
+    """A network change waits for the owner's confirmation (the wizard then resumes at its network step). Never raises."""
+    net = _net(req)
+    if net is None:
+        return False
+    try:
+        return (net.status().get("trial") or {}).get("state") == "pending"
+    except Exception:
+        return False
 
 
 def setup_hint(req) -> str:
-    """Wizard, Lyrion step: no server can be found while the device is not on the home network (review N-1)."""
+    """Wizard, Lyrion step: no server can be found while the device is not on the home network (review N-1); the wizard's network
+    step is the place to fix that (DECISIONS #122)."""
     t = req.t
-    return f'<p class="help">{esc(t("net.setup.hint"))} <a href="{BASE}">{esc(t("net.setup.link"))}</a></p>'
+    return f'<p class="help">{esc(t("net.setup.hint"))} <a href="{SETUP}">{esc(t("net.setup.link"))}</a></p>'
 
 
 def network_get(req):
@@ -350,7 +373,7 @@ def problem_text(req, problems: list[str]) -> str:
     return "; ".join(out)
 
 
-def _save(req, new: dict, back: str):
+def _save(req, new: dict, back: str, pending_to: str = BASE):
     t, net = req.t, _net(req)
     if net is None:
         return _srv().redirect(back, t("net.unmanaged.help"), req.secure, error=True)
@@ -361,15 +384,16 @@ def _save(req, new: dict, back: str):
     except NotManaged:
         return _srv().redirect(back, t("net.unmanaged.help"), req.secure, error=True)
     except AgentUnavailable as e:                                           # handed over without an answer / never reached it
-        return _srv().redirect(BASE if e.sent else back, t("net.busy" if e.sent else "net.agent_unreachable.help"), req.secure, error=True)
+        return _srv().redirect(pending_to if e.sent else back, t("net.busy" if e.sent else "net.agent_unreachable.help"), req.secure,
+                               error=True)
     if r["result"] == "error":
         return _srv().redirect(back, problem_text(req, r.get("problems") or ["document:" + r.get("error", "invalid")]), req.secure, error=True)
     if r["result"] == "pending":
-        return _srv().redirect(BASE, t("net.saved_pending"), req.secure)
+        return _srv().redirect(pending_to, t("net.saved_pending"), req.secure)
     return _srv().redirect(back, t("net.saved" if r["result"] == "confirmed" else "net.unchanged"), req.secure)
 
 
-def wifi_post(req):
+def wifi_post(req, back: str = BASE):
     f, cfg = req.form, copy.deepcopy(_cfg(req))
     ssid = f.get("ssid", "")
     if ssid == OTHER or not ssid:
@@ -385,7 +409,7 @@ def wifi_post(req):
     cfg["wifi"] = wifi
     if f.get("country"):
         cfg["country"] = f["country"]
-    return _save(req, cfg, BASE)
+    return _save(req, cfg, back, pending_to=back)
 
 
 def forget_post(req):
@@ -394,10 +418,10 @@ def forget_post(req):
     return _save(req, cfg, BASE)
 
 
-def scan_post(req):
+def scan_post(req, back: str = BASE):
     net = _net(req)
     ok = bool(net and net.scan())
-    return _srv().redirect(BASE, req.t("net.scan.started" if ok else "net.scan.failed"), req.secure, error=not ok)
+    return _srv().redirect(back, req.t("net.scan.started" if ok else "net.scan.failed"), req.secure, error=not ok)
 
 
 def _ip_from_form(f, prefix) -> dict:
@@ -442,20 +466,20 @@ def hotspot_remove_post(req):
     return _save(req, cfg, BASE + "/hotspot")
 
 
-def _trial_answer(req, ok, done_key: str):
+def _trial_answer(req, ok, done_key: str, back: str, done_to: str | None = None):
     """True done, False nothing waiting, None = the agent did not answer (review N-3: the next status reconciles)."""
     key = done_key if ok else ("net.busy" if ok is None else "net.trial.too_late")
-    return _srv().redirect(BASE, req.t(key), req.secure, error=not ok)
+    return _srv().redirect((done_to or back) if ok else back, req.t(key), req.secure, error=not ok)
 
 
-def confirm_post(req):
+def confirm_post(req, back: str = BASE, done_to: str | None = None):
     net = _net(req)
-    return _trial_answer(req, net.confirm() if net else False, "net.trial.kept")
+    return _trial_answer(req, net.confirm() if net else False, "net.trial.kept", back, done_to)
 
 
-def revert_post(req):
+def revert_post(req, back: str = BASE):
     net = _net(req)
-    return _trial_answer(req, net.revert() if net else False, "net.trial.undone")
+    return _trial_answer(req, net.revert() if net else False, "net.trial.undone", back)
 
 
 def api_network(req):

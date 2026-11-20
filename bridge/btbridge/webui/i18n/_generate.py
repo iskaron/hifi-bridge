@@ -47,7 +47,7 @@ for key,en,de in [("dash.now","Now","Jetzt"),("dash.device","Phone","Telefon"),(
     ("audio.help","Switching off stops only the bridge’s own playback, never other Lyrion music.","Ausschalten beendet nur die eigene Wiedergabe der Bridge, nie andere Lyrion-Musik."),
     ("action.test_sound","Play test sound","Testton abspielen"),("action.save","Save","Speichern")]: k(key,en,de)
 # wizard
-for key,en,de in [("wizard.progress","Setup progress","Fortschritt der Einrichtung"),("wizard.step.account","Owner","Besitzer"),("wizard.step.bluetooth","Bluetooth","Bluetooth"),
+for key,en,de in [("wizard.progress","Setup progress","Fortschritt der Einrichtung"),("wizard.step.account","Owner","Besitzer"),("wizard.step.network","Network","Netzwerk"),("wizard.step.bluetooth","Bluetooth","Bluetooth"),
     ("wizard.step.lyrion","Lyrion","Lyrion"),("wizard.step.target","Player","Player"),("wizard.step.finish","Done","Fertig"),
     ("wizard.welcome","Welcome","Willkommen"),("wizard.welcome.text","Set up the bridge in a few steps. Guests will later simply connect via Bluetooth and press Play.","Richten Sie die Bridge in wenigen Schritten ein. Gäste verbinden sich später einfach per Bluetooth und drücken „Play“."),
     ("wizard.code.help","The one-time setup code belongs to this device (development: file setup-code.txt in the data directory).","Der einmalige Einrichtungscode gehört zu diesem Gerät (Entwicklung: Datei setup-code.txt im Datenverzeichnis)."),

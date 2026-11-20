@@ -34,7 +34,8 @@ Andere Ports: `DEMO_HTTP_PORT=… DEMO_CONSOLE_PORT=… make demo` (siehe DEMO.m
 erreichen weder Internet noch Heimnetz noch Dienste auf diesem Rechner.
 
 ## Erstinstallation
-Einrichtungscode aus `make demo` → http://127.0.0.1:18080 → Code und Besitzerpasswort → Bluetooth-Name (z. B. „Hi-Fi Bridge Wohnzimmer“)
+Einrichtungscode aus `make demo` → http://127.0.0.1:18080 → Code und Besitzerpasswort → Heimnetz (Netzwerk-Schritt; das WLAN-Funkmodul
+ist **SIMULIERT**: **Home** mit Passwort `wifi-secret-123` verbinden, nach etwa 3 s „Weiter“ – oder „Diesen Schritt überspringen“) → Bluetooth-Name (z. B. „Hi-Fi Bridge Wohnzimmer“)
 → Lyrion-Server (wird automatisch gefunden) → Player **Wohnzimmer** → Fertig.
 
 ## Vertrauenswürdiges HTTPS

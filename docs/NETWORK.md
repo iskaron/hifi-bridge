@@ -14,9 +14,10 @@ real Wi-Fi radio or with real phones.** The hardware items are listed in section
   stays in **Settings → Secure access** (`local_hostname`); the network page shows it.
 * No lock-out: every change that affects the connection the owner may be using must be confirmed on the page within **3 minutes**, or it
   is undone automatically. A wrong Wi-Fi password is undone as soon as the attempt fails. Last resort: the SD-card `network-reset`.
-* **Before the setup wizard is finished** the network pages (and `/api/network`) are reachable for the logged-in owner, the wizard's
-  Lyrion step links to them, and the wizard pages show the confirm banner of a pending change: a device that only has its setup
-  hotspot can join the home Wi-Fi first (review N-1; flow in docs/PROVISIONING.md section 3).
+* **The setup wizard has its own network step** right after the owner account (DECISIONS #122, #137; section 12): a device that only has
+  its setup hotspot is set up completely over it; Ethernet users see one confirmation line. Before the wizard is finished the network
+  pages (and `/api/network`) stay reachable for the logged-in owner (review N-1, DECISIONS #105), and every wizard page shows the
+  confirm banner of a pending change (flow in docs/PROVISIONING.md section 3).
 
 ## 2. Architecture and privilege boundary
 ```
@@ -204,3 +205,48 @@ Hardware gate items (proposed for docs/HARDWARE_GATE_CHECKLIST.md):
 * **N-9** timesyncd persistent clock across reboots without network; certificate re-check after the first sync.
 * **N-10** `hostnamectl` + Avahi `SetHostName` on the image (name change visible to phones, collision rename).
 * **N-11** hotspot + Bluetooth A2DP coexistence on the shared 2.4 GHz radio (Zero 2 W in particular, plan E5).
+
+## 12. The setup wizard's network step (DECISIONS #122, #137-#140)
+Status: implemented hardware-free; UNIT (real WebUI + real agent over a UNIX socket, SIMULATED radio, fake clock:
+`tests/unit/test_webui_setup_network.py`), BROWSER (Chromium against a second lab appliance provisioned like a flash-tool card with a
+setup hotspot: `tests/browser/test_ui_wizard_network.py`), DEMO (`tests/demo/stack/test_1_setup_ui.py`, SIMULATED radio). Not run with a
+real phone leaving a real hotspot (hardware items N-2, N-5 and OPEN_QUESTIONS #97).
+
+**Place.** Owner → **Network** → Bluetooth → Lyrion → Player → Done. Every later step needs the home network (Lyrion discovery, the
+player list, the test sound), and a device set up over its hotspot has to change networks first; the account must come before it,
+because only the owner may change the network.
+
+**No second state machine.** `webui/views_setup_network.py` renders the step; the Wi-Fi form (`views_network.wifi_join`: scan list,
+hidden SSID, password always empty, country if none is set), the trial card (`trial_card`) and the action handlers (`wifi_post`,
+`scan_post`, `confirm_post`, `revert_post`) are the network page's, reached through the wizard routes `POST /setup/network/{wifi,scan,
+confirm,revert}` so the owner stays in the wizard. Trials, the 3-minute confirmation, the rollback after a failed attempt and the
+pending file are exactly section 4. Without any scan result yet (radio off), the step asks the agent once for a scan
+(network.js reloads when it is done); with the hotspot running it never does (the hotspot start brings a list; N-3).
+
+| What the agent reports | The step shows |
+|---|---|
+| Ethernet uplink | "Connected via Ethernet as <addresses>." + *Continue*; *Set up Wi-Fi anyway* (a `<details>` with the Wi-Fi form; the change does not touch the path in use, so it is confirmed at once) |
+| client Wi-Fi connected (e.g. from the card) | "Connected to the Wi-Fi “X” as <address>." + *Continue*; *Use another Wi-Fi* |
+| setup hotspot / radio off / connecting | the state (and the last problem, the fallback countdown), the Wi-Fi form, *Skip this step* |
+| a pending change | *Keep settings* / *Undo now* with the countdown and where the device is ("has joined “Home” as 192.168.1.57"); no *Continue* before one of them. *Keep* goes on to the next step |
+| a rolled-back change | the reason (wrong password, not found, not confirmed in time + the address it had, undone) and "the hotspot is active again … try again below, or skip" |
+| no Wi-Fi hardware | "connect an Ethernet cable" + skip |
+| unmanaged installation / agent not reachable | a short note + *Continue* / *Check again* + skip; never a connection it cannot check |
+
+**Explained before the change.** Right above *Connect* (no dialog, so it is readable without JavaScript) the step lists what happens:
+the hotspot "<name>" (or the current Wi-Fi) goes away and this page loses its connection; join the chosen Wi-Fi; open
+`http://<local_hostname>.local/` (built from the device's mDNS name and the scheme/port of the current request; shown as a link) or the
+address the router lists for `<local_hostname>`, log in and press *Keep* within 3 minutes; if it fails, the previous settings come back by
+themselves (after about a minute when the Wi-Fi does not connect, after 3 minutes without confirmation) together with the hotspot, and
+`http://10.42.0.1/` then shows the reason. With Ethernet the list says that the connection stays.
+
+**Lost connection and rediscovery.** The redirect after *Connect* usually never reaches the phone (the hotspot is down when the agent
+answers). The wizard's position is server-side: `WebUI.wizard_at` (RAM only, DECISIONS #121) is the step shown last, and
+`views.wizard_resume` sends every redirect into the wizard (after a login, `/`, any other page, `/setup`) to the network step while a
+change waits for confirmation, else to `wizard_at` (default: the network step). Cookies are per host, so at the new address the owner
+logs in again and lands on *Keep*. After a failure the phone rejoins the hotspot, reloads and lands on the step with the reason.
+A reboot during the setup restarts at the network step (the agent has applied the last confirmed `network.json`).
+
+**Security.** Same session, CSRF and Origin checks as every page; without an owner password every step redirects to `/setup` (setup
+code first). The Wi-Fi password exists only in the form field the owner types into and in `network.pending.json` / `network.json`
+(0600) as before; tests scan the step's pages, the other wizard pages, `/api/network`, the diagnostics bundle and the log.

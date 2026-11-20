@@ -351,7 +351,7 @@ def test_hotspot_only_onboarding_reaches_the_network_settings_before_the_wizard_
     u.advance(16)                                                   # no Wi-Fi works, no Ethernet: setup hotspot
     r = u.c.get("/settings/network")
     assert r.status == 200 and "Setup hotspot active" in r.body and 'action="/settings/network/wifi"' in r.body
-    assert 'href="/setup/lyrion"' in r.body and "Back to the setup" in r.body and "setup is not finished yet" in r.body
+    assert 'href="/setup/network"' in r.body and "Back to the setup" in r.body and "setup is not finished yet" in r.body
     p = A11y(); p.feed(r.body)
     assert p.h1 == 1 and not p.problems, p.problems
     for sub in ("/settings/network/hotspot", "/settings/network/addresses"):
@@ -361,7 +361,7 @@ def test_hotspot_only_onboarding_reaches_the_network_settings_before_the_wizard_
     assert r.getheader("Location") == "/settings/network" and "please confirm" in flash(u)
     u.advance(4)
     page = u.c.get("/setup/bluetooth").body                          # back at the new address: the wizard shows the banner too
-    assert "Keep the new network settings?" in page and 'action="/settings/network/confirm"' in page
+    assert "Keep the new network settings?" in page and 'action="/setup/network/confirm"' in page     # Keep stays in the wizard
     u.c.post("/settings/network/confirm")
     assert "Network settings kept" in flash(u) and N.load(os.path.join(u.data, N.FILE_NAME))["wifi"]["ssid"] == "Home"
     assert "Keep the new network settings?" not in u.c.get("/setup/bluetooth").body
@@ -411,14 +411,14 @@ def test_fresh_device_without_owner_password_sends_network_pages_to_the_setup():
         gen.close()
 
 
-@pytest.mark.parametrize("lang,hint,link", [("en", "Not connected to your home network yet", "Network settings"),
-                                            ("de", "Noch nicht mit Ihrem Heimnetz verbunden", "Netzwerkeinstellungen")])
-def test_the_wizards_lyrion_step_points_to_the_network_settings(setup_ui, monkeypatch, lang, hint, link):
+@pytest.mark.parametrize("lang,hint,link", [("en", "Not connected to your home network yet", "Back to the network step"),
+                                            ("de", "Noch nicht mit Ihrem Heimnetz verbunden", "Zurück zum Netzwerk-Schritt")])
+def test_the_wizards_lyrion_step_points_to_the_network_step(setup_ui, monkeypatch, lang, hint, link):
     u = setup_ui
     u.svc.store.update({"language": lang})
     monkeypatch.setattr(u.svc, "discover_servers", lambda timeout=1.5: [])        # behind the hotspot nothing answers
     page = u.c.get("/setup/lyrion").body
-    assert hint in page and f'<a href="/settings/network">{link}</a>' in page
+    assert hint in page and f'<a href="/setup/network">{link}</a>' in page             # the wizard's own network step (#122)
     p = A11y(); p.feed(page)
     assert p.h1 == 1 and not p.problems, p.problems
     u.svc.store.update({"setup_complete": True})

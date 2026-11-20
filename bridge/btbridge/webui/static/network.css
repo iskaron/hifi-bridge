@@ -9,3 +9,22 @@
 .static-fields[hidden] { display: none; }
 fieldset + fieldset { margin-top: 1rem; }
 .facts.stacked code { word-break: break-all; }
+
+/* Setup wizard, network step (views_setup_network.py) */
+.wizard-net > .card { box-shadow: none; padding: 1rem; margin: 1rem 0; }
+.wizard-net .net-explain { border-left: 3px solid var(--accent); padding: .1rem 0 .1rem .9rem; margin: .25rem 0 .5rem; }
+.wizard-net .net-explain h3 { margin-top: 0; }
+.wizard-net .net-explain strong, .wizard-net .net-online strong { overflow-wrap: anywhere; }
+.wizard-net .net-explain a { overflow-wrap: anywhere; }
+.wizard-net .net-online { margin: 0 0 1rem; padding-left: 1.2rem; display: grid; gap: .4rem; }
+.wizard-net .actions { margin: 1rem 0 0; }
+.wizard-net .net-skip { margin-top: 1.25rem; padding-top: .5rem; border-top: 1px solid var(--line); }
+.wizard-net details.net-more { margin-top: 1.25rem; border-top: 1px solid var(--line); padding-top: .5rem; }
+.wizard-net details.net-more summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; color: var(--accent); }
+.wizard-net details.net-more[open] summary { margin-bottom: .5rem; }
+.wizard-net details.net-more summary { list-style: none; gap: .5rem; }
+.wizard-net details.net-more summary::-webkit-details-marker { display: none; }
+.wizard-net details.net-more summary::before { content: "›"; font-size: 1.4rem; line-height: 1; transition: transform .15s; }
+.wizard-net details.net-more[open] summary::before { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .wizard-net details.net-more summary::before { transition: none; } }
+.wizard-net h2 { margin-top: 1.25rem; }

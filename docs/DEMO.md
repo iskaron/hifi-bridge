@@ -62,10 +62,14 @@ Mosquitto and - only with `make demo-ha` - Home Assistant.
 ## 2. First setup (Erstinstallation)
 1. `make demo` prints the **setup code** (it came from the flash-tool step, exactly as for a real card).
 2. Open http://127.0.0.1:18080. Enter the setup code and choose an owner password.
-3. Bluetooth name: for example "Hi-Fi Bridge Wohnzimmer" - the name guests will see.
-4. Lyrion: the demo's server is found automatically; choose it.
-5. Player: choose **Wohnzimmer** (or an existing synchronised group).
-6. Finish. The dashboard shows "Ready".
+3. Home network (the wizard's network step, DECISIONS #122): the demo device has no Ethernet link and its Wi-Fi radio is **SIMULATED**
+   (`btkit.sim_net`, see section 7). Choose **Home**, password `wifi-secret-123`, *Connect*; after about 3 s the step says "Connected to the
+   Wi-Fi “Home”" - *Continue*. (*Skip this step* works too: the demo's Lyrion is found either way, because the demo network is real.)
+   The hotspot path (the page losing its connection, rejoining, *Keep*) cannot be shown here: the browser never loses the demo network.
+4. Bluetooth name: for example "Hi-Fi Bridge Wohnzimmer" - the name guests will see.
+5. Lyrion: the demo's server is found automatically; choose it.
+6. Player: choose **Wohnzimmer** (or an existing synchronised group).
+7. Finish. The dashboard shows "Ready".
 
 ## 3. Trusted HTTPS (the device's own CA)
 The bridge creates its own certificate authority. You trust it once after **checking its fingerprint out of band** - never by clicking away a

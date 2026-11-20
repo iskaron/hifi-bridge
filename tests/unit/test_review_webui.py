@@ -182,4 +182,4 @@ def test_language_switch_redirects_only_to_local_paths(ui, referer, expect):
 def test_normal_login_post_still_works(ui):
     c = Client(ui.port)
     r = c.post("/setup", {"code": ui.code, "password": "a good long passphrase", "confirm": "a good long passphrase"}, csrf=False)
-    assert r.status == 303 and r.getheader("Location") == "/setup/bluetooth"
+    assert r.status == 303 and r.getheader("Location") == "/setup/network"

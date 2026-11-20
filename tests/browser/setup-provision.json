@@ -1,0 +1,2 @@
+{"format": "hifi-bridge-provision/1", "setup_code": "K7QM-2XPA-RT9H", "local_hostname": "hifi-setup", "country": "DE",
+ "hotspot": {"ssid": "Hi-Fi Bridge Setup", "psk": "lab-setup-hotspot"}, "created_by": "browser test (lab only)"}
