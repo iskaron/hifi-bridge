@@ -23,7 +23,8 @@ for p in sorted(x for x in pathlib.Path(".").glob("**/*.py") if ".lab" not in x.
         print(e); bad += 1
 print(f"compiled without writing bytecode; {bad} error(s)"); sys.exit(1 if bad else 0)'
 step systemd-unit docker run --rm -v "$PWD/packaging":/p:ro -v "$PWD/os/br2-external/board/hifi-bridge/overlay":/o:ro btbridge-static:dev sh -c \
-  'cp /p/systemd/*.service /o/usr/lib/systemd/system/*.service /o/usr/lib/systemd/system/*.path /etc/systemd/system/ && mkdir -p /usr/libexec/hifi-bridge \
+  'cp /p/systemd/*.service /o/usr/lib/systemd/system/*.service /o/usr/lib/systemd/system/*.path /etc/systemd/system/ \
+   && cp -r /o/usr/lib/systemd/system/*.service.d /etc/systemd/system/ && mkdir -p /usr/libexec/hifi-bridge \
    && cp /o/usr/libexec/hifi-bridge/growdata.sh /usr/libexec/hifi-bridge/ \
    && systemd-analyze verify /etc/systemd/system/hifi-bridge*.service /etc/systemd/system/hifi-bridge*.path \
    && for u in hifi-bridge hifi-bridge-boot hifi-bridge-health; do printf "%s: " $u; systemd-analyze security --offline=yes /etc/systemd/system/$u.service | tail -1; done'

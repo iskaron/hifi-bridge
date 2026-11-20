@@ -6,6 +6,7 @@ NOT covered here (no loop device / device-mapper in the container, no board): mo
 U-Boot boot-count. The installation therefore ends at RAUC's mount step; the tests assert that this failure leaves the device on its slot."""
 import json
 import os
+import shutil
 import subprocess
 import time
 
@@ -56,6 +57,46 @@ def test_mark_writes_the_u_boot_environment(client, rauc):
     assert env["BOOT_B_LEFT"] == "0" and "B" not in env["BOOT_ORDER"].split() and client.primary() == "rootfs.0"
     with pytest.raises(RaucError):
         client.mark("good", "rootfs.9")
+
+
+def _copies(rauc):
+    """[(serial, crc_ok, vars)] of both environment copies (U-Boot layout: CRC32, serial byte, NUL-separated pairs)."""
+    import zlib
+    out = []
+    for p in rauc.env_files:
+        raw = open(p, "rb").read()
+        data = raw[5:]
+        pairs = dict(x.decode().split("=", 1) for x in data.split(b"\0\0")[0].split(b"\0") if x)
+        out.append((raw[4], int.from_bytes(raw[:4], "little") == zlib.crc32(data), pairs))
+    return out
+
+
+def _serials(rauc):
+    return [c[0] for c in _copies(rauc)]
+
+
+def test_rauc_writes_the_older_copy_and_a_torn_newest_copy_keeps_the_previous_state(client, rauc):
+    """Review N-6 with the real RAUC 1.13 U-Boot backend and the real fw_setenv on the product's two-copy layout: every write goes to
+    the older copy with the next serial; a power cut that tears the newest copy leaves the state of the previous write (found here:
+    RAUC activates a slot with TWO writes, so a cut can also lose only the second one). Never a fall back to a default environment."""
+    assert _serials(rauc) == [1, 0]
+    sh("fw_setenv", "BOOT_A_LEFT", "2")                                 # what U-Boot does at boot: writes copy 2
+    assert _serials(rauc) == [1, 2]
+    client.mark("good", "booted")                                       # health check: writes copy 1
+    assert _serials(rauc) == [3, 2] and rauc.env()["BOOT_A_LEFT"] == "3"
+    client.mark("active", "other")                                      # activation of B
+    serials = _serials(rauc)
+    assert min(serials) >= 3 and abs(serials[0] - serials[1]) == 1 and client.primary() == "rootfs.1"
+    newest = serials.index(max(serials))
+    older = _copies(rauc)[1 - newest]
+    raw = bytearray(open(rauc.env_files[newest], "rb").read())          # power cut during the last write: newest copy torn
+    raw[0x2000] ^= 0xFF
+    open(rauc.env_files[newest], "wb").write(bytes(raw))
+    env = rauc.env()
+    assert older[1] and env == older[2] and env["hifi_env"] == "1"      # exactly the previous, CRC-valid state
+    assert env["BOOT_ORDER"].split()[0] == {"rootfs.0": "A", "rootfs.1": "B"}[client.primary()]
+    client.mark("active", "other")                                      # writes again: the torn copy is replaced
+    assert all(c[1] for c in _copies(rauc)) and client.primary() == "rootfs.1"
 
 
 def test_inspect_verifies_signature_and_purpose_but_not_compatible(client, keys, tmp_path):
@@ -225,6 +266,7 @@ def test_upstream_policy_alone_would_let_anyone_in(tmp_path, keys):
         (fake_board / "overlay" / "etc" / "dbus-1" / "system.d").mkdir(parents=True)
         (fake_board / "rauc").mkdir()
         (fake_board / "rauc" / "system.conf.in").write_text(open(os.path.join(orig, "rauc", "system.conf.in")).read())
+        shutil.copytree(os.path.join(orig, "uboot"), fake_board / "uboot")
         conftest.BOARD = str(fake_board)
         d = tmp_path / "r2"
         d.mkdir()

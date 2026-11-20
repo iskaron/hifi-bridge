@@ -62,7 +62,8 @@ that was not tested.
 - [ ] P1-3 `config.txt` without `miniuart-bt`: Bluetooth on PL011 is stable during 30 min of A2DP (repeat E1). Compare with
   `miniuart-bt` if problems occur.
 - [ ] P4-1 Partitions as designed (boot FAT, A, B, data). `hifi-bridge-growdata` grows data to the card size once; `x-systemd.growfs`
-  grows ext4; the second boot does nothing.
+  grows ext4; the second boot does nothing. (`hifi-bridge-growdata` runs on every boot without a guard since 7b-2 and only reads the
+  partition table once the card is filled.)
   *Software evidence (BUILD-VERIFIED, package 6, not a hardware result):* the built cards have this layout (MBR, 4 MiB aligned, slot B empty); growth itself is HARDWARE-PENDING.
 - [ ] P4-2 Rootfs is read-only; `/var/lib/hifi-bridge` and `/var/lib/bluetooth` persist across reboots (pairings survive).
   *Software evidence (BUILD-VERIFIED, package 6, not a hardware result):* fstab `ro`, bootargs `ro`, /var overlay on tmpfs, bind mounts from /data verified in the images; runtime behaviour HARDWARE-PENDING.
@@ -72,14 +73,20 @@ that was not tested.
 - [ ] P4-4 RAM/CPU at idle and while playing (Zero 2 W: 512 MB) with BlueZ, PipeWire, WirePlumber, Avahi and RAUC running.
 
 **A/B updates and rollback (P3 – provisional U-Boot boot-count)**
-- [ ] P3-1 `fw_printenv`/`fw_setenv` read and write `uboot.env` on the boot FAT (check `CONFIG_ENV_SIZE`/offset of `rpi_arm64`; adjust
-  `/etc/fw_env.config`).
+- [ ] P3-1 `fw_printenv`/`fw_setenv` read and write **both** environment copies `uboot.env` + `uboot-redund.env` on the boot FAT, and U-Boot
+  agrees (console `Loading Environment from FAT... OK`, no "bad CRC"); U-Boot's `saveenv` alternates between the copies (serial byte rises)
+  (check `CONFIG_ENV_SIZE`/offset of `rpi_arm64`; adjust `/etc/fw_env.config`).
+  *Software evidence (BUILD-VERIFIED, package 7b-2, not a hardware result):* rpi3_64 U-Boot built with `CONFIG_ENV_REDUNDANT=y`, both copies on the FAT (CRC ok, serials 1/0, complete default environment); the build's fw_printenv/fw_setenv and real RAUC 1.13 + libubootenv alternate between the copies and fall back to the older one when the newest is torn.
   *Software evidence (BUILD-VERIFIED, package 6, not a hardware result):* U-Boot `rpi_arm64` build: `CONFIG_ENV_SIZE=0x4000`, `uboot.env` on FAT `mmc 0:1` = `/etc/fw_env.config`; reading/writing on a board is pending.
 - [ ] P3-2 A fresh card boots slot A; slot B (empty) is **never** tried (`BOOT_B_LEFT=0`).
 - [ ] P3-3 `rauc install` (development-signed bundle) writes slot B, switches, boots B and marks it good (`rauc status`).
 - [ ] P3-4 A deliberately broken B (kernel missing) is tried 3 times, then A boots again automatically.
-- [ ] P3-5 **Power cut during `rauc install`, 10× at random points:** every time the device boots a good slot.
-- [ ] P3-6 Power cut during the boot-count write (right after power-on, 10×): the device boots.
+- [ ] P3-5 **Power cut during `rauc install`, 10× at random points:** every time the device boots a good slot. Include cuts during the
+  activation at the end (RAUC writes the environment twice) and right after "Restart now".
+- [ ] P3-6 Power cut during the boot-count write (right after power-on, 10×): the device boots **the same slot as before**, the console
+  shows the other copy being used (never "using default environment"). Then delete both copies on a computer: the device boots A (then B
+  after three failures) and `/proc/cmdline` contains `hifi.bootenv=reset`. A slot with a damaged root file system panics and restarts
+  after 10 s (`panic=10`) until the counter falls back.
 - [ ] P3-7 Firmware/DTB on the shared boot partition: decide and test how they are updated (not A/B today, see PHASE2B_PLAN risks).
 - [ ] P3-8 Alternative per board if U-Boot fails: firmware `tryboot`/`autoboot.txt` (Pi 4 first). Record which mechanism each board uses.
 - [ ] P3-9 The WebUI flow end to end (docs/OTA.md): upload → install with progress → "Restart now" → `hifi-bridge-health.service` marks B
@@ -100,6 +107,10 @@ that was not tested.
 **Provisioning and first setup (P6, P7)**
 - [ ] P6-1 Card with provisioning file (hotspot): the hotspot appears with the **individual** password only, WPA2/WPA3, correct country.
 - [ ] P6-2 Client Wi-Fi **or** hotspot, never both. On a Wi-Fi failure, the setup fallback appears after ~60 s (PRODUCT_SPEC).
+- [ ] P6-3a **Boot FAT permissions (review N-14):** `/boot` is root-owned (`ls -ln /boot`: uid 0, gid 991 `hifi-boot`); the boot step can
+  still scrub the provisioning file, remove a processed `hifi-recovery` and write `hifi-status.txt`; a process of the `hifi-bridge` user
+  outside that unit (`setpriv --reuid=990 --regid=990 --init-groups touch /boot/x`) gets "Permission denied"; RAUC (root) still writes
+  the environment.
 - [ ] P6-3 **Residual data:** after first boot, read the raw card on a computer and search for the setup code, the hotspot password and the
   trust key. They must not be found in the FAT file system. Note what a raw image of the whole card still shows (FTL effects are not
   testable without lab equipment; record the limitation).

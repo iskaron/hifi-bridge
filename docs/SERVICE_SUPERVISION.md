@@ -54,6 +54,9 @@ The service runs as user `hifi-bridge` with `CAP_NET_BIND_SERVICE` only (for por
 
 ## Recovery entry points (stabilisation package)
 * `python3 -m btbridge.recovery --data <dir> reset-owner-password | factory-reset --yes | boot-request --boot <dir>` - console only.
+  On the image the boot FAT is root-owned and writable only through the group of `hifi-bridge-boot.service` (review N-14); the tool drops
+  to the data owner without supplementary groups, so `boot-request --boot /boot` cannot write there - use
+  `systemctl restart hifi-bridge-boot.service` (the image has no console login anyway).
 * Boot-partition step `python3 -m btbridge.bootfiles --data <dir> --boot /boot` (image: `hifi-bridge-boot.service`, before the bridge;
   test Pi: `appliance --boot-dir`): recovery request (exactly once, power-cut safe), provisioning file (docs/PROVISIONING.md), an
   owner-requested settings snapshot restore (docs/OTA.md section 6; here so that `hifi-netd` starts with it), CA creation, and `hifi-status.txt` (name, CA fingerprint; a generated one-time setup code only while no owner password exists).

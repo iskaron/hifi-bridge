@@ -6,6 +6,11 @@ every runtime statement is HARDWARE-PENDING (docs/HARDWARE_GATE_CHECKLIST.md, G2
 as development builds (os-release `VARIANT_ID=development`, `/etc/hifi-bridge/build-info.json` with `"hardware_validated": false`, file
 name `…-development.img`). Their update trust is `own` with a temporary development CA (docs/UPDATE_TRUST.md, `scripts/os_dev_ca.sh`).
 
+**Package 7b-2 (2026-11-20):** only **rpi3_64 was rebuilt** (incrementally) after the boot-robustness fixes of review N-6/N-8/N-13/N-14
+(section 9); `reports/evidence/os_image_rpi3_64.md` and `os_ota_rpi3_64.txt` are from that rebuild (0 FAIL, 103 PASS, 20 INFO; secret
+scan 0 findings). The reports of **rpi4_64 and rpizero2w_64 predate these fixes** (not rebuilt; same br2-external tree, so the same
+changes apply when they are built next).
+
 ## 1. Commands
 ```bash
 export HIFI_LAB=$PWD/.lab                       # a git worktree points this at the main checkout's .lab
@@ -26,17 +31,23 @@ After changing an already built package's configuration: `HIFI_OS_REBUILD="pkg .
 | rpizero2w_64 | **BUILD-VERIFIED** | 3645 s (clean, warm ccache from the Pi 3 B+: same Cortex-A53 flags, same kernel) | |
 | rpi4_64 | **BUILD-VERIFIED** | 7485 s (clean; Cortex-A72 flags, so few ccache hits) | |
 | incremental (bridge/post-build/image only) | | 147–180 s | |
+| rpi3_64 incremental after 7b-2 (`HIFI_OS_REBUILD="uboot host-uboot-tools"`: U-Boot reconfigured with the fragment, boot.scr regenerated) | **BUILD-VERIFIED** | 283 s (configure 24 s + make 259 s) | |
 
 `make legal-info` 61–76 s (965 MB per board, not committed), SBOM 12–25 s. Download cache 791 MB, ccache 1.1 GB, one output directory ~9 GB.
 
 ## 3. What the image check verifies (all three boards: 0 FAIL, 89 PASS, 20 INFO; reports/evidence/os_image_<board>.md)
+* *Added in package 7b-2 (rpi3_64 rebuilt: 0 FAIL, 103 PASS, 20 INFO):* both U-Boot environment copies (present, CRC, serials 1/0, fresh-card
+  slot state, complete default environment), U-Boot `CONFIG_ENV_REDUNDANT` = fw_env.config, torn-copy fallback with the build's own
+  `fw_printenv`/`fw_setenv`, boot.scr fail-safe; root-owned boot FAT, group `hifi-boot` without members, only the boot step writes it;
+  growdata without a guard below `/data`; discovery firewall rule; resolved without LLMNR/mDNS (section 9).
 * *Added after the evidence builds:* `network.dhcp-duid-link-layer` (networkd DUID from the MAC, OPEN_QUESTIONS #77) - a rebuild reports 90 checks.
 * **Identity:** development variant in os-release and build-info.json; RAUC compatible `hifi-bridge-rpi3|rpizero2w|rpi4`.
 * **Layout:** MBR, boot FAT 64 MiB | rootfs-A 256 MiB | rootfs-B 256 MiB (all zero on a fresh card) | data 64 MiB (grows on first boot);
   every partition on a 4 MiB boundary; slot A = `rootfs.ext4`; manifest size/sha256 and the provisioning-slot offset match the image.
 * **Boot FAT:** firmware (`bootcode.bin`/`start.elf`/`fixup.dat`, Pi 4: `start4.elf`/`fixup4.dat`), DTBs, 358 overlays, `u-boot.bin`,
   `boot.scr` (bootargs contain `ro`), `config.txt` with `kernel=u-boot.bin` and no `miniuart-bt`, the 4096-byte empty provisioning slot,
-  `licenses/` with the firmware licences (docs/IMAGE_LICENSING.md); no `uboot.env` ships.
+  `licenses/` with the firmware licences (docs/IMAGE_LICENSING.md); since 7b-2 both U-Boot environment copies `uboot.env` and
+  `uboot-redund.env` ship (section 9; before: no `uboot.env`).
 * **Read-only root:** fstab `/dev/root / auto ro`, `/var` = overlayfs over tmpfs (Buildroot `VAR_OVERLAYFS`), bind mounts from `/data` for
   `/var/lib/hifi-bridge`, `/var/lib/bluetooth`, `/var/lib/systemd/timesync`; rootfs ext4 with 4 KiB blocks and **no journal**; kernel
   (`/boot/Image`) and modules inside the slot; `/etc/machine-id` empty (not shared by all devices; see §8).
@@ -142,9 +153,32 @@ seeds (all listed in §7).
 
 ## 8. Not verified (HARDWARE-PENDING) and open points
 * Boot of any board (firmware → U-Boot → kernel from slot A → multi-user), boot time, RAM/CPU (G2 P1-2, P4-4).
-* U-Boot really reading/writing `uboot.env` on the FAT and agreeing with `fw_printenv` (P3-1); RAUC install, slot switch, rollback,
+* U-Boot really reading/writing both environment copies on the FAT and agreeing with `fw_printenv` (P3-1); power cuts during
+  `saveenv`/`fw_setenv` (P3-5/P3-6); the root-owned boot FAT at runtime (P6-3a); RAUC install, slot switch, rollback,
   power cuts (P3-*); data partition growth (P4-1); read-only root and persistence at runtime (P4-2); provisioning on real vfat (P6-3).
 * Radio firmware loading and Bluetooth on PL011 without `miniuart-bt` (P1-3).
 * `/etc/machine-id` is empty on a read-only `/etc`: systemd then uses a **new transient id on every boot** (journal, DHCP client
   identity via networkd's DUID). Whether the DHCP address stays stable must be checked on a device (network stream; option: a persistent
   id from `/data` or `ClientIdentifier=mac`).
+
+## 9. Boot robustness and boot-partition permissions (package 7b-2, review N-6/N-8/N-13/N-14)
+BUILD-VERIFIED on rpi3_64 only; nothing booted.
+* **Two U-Boot environment copies (N-6).** U-Boot 2026.01 (`rpi_arm64`) supports a redundant FAT environment: `CONFIG_ENV_REDUNDANT` +
+  `CONFIG_ENV_FAT_FILE_REDUND` (`env/fat.c`: `saveenv` writes the file that was NOT loaded; `env_check_redund` takes the valid copy with
+  the higher serial, 255→0 wrap handled). uboot-tools 2025.10 `fw_env` (image) and libubootenv (Debian, OTA tests) treat two regular files
+  in `fw_env.config` the same way (incremental serial). Configuration: `board/hifi-bridge/uboot/uboot.fragment`
+  (`BR2_TARGET_UBOOT_CONFIG_FRAGMENT_FILES`), `uboot/fw_env.config`. post-image writes both copies: U-Boot's default environment
+  (`u-boot-initial-env`, `BR2_TARGET_UBOOT_INITIAL_ENV=y`, also installed as `/etc/u-boot-initial-env`) + `uboot/uboot-env.txt`, serials
+  1/0 (mkenvimage `-r`). Why ship them: fw_setenv refuses to work while one file is missing (checked with both tools), and a valid copy
+  replaces U-Boot's built-in defaults completely, so it must contain them (`bootcmd=bootflow scan` etc.; the image check compares all 25).
+  `CONFIG_ENV_APPEND`/`ENV_WRITEABLE_LIST` were considered and rejected: APPEND alone does not pre-load the defaults in 2026.01
+  (`env_load`), WRITEABLE_LIST forbids `setenv` of unlisted variables at runtime (boot.cmd/bootstd need it).
+* **Fail-safe boot script.** Without `hifi_env` (U-Boot on its built-in defaults = both copies lost) A then B get three attempts each and
+  the boot is marked `hifi.bootenv=reset`; `panic=10` in bootargs. Residual risks: docs/OTA.md section 4.
+* **Root-owned boot FAT (N-14).** `/boot` vfat `uid=0,gid=991,fmask=0117,dmask=0007`; group `hifi-boot` (gid 991, no members) from
+  `hifi-bridge.mk`; only `hifi-bridge-boot.service` joins it (drop-in `hifi-bridge-boot.service.d/boot-fat.conf`). vfat has one
+  owner/mode for all files, and write access to the directory allows replacing any file, so per-file protection is impossible; the group
+  confines write access to the one unit that needs it, without a capability (exposure stays 0.6).
+* **growdata (N-13)** runs on every boot without a guard (idempotent); **resolved (N-8)** without LLMNR/mDNS responders; the discovery
+  firewall rule is `udp sport 3483 udp dport 3484` (docs/NETWORK.md section 6).
+* post-build now replaces an fstab entry of an earlier (incremental) build instead of appending a second one for the same mount point.

@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import hashlib
 
+from ..lms.discovery import REPLY_PORT as LYRION_DISCOVERY_REPLY_PORT
+from ..lms.discovery import SERVER_PORT as LYRION_DISCOVERY_PORT
 from .netconfig import HOTSPOT_ADDRESS, HOTSPOT_NETWORK
 
 RUN_DIR = "/run/hifi-net"
@@ -20,7 +22,6 @@ NFT_TABLE = "hifi"
 HOTSPOT_CHANNEL = 6                    # 2.4 GHz channel 6 is permitted in every regulatory domain (1-11 everywhere)
 HOTSPOT_MAX_STATIONS = 8
 DHCP_RANGE = ("10.42.0.10", "10.42.0.60")
-LYRION_DISCOVERY_PORT = 3483
 
 
 def _hex(s: str) -> str:
@@ -157,7 +158,8 @@ def nftables(http_port: int, https_port: int, stream_port: int, hotspot_iface: s
     Everyone: loopback, replies to own connections, essential ICMP/ICMPv6 incl. neighbour discovery, mDNS.
     Hotspot clients (``hotspot_iface``): DHCP and the WebUI (HTTP/HTTPS) only - no stream port, no other service, nothing forwarded.
     Other interfaces (LAN via Ethernet or client Wi-Fi): WebUI, the stream port for Lyrion/players, DHCPv4/DHCPv6 client replies and
-    replies to the Lyrion discovery broadcast."""
+    replies to the Lyrion discovery broadcast - from the server port 3483 to the bridge's fixed discovery port only (a unicast reply to
+    a broadcast has no conntrack entry; before review N-8 every port >= 1024 was open to a spoofed source port 3483)."""
     web = f"{http_port}, {https_port}"
     lines = [
         "#!/usr/sbin/nft -f",
@@ -182,7 +184,7 @@ def nftables(http_port: int, https_port: int, stream_port: int, hotspot_iface: s
     lines += [
         "\t\tudp sport 67 udp dport 68 accept",
         "\t\tip6 saddr fe80::/10 udp sport 547 udp dport 546 accept",
-        f"\t\tudp sport {LYRION_DISCOVERY_PORT} udp dport 1024-65535 accept",
+        f"\t\tudp sport {LYRION_DISCOVERY_PORT} udp dport {LYRION_DISCOVERY_REPLY_PORT} accept",
         f"\t\ttcp dport {{ {web}, {stream_port} }} accept",
         "\t}",
     ]

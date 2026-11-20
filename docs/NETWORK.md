@@ -117,12 +117,27 @@ pinned equal to the renderer by a test) is loaded before any interface is config
 | Source | Allowed inbound | Everything else |
 |---|---|---|
 | all interfaces | loopback; replies to own connections (`ct state established,related`); ICMP errors; echo (rate-limited 10/s); ICMPv6 errors, packet-too-big, router advertisements, neighbour solicitation/advertisement, MLD query; mDNS (UDP 5353) | dropped (`policy drop`) |
-| LAN (Ethernet, client Wi-Fi) | WebUI HTTP/HTTPS (80/443), stream (8090) for Lyrion and players; DHCPv4 replies (67→68); DHCPv6 replies from link-local (547→546); replies to the Lyrion discovery broadcast (source port 3483) | dropped |
+| LAN (Ethernet, client Wi-Fi) | WebUI HTTP/HTTPS (80/443), stream (8090) for Lyrion and players; DHCPv4 replies (67→68); DHCPv6 replies from link-local (547→546); replies to the Lyrion discovery broadcast: **source port 3483 to the bridge's fixed discovery port 3484 only** (review N-8) | dropped |
 | setup-hotspot clients | DHCP (67), WebUI HTTP/HTTPS only | dropped - no stream port, no other service |
 | forwarding | nothing (`policy drop`; IP forwarding is off anyway) | |
 Outbound is not restricted (Lyrion, MQTT, syslog, NTP, update checks are connections the device opens). Live-tested across containers:
 LAN client reaches 80/443/8090, hotspot client reaches only 80/443, both have 2222 and 53 dropped although listeners exist, ICMP works,
-a hotspot client cannot reach the LAN (`reports/evidence/network_realtools.txt`). The Pi kernel config (`bcm2711_defconfig`, used for all
+a hotspot client cannot reach the LAN (`reports/evidence/network_realtools.txt`).
+
+**Lyrion discovery (review N-8, package 7b-2).** The wizard's discovery sends a broadcast to UDP 3483; Lyrion answers by unicast from port
+3483 to the sender's port. A unicast reply to a broadcast matches no conntrack entry, so it needs an explicit rule. The rule used to be
+`udp sport 3483 udp dport 1024-65535 accept`, which let any LAN host reach every UDP listener >= 1024 (e.g. systemd-resolved's LLMNR
+on 5355) by sending from port 3483. Now `btbridge.lms.discovery` binds the fixed local port **3484** (`REPLY_PORT`; discoveries run one
+after the other), ignores answers that do not come from port 3483, and the firewall accepts `udp sport 3483 udp dport 3484` only.
+Live-tested: UDP probes from source port 3483 to 5355 and 40000 are dropped (with the old rule both were answered - checked by running the
+probe against it), 5353 is open (positive control), and the bridge's real discovery behind the generated ruleset finds a fake Lyrion
+server on the LAN (`tests/net/fw_lms.py`, `fw_discover.py`). Residual: a LAN host can still spoof answers to the discovery port while a
+discovery runs; they are parsed defensively and only offered to the owner as a choice (wizard).
+
+**Listeners besides ours.** `systemd-resolved` is the device's DNS client (DNS servers from DHCP, stub on 127.0.0.53/127.0.0.54 only).
+Its compiled-in defaults run an LLMNR responder on UDP+TCP 5355 of every multicast link; the image drop-in
+`/etc/systemd/resolved.conf.d/hifi-bridge.conf` sets `LLMNR=no` and `MulticastDNS=no` (Avahi alone owns mDNS, DECISIONS #49). Tested
+with the real resolved in `tests/net` (without the drop-in: 5355 bound - negative control; with it: no 5355/5353 socket). The Pi kernel config (`bcm2711_defconfig`, used for all
 three boards) builds `nf_tables`, `nf_conntrack`, `nft_ct`, `nft_limit` as modules; `modules-load.d/hifi-bridge-nftables.conf` loads them early.
 
 ## 7. Credentials
@@ -170,7 +185,7 @@ make it expire early). Outbound TLS (MQTT, syslog) keeps verifying and simply re
 |---|---|
 | schema, renderers, state machine (all transitions/errors), adapters with fake runner/sockets, agent/client over a real UNIX socket, WebUI pages, recovery, redaction | UNIT (fake clock, SIMULATED radio) |
 | nft/dnsmasq/hostapd/wpa_supplicant parse the generated files (negative controls fail); networkd applies fixed IPv4/IPv6 and netlink reads them back; PMK = `wpa_passphrase`; control-socket client vs. real wpa_supplicant (wired driver); Avahi `SetHostName`; `systemd-analyze verify`/`security` | INTEGRATION (Docker, `scripts/run_net.sh`) |
-| live firewall and hotspot DHCP across three containers | INTEGRATION (Docker) |
+| live firewall and hotspot DHCP across three containers; UDP from a spoofed source port 3483; real Lyrion discovery through the firewall (fake Lyrion server); real systemd-resolved without LLMNR/mDNS responders | INTEGRATION (Docker) |
 | network pages in Chromium: axe-core, DE/EN, light/dark, phone/desktop, countdown, scan list | BROWSER (SIMULATED radio) |
 | mac80211_hwsim (virtual Wi-Fi radios) | **not used**: needs a host kernel module; no module is loaded on the development host |
 
@@ -184,7 +199,8 @@ Hardware gate items (proposed for docs/HARDWARE_GATE_CHECKLIST.md):
 * **N-5** captive-portal behaviour of current Android/iOS on a network without router/DNS (stays connected? needs mobile data off?).
 * **N-6** regulatory domain: `iw reg set` and `country=` take effect on brcmfmac (`iw reg get`, allowed channels); rfkill unblock.
 * **N-7** Ethernet interface naming per board (eth0 / end0 / enx…) and networkd DHCP/IPv6 SLAAC/DHCPv6 on a real router.
-* **N-8** nftables modules load on the image; the base firewall is active before the first DHCP packet; measured boot delay.
+* **N-8** nftables modules load on the image; the base firewall is active before the first DHCP packet; measured boot delay; the wizard's
+  Lyrion discovery finds a real server through the image's firewall (fixed port 3484); `ss -lntu` on the device shows no 5355 listener.
 * **N-9** timesyncd persistent clock across reboots without network; certificate re-check after the first sync.
 * **N-10** `hostnamectl` + Avahi `SetHostName` on the image (name change visible to phones, collision rename).
 * **N-11** hotspot + Bluetooth A2DP coexistence on the shared 2.4 GHz radio (Zero 2 W in particular, plan E5).

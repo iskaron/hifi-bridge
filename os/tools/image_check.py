@@ -19,6 +19,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import zlib
 
 OWN_UNITS = ["hifi-bridge.service", "hifi-bridge-boot.service", "hifi-bridge-data.service", "hifi-bridge-growdata.service",
              "hifi-bridge-health.service", "hifi-bridge-reboot.path", "hifi-bridge-reboot.service", "hifi-firewall.service",
@@ -28,8 +29,10 @@ ENABLED_AT_BOOT = ["hifi-bridge.service", "hifi-bridge-boot.service", "hifi-brid
                    "hifi-bridge-health.service", "hifi-bridge-reboot.path", "hifi-firewall.service", "hifi-netd.service"]
 HARDWARE_PENDING = [
     "boots: firmware -> U-Boot -> kernel from slot A -> multi-user.target (G2 P1-2)",
-    "U-Boot reads uboot.env from the FAT; fw_printenv/fw_setenv agree with it (G2 P3-1)",
+    "U-Boot reads uboot.env/uboot-redund.env from the FAT, alternates its saves between them; fw_printenv/fw_setenv agree (G2 P3-1)",
+    "power cut while U-Boot or fw_setenv writes the environment: the other copy is used, the right slot boots (G2 P3-5/P3-6)",
     "RAUC install into slot B, boot-count switch, rollback, power cuts (G2 P3-*)",
+    "root-owned boot FAT: the boot step writes through the group hifi-boot, other hifi-bridge processes cannot (G2 P6-3)",
     "read-only root really stays read-only at runtime; /var overlay + /data bind mounts persist pairings across reboots (G2 P4-2)",
     "data partition grows to the card size on first boot (G2 P4-1)",
     "Wi-Fi/Bluetooth firmware loads (brcmfmac, hci_uart on PL011) and A2DP is stable (G2 P1-3)",
@@ -191,9 +194,6 @@ def check_boot_partition(r, boot_dir, board, man):
     want = ["NOTICE.txt", "rpi-firmware.LICENCE.broadcom", "brcmfmac_sdio-firmware-rpi.LICENSE", "SYNAPTICS-END-USER-SOFTWARE-TOOL-LICENSE.txt"]
     have = sorted(os.listdir(lic)) if os.path.isdir(lic) else []
     r.add("boot.firmware-licences", all(w in have for w in want), "licenses/ on the FAT: " + ", ".join(have))
-    for f in files:
-        if f.startswith("uboot.env"):
-            r.add("boot.no-preset-env", False, "uboot.env must not ship (created by U-Boot on first boot)")
 
 
 def check_manifest(r, image, man, boot_dir):
@@ -260,24 +260,154 @@ def check_rauc(r, root, cfgv, dev_ca):
         t = json.load(open(trust))
         r.facts["update_trust"] = t
         r.add("rauc.trust-own", t["mode"] == "own" and t["official_source"] is None, f"mode={t['mode']}, official_source={t['official_source']}")
-    fwenv = os.path.join(root, "etc/fw_env.config")
-    r.add("rauc.fw-env", os.path.isfile(fwenv) and open(fwenv).read().split()[:1] == ["/boot/uboot.env"],
-          open(fwenv).read().strip() if os.path.isfile(fwenv) else "missing")
+    lines = fw_env_lines(os.path.join(root, "etc/fw_env.config"))
+    r.add("rauc.fw-env", [x[0] for x in lines] == ["/boot/uboot.env", "/boot/uboot-redund.env"] and len({x[2] for x in lines}) == 1,
+          "fw_env.config: " + (" | ".join(" ".join(x) for x in lines) or "missing") + " (two copies, review N-6)")
     for b in ("usr/bin/rauc", "usr/bin/fw_printenv", "usr/bin/fw_setenv"):
         r.add(f"rauc.binary-{os.path.basename(b)}", os.path.exists(resolve(root, "/" + b)), "/" + b)
 
 
-def check_uboot_env_size(r, uboot_config, fwenv_line):
-    if not uboot_config or not os.path.isfile(uboot_config):
+def fw_env_lines(path):
+    """[[file, offset, size], ...] of an fw_env.config (comments and blank lines skipped)."""
+    if not os.path.isfile(path):
+        return []
+    return [ln.split()[:3] for ln in open(path) if ln.strip() and not ln.lstrip().startswith("#")]
+
+
+def read_env_image(path, size, redundant=True):
+    """A U-Boot environment image: CRC32 (little endian) [+ serial byte if redundant] + NUL-separated key=value pairs."""
+    raw = open(path, "rb").read()
+    hdr = 5 if redundant else 4
+    data = raw[hdr:size]
+    crc_ok = len(raw) >= size and int.from_bytes(raw[:4], "little") == zlib.crc32(data)
+    out = {}
+    for item in data.split(b"\0"):
+        if not item:
+            break
+        k, _, v = item.decode("utf-8", "replace").partition("=")
+        out[k] = v
+    return {"flags": raw[4] if redundant and len(raw) > 4 else None, "vars": out, "crc_ok": crc_ok}
+
+
+def check_uboot_env(r, root, boot_dir, uboot_config, fw_printenv=None, boot_script=None):
+    """Review N-6: two environment copies on the FAT, matching U-Boot's configuration and fw_env.config; both ship with the card and
+    carry U-Boot's complete default environment + the fresh-card slot state; the tools fall back to the older copy when the newer one is
+    torn; boot.cmd fails safe on U-Boot's built-in default environment."""
+    lines = fw_env_lines(os.path.join(root, "etc/fw_env.config"))
+    v = cfg_values(uboot_config) if uboot_config and os.path.isfile(uboot_config) else {}
+    r.facts["uboot_env"] = {k: v.get(k) for k in ("CONFIG_ENV_SIZE", "CONFIG_ENV_IS_IN_FAT", "CONFIG_ENV_FAT_FILE", "CONFIG_ENV_FAT_FILE_REDUND",
+                                                   "CONFIG_ENV_FAT_INTERFACE", "CONFIG_ENV_FAT_DEVICE_AND_PART", "CONFIG_ENV_REDUNDANT")}
+    size = int(v["CONFIG_ENV_SIZE"], 16) if v.get("CONFIG_ENV_SIZE") else None
+    if v:
+        ok = len(lines) == 2 and size is not None and all(int(x[2], 16) == size for x in lines) and v.get("CONFIG_ENV_IS_IN_FAT") == "y" \
+            and v.get("CONFIG_ENV_REDUNDANT") == "y" and v.get("CONFIG_ENV_FAT_FILE") == os.path.basename(lines[0][0]) \
+            and v.get("CONFIG_ENV_FAT_FILE_REDUND") == os.path.basename(lines[1][0])
+        r.add("rauc.uboot-env-matches-fw_env", ok, f"U-Boot CONFIG_ENV_REDUNDANT={v.get('CONFIG_ENV_REDUNDANT')}, CONFIG_ENV_SIZE="
+              f"{v.get('CONFIG_ENV_SIZE')}, files {v.get('CONFIG_ENV_FAT_FILE')} + {v.get('CONFIG_ENV_FAT_FILE_REDUND')}; fw_env.config: "
+              + " | ".join(" ".join(x) for x in lines))
+    size = size or (int(lines[0][2], 16) if lines else 0x4000)
+    copies = [os.path.join(boot_dir, n) for n in ("uboot.env", "uboot-redund.env")]
+    if not r.add("boot.uboot-env-copies-present", all(os.path.isfile(p) and os.path.getsize(p) == size for p in copies),
+                 f"uboot.env + uboot-redund.env on the FAT, {size} bytes each (fw_setenv needs both from the first boot on)"):
         return
-    v = cfg_values(uboot_config)
-    size = v.get("CONFIG_ENV_SIZE")
-    r.facts["uboot_env"] = {k: v.get(k) for k in ("CONFIG_ENV_SIZE", "CONFIG_ENV_IS_IN_FAT", "CONFIG_ENV_FAT_FILE",
-                                                   "CONFIG_ENV_FAT_INTERFACE", "CONFIG_ENV_FAT_DEVICE_AND_PART", "CONFIG_SYS_REDUNDAND_ENVIRONMENT")}
-    fw = fwenv_line.split()
-    ok = size is not None and len(fw) >= 3 and int(size, 16) == int(fw[2], 16) and v.get("CONFIG_ENV_IS_IN_FAT") == "y" \
-        and v.get("CONFIG_ENV_FAT_FILE", "uboot.env") == os.path.basename(fw[0])
-    r.add("rauc.uboot-env-matches-fw_env", ok, f"U-Boot CONFIG_ENV_SIZE={size}, file {v.get('CONFIG_ENV_FAT_FILE')}; fw_env.config: {' '.join(fw)}")
+    a, b = (read_env_image(p, size) for p in copies)
+    r.add("boot.uboot-env-copies-valid", a["crc_ok"] and b["crc_ok"] and a["vars"] == b["vars"] and (a["flags"], b["flags"]) == (1, 0),
+          f"CRC ok {a['crc_ok']}/{b['crc_ok']}, serials {a['flags']}/{b['flags']} (copy 1 newer), identical content: {a['vars'] == b['vars']}")
+    want = {"BOOT_ORDER": "A B", "BOOT_A_LEFT": "3", "BOOT_B_LEFT": "0", "hifi_env": "1"}
+    got = {k: a["vars"].get(k) for k in want}
+    r.add("boot.uboot-env-fresh-card", got == want, f"slot state of a fresh card: {got} (slot B empty: never tried)")
+    r.facts["uboot_env_shipped"] = a["vars"]
+    init = os.path.join(root, "etc/u-boot-initial-env")
+    if r.add("boot.uboot-env-has-defaults", os.path.isfile(init), "/etc/u-boot-initial-env (U-Boot's default environment)"):
+        defaults = dict(ln.rstrip("\n").split("=", 1) for ln in open(init) if "=" in ln)
+        diff = sorted(k for k, val in defaults.items() if k not in want and a["vars"].get(k) != val)
+        r.add("boot.uboot-env-defaults-complete", not diff and "bootcmd" in a["vars"],
+              f"{len(defaults)} default variables, all in the shipped copies with the same value (U-Boot imports a valid copy INSTEAD of "
+              f"its defaults); bootcmd={a['vars'].get('bootcmd')!r}" + (f"; differing: {', '.join(diff)}" if diff else ""))
+    if fw_printenv:
+        env_tool_fallback(r, copies, size, fw_printenv)
+    if boot_script and os.path.isfile(boot_script):
+        src = [ln.split("#")[0].strip() for ln in open(boot_script, errors="replace")]   # dumpimage keeps the binary length header
+        ok = 'if test "${hifi_env}" != "1"; then' in src and "setenv BOOT_B_LEFT 3" in src and "setenv hifi_bootenv hifi.bootenv=reset" in src
+        bootargs = next((ln for ln in src if ln.startswith('setenv bootargs "')), "")
+        r.add("boot.uboot-script-failsafe", ok and "${hifi_bootenv}" in bootargs and re.search(r"\bpanic=\d+\b", bootargs) is not None,
+              "boot.scr: without hifi_env (built-in default env) both slots get attempts and the boot is marked hifi.bootenv=reset; "
+              "panic=N lets a slot that cannot run fall back")
+
+
+def env_tool_fallback(r, copies, size, tool):
+    """The REAL fw_printenv/fw_setenv of this build (host build of the same uboot-tools as the image's) on scratch copies of the shipped
+    environment, configured like the image's fw_env.config: a write goes to the older copy; a torn newest copy -> the previous state."""
+    import tempfile
+    d = tempfile.mkdtemp(prefix="envchk")
+    try:
+        paths = [os.path.join(d, os.path.basename(p)) for p in copies]
+        for s, t in zip(copies, paths):
+            shutil.copyfile(s, t)
+        conf = os.path.join(d, "fw_env.config")
+        open(conf, "w").write("".join(f"{p} 0x0000 {hex(size)}\n" for p in paths))
+        setenv = os.path.join(os.path.dirname(tool), "fw_setenv")
+
+        def get(name):
+            res = sh(tool, "-c", conf, "-n", name)
+            return res.stdout.strip() if res.returncode == 0 else f"rc={res.returncode} {res.stderr.strip()[:80]}"
+        steps = {"read": get("BOOT_ORDER")}
+        sh(setenv, "-c", conf, "BOOT_B_LEFT", "3")              # like RAUC activating slot B
+        steps["after-write"] = get("BOOT_B_LEFT")
+        steps["serials"] = [read_env_image(p, size)["flags"] for p in paths]
+        raw = bytearray(open(paths[1], "rb").read())           # copy 2 is now the newest: tear it in the middle
+        raw[size // 2] ^= 0xFF
+        open(paths[1], "wb").write(bytes(raw))
+        steps["newest-torn"] = get("BOOT_B_LEFT")
+        r.facts["uboot_env_tool_check"] = steps
+        ok = steps["read"] == "A B" and steps["after-write"] == "3" and steps["serials"] == [1, 2] and steps["newest-torn"] == "0"
+        r.add("boot.uboot-env-torn-copy-fallback", ok, f"{tool}: read {steps['read']!r}; fw_setenv wrote the older copy (serials "
+              f"{steps['serials']}); newest copy torn -> previous state BOOT_B_LEFT={steps['newest-torn']!r}")
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def merged_units(root):
+    """{unit name: text of the unit file + its drop-ins} for every .service in /usr/lib and /etc (masks to /dev/null skipped)."""
+    out = {}
+    for base in ("usr/lib/systemd/system", "etc/systemd/system"):
+        for p in sorted(glob.glob(os.path.join(root, base, "*.service"))):
+            if not os.path.islink(p) or not os.readlink(p).startswith("/dev/null"):
+                f = resolve(root, "/" + os.path.relpath(p, root))
+                if os.path.isfile(f):
+                    out.setdefault(os.path.basename(p), open(f, errors="replace").read())
+        for p in sorted(glob.glob(os.path.join(root, base, "*.service.d", "*.conf"))):
+            u = os.path.basename(os.path.dirname(p))[:-2]
+            out[u] = out.get(u, "") + "\n" + open(p, errors="replace").read()
+    return out
+
+
+def unit_values(text, key):
+    return [v.strip() for k, _, v in (ln.partition("=") for ln in text.splitlines()) if k.strip() == key]
+
+
+def check_boot_fat_access(r, root):
+    """Review N-14: the boot FAT is root-owned; only the group hifi-boot (no members) may write it, and only the boot step joins it."""
+    fstab = [ln.split() for ln in open(os.path.join(root, "etc/fstab")) if ln.strip() and not ln.startswith("#")]
+    boot = next((x for x in fstab if len(x) > 3 and x[1] == "/boot"), None)
+    groups = {g.split(":")[0]: g.strip().split(":") for g in open(os.path.join(root, "etc/group")) if g.count(":") >= 3}
+    hb = groups.get("hifi-boot")
+    o = dict(x.partition("=")[::2] for x in boot[3].split(",")) if boot else {}
+    fm, dm = int(o.get("fmask", "0"), 8), int(o.get("dmask", "0"), 8)
+    ok = bool(boot and hb) and o.get("uid") == "0" and o.get("gid") == hb[2] and fm & 0o007 == 0o007 and dm & 0o007 == 0o007
+    r.add("boot.fat-root-owned", ok, f"/boot options {boot[3] if boot else 'missing'}; group hifi-boot: {':'.join(hb) if hb else 'missing'}")
+    r.add("boot.fat-group-no-members", bool(hb) and hb[3] == "", "hifi-boot has no members (not even hifi-bridge): only units that "
+          "declare SupplementaryGroups=hifi-boot can write the FAT")
+    units = merged_units(root)
+    members = sorted(u for u, t in units.items() if any("hifi-boot" in v.split() for v in unit_values(t, "SupplementaryGroups")))
+    others = sorted(u for u, t in units.items() if u != "hifi-bridge-boot.service" and "hifi-bridge" in unit_values(t, "User")
+                    and ("strict" not in unit_values(t, "ProtectSystem") or any("/boot" in v for v in unit_values(t, "ReadWritePaths"))))
+    r.add("units.boot-fat-writers", members == ["hifi-bridge-boot.service"] and not others,
+          f"units in group hifi-boot: {members}; other hifi-bridge units without ProtectSystem=strict or with /boot writable: {others or 'none'}")
+    grow = units.get("hifi-bridge-growdata.service", "")
+    r.add("units.growdata-no-premount-guard", "Before=data.mount" in grow and not any("/data" in v for k in ("ConditionPathExists",
+          "ConditionPathIsDirectory", "ConditionFileNotEmpty") for v in unit_values(grow, k)),
+          "growdata has no condition on a path below /data (it would be evaluated on the empty mount point, review N-13); it is idempotent")
 
 
 def check_users(r, root):
@@ -386,6 +516,13 @@ def check_network_and_misc(r, root):
     text = open(base).read() if os.path.isfile(base) else ""
     r.add("network.firewall-base-ruleset", "policy drop" in text and "input" in text,
           "base ruleset /usr/share/hifi-bridge/nftables-base.nft (default-deny inbound, loaded by hifi-firewall.service before networking)")
+    disc = [ln.strip() for ln in text.splitlines() if "sport 3483" in ln]
+    r.add("network.firewall-discovery-reply-only", disc == ["udp sport 3483 udp dport 3484 accept"] and "1024-65535" not in text,
+          f"Lyrion discovery replies only to the bridge's fixed discovery port (review N-8): {disc}")
+    res = os.path.join(root, "etc/systemd/resolved.conf.d/hifi-bridge.conf")
+    rv = kv_file(res) if os.path.isfile(res) else {}
+    r.add("network.resolved-no-responders", rv.get("LLMNR") == "no" and rv.get("MulticastDNS") == "no",
+          f"systemd-resolved: LLMNR={rv.get('LLMNR')}, MulticastDNS={rv.get('MulticastDNS')} (no 5355 responder; Avahi owns mDNS)")
     mods = os.path.join(root, "etc/modules-load.d/hifi-bridge-nftables.conf")
     r.add("network.nft-modules", os.path.isfile(mods), "nftables kernel modules loaded at boot (modules-load.d)")
     ko = glob.glob(os.path.join(root, "usr/lib/modules/*/kernel/net/netfilter/nf_tables.ko*"))
@@ -477,7 +614,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     for a in ("board", "image", "manifest", "rootfs", "boot", "config", "json", "md"):
         ap.add_argument(f"--{a}", required=True)
-    for a in ("rootfs-img", "slot-a", "dev-ca", "file-list", "uboot-config", "bootargs"):
+    for a in ("rootfs-img", "slot-a", "dev-ca", "file-list", "uboot-config", "bootargs", "fw-printenv", "boot-script"):
         ap.add_argument(f"--{a}")
     a = ap.parse_args(argv)
     r = Report()
@@ -491,8 +628,8 @@ def main(argv=None):
     check_kernel(r, a.rootfs, a.boot)
     check_fstab_ro(r, a.rootfs, a.bootargs or "")
     check_rauc(r, a.rootfs, cfgv, a.dev_ca)
-    fwenv = os.path.join(a.rootfs, "etc/fw_env.config")
-    check_uboot_env_size(r, a.uboot_config, open(fwenv).read() if os.path.isfile(fwenv) else "")
+    check_uboot_env(r, a.rootfs, a.boot, a.uboot_config, a.fw_printenv, a.boot_script)
+    check_boot_fat_access(r, a.rootfs)
     check_users(r, a.rootfs)
     check_setuid(r, a.rootfs)
     check_bridge(r, a.rootfs)

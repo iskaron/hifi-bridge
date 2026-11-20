@@ -7,7 +7,7 @@
 #    Images that accept official bundles also record the FIXED official update source (GitHub Releases of iskaron/hifi-bridge,
 #    DECISIONS #70). The source is transport only: a bundle is installed only if its signature matches the keyring.
 #  * RAUC system.conf with the board's compatible string, U-Boot env access for fw_printenv/fw_setenv,
-#  * fstab (boot FAT writable for the hifi-bridge user only; data partition), persistent paths, enabled units.
+#  * fstab (boot FAT root-owned, writable only through the group of the boot step; data partition), persistent paths, enabled units.
 set -eu
 
 TARGET_DIR="${1:?usage: post-build.sh TARGET_DIR}"
@@ -85,8 +85,9 @@ EOF
 compat="$(cfg BR2_PACKAGE_HIFI_BRIDGE_COMPATIBLE)"
 [ -n "$compat" ] || die "BR2_PACKAGE_HIFI_BRIDGE_COMPATIBLE is empty"
 sed "s/@COMPATIBLE@/$compat/" "$BOARD_DIR/rauc/system.conf.in" > "$TARGET_DIR/etc/rauc/system.conf"
-# rpi_arm64 keeps its environment in the file uboot.env on the boot FAT (CONFIG_ENV_IS_IN_FAT; size to be verified, gate item P3-1)
-echo "/boot/uboot.env 0x0000 0x4000" > "$TARGET_DIR/etc/fw_env.config"
+# rpi_arm64 keeps its environment on the boot FAT (CONFIG_ENV_IS_IN_FAT), here in TWO copies (uboot.fragment, review N-6);
+# fw_setenv must use both like U-Boot (size checked against the U-Boot build by the image check; on a board: gate item P3-1)
+install -m 0644 "$BOARD_DIR/uboot/fw_env.config" "$TARGET_DIR/etc/fw_env.config"
 
 # ---------------------------------------------------------------- build identity (development vs. release)
 # Every image that is not an official release is a DEVELOPMENT build and is marked as such in os-release, build-info.json and the
@@ -142,8 +143,18 @@ EOF
 # ---------------------------------------------------------------- mounts (P4) - uid/gid 990 = hifi-bridge (static, see hifi-bridge.mk)
 fstab="$TARGET_DIR/etc/fstab"
 touch "$fstab"
-add_fstab() { grep -qF "$1" "$fstab" || echo "$1" >> "$fstab"; }
-add_fstab "/dev/mmcblk0p1 /boot vfat rw,noatime,flush,uid=990,gid=990,fmask=0177,dmask=0077 0 2"
+# one entry per mount point: an entry of an earlier (incremental) build with other options is replaced, not duplicated
+add_fstab() {
+	mp=$(echo "$1" | awk '{print $2}')
+	grep -qxF "$1" "$fstab" && return 0
+	awk -v mp="$mp" '$2 != mp' "$fstab" > "$fstab.tmp" && mv "$fstab.tmp" "$fstab"
+	echo "$1" >> "$fstab"
+}
+# boot FAT (review N-14): owned by root (RAUC/fw_setenv write the U-Boot environment as root); group 991 = hifi-boot (hifi-bridge.mk,
+# no members) may write it - only hifi-bridge-boot.service joins that group (SupplementaryGroups, drop-in in the overlay). Every other
+# process of the hifi-bridge user, sandboxed or not, cannot change boot.scr, config.txt or the U-Boot environment. Others: no access
+# (the provisioning file holds secrets until the boot step has scrubbed it).
+add_fstab "/dev/mmcblk0p1 /boot vfat rw,noatime,flush,uid=0,gid=991,fmask=0117,dmask=0007 0 2"
 add_fstab "/dev/mmcblk0p4 /data ext4 rw,noatime,commit=5,x-systemd.growfs 0 2"
 add_fstab "/data/hifi-bridge /var/lib/hifi-bridge none bind,x-systemd.requires=hifi-bridge-data.service 0 0"
 add_fstab "/data/bluetooth /var/lib/bluetooth none bind,x-systemd.requires=hifi-bridge-data.service 0 0"
