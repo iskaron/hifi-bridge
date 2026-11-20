@@ -29,8 +29,20 @@ def serve(port):
         c.close()
 
 
+def echo(port):
+    """UDP echo: a probe from source port 3483 to a port other than the discovery reply port must be dropped (review N-8); 5353 is
+    the positive control (mDNS is open to everyone). The discovery reply port 3484 is left free for fw_discover.py."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.bind(("0.0.0.0", port))
+    while True:
+        data, addr = s.recvfrom(512)
+        s.sendto(b"echo " + data, addr)
+
+
 for p in (80, 443, 8090, 2222, 53):
     threading.Thread(target=serve, args=(p,), daemon=True).start()
+for p in (5353, 5355, 40000):
+    threading.Thread(target=echo, args=(p,), daemon=True).start()
 time.sleep(0.5)
 print(f"ready hotspot_iface={hs} dnsmasq_pid={dns.pid}", flush=True)
 print(subprocess.run(["nft", "list", "table", "inet", "hifi"], capture_output=True, text=True).stdout, flush=True)

@@ -262,6 +262,53 @@ def test_avahi_set_hostname_against_a_real_daemon():
         avahi.terminate(); avahi.wait(5); dbus.terminate(); dbus.wait(5)
 
 
+# ---------------------------------------------------------------- systemd-resolved with the image's drop-in (review N-8)
+RESOLVED_DROPIN = os.path.join(REPO, "os", "br2-external", "board", "hifi-bridge", "overlay", "etc", "systemd", "resolved.conf.d",
+                               "hifi-bridge.conf")
+
+
+def resolved_listeners(until=None, seconds=10.0):
+    """Start the real systemd-resolved (own user, like networkd above) and return its listening sockets once ``until(sockets)`` is
+    true, or after ``seconds`` (the stub resolver must be up in any case)."""
+    os.makedirs("/run/systemd/resolve", exist_ok=True)
+    shutil.chown("/run/systemd/resolve", "systemd-resolve", "systemd-resolve")
+    caps = "+net_raw,+net_bind_service"
+    p = subprocess.Popen(["setpriv", "--reuid=systemd-resolve", "--regid=systemd-resolve", "--clear-groups", f"--inh-caps={caps}",
+                          f"--ambient-caps={caps}", "/usr/lib/systemd/systemd-resolved"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         env={**os.environ, "SYSTEMD_LOG_TARGET": "console"})
+    try:
+        end, socks = time.time() + seconds, set()
+        while time.time() < end:
+            socks = {ln.split()[0] + " " + ln.split()[4] for ln in sh("ss", "-H", "-lntu").stdout.splitlines() if ln.strip()}
+            if until and until(socks):
+                break
+            time.sleep(0.25)
+        return socks
+    finally:
+        p.terminate()
+        p.wait(5)
+
+
+def test_resolved_with_the_image_dropin_answers_no_llmnr_or_mdns(dummy):
+    """Compiled-in defaults: LLMNR responder on UDP+TCP 5355 of every multicast link (negative control). With the image's drop-in:
+    still a DNS client (stub on 127.0.0.53), but no 5355 and no 5353 socket."""
+    link = dummy("hr0")
+    sh("ip", "link", "set", link, "multicast", "on", check=True)
+    sh("ip", "addr", "add", "192.168.99.5/24", "dev", link, check=True)
+    conf_d = "/etc/systemd/resolved.conf.d"
+    shutil.rmtree(conf_d, ignore_errors=True)
+    default = resolved_listeners(until=lambda x: any(s.endswith(":5355") for s in x))
+    assert any(s.endswith(":5355") for s in default), default
+    os.makedirs(conf_d)
+    shutil.copy(RESOLVED_DROPIN, conf_d)
+    try:
+        ours = resolved_listeners(seconds=8.0)                       # the full time: a responder could appear late
+    finally:
+        shutil.rmtree(conf_d, ignore_errors=True)
+    assert any("127.0.0.53" in s and s.endswith(":53") for s in ours), ours       # still the DNS client
+    assert not any(s.endswith((":5355", ":5353")) for s in ours), ours
+
+
 # ---------------------------------------------------------------- units
 def test_units_pass_systemd_analyze_verify(d):
     etc = "/etc/systemd/system"

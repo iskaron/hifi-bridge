@@ -5,7 +5,8 @@
 #     systemd-networkd applies generated addresses, netlink reads them back, the control-socket client talks to a real wpa_supplicant,
 #     the agent sets a real Avahi host name, systemd-analyze verifies the units.
 #  2. live firewall + DHCP across containers: a "device" with the hotspot ruleset and the generated dnsmasq, a LAN client and a hotspot
-#     client probing ports, ICMP and a DHCP lease.
+#     client probing ports, ICMP and a DHCP lease; UDP probes from a spoofed source port 3483 (only the discovery reply port may be
+#     reachable, review N-8) and the bridge's real Lyrion discovery behind the firewall against a fake Lyrion server on the LAN.
 # Usage: scripts/run_net.sh [pytest args]     Output: reports/evidence/network_realtools.txt
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
@@ -22,7 +23,7 @@ NI=(--internal -o com.docker.network.bridge.inhibit_ipv4=true)
 HI=(-o com.docker.network.bridge.inhibit_ipv4=true -o com.docker.network.bridge.enable_ip_masquerade=false)
 cleanup() {
   local c
-  for c in hifi-net-tools hifi-net-dev hifi-net-lanclient hifi-net-hsclient; do
+  for c in hifi-net-tools hifi-net-dev hifi-net-lanclient hifi-net-hsclient hifi-net-lms; do
     for _ in 1 2 3; do docker container inspect "$c" >/dev/null 2>&1 || break; docker rm -f "$c" >/dev/null 2>&1 || sleep 1; done
   done
   for n in hifi-net-lan hifi-net-hs; do
@@ -60,7 +61,15 @@ probe() {   # name network args...
   docker run --rm --name "$name" "${LIM[@]}" --network "$net" --cap-add NET_RAW --cap-add NET_ADMIN -v "$PWD":/work:ro "$IMG" "$@" 2>&1 | tee -a "$OUT"
   return "${PIPESTATUS[0]}"
 }
-probe hifi-net-lanclient hifi-net-lan python3 /work/tests/net/fw_probe.py 192.168.77.10 --open 80,443,8090 --closed 2222,53 --ping || F=1
+probe hifi-net-lanclient hifi-net-lan python3 /work/tests/net/fw_probe.py 192.168.77.10 --open 80,443,8090 --closed 2222,53 --ping \
+  --udp-sport 3483 --udp-open 5353 --udp-closed 5355,40000 || F=1
+# Lyrion discovery still works through the narrowed rule: a fake Lyrion server on the LAN answers the device's broadcast
+docker run -d --name hifi-net-lms "${LIM[@]}" --network hifi-net-lan --ip 192.168.77.20 -v "$PWD":/work:ro "$IMG" \
+  python3 /work/tests/net/fw_lms.py >/dev/null || F=1
+for _ in $(seq 40); do docker logs hifi-net-lms 2>&1 | grep -q '^ready' && break; sleep 0.5; done
+docker exec hifi-net-dev python3 /work/tests/net/fw_discover.py 192.168.77.20 2>&1 | tee -a "$OUT"
+[ "${PIPESTATUS[0]}" -eq 0 ] || F=1
+docker logs hifi-net-lms 2>&1 | tee -a "$OUT"
 probe hifi-net-hsclient hifi-net-hs sh -c 'python3 /work/tests/net/fw_probe.py 10.42.0.1 --open 80,443 --closed 8090,2222,53 --ping \
   && busybox udhcpc -i eth0 -n -q -f -t 4 -T 2 -s /work/tests/net/udhcpc_report.sh; cat /tmp/lease.txt; ! grep -q FAIL /tmp/lease.txt && grep -q "PASS served" /tmp/lease.txt \
   && { busybox ping -c 1 -W 2 192.168.77.10 >/dev/null 2>&1 && echo "FAIL hotspot client reaches the LAN" || echo "PASS hotspot client cannot reach the LAN"; } \

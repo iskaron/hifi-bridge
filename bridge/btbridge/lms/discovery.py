@@ -3,13 +3,22 @@
 Request : b"e" + (4-char tag + 0x00) per wanted field (IPAD, NAME, JSON, VERS, UUID).
 Reply   : b"E" + TLVs (4-char tag, 1-byte length, value).  JSON = the server's HTTP/JSON-RPC port.
 Verified against LMS 9.1.2 in the lab only (docs/FINDINGS.md); other versions untested.
+
+The request leaves from ONE fixed local port (``REPLY_PORT``) and only answers from the server port 3483 are taken: the device firewall
+accepts Lyrion's replies on exactly that port (``udp sport 3483 udp dport 3484``) instead of every port >= 1024 (review N-8). A broadcast
+request has no conntrack entry that a unicast reply would match, so the reply needs this explicit rule. Discoveries run one after the
+other (the port can be bound once).
 """
 from __future__ import annotations
 
 import socket
+import threading
 import time
 
 TAGS = (b"NAME", b"JSON", b"VERS", b"UUID", b"IPAD")
+SERVER_PORT = 3483           # Lyrion/LMS discovery (and SlimProto) port
+REPLY_PORT = 3484            # our fixed local discovery port (firewall: netrender.nftables)
+_lock = threading.Lock()
 
 
 def local_broadcasts() -> list[str]:
@@ -28,10 +37,19 @@ def local_broadcasts() -> list[str]:
     return out
 
 
-def discover(timeout: float = 2.0, port: int = 3483) -> list[dict]:
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    s.settimeout(0.3)
+def discover(timeout: float = 2.0, port: int = SERVER_PORT, local_port: int = REPLY_PORT) -> list[dict]:
+    with _lock:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            s.bind(("0.0.0.0", local_port))
+            s.settimeout(0.3)
+            return _ask(s, timeout, port)
+        finally:
+            s.close()
+
+
+def _ask(s: socket.socket, timeout: float, port: int) -> list[dict]:
     req = b"e" + b"".join(t + b"\x00" for t in TAGS)
     for b in local_broadcasts() + ["255.255.255.255"]:
         try:
@@ -44,7 +62,7 @@ def discover(timeout: float = 2.0, port: int = 3483) -> list[dict]:
             data, addr = s.recvfrom(2048)
         except socket.timeout:
             continue
-        if not data.startswith(b"E"):
+        if addr[1] != port or not data.startswith(b"E"):
             continue
         info, i = {"address": addr[0]}, 1
         while i + 5 <= len(data):
@@ -52,5 +70,4 @@ def discover(timeout: float = 2.0, port: int = 3483) -> list[dict]:
             info[tag] = data[i + 5:i + 5 + ln].decode("utf-8", "replace")
             i += 5 + ln
         found[addr[0]] = info
-    s.close()
     return list(found.values())

@@ -15,7 +15,7 @@ table inet hifi {
 		udp dport 5353 accept
 		udp sport 67 udp dport 68 accept
 		ip6 saddr fe80::/10 udp sport 547 udp dport 546 accept
-		udp sport 3483 udp dport 1024-65535 accept
+		udp sport 3483 udp dport 3484 accept
 		tcp dport { 80, 443, 8090 } accept
 	}
 	chain forward {
