@@ -99,8 +99,8 @@ def test_node_disappearing_mid_capture_does_not_move_to_the_microphone(pw, feede
     cap = PipeWireCapture(lambda a: parec_argv(NODE), retry_s=0.2, stall_s=1.0); cap.start("x", got.append)
     time.sleep(2.0)
     before = len(b"".join(got))
-    from conftest import pactl
-    pactl("unload-module", pw["module"])
+    from conftest import vanish_node
+    vanish_node(NODE, pw["module"])
     time.sleep(3.0)
     cap.stop()
     data = b"".join(got)

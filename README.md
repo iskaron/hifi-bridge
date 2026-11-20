@@ -68,6 +68,7 @@ scripts/run_unit.sh               # unit tests
 scripts/run_integration.sh        # real LMS/Squeezelite/Mosquitto + fake-BlueZ D-Bus + WebUI end-to-end
 scripts/test_outage.sh lms        # outage scenario (also: player1)
 scripts/run_pipewire.sh           # capture command lines against real PipeWire 0.3.65 and 1.4.2
+scripts/run_pipewire_repro.sh     # reproduce the two PipeWire harness flakes (start-up race, unload crash) in disposable containers
 scripts/run_hwkit.sh              # kit self-tests incl. real SBC/AAC codecs
 scripts/test_mdns.sh              # mDNS: built-in responder and the Avahi backend against a real Avahi
 scripts/test_syslog.sh            # optional remote syslog -> REAL rsyslog over verified TLS

@@ -5,7 +5,7 @@ import subprocess
 import threading
 import time
 
-from conftest import RESULTS, load_source, pactl, writer_fd
+from conftest import RESULTS, load_source, vanish_node, writer_fd
 
 NODE2 = "bluez_input.AA_BB_CC_DD_EE_02"
 FIFO2 = "/tmp/bt-src2.fifo"
@@ -43,7 +43,7 @@ def _record_once(tmp_path, pcm):
     keep = subprocess.Popen(["parec", f"--device={NODE2}", "--property=node.dont-fallback=true", "--raw"], stdout=subprocess.DEVNULL)
     th.start(); time.sleep(0.3)
     meta = C.record(str(tmp_path), None, 8.5, node=NODE2, label="SIMULATED")
-    stop.set(); keep.terminate(); th.join(3); pactl("unload-module", module)
+    stop.set(); keep.terminate(); th.join(3); vanish_node(NODE2, module)
     _drain(writer_fd(FIFO2))
     return meta
 

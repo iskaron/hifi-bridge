@@ -52,3 +52,32 @@ The bridge's own `PipeWireCapture` supervisor ran every capture in these tests, 
 * **Open (hardware A3/A4):** a capture stream can deliver *digital silence* indefinitely, and the no-data watchdog does not catch that. Whether
   a real BlueZ node can get stuck like this, and whether the bridge should restart capture after N seconds of silence while AVRCP says
   "playing", must be decided from real traces (OPEN_QUESTIONS #34).
+
+## Harness flakes found and fixed (2026-11-20, package 7b-3) - OPEN_QUESTIONS #26
+The last full run (`reports/evidence/full_run_pkg6_os.log`, "PipeWire on debian:trixie") showed `pipewire-pulse 1.4.2` failing at start-up with
+`mkdir() /run/pw/pulse failed: File exists` / `failed to create context: File exists`; the harness restarted it once, 8 tests passed, then
+pipewire-pulse was **gone without a log line** and 4 tests failed. These were two different defects, both in the **test harness**
+(the PipeWire *stand-in* for the phone), neither in the bridge's capture code:
+
+| | Start-up race | Crash on module unload |
+|---|---|---|
+| Cause | `get_runtime_dir()` of `module-protocol-pulse` does `stat()` and, on ENOENT, `mkdir()` - and treats EEXIST from that `mkdir()` as fatal (PipeWire 1.4.2 source; 0.3.65 behaves the same). `start_pipewire.sh` polls readiness with `pactl info` right after launching the daemon; libpulse creates `$XDG_RUNTIME_DIR/pulse` as well. When both run in the same microsecond the daemon loses and exits | `pactl unload-module` of a `module-pipe-source` while streams are attached or keep reconnecting (the supervised capture of these tests retries every 0.2 s) kills `pipewire-pulse` 1.4.2 with **SIGSEGV (exit status 139)**; it writes nothing to its log. Not tested on 0.3.65 |
+| Reproduction (`scripts/run_pipewire_repro.sh`, disposable container) | tight start loop, directory missing: **trixie 1.4.2: 9 of 150 and 1 of 40 start-ups failed, bookworm 0.3.65: 5 of 150**; directory created first: **0 of 300 (trixie), 0 of 150 (bookworm)** | trixie, load/unload cycles with a consumer: alternating kill/no-kill 4 of 5 containers crashed (after 19, 21, 55, 63 of 150 cycles), supervised consumer 2 of 3 (after 81 and 102 of 150); no crash with the consumer attached throughout (120), killed 0.2 s earlier (120) or killed immediately before (2 x 100). **Making the node vanish with `pw-cli destroy` instead of unloading its module: 0 of 3 x 150 with the supervised consumer** |
+| Fix (harness only) | `start_pipewire.sh` creates `$XDG_RUNTIME_DIR/pulse` (0700) before the daemon starts - what a service manager's `RuntimeDirectory=` / tmpfiles entry does on a device | on PipeWire 1.x the tests make the stand-in node vanish with `conftest.vanish_node()` (`pw-dump` + `pw-cli destroy`, then wait until the source and its module are gone) instead of `pactl unload-module` (on 0.3.x they keep the unload: there the destroyed node leaves a reader on the FIFO that steals the next node's frames, the next node delivers only silence); `start_pipewire.sh` wraps pipewire-pulse so that its **exit status and signal are written to its log** (`### harness: pipewire-pulse exited with status 139 (killed by SIGSEGV)`) |
+
+Also found while testing the fix: a wrapper *subshell* around the daemon inherits the caller's saved stdout (`. script >/dev/null` keeps the original in
+fd 10) and held the capture pipe of `subprocess.run(capture_output=True)` / `$(...)` open for as long as the daemon lives (60 s time-out of every test);
+the wrapper is therefore a fresh `bash -c`.
+
+Evidence of the fix (all `btbridge-pw` containers, 2026-11-20; commands in `scripts/run_pipewire_repro.sh`, `testkit/pw/repro_*.sh`):
+* start-up with the real `start_pipewire.sh` in a fresh container: 0 failures in 60 before, 0 in 60 after - the race needs a warm, tight loop (above);
+  this is why the whole suite almost never showed it;
+* the whole `tests/pipewire` suite, each run in a fresh container, three containers in parallel (CPU contention like a cold CI runner):
+  old harness 34 of 34 green on trixie (10 sequential + 24 parallel) and 12 of 12 on bookworm; new harness 12 of 12 on trixie and 12 of 12 on
+  bookworm (11 passed + 1 skipped each, as before), plus a first version of the change that ran 34 of 34 on trixie. A first version that used
+  `pw-cli destroy` on 0.3.65 too failed `test_zz_restart` in 3 of 3 containers - hence the version split above. The two defects are rare in the
+  suite (they showed once in CI): **the reproductions above are the proof, not the suite loop**; the suite loop shows that the fix breaks nothing.
+
+Product relevance: none found. The bridge never unloads PipeWire modules and never starts `pipewire-pulse`; the Buildroot configuration (PipeWire
+1.2.8) enables PipeWire without a pulse server (nothing in `os/` mentions one) and the bridge captures with `pw-cat --raw`. Whether removing a *real* BlueZ node
+can upset any PipeWire daemon stays hardware item A3/A4.
