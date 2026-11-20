@@ -218,3 +218,8 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 83. Can removing a real BlueZ node under capture upset PipeWire 1.2.8 the way `unload-module` crashes pipewire-pulse 1.4.2? (hardware A3/A4)
 84. If pipewire-pulse is ever shipped on the appliance, should it be supervised/restarted? (today not shipped; OPEN_QUESTIONS #26 moot)
 85. Root cause of Docker dropping multicast on internal networks (host firewall not inspected); report upstream?
+86. **Lab flake `test_end_to_end_bit_exact[wav]` as the first test after a lab recreate** (final run 2026-11-20: 0 aligned blocks,
+    `first_stored_frame` 250; 3/3 green when rerun warm; green in CI and in the three previous full runs). The player's applied gain was
+    65536 this time, so the earlier volume cause (fixed in `c76c541`) is excluded. New observation: on reconnect after the recreate, Lyrion
+    immediately resumed a stale bridge stream URL from an earlier run. Harness-side (lab state in `.lab/lms-config`), not seen with fresh
+    state; root cause still open.
