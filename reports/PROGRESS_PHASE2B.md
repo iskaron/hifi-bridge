@@ -172,3 +172,8 @@ Scope: owner work package of 2026-11-18 (DECISIONS #73/#74).
   raisable error code, enforced by a test), N-12 (no neighbour SSIDs in diagnostics). Unit 890, net 16 + live, OTA 12, static 0, entry 90,
   browser 11. DECISIONS #105-#110, OPEN_QUESTIONS #78.
 - Also: OS networkd DUID from the MAC (OPEN_QUESTIONS #77), OTA backup BrokenPipe race (`f365404`).
+- 7b-2 (Opus agent, `wip/qa-os`, merged; interrupted once by a rate limit, WIP saved and resumed): N-6 two-copy U-Boot environment
+  (proved with real RAUC 1.13 + libubootenv, torn newest copy -> previous valid state), N-8 discovery on fixed port 3484 + resolved
+  LLMNR/mDNS off (live spoof probes dropped), N-13 growdata, N-14 root-owned boot FAT. rpi3_64 rebuilt incrementally (283 s):
+  image check 0 FAIL / 103 PASS, secret scan 0, OTA check pass; rpi4_64/rpizero2w_64 evidence predates the fixes. Unit 895, OS 162,
+  net 17 + live, OTA 13, static 0, entry 90. DECISIONS #111-#115, OPEN_QUESTIONS #79-#82.

@@ -210,3 +210,8 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 ## Added by package 7 - final QA (2026-11-19)
 78. **Wizard network step:** network settings are reachable before setup via a link (DECISIONS #105). Is a dedicated network step in the
     setup wizard wanted instead?
+79. Show a boot with a reset U-Boot environment (`hifi.bootenv=reset`) on the update page?
+80. Switch the image to libubootenv with `/etc/u-boot-initial-env` as its default, so a Linux-side write with both env copies bad cannot
+    produce uboot-tools' generic default (`bootcmd=bootp`, an unbootable card)?
+81. Store the U-Boot environment in raw MMC sectors in the 4 MiB gap instead of FAT files (no FAT writes on every boot)?
+82. The saved environment pins `serial#`, `usbethaddr`, `fdtfile` of the first Pi the card booted in. Reset them when a card moves boards?

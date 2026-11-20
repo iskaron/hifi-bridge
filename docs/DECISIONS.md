@@ -344,3 +344,13 @@ Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardwar
 109. **Diagnostics privacy (N-12):** the diagnostics bundle contains only the number of scanned Wi-Fi networks, never neighbours' names.
 110. **Backup KDF bounds (N-9):** scrypt parameters are accepted only within OpenSSL's memory formula (128·r·(N+p+2) ≤ 64 MiB, N < 2^(16r));
     anything else is "invalid file".
+111. **Two U-Boot environment copies (N-6):** `CONFIG_ENV_REDUNDANT` with `uboot.env` + `uboot-redund.env` on the boot FAT and a two-line
+    `fw_env.config`; the card ships both copies (default environment + fresh-card slot state `BOOT_ORDER=A B`, `hifi_env=1`); `boot.cmd`
+    fails safe when `hifi_env` is missing (A then B, 3 attempts each, `hifi.bootenv=reset` on the kernel command line); `panic=10`.
+    Power-cut behaviour is HARDWARE-PENDING (gate P3-5).
+112. **Root-owned boot FAT (N-14):** `/boot` is mounted `uid=0,gid=991,fmask=0117,dmask=0007`; the member-less group `hifi-boot` is joined only
+    by `hifi-bridge-boot.service` (drop-in). Replaces the sandbox-only protection of #64's design.
+113. **Lyrion discovery port (N-8):** discovery binds the fixed local port 3484, accepts answers only from source port 3483, and the firewall
+    accepts only `udp sport 3483 udp dport 3484`.
+114. **systemd-resolved (extends #89):** stays the DNS client; `LLMNR=no` and `MulticastDNS=no` (Avahi owns mDNS).
+115. **growdata (N-13):** no guard file; it runs on every boot and is idempotent.
