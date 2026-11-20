@@ -177,3 +177,8 @@ Scope: owner work package of 2026-11-18 (DECISIONS #73/#74).
   LLMNR/mDNS off (live spoof probes dropped), N-13 growdata, N-14 root-owned boot FAT. rpi3_64 rebuilt incrementally (283 s):
   image check 0 FAIL / 103 PASS, secret scan 0, OTA check pass; rpi4_64/rpizero2w_64 evidence predates the fixes. Unit 895, OS 162,
   net 17 + live, OTA 13, static 0, entry 90. DECISIONS #111-#115, OPEN_QUESTIONS #79-#82.
+- CI on `0d3b8f2` (run 44692532202): 16/17; security failed on Bandit B104 for the new discovery bind -> justified nosec (`0657a0a`).
+- 7b-3 (Sonnet agent, `wip/qa-cov`, merged): coverage of bridge/btbridge 94.9 -> 98.1 % lines, 91.8 -> 95.9 % branches (unit 1063);
+  real bug found: login back-off overflow (`94504e0`); PipeWire flakes root-caused (pulse runtime-dir race 9/150 -> 0/300; pipewire-pulse
+  1.4.2 SIGSEGV on unload-module); local mDNS suite 18/18 (multicast dropped on internal Docker networks; own non-internal network without
+  host address); demo shows Network and Software update against SIMULATED back-ends. DECISIONS #116-#119, OPEN_QUESTIONS #83-#85.

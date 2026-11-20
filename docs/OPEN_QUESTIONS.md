@@ -215,3 +215,6 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
     produce uboot-tools' generic default (`bootcmd=bootp`, an unbootable card)?
 81. Store the U-Boot environment in raw MMC sectors in the 4 MiB gap instead of FAT files (no FAT writes on every boot)?
 82. The saved environment pins `serial#`, `usbethaddr`, `fdtfile` of the first Pi the card booted in. Reset them when a card moves boards?
+83. Can removing a real BlueZ node under capture upset PipeWire 1.2.8 the way `unload-module` crashes pipewire-pulse 1.4.2? (hardware A3/A4)
+84. If pipewire-pulse is ever shipped on the appliance, should it be supervised/restarted? (today not shipped; OPEN_QUESTIONS #26 moot)
+85. Root cause of Docker dropping multicast on internal networks (host firewall not inspected); report upstream?

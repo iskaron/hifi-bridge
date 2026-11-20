@@ -354,3 +354,13 @@ Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardwar
     accepts only `udp sport 3483 udp dport 3484`.
 114. **systemd-resolved (extends #89):** stays the DNS client; `LLMNR=no` and `MulticastDNS=no` (Avahi owns mDNS).
 115. **growdata (N-13):** no guard file; it runs on every boot and is idempotent.
+116. **mDNS test network:** Docker's rules for `internal` networks drop container-to-container multicast (Engine 29.1.3), so the mDNS suite's
+    own network is not internal but has `inhibit_ipv4` and no masquerading (no host address, no route out; checked at runtime and by
+    `tests/entry/test_compose_isolation.py`, which allows exactly this network and `NET_ADMIN` only for `mdns-nogw`).
+117. **PipeWire test harness:** `start_pipewire.sh` pre-creates `$XDG_RUNTIME_DIR/pulse` (start-up race with the readiness poll); on PipeWire
+    1.x the tests remove a source node with `pw-cli destroy` instead of `pactl unload-module`, which crashes pipewire-pulse 1.4.2 (SIGSEGV)
+    while streams reconnect. Harness only; the product never unloads modules or runs pipewire-pulse.
+118. **Demo network/update pages:** the demo runs the real network agent on a simulated Wi-Fi radio and a simulated RAUC; the product pages
+    are unchanged, the SIMULATED labelling is on the demo console and in docs/DEMO*.md.
+119. **Login back-off bound:** the rate limiter's exponential back-off exponent is capped (an unbounded `2 ** n` overflowed after ~1,030
+    failures and let an attacker bypass the back-off).
