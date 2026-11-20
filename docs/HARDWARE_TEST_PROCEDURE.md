@@ -4,7 +4,7 @@
 `docs/HARDWARE_VALIDATION_PLAN.md`. Every result entered with the kit is labelled `REAL-HARDWARE`, and the kit refuses anything else.
 
 ## 0. Bring
-* Raspberry Pi 3 B+ (reference), power supply, microSD card (≥ 16 GB), Ethernet cable. Optional: Pi Zero 2 W for E5.
+* Raspberry Pi 3 B+ (reference), power supply, microSD card (16 GB recommended; also one nominal 2 GB card for P4-1, DECISIONS #120), Ethernet cable. Optional: Pi Zero 2 W for E5.
 * One Android phone and one iPhone, with a music app, a messenger, navigation and YouTube installed.
 * One target player: Squeezelite on a PC or Pi, or a real Squeezebox (note model and firmware).
 * Access to a **test** LMS, or the owner's LMS used read-only until F4 (plan §0).

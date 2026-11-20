@@ -392,3 +392,28 @@ Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardwar
 126. **Code signing (OPEN_QUESTIONS #69, macOS part):** macOS builds, Developer ID signing and notarisation will run on GitHub Actions with the
      owner's existing Apple Developer membership (not Xcode Cloud). Prepare the pipeline and a setup guide; no real certificates, secrets or
      releases yet. The offline RAUC release key is unaffected. Windows code signing stays open.
+
+## Implementation decisions of the final polish package P1 - persistence and card layout (reversible; 2026-11-20; details docs/PERSISTENCE.md)
+127. **Fault history in RAM (implements #121, supersedes review L5):** the last 200 faults are kept in memory and mirrored to
+     `/run/hifi-bridge/faults.jsonl` (tmpfs, `RuntimeDirectory=hifi-bridge`, `RuntimeDirectoryPreserve=yes`, `--run-dir`): they survive a
+     restart of the service, not a reboot. No fsync, no file on `/data`; the file of earlier versions is removed at boot. Long-term fault
+     records need the external syslog (OPEN_QUESTIONS #88, #89).
+128. **Cleanup of what a power cut leaves behind:** the boot step (`btbridge.storage.boot_cleanup`, before anything reads the data) removes
+     interrupted uploads and downloads, a bundle no persistent state references, half-written snapshots and the temporary files of
+     interrupted atomic writes (pid-named ones would otherwise accumulate); the bridge start removes only an interrupted upload and an
+     unreferenced bundle (a paused download stays resumable until the next reboot; the concurrently running health check's files are not
+     touched). A bundle in phase `staged`/`installing` is kept (power-loss safety and retry; OPEN_QUESTIONS #87). Never raises.
+129. **RAM-only logs and no core dumps:** journald `Storage=volatile`, `RuntimeMaxUse=16M`, `RuntimeMaxFileSize=2M`, `ForwardToSyslog=no`;
+     `DefaultLimitCORE=0` for every service and `kernel.core_pattern=|/bin/false` (systemd-coredump is not installed); every Python unit
+     sets `PYTHONDONTWRITEBYTECODE=1`; timesyncd saves the clock every 900 s instead of 60 s (at most 15 minutes behind after a power cut
+     without network; every NTP synchronisation also saves it).
+130. **No needless boot-FAT write:** `hifi-status.txt` is rewritten only when its lines change (time stamps ignored); before, every boot
+     rewrote it because each line carried the current time.
+131. **Data partition 256 MiB before growth** (`mke2fs -b 4096 -i 65536`): one bundle of a completely full 384 MiB slot at 2:1
+     compression (192 MiB; measured 2.5:1) + the update manager's 16 MiB free-space margin + 8 MiB state = 216 MiB available to the bridge;
+     256 MiB gives 225 MiB (measured). A nominal 2 GB card counts as 1.8 × 10^9 usable bytes; the 1092 MiB card image must fit in it and
+     the flash tool refuses only smaller media ("smaller than 2 GB" / "kleiner als 2 GB", was 1 GB). The manifest format is unchanged (no
+     minimum-size field).
+132. **One source of the numbers:** `os/storage.json` holds the layout, the data budget, the allow-list of persistent paths, the units
+     allowed to write them and the RAM limits; the image check (`persist.*`, `size.*`), the size report and the tests read it, and
+     `tests/os/test_persistence_layout.py` fails when genimage, the defconfigs, the flash tool or docs/PERSISTENCE.md disagree.

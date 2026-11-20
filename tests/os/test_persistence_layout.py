@@ -171,6 +171,6 @@ def test_every_persistent_path_is_documented():
     for p in STORAGE["persistent"] + STORAGE["boot_fat_writes"]:
         assert f"`{p['path']}`" in doc, p["path"]
     for pattern, _, _ in STORAGE["bridge_files"]["patterns"]:
-        if not pattern.endswith("*") and pattern not in ("certs", "ota", "ota/snapshots"):
+        if not any(c in pattern for c in "*[") and pattern not in ("certs", "ota", "ota/snapshots"):
             assert pattern.split("/")[-1] in doc, pattern
     assert "docs/PERSISTENCE.md" in read(REPO, "docs", "IMAGE_BUILD.md")

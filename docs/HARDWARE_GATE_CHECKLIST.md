@@ -17,7 +17,7 @@ The gates are in order. A gate starts only when the previous one is passed **and
 
 ## G1 – Audio on stock Raspberry Pi OS (procedure: docs/HARDWARE_TEST_PROCEDURE.md, kit: `hwkit/`)
 **Prerequisites**
-- [ ] Pi 3 B+ (reference), power supply, 16 GB+ card, Ethernet. Optional: Pi Zero 2 W (E5), Pi 4.
+- [ ] Pi 3 B+ (reference), power supply, a 16 GB card (recommended) and a nominal 2 GB card (technical minimum, DECISIONS #120), Ethernet. Optional: Pi Zero 2 W (E5), Pi 4.
 - [ ] Android phone **and** iPhone with a music app, a messenger, navigation and YouTube.
 - [ ] One target player (Squeezelite on a PC/Pi, or a real Squeezebox: note the model and firmware).
 - [ ] A **test** LMS. The production LMS may be observed read-only only (plan §0, F4).
@@ -65,11 +65,20 @@ that was not tested.
   grows ext4; the second boot does nothing. (`hifi-bridge-growdata` runs on every boot without a guard since 7b-2 and only reads the
   partition table once the card is filled.)
   *Software evidence (BUILD-VERIFIED, package 6, not a hardware result):* the built cards have this layout (MBR, 4 MiB aligned, slot B empty); growth itself is HARDWARE-PENDING.
+  Since P1 of the final polish (DECISIONS #120): boot 64 | A 384 | B 384 | data 256 MiB (1092 MiB image). Run it on a **nominal 2 GB
+  card** (data grows to ~880 MiB) and on a 16 GB card; on both, an update upload of a full-size bundle must be accepted.
 - [ ] P4-2 Rootfs is read-only; `/var/lib/hifi-bridge` and `/var/lib/bluetooth` persist across reboots (pairings survive).
   *Software evidence (BUILD-VERIFIED, package 6, not a hardware result):* fstab `ro`, bootargs `ro`, /var overlay on tmpfs, bind mounts from /data verified in the images; runtime behaviour HARDWARE-PENDING.
 - [ ] P4-3 Measured sizes (rootfs used/free, boot, data after setup) replace the estimates in PHASE2B_PLAN §3. Minimum card size and
   recommendation decided.
-  *Software evidence (BUILD-VERIFIED, package 6, not a hardware result):* measured per board (rootfs 185 MiB used, bundle 74 MiB); recommendation 384/64/448 MiB, 2 GB card (minimum 1 GB) in docs/IMAGE_BUILD.md §4 - owner decision; data after setup needs a device.
+  *Software evidence (BUILD-VERIFIED, package 6, not a hardware result):* measured per board (rootfs 185 MiB used, bundle 74 MiB); layout
+  **decided by the owner (DECISIONS #120)**: 64/384/384 MiB + data 256 MiB before growth (derivation docs/PERSISTENCE.md 2.1), 2 GB target,
+  16 GB recommended; data after setup needs a device (expected < 1 MiB plus bonds).
+- [ ] P4-5 Persistence rule (DECISIONS #121, docs/PERSISTENCE.md): after a day of use, `journalctl --header` shows only a runtime journal
+  (`/run/log/journal`), `/var/log/journal` does not exist, `find /data -newer <boot marker>` lists only allow-listed paths
+  (`os/storage.json`), `/proc/sys/kernel/core_pattern` is `|/bin/false`; after a power cut during an upload the next boot leaves no
+  `ota/*.upload`/`*.part`. Optional: the card's write counter / `/sys/block/mmcblk0/stat` writes per hour at idle and while playing.
+  *Software evidence (STATIC/UNIT/BUILD, P1):* image checks `persist.*`, `tests/os/test_persistence_layout.py`, `tests/unit/test_persistence*.py`.
 - [ ] P4-4 RAM/CPU at idle and while playing (Zero 2 W: 512 MB) with BlueZ, PipeWire, WirePlumber, Avahi and RAUC running.
 
 **A/B updates and rollback (P3 – provisional U-Boot boot-count)**

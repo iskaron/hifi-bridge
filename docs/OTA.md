@@ -50,6 +50,9 @@ idle ──owner: previous version──> switching ──restart──> confirm
   passes inspection - verified). dm-verity rejects changed blocks while RAUC installs; that needs a device (gate item).
 * Before every installation the bridge's own data is snapshotted (section 6); after a successful install the bundle file is deleted
   (before the state says "installed", so a power cut never leaves an orphaned bundle).
+* **Staging cleanup (DECISIONS #121/#128):** the boot step removes every staging file no persistent state needs (an interrupted upload
+  or download, an unreferenced bundle, temporary files); the bridge start removes an interrupted upload. A `staged`/`installing` bundle
+  is kept for the owner's install or retry. Full table: docs/PERSISTENCE.md section 5.
 * `installed` means RAUC has written the other slot and made it primary. If the owner does not restart, the next power cycle still boots
   the new slot (RAUC semantics); the page says so. "Keep the current version" marks the booted slot active again.
 
@@ -198,5 +201,6 @@ stops at the mount step, which the tests assert as a clean failure.
   RAUC's two-step activation (the other environment copy must be used; console shows no "bad CRC, using default environment").
 * dm-verity refusing a bundle whose payload was changed after signing.
 * `FailureAction=reboot`, the reboot path unit and the tmpfiles directory under real systemd; the D-Bus policy with the image's dbus 1.14.
-* Space: bundle size vs. data partition (PHASE2B_PLAN section 3); a full data partition during an upload.
+* Space: bundle size vs. data partition (docs/PERSISTENCE.md 2.1: 256 MiB before growth holds one bundle of a full slot); a full data
+  partition during an upload.
 * U-1/U-2 (G4): the update check finds a test release on the public GitHub Releases (needs OPEN_QUESTIONS #45 resolved).
