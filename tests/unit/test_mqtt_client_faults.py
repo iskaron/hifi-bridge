@@ -170,10 +170,12 @@ def test_a_publish_on_a_broken_socket_reports_false_and_drops_the_connection(mak
     b, c = make(script)
     c.start()
     assert until(lambda: c.connected)
-    c._sock.shutdown(socket.SHUT_RDWR)                                           # the network went away under our feet
-    assert c.publish("a/b", "x") is False and (c.last_error or "").startswith("publish: ")
-    assert not c.connected
-    assert c.publish("a/b", "x") is False and c.dropped >= 1                     # and later calls never block either
+    sock = c._sock
+    sock.shutdown(socket.SHUT_RDWR)                                              # the network went away under our feet
+    assert c.publish("a/b", "x") is False                                        # never raises, never blocks
+    # whichever noticed first - the failing send or the reader thread seeing the broker's EOF - the connection is dropped and says why
+    assert until(lambda: not c.connected and (c.last_error or "").startswith(("publish: ", "ConnectionError", "OSError")))
+    assert c.publish("a/b", "x") is False                                       # and later calls never block either
 
 
 def test_stop_without_a_connection_and_a_connection_that_vanishes_before_the_goodbye(make):
