@@ -113,13 +113,13 @@ class RateLimiter:
             now = self.clock()
             n, _ = self._fails.get(key, (0, 0.0))
             n += 1
-            delay = 0.0 if n < self.free else min(self.max, self.base * 2 ** (n - self.free))
+            delay = 0.0 if n < self.free else min(self.max, self.base * 2 ** min(n - self.free, 64))     # capped exponent: 2**1100 overflows a float
             self._fails[key] = (n, now + delay)
             if len(self._fails) > 10_000:                     # bound memory
                 self._fails.pop(next(iter(self._fails)))
             gn, _, last = self._global
             gn = 1 if now - last > self.global_quiet else gn + 1     # the budget refills after a quiet period
-            gdelay = 0.0 if gn < self.global_free else min(self.global_max, self.base * 2 ** (gn - self.global_free))
+            gdelay = 0.0 if gn < self.global_free else min(self.global_max, self.base * 2 ** min(gn - self.global_free, 64))
             self._global = (gn, now + gdelay, now)
 
     def ok(self, key: str) -> None:
