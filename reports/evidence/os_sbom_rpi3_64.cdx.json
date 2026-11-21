@@ -28,7 +28,7 @@
     "properties": [
       {
         "name": "hifi-bridge:evidence",
-        "value": "final polish P2 rebuild of rpi3_64 (2026-11-20, branch wip/p2-uboot-firmware on 8475549: libubootenv + image default environment, per-board firmware; incremental retarget build). BUILD/SIMULATED only, nothing booted"
+        "value": "final polish P6 rebuild (2026-11-21, develop a7ae13b: P3 wizard network step in the rootfs; incremental build). BUILD/SIMULATED only, nothing booted"
       }
     ]
   },

@@ -24,6 +24,14 @@ secret-scan JSON, a `hifi-bridge:evidence` property in the SBOM; the `os_license
 regenerated from the same builds but have no header by format). Sections 2-8 below still describe the package-6/7b-2/P1 state where they
 say so.
 
+**Final polish P6 (2026-11-21):** all three boards rebuilt **incrementally** on `develop` `a7ae13b` (`os_build.sh <board> build`, which
+re-syncs the bridge package), so the images carry the P3 wizard network step (74 bridge modules instead of 73; no OS configuration
+changed since P2). Image checks 0 FAIL, 128 PASS, 21 INFO each; secret scans 0 findings; OTA checks pass (bundles 76 064 201 / 76 322 250
+/ 75 941 326 bytes for rpi3_64 / rpi4_64 / rpizero2w_64); new card-image sha256 `1f041187…` / `ccd53dd8…` / `3a999590…` (the P2 images
+`6a90614b…` / `64337ea5…` / `c0e28e4f…` are replaced). The `os_image_*`, `os_ota_*`, `os_secret_scan_*`, `os_sbom_*` and `os_size_plan.*`
+evidence now carries an "Evidence: final polish P6 rebuild" line; legal-info and SBOM content were not regenerated (no package changed).
+BUILD only - nothing booted.
+
 ## 1. Commands
 ```bash
 export HIFI_LAB=$PWD/.lab                       # a git worktree points this at the main checkout's .lab
