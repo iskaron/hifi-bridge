@@ -43,6 +43,17 @@ Raw numbers: `measurements/*.json`; full logs: `reports/evidence/full_run.log`.
 12. During a pure **LMS outage** the player keeps playing the bridge's live stream by itself (99.99 % audible for 20 s) and LMS re-attached
     without restart; in a **player outage** audio resumed 0.47-0.57 s after the player returned, first frame only ~1.5 s old (nothing stale).
     (Squeezelite behaviour; hardware players may differ.)
+13. **Lyrion keeps a requested fade-in until a stream really starts** (P4, 2026-11-21, INTEGRATION; source read in the 9.1.2 container:
+    `StreamingController->{fadeIn}` is set by `play`/`resume` and cleared only in `_Start`/`_Resume`). A play request with a fade-in
+    whose URL cannot be streamed leaves it pending; `stop` and `playlist clear` do not clear it, and the next stream starts with
+    `strm s ... transition type: 2` (1 s linear fade-in at the player). Lyrion makes such requests itself: a player connecting to a
+    (re)started Lyrion with `playingAtPowerOff` and a persisted queue is resumed with `playlist jump <i> 1` (fade-in 1 s). Warm-lab
+    experiment: an unreachable request with fade-in before the bit-exact test 3/3 failed (faded), without fade-in 3/3 passed; an old
+    session URL of a running bridge with fade-in: 410 from the stream server (`stale_rejected`), bridge's next stream faded 3/3.
+    Start latency is unchanged (first output 1.56-1.62 s faded, n=6; 1.51-1.62 s unfaded, n=5); only the first second's samples are scaled.
+14. **`playlist deleteitem` does not rewrite Lyrion's persisted queue** (`prefs/clientplaylist_<mac>.m3u`; `deleteitem` is not in
+    Lyrion's queue-saving command list): after a release the live queue is empty but the file still lists the bridge URL, which comes back
+    after a Lyrion restart (OPEN_QUESTIONS #99).
 
 ## Pause strategies (INTEGRATION, 3 cycles each, virtual DAC)
 | strategy | Pause -> last audible output | Resume -> first output | LMS commands |
