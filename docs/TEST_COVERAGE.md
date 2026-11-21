@@ -15,6 +15,7 @@ counted here (it used to add a misleading 0 % for ten GUI files).
 | **Demo package (2026-11-17), commit `0e307d1`:** same scope | 5615 | 2120 | **91 %** |
 | **Package 7b-3, before (2026-11-20, develop `0d3b8f2`, `bridge/btbridge` only, after phases 2b-3..6)** | 9540 | 3620 | 94.0 % (line 94.9 %, branch 91.8 %) |
 | **Package 7b-3, after (same scope, same command)** | 9540 | 3620 | **97.5 %** (line **98.1 %**, branch **95.9 %**) |
+| **Final polish P6 (2026-11-21, develop `a7ae13b`, same scope and command; incl. the P1/P3 code)** | 9788 | 3748 | **97.6 %** (line **98.2 %**, branch **96.0 %**) |
 
 90 % was an intermediate measurement, not a target ceiling (DECISIONS #60). New code of the demo package: bootfiles 97 %, provisioning 92 %,
 recovery 91 %, trustproof 95 %, flash tool modules 93–100 %.

@@ -1,6 +1,6 @@
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-158 passed, 2 warnings in 95.89s (0:01:35)
+159 passed, 2 warnings in 94.83s (0:01:34)
 Name                                         Stmts   Miss Branch BrPart  Cover   Missing
 ----------------------------------------------------------------------------------------
 flashtool/hififlash/__init__.py                  1      0      0      0   100%
@@ -11,7 +11,7 @@ flashtool/hififlash/disks.py                   119      0     44      0   100%
 flashtool/hififlash/fatslot.py                  90      0     34      0   100%
 flashtool/hififlash/gui/__main__.py              3      0      0      0   100%
 flashtool/hififlash/gui/app.py                  46      0      8      0   100%
-flashtool/hififlash/gui/dialogs.py             139      0     20      0   100%
+flashtool/hififlash/gui/dialogs.py             142      0     22      0   100%
 flashtool/hififlash/gui/i18n.py                 28      0      4      0   100%
 flashtool/hififlash/gui/ownersheet.py           30      0      8      0   100%
 flashtool/hififlash/gui/pages.py               777      0    108      0   100%
@@ -37,6 +37,6 @@ flashtool/hififlash/provision.py                32      0     12      0   100%
 flashtool/hififlash/trust.py                    22      0      2      0   100%
 flashtool/hififlash/writer.py                  124      0     40      0   100%
 ----------------------------------------------------------------------------------------
-TOTAL                                         2956      0    604      0   100%
+TOTAL                                         2959      0    606      0   100%
 
 2 empty files skipped.

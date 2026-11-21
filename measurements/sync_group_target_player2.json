@@ -6,21 +6,20 @@
   ],
   "bridge_target": "player2",
   "max_player_spread_ms_at_3_frames": [
-    3.2,
-    3.0,
-    3.4
+    11.0,
+    11.1,
+    11.1
   ],
   "sync_correction_jumps_frames": {
     "player1": [
-      705,
-      617
+      573,
+      573
     ],
     "player2": [
-      837,
-      617
+      485
     ],
     "player3": [
-      617
+      661
     ]
   },
   "integrity": {
@@ -30,43 +29,35 @@
       "mismatched": 4,
       "jumps": [
         [
-          24,
+          19,
           0
         ],
         [
-          25,
-          705
+          20,
+          573
         ],
         [
-          114,
+          85,
           0
         ],
         [
-          115,
-          617
+          86,
+          573
         ]
       ]
     },
     "player2": {
       "blocks": 143,
-      "matched": 139,
-      "mismatched": 4,
+      "matched": 141,
+      "mismatched": 2,
       "jumps": [
         [
-          44,
+          46,
           0
         ],
         [
-          45,
-          837
-        ],
-        [
-          134,
-          0
-        ],
-        [
-          135,
-          617
+          47,
+          485
         ]
       ]
     },
@@ -76,12 +67,12 @@
       "mismatched": 2,
       "jumps": [
         [
-          44,
+          106,
           0
         ],
         [
-          45,
-          617
+          107,
+          661
         ]
       ]
     }
@@ -92,7 +83,7 @@
   ],
   "label": "INTEGRATION real LMS sync + SIMULATED BT; virtual DACs, NOT acoustic",
   "env": {
-    "date_utc": "2026-11-20T09:40:50Z",
+    "date_utc": "2026-11-21T03:16:05Z",
     "lms": "9.1.2",
     "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
     "kernel": "7.0.0-43-generic",

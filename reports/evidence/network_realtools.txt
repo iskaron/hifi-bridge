@@ -1,4 +1,4 @@
-# network management with real tools - 2026-11-20T09:56:25Z - label INTEGRATION (Docker, no Wi-Fi hardware)
+# network management with real tools - 2026-11-21T02:37:47Z - label INTEGRATION (Docker, no Wi-Fi hardware)
 nft: nftables v1.1.3 (Commodore Bullmoose #4)
 dnsmasq: Dnsmasq version 2.91  Copyright (c) 2000-2025 Simon Kelley
 hostapd: hostapd v2.10
@@ -31,9 +31,9 @@ tests/net/test_real_tools.py::test_avahi_set_hostname_against_a_real_daemon PASS
 tests/net/test_real_tools.py::test_resolved_with_the_image_dropin_answers_no_llmnr_or_mdns PASSED [ 94%]
 tests/net/test_real_tools.py::test_units_pass_systemd_analyze_verify PASSED [100%]
 
-============================= 17 passed in 13.55s ==============================
+============================= 17 passed in 13.48s ==============================
 ### 2. live firewall and hotspot DHCP (three containers)
-ready hotspot_iface=eth1 dnsmasq_pid=7
+ready hotspot_iface=eth1 dnsmasq_pid=8
 table inet hifi {
 	chain input {
 		type filter hook input priority filter; policy drop;
@@ -63,30 +63,30 @@ table inet hifi {
 	}
 }
 
-PASS c41031e030c7 -> 192.168.77.10:80 expected open, got open
-PASS c41031e030c7 -> 192.168.77.10:443 expected open, got open
-PASS c41031e030c7 -> 192.168.77.10:8090 expected open, got open
-PASS c41031e030c7 -> 192.168.77.10:2222 expected dropped, got dropped
-PASS c41031e030c7 -> 192.168.77.10:53 expected dropped, got dropped
-PASS c41031e030c7 -> 192.168.77.10:5353/udp from source port 3483 expected open, got open
-PASS c41031e030c7 -> 192.168.77.10:5355/udp from source port 3483 expected dropped, got dropped
-PASS c41031e030c7 -> 192.168.77.10:40000/udp from source port 3483 expected dropped, got dropped
-PASS c41031e030c7 -> 192.168.77.10 ICMP echo
+PASS a2e82218fc97 -> 192.168.77.10:80 expected open, got open
+PASS a2e82218fc97 -> 192.168.77.10:443 expected open, got open
+PASS a2e82218fc97 -> 192.168.77.10:8090 expected open, got open
+PASS a2e82218fc97 -> 192.168.77.10:2222 expected dropped, got dropped
+PASS a2e82218fc97 -> 192.168.77.10:53 expected dropped, got dropped
+PASS a2e82218fc97 -> 192.168.77.10:5353/udp from source port 3483 expected open, got open
+PASS a2e82218fc97 -> 192.168.77.10:5355/udp from source port 3483 expected dropped, got dropped
+PASS a2e82218fc97 -> 192.168.77.10:40000/udp from source port 3483 expected dropped, got dropped
+PASS a2e82218fc97 -> 192.168.77.10 ICMP echo
 PASS discovery from local port 3484 behind the firewall found [{'address': '192.168.77.20', 'NAME': 'Lab Lyrion', 'JSON': '9000'}]
 ready
 answered discovery from 192.168.77.10:3484
-PASS 3502d2b54070 -> 10.42.0.1:80 expected open, got open
-PASS 3502d2b54070 -> 10.42.0.1:443 expected open, got open
-PASS 3502d2b54070 -> 10.42.0.1:8090 expected dropped, got dropped
-PASS 3502d2b54070 -> 10.42.0.1:2222 expected dropped, got dropped
-PASS 3502d2b54070 -> 10.42.0.1:53 expected dropped, got dropped
-PASS 3502d2b54070 -> 10.42.0.1 ICMP echo
+PASS 714d2c5ae48d -> 10.42.0.1:80 expected open, got open
+PASS 714d2c5ae48d -> 10.42.0.1:443 expected open, got open
+PASS 714d2c5ae48d -> 10.42.0.1:8090 expected dropped, got dropped
+PASS 714d2c5ae48d -> 10.42.0.1:2222 expected dropped, got dropped
+PASS 714d2c5ae48d -> 10.42.0.1:53 expected dropped, got dropped
+PASS 714d2c5ae48d -> 10.42.0.1 ICMP echo
 udhcpc: started, v1.37.0
 udhcpc: broadcasting discover
 udhcpc: broadcasting discover
-udhcpc: broadcasting select for 10.42.0.12, server 10.42.0.1
-udhcpc: lease of 10.42.0.12 obtained from 10.42.0.1, lease time 3600
-lease: ip=10.42.0.12 mask=255.255.255.0 router=none dns=none server=10.42.0.1
+udhcpc: broadcasting select for 10.42.0.46, server 10.42.0.1
+udhcpc: lease of 10.42.0.46 obtained from 10.42.0.1, lease time 3600
+lease: ip=10.42.0.46 mask=255.255.255.0 router=none dns=none server=10.42.0.1
 PASS lease address in 10.42.0.10-60
 PASS no default router
 PASS no DNS server

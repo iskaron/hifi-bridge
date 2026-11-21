@@ -15,7 +15,7 @@
 [manager]	WARNING	Test in comment: the is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: stream is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: token is not a test name or id, ignoring
-[tester]	WARNING	nosec encountered (B104), but no failed test on line 44
+[tester]	WARNING	nosec encountered (B104), but no failed test on line 46
 [manager]	WARNING	Test in comment: scheme is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: restricted is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: to is not a test name or id, ignoring
@@ -72,7 +72,7 @@
 [manager]	WARNING	Test in comment: checked is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: https is not a test name or id, ignoring
 [manager]	WARNING	Test in comment: only is not a test name or id, ignoring
-Run started:2026-11-20 10:04:42.119336
+Run started:2026-11-21 02:46:37.482132
 
 Test results:
 >> Issue: [B110:try_except_pass] Try, Except, Pass detected.
@@ -387,10 +387,10 @@ Test results:
    Severity: Low   Confidence: High
    CWE: CWE-78 (https://cwe.mitre.org/data/definitions/78.html)
    More Info: https://bandit.readthedocs.io/en/1.8.6/plugins/b603_subprocess_without_shell_equals_true.html
-   Location: flashtool/hififlash/disks.py:186:34
-185	    """Runs the platform command (GUI on the owner's machine only). Never called by tests (CLAUDE.md: no host hardware discovery)."""
-186	    run = runner or (lambda argv: subprocess.run(argv, capture_output=True, check=True, timeout=20).stdout)
-187	    if platform == "linux":
+   Location: flashtool/hififlash/disks.py:188:34
+187	    """Runs the platform command (GUI on the owner's machine only). Never called by tests (CLAUDE.md: no host hardware discovery)."""
+188	    run = runner or (lambda argv: subprocess.run(argv, capture_output=True, check=True, timeout=20).stdout)
+189	    if platform == "linux":
 
 --------------------------------------------------
 >> Issue: [B404:blacklist] Consider possible security implications associated with the subprocess module.
@@ -425,7 +425,7 @@ Test results:
 --------------------------------------------------
 
 Code scanned:
-	Total lines of code: 15350
+	Total lines of code: 15767
 	Total lines skipped (#nosec): 0
 	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 8
 
