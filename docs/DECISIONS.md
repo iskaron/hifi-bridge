@@ -463,3 +463,17 @@ Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardwar
      the SIMULATED network agent starts (the image order: `hifi-bridge-boot.service` before `hifi-netd`); `docker/compose.yml` service
      `appliance-setup` (profile browser, started by `scripts/run_browser.sh`) uses it with `tests/browser/setup-provision.json` (lab-only
      setup code and hotspot password) for the hotspot-only browser test.
+
+## Implementation decisions of the final polish package P4 - lab flake #86 (reversible; 2026-11-21; evidence reports/evidence/flake86_investigation.md)
+141. **The integration harness settles the lab players before the first test (resolves OPEN_QUESTIONS #86):** once per process
+     `Lab.reset()` unsyncs and powers on the four lab players and calls `Lab.settle_players()`: every player starts the lab's own
+     synthetic stream (port 8081 of the runner) until Lyrion reports it playing (`mode play`, elapsed time > 0), then `playlist clear` +
+     `stop`. A stream that really starts is the only thing that clears a fade-in Lyrion still holds from a play request that could not
+     stream (here: the resume of a stale queue item on reconnect, FINDINGS 13). Squeezelite's log shows the transition of each start; if a
+     settle start carried one, a second settle start must have none, otherwise the session stops with a clear error. The settle prints which
+     player carried a transition, so the condition stays visible. Not chosen: deleting the persisted queues in the Lyrion entrypoint
+     (covers only container creation, not a stop/start or a forgotten player, and would change what the Lyrion-outage scenario exercises),
+     `persistPlaylists: 0` or `powerOnResume` without resume in the lab prefs (both differ from a real owner's default Lyrion), sync/unsync
+     tricks that replace Lyrion's controller object (internal behaviour), sleeps or reruns. `tests/integration/test_00_lab_settle.py` creates
+     a pending fade-in on purpose (unreachable URL on Lyrion's own loopback) and checks that the settle consumes it and the bridge's next
+     stream starts without a transition.

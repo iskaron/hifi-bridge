@@ -236,11 +236,17 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
 83. Can removing a real BlueZ node under capture upset PipeWire 1.2.8 the way `unload-module` crashes pipewire-pulse 1.4.2? (hardware A3/A4)
 84. If pipewire-pulse is ever shipped on the appliance, should it be supervised/restarted? (today not shipped; OPEN_QUESTIONS #26 moot)
 85. Root cause of Docker dropping multicast on internal networks (host firewall not inspected); report upstream?
-86. **Lab flake `test_end_to_end_bit_exact[wav]` as the first test after a lab recreate** (final run 2026-11-20: 0 aligned blocks,
-    `first_stored_frame` 250; 3/3 green when rerun warm; green in CI and in the three previous full runs). The player's applied gain was
-    65536 this time, so the earlier volume cause (fixed in `c76c541`) is excluded. New observation: on reconnect after the recreate, Lyrion
-    immediately resumed a stale bridge stream URL from an earlier run. Harness-side (lab state in `.lab/lms-config`), not seen with fresh
-    state; root cause still open.
+86. ~~**Lab flake `test_end_to_end_bit_exact[wav]` as the first test after a lab recreate**~~ **resolved (P4, 2026-11-21, harness;
+    DECISIONS #141, evidence `reports/evidence/flake86_investigation.md`).** Cause, reproduced and confirmed by experiment: Lyrion
+    resumed a stale queue item (an old bridge URL in `.lab/lms-config/prefs/clientplaylist_<mac>.m3u` with `playingAtPowerOff: 1`, left by
+    the player-outage scenario) with a 1 s fade-in when the player connected to the recreated Lyrion; the URL could not be streamed, and
+    Lyrion keeps a requested fade-in until a stream really starts, so the first test's stream faded in (`strm s ... transition type: 2`)
+    and could not be aligned. Cold labs before the fix: stale state 6/6 failed, fresh 5/5 and stale-without-`playingAtPowerOff` 3/3 passed;
+    warm lab with an injected unreachable play request: with fade-in 3/3 failed, without 3/3 passed. The same fade-in is in the logs of the
+    two package-2/3 full-run failures of 2026-11-18 (gain 65536 there too); the `c76c541` volume cause was real but a second one. Fix:
+    `Lab.settle_players()` starts and stops one stream per player before the first test and verifies that the next start has no
+    transition (after the fix, cold labs: stale 5/5 and fresh 5/5 passed; full suites in the evidence file). Product impact: see #99. Original observation (final run 2026-11-20): 0 aligned
+    blocks, `first_stored_frame` 250, gain 65536, a stale bridge URL resumed on reconnect; 3/3 green warm, green in CI (fresh state).
 
 ## Added by the final polish package (2026-11-20)
 87. **Staged update bundle across a reboot** (P1, docs/PERSISTENCE.md 5): a verified bundle waiting for the owner's "install" (phase
@@ -281,3 +287,17 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
     (seconds), the owner switching the phone's Wi-Fi, opening the address and logging in again (cookies are per host). Enough for an owner
     on a phone, or should a trial started from the setup hotspot get a longer window (a reversible constant, `netmanager.TRIAL_S`)?
     Not changed without a real-phone measurement.
+
+## Added by the final polish package P4 - lab flake #86 (2026-11-21)
+99. **Lyrion keeps the released bridge item in its persisted queue (real installations too):** the bridge releases with
+    `playlist deleteitem <url>` (URL-addressed, DECISIONS/FINDINGS 3); Lyrion 9.1.2 removes the item from the live queue but does not
+    rewrite `prefs/clientplaylist_<mac>.m3u` for that command (it is not in Lyrion's list of queue-saving commands; observed in the lab
+    after a fresh start and one bridge session). After a Lyrion restart the player's queue therefore shows the old "Bluetooth" item again,
+    and if the player had been disconnected or switched off while the bridge played (`playingAtPowerOff`), Lyrion tries to resume it on
+    reconnect with a 1 s fade-in. With a running bridge the stream server rejects the old URL (INTEGRATION, warm lab, 3/3: old session
+    -> 410, `stale_rejected` +1, no audio served; an old token would get 403), the request fails before streaming, Lyrion keeps the
+    fade-in pending, and the bridge's next stream on that player started with `transition type: 2` (3/3): the guest's first second fades in (FINDINGS 13; no latency change measured: first output
+    1.56-1.58 s either way). Harmless for audio (no data lost), cosmetic in Lyrion's UI. Options: (a) accept and document (current state);
+    (b) after a release that left the queue empty, also send a queue-saving command - but `playlist clear` is not URL-addressed and could
+    remove an item someone added in the same instant (ownership rule), so not done; (c) report upstream (adding `deleteitem` to the
+    queue-saving commands is a one-line Lyrion change) - a publication, needs the owner. Real players/Lyrion installations: hardware gate.

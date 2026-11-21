@@ -169,3 +169,11 @@ Scope: owner work package of 2026-11-20 (DECISIONS #120-#126). Baseline `develop
 - Product-relevant observation: after a fresh lab and only test_01 the persisted queue `clientplaylist_020000000001.m3u` still lists the
   released bridge URL while Lyrion's live queue is empty (`playlist deleteitem` is not in Lyrion's list of queue-saving commands).
   `t_first_lms_output` of faded and unfaded first streams is the same (1.56-1.58 s): the fade changes samples, not start latency.
+- Fix (harness, DECISIONS #141): `Lab.settle_players()` once per process in `Lab.reset()`; test first:
+  `tests/integration/test_00_lab_settle.py` failed before the implementation (AttributeError), passes after.
+- Post-fix cold labs (`-k test_end_to_end_bit_exact`, same procedure): stale **5/5 passed** (every one: Lyrion's stale resume in its
+  log, the first settle start carried `transition type: 2`, the second settle start and both bridge streams type 0), fresh **5/5
+  passed** (no transition at all). Settle cost: ~2 s per session (fresh), ~4.5 s when a pending fade-in had to be consumed.
+- Live-bridge experiment for OPEN_QUESTIONS #99 (warm lab, 3/3): Lyrion's play request for an old session URL of a running bridge with
+  fade-in -> 410 (`stale_rejected` +1, no connection served), the bridge's next stream faded in (type 2). Product behaviour correct
+  (old URL rejected); the fade-in is Lyrion's (FINDINGS 13/14).

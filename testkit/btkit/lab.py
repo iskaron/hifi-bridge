@@ -81,6 +81,54 @@ class Lab:
         except OSError:
             return None
 
+    # Squeezelite logs the transition of every stream start: "strm s autostart: A transition period: P transition type: T" (0 = none,
+    # 2 = fade-in).  Lyrion sends a fade-in when a play request carried one and no stream has started since (see settle_players).
+    _TRANSITION = re.compile(rb"strm s autostart: \d+ transition period: \d+ transition type: (\d+)")
+    _settled = False                                   # once per process: settle_players() ran against this Lyrion
+
+    @classmethod
+    def transitions_since(cls, name, offset):
+        """Transition types of the stream starts Squeezelite logged after byte ``offset`` of its log."""
+        with open(f"/captures/{name}/squeezelite.log", "rb") as f:
+            f.seek(offset)
+            return [int(t) for t in cls._TRANSITION.findall(f.read())]
+
+    def settle_players(self, timeout=20.0):
+        """Start and stop one stream on every lab player, then confirm that a stream starts without a transition.
+
+        Why (OPEN_QUESTIONS #86): when a player connects to a (re)started Lyrion while its persisted state says it was playing
+        (`playingAtPowerOff` + the queue in `prefs/clientplaylist_<mac>.m3u`, e.g. an old bridge URL from an earlier lab session),
+        Lyrion resumes that item with a 1 s fade-in (`playlist jump <i> 1`). The old URL cannot be streamed, and Lyrion clears the
+        pending fade-in only when a stream really starts - so the first stream of the suite would fade in and the bit-exact analysis
+        cannot align. `stop` and `playlist clear` do not clear it. A stream that starts does, so every player plays the lab's own
+        synthetic stream once; if that start carried a transition, a second start must not."""
+        src = Radio(port=8081)
+        try:
+            for attempt in (1, 2):
+                marks = {n: self.log_size(n) for n in PLAYERS}
+                for pid in PLAYERS.values():
+                    self.lms.req(pid, "playlist", "play", src.url, "lab settle")
+                deadline = time.time() + timeout
+                pending = set(PLAYERS)
+                while pending:
+                    for n in sorted(pending):
+                        st = self.status(n)
+                        if st.get("mode") == "play" and float(st.get("time") or 0) > 0:
+                            pending.discard(n)
+                    if pending and time.time() > deadline:
+                        raise RuntimeError(f"lab settle: no stream started within {timeout:.0f}s on {sorted(pending)}")
+                    time.sleep(0.1)
+                for pid in PLAYERS.values():
+                    self.lms.req(pid, "playlist", "clear"); self.lms.req(pid, "stop")
+                seen = {n: self.transitions_since(n, marks[n]) for n in PLAYERS}
+                carried = {n: t for n, t in seen.items() if any(t)}
+                if not carried:
+                    return attempt
+                print(f"lab settle: stream start {attempt} carried a pending Lyrion transition {carried} (consumed)", flush=True)
+            raise RuntimeError(f"lab settle: Lyrion still starts streams with a transition: {carried}")
+        finally:
+            src.stop()
+
     def _volume_confirmed(self, name):
         return self.status(name).get("mixer volume") == 100 and self.last_gain(name) in (self.FULL_GAIN, None)
 
@@ -89,6 +137,11 @@ class Lab:
         # a volume command sent before that is lost.  A gain != unity makes the bit-exact checks fail ("samples altered"), so wait
         # for the players, then confirm the gain the player really applied (not only Lyrion's preference) and retry if needed.
         self.wait_players_connected()
+        if not Lab._settled:                                 # once per process, before the first test (OPEN_QUESTIONS #86)
+            for pid in PLAYERS.values():
+                self.lms.req(pid, "sync", "-"); self.lms.req(pid, "power", 1)
+            self.settle_players()
+            Lab._settled = True
         for attempt in range(10):
             for pid in PLAYERS.values():
                 self.lms.req(pid, "sync", "-")
