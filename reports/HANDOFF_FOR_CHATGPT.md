@@ -166,10 +166,11 @@ Coverage (`scripts/run_coverage.sh --integration`, scope `bridge/btbridge`, `rep
 **98.2 % lines, 96.0 % branches** (9788 statements, 3748 branches; before this package 98.1 / 95.9 with 9540 statements). No
 `pragma: no cover`, no line-only tests; the gaps are the listed hardware-dependent and error-handler paths.
 
-GitHub Actions (`ci`, 17 jobs, every suite except the image builds and the browser/demo stacks that need local compose profiles): 44783605532
-(`8475549`, P1), 44817088946 (`23a4fa6`, P2), 44838313778 (`3c7cd70`, P3), 44850288448 (`a7ae13b`, P4) - **all 17/17 green**.
-**Final CI on the P6 commits (rebuild evidence, full-run evidence, this handoff): pending at the time of writing -
-recorded in the next line by a docs-only commit.**
+GitHub Actions (`ci`, 17 jobs: static, security, unit, integration, coverage, pipewire, hwkit, mdns, network, ota, syslog, python314,
+os-and-flashtool, flashtool, homeassistant, demo, browser; no image builds): 44783605532 (`8475549`, P1), 44817088946 (`23a4fa6`, P2),
+44838313778 (`3c7cd70`, P3), **44850288448 (`a7ae13b`, P4 merge = the last code change) - all 17/17 green**. The P6 commits after it
+change only `docs/`, `reports/` and `measurements/`, which `ci.yml` deliberately skips (`paths-ignore`, runner budget, OPEN_QUESTIONS
+#44), so no further CI run exists; the code CI tested is the code the final local run tested.
 
 Image builds (BUILD, P6, incremental on `a7ae13b`, all three boards): image checks **0 FAIL / 128 PASS / 21 INFO** each, secret scans 0
 findings, OTA checks pass (bundle accepted by the image's keyring, foreign-signed bundle refused). New images replace the P2 images (card
