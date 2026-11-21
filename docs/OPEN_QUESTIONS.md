@@ -245,7 +245,7 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
     warm lab with an injected unreachable play request: with fade-in 3/3 failed, without 3/3 passed. The same fade-in is in the logs of the
     two package-2/3 full-run failures of 2026-11-18 (gain 65536 there too); the `c76c541` volume cause was real but a second one. Fix:
     `Lab.settle_players()` starts and stops one stream per player before the first test and verifies that the next start has no
-    transition (after the fix, cold labs: stale 5/5 and fresh 5/5 passed; full suites in the evidence file). Product impact: see #99. Original observation (final run 2026-11-20): 0 aligned
+    transition (after the fix, cold labs: stale 6/6 and fresh 6/6 passed; three full suites from cold labs 56/56 each). Product impact: see #99. Original observation (final run 2026-11-20): 0 aligned
     blocks, `first_stored_frame` 250, gain 65536, a stale bridge URL resumed on reconnect; 3/3 green warm, green in CI (fresh state).
 
 ## Added by the final polish package (2026-11-20)
@@ -296,8 +296,8 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
     and if the player had been disconnected or switched off while the bridge played (`playingAtPowerOff`), Lyrion tries to resume it on
     reconnect with a 1 s fade-in. With a running bridge the stream server rejects the old URL (INTEGRATION, warm lab, 3/3: old session
     -> 410, `stale_rejected` +1, no audio served; an old token would get 403), the request fails before streaming, Lyrion keeps the
-    fade-in pending, and the bridge's next stream on that player started with `transition type: 2` (3/3): the guest's first second fades in (FINDINGS 13; no latency change measured: first output
-    1.56-1.58 s either way). Harmless for audio (no data lost), cosmetic in Lyrion's UI. Options: (a) accept and document (current state);
+    fade-in pending, and the bridge's next stream on that player started with `transition type: 2` (3/3): the guest's first second
+    fades in (FINDINGS 13; no latency change measured: first output 1.51-1.62 s either way). Harmless for audio (no data lost), cosmetic in Lyrion's UI. Options: (a) accept and document (current state);
     (b) after a release that left the queue empty, also send a queue-saving command - but `playlist clear` is not URL-addressed and could
     remove an item someone added in the same instant (ownership rule), so not done; (c) report upstream (adding `deleteitem` to the
     queue-saving commands is a one-line Lyrion change) - a publication, needs the owner. Real players/Lyrion installations: hardware gate.

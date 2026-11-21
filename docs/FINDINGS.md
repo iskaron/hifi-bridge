@@ -50,7 +50,7 @@ Raw numbers: `measurements/*.json`; full logs: `reports/evidence/full_run.log`.
     (re)started Lyrion with `playingAtPowerOff` and a persisted queue is resumed with `playlist jump <i> 1` (fade-in 1 s). Warm-lab
     experiment: an unreachable request with fade-in before the bit-exact test 3/3 failed (faded), without fade-in 3/3 passed; an old
     session URL of a running bridge with fade-in: 410 from the stream server (`stale_rejected`), bridge's next stream faded 3/3.
-    Start latency is unchanged (first output 1.56-1.58 s); only the first second's samples are scaled.
+    Start latency is unchanged (first output 1.56-1.62 s faded, n=6; 1.51-1.62 s unfaded, n=5); only the first second's samples are scaled.
 14. **`playlist deleteitem` does not rewrite Lyrion's persisted queue** (`prefs/clientplaylist_<mac>.m3u`; `deleteitem` is not in
     Lyrion's queue-saving command list): after a release the live queue is empty but the file still lists the bridge URL, which comes back
     after a Lyrion restart (OPEN_QUESTIONS #99).
