@@ -151,3 +151,21 @@ Scope: owner work package of 2026-11-20 (DECISIONS #120-#126). Baseline `develop
     do not clear it. `playingAtPowerOff=1` is left by the player-outage scenario (player1 stopped while playing, 09:51:27 UTC); the
     bridge's release (`playlist deleteitem`) is not one of the commands that rewrite the persisted queue, so the m3u keeps the last
     bridge URL. Hypothesis at this point, to be confirmed by experiment.
+- Lab prepared: `docker compose stop lms` first (so Lyrion does not record the players' disconnect), `scripts/lab_down.sh`, the
+  original state moved to `.lab/lms-config.stale-20261120T235200Z` (untouched reference: player1 `playingAtPowerOff: 1`, queue =
+  `http://appliance:8090/s/.../tOpBt475.wav`). Per run: `scripts/lab_down.sh` (containers, lab network and lab volumes incl. the
+  captures removed), `.lab/lms-config` = copy of the reference (stale), empty (fresh) or the reference with player1's
+  `playingAtPowerOff` set to '' (stale-disarmed), `scripts/lab_up.sh`, then `scripts/run_integration.sh -k test_end_to_end_bit_exact -s`.
+  Per-run evidence in `.lab/p4-flake86/runs/` (table.tsv, pre-status, Lyrion log since its start, player1 stream starts).
+- REPRODUCED (INTEGRATION, cold labs, pre-fix harness): stale **6/6 failed** (every one: Lyrion log `Can't connect ... retrieve playlist
+  for http://appliance:8090/...` at player connect, first stream `transition type: 2`, "samples altered?"); fresh **5/5 passed** and
+  stale-disarmed **3/3 passed** (no resume attempt, `transition type: 0`). The stale URL in the queue alone does not fail the test; the
+  armed resume does.
+- CONFIRMED BY EXPERIMENT (warm lab, no recreate, fresh state): `playlist play http://127.0.0.1:1/p4/x.wav Bluetooth 1` (unreachable,
+  with a 1 s fade-in) before the wav test -> **3/3 failed** with `transition type: 2`; the same request without the fade-in -> **3/3
+  passed** (type 0) - although `Lab.reset()` sends `playlist clear` + `stop` in between. Fade analysis of a failing capture
+  (`.lab/p4-flake86/tools/fadecheck.py`): stored/reference gain 0.05 -> 0.28 -> 0.51 -> 0.79 -> 1.00 over the first 44100 frames; after
+  skipping that second the output is the generator's, bit-exact (74 of 75 blocks matched, the last one cut by the analysis window, no jump).
+- Product-relevant observation: after a fresh lab and only test_01 the persisted queue `clientplaylist_020000000001.m3u` still lists the
+  released bridge URL while Lyrion's live queue is empty (`playlist deleteitem` is not in Lyrion's list of queue-saving commands).
+  `t_first_lms_output` of faded and unfaded first streams is the same (1.56-1.58 s): the fade changes samples, not start latency.
