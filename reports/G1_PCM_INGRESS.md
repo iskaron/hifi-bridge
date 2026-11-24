@@ -20,7 +20,7 @@ Setup findings of the same day (REAL-HARDWARE), fixed in the test kit: `libspa-0
 seat monitoring active on a headless Pi with logind (old rule keyed on `loginctl` missing); a stale Pi-side bond blocked re-pairing
 (documented fix: remove the bond; `JustWorksRepairing = always` is now explicitly not recommended).
 
-## 2. Changes (branch `wip/g1-pcm-ingress`, merged into `develop`)
+## 2. Changes (branch `wip/g1-pcm-ingress`, merged into `develop` as `3f21ff7`; demo fix `9da58e7`)
 | Area | Files | What |
 |---|---|---|
 | Graph | `hwkit/pi-setup/50-hifi-bridge-a2dp-input.conf`, `os/br2-external/board/hifi-bridge/overlay/etc/wireplumber/wireplumber.conf.d/50-hifi-bridge-a2dp-input.conf` | WirePlumber rule `bluez5.media-source-role = "input"` for `bluez_input.*` (DECISIONS #142) |
@@ -32,6 +32,7 @@ seat monitoring active on a headless Pi with logind (old rule keyed on `loginctl
 | Test Pi | `hwkit/pi-setup/setup_test_pi.sh`, `main.conf.snippet`, `hwkit/hwkit/preflight.py`, `capture.py`, `__main__.py`, `catalog.json`, `hwkit/README.md` | `libspa-0.2-bluetooth`; role rule; headless detection by boot target (`--headless`/`--desktop`); dry-run mode for tests; preflight FAILs for each G1 finding; `hwkit capture` discovers the node, refuses a playback stream with the reason, reports peak level and non-zero fraction (#145) |
 | Image | overlay `etc/pipewire/pipewire.conf.d/10-hifi-bridge-rates.conf` (+ the rule), `os/tools/image_check.py` | the image had no PipeWire configuration at all; checks `audio.bluez5-spa-plugin`, `audio.capture-tools`, `audio.a2dp-input-role`, `audio.allowed-rates`, `audio.seat-monitoring` (INFO) |
 | Lab harness | `testkit/btkit/analyze.py` | `load()` reads only the requested window (OPEN_QUESTIONS #103: after days of lab uptime the full parse starved the in-process radio and failed 4 integration tests, also on unchanged code) |
+| Demo | `demo/hifidemo/vbluez.py`, `tests/demo/test_vbluez.py` | the virtual phone node looks like the real input-role BlueZ node |
 | Docs | `docs/PIPEWIRE_CAPTURE.md` "G1", `docs/HARDWARE_TEST_PROCEDURE.md` §5, `docs/HARDWARE_GATE_CHECKLIST.md` G1-R, `docs/DECISIONS.md` #142-#145, `docs/OPEN_QUESTIONS.md` #100-#103, `docs/FINDINGS.md`, `docs/IMAGE_BUILD.md` | |
 
 Architecture choice (DECISIONS #142): the upstream-documented role switch. Rejected: name-only fix (local playback continues), an
@@ -52,6 +53,12 @@ user session) and in the image (PipeWire 1.2.8 / WirePlumber 0.5.10 system-wide)
 | `scripts/run_static.sh`, `scripts/run_entry_tests.sh` | exit 0; 100 passed | STATIC |
 | Images rpi3_64 / rpi4_64 / rpizero2w_64 (incremental rebuild, overlay + bridge) | image checks **0 FAIL / 132 PASS / 22 INFO** each, new `audio.*` PASS; secret scans 0; OTA checks pass (bundles 76 092 873 / 76 301 769 / 75 941 327 bytes); size plan ok | BUILD - never booted |
 | Old command line replayed against the G1 topology | exit 1 after ~10 ms, `defined target not found` (3/3) | INTEGRATION |
+| `scripts/run_demo_tests.sh`, `scripts/test_demo.sh` (after the demo fix `9da58e7`) | 56 passed; stack rc=0 (isolation, setup 2, chain 11, console 8) | SIMULATED devices |
+
+**CI:** run 45440926408 on the merge `3f21ff7`: 16/17 - the `demo` job failed for a real reason I had not run locally: the demo's
+virtual BlueZ (`demo/hifidemo/vbluez.py`) still imported the removed `node_name_for`, so the demo bridge never found its phone node.
+Fixed in `9da58e7` (the demo node now has the real name `bluez_input.<MAC_>.2` and the BlueZ properties the product discovers; new demo
+unit test). **Run 45448263467 on `9da58e7`: 17/17 green.**
 
 ## 4. What still needs the operator (G1-R, `docs/HARDWARE_TEST_PROCEDURE.md` §5)
 * the phone is listed under *Sources* (not a stream to the headphones) after the rule and a reconnect;
