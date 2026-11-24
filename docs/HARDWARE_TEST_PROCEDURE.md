@@ -59,3 +59,62 @@ python3 -m hwkit results check results.json && python3 -m hwkit results report r
 ## 4. Bring back (for the next handoff)
 `results.json`, `env.json`, `REPORT.md`, and `sessions/**` (traces, captures, `pw-dump`). Traces are anonymised by default. Do not include setup
 codes, passwords or the stream token. Real traces become regression fixtures in `tests/fixtures/traces/`, labelled REAL-HARDWARE.
+
+## 5. G1 retest after the PCM-ingress fix (2026-11-24; background: docs/PIPEWIRE_CAPTURE.md "G1")
+Keeps the existing pairing, the bridge's data directory (`~/bridge-data`: owner password, settings) and Pi OS as they are; no reflash.
+Takes about 30 minutes. Results are REAL-HARDWARE only when you observed them; write down what you heard per room.
+
+**0. On the development machine** (Docker): `scripts/hwkit_bundle.sh`, then `scp dist/hwkit-bundle-<rev>.tar.gz olm@hifi-test.local:`.
+
+**1. Install on the Pi** (stop the running bridge first with Ctrl-C):
+```bash
+mv ~/hifi-bridge ~/hifi-bridge.previous                       # rollback copy
+mkdir ~/hifi-bridge && tar xzf ~/hwkit-bundle-<rev>.tar.gz -C ~/hifi-bridge && cat ~/hifi-bridge/dist/HWKIT_REVISION
+sudo sh ~/hifi-bridge/hwkit/pi-setup/setup_test_pi.sh --i-am-on-the-test-pi --headless
+```
+The script installs nothing new if the packages are there, adds `/etc/wireplumber/wireplumber.conf.d/50-hifi-bridge-a2dp-input.conf`,
+rewrites `80-no-logind.conf` with the same content you installed by hand, and restarts your PipeWire/WirePlumber.
+
+**2. Reconnect the phone** (Bluetooth off and on, or disconnect/connect in its Bluetooth menu): the phone's node is created anew with the
+input role. Then, read-only:
+```bash
+cd ~/hifi-bridge && export PYTHONPATH="$PWD/bridge:$PWD/hwkit"
+python3 -m hwkit preflight                                    # no FAIL; new: seat-monitoring, a2dp-input-role, bluez5-plugin, audio-sink-uuid
+wpctl status                                                  # expected: the phone under "Sources", NO bluez_input stream -> Headphones
+pactl list short sources | grep bluez_input                   # expected: bluez_input.<MAC_>.2
+```
+Stop here and report if the phone is still listed under *Streams* with a link to the headphones.
+
+**3. Volumes first.** In Lyrion set Küche, Arbeitszimmer and esparagus-01 to about 20 % (last known: 88 / 100 / 62 % - check the
+current values and write them down to restore them later). Phone media volume about 30 %.
+
+**4. PCM ingress without Lyrion** (bridge still stopped; nothing is sent to any player): start a known track on the phone, then
+```bash
+python3 -m hwkit capture -o ~/g1-ingress --address <phone MAC> --seconds 20
+```
+Expected in the printed JSON under `recordings.phone`: `seconds` about 20, `peak_dbfs` above -40 and `nonzero_fraction` above 0.5 while
+music plays. Meanwhile nothing may sound from the Pi's headphone jack. `capture: ... playback stream ...` instead means the rule is not
+active (step 2). The WAV stays in `~/g1-ingress` (delete it when done; it is a recording).
+
+**5. End to end.** Start the bridge exactly as before:
+`python3 -m btbridge.appliance --data "$HOME/bridge-data" --source bluez --boot-dir /boot/firmware`. The console shows
+`capture tool: ...; capture target: the phone's Audio/Source node found with pw-dump`. Press Play on the phone: expected console lines
+`transport pending (<MAC>)` / `transport active (<MAC>)` and no `capture waiting` / `capture child exited` lines. Listen in each room
+of the group and note per room: audible yes/no, in sync yes/no.
+
+**6. Behaviour** (note each result): pause 10 s and resume; pause 60 s and resume; phone Bluetooth off and on (reconnect); next/previous
+track; while the phone is paused, start music in Lyrion by hand (manual source priority - the bridge must not take it over); WebUI
+*Diagnostics* → download the bundle: `audio_capture` shows `state` and `transport`; the bridge console has no crash and no endless
+`capture ...` messages.
+
+**7. Restore** the Lyrion volumes from step 3.
+
+**Bring back:** the console output of the bridge, `wpctl status` (during playback), `python3 -m hwkit preflight`, the JSON of step 4, the
+diagnostics bundle, and on failure also `journalctl --user -u wireplumber -b --no-pager | tail -100` and `pw-dump > pw-dump.json`.
+
+**Rollback** (back to `b648936` and the PipeWire configuration before this retest):
+```bash
+sudo rm /etc/wireplumber/wireplumber.conf.d/50-hifi-bridge-a2dp-input.conf
+systemctl --user restart wireplumber pipewire pipewire-pulse
+rm -rf ~/hifi-bridge && mv ~/hifi-bridge.previous ~/hifi-bridge
+```

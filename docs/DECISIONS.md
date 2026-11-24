@@ -477,3 +477,28 @@ Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardwar
      tricks that replace Lyrion's controller object (internal behaviour), sleeps or reruns. `tests/integration/test_00_lab_settle.py` creates
      a pending fade-in on purpose (unreachable URL on Lyrion's own loopback) and checks that the settle consumes it and the bridge's next
      stream starts without a transition.
+142. **The phone's A2DP audio is an Audio/Source, never a local playback stream (G1 real-hardware finding, 2026-11-24):** the appliance
+     image (`/etc/wireplumber/wireplumber.conf.d/50-hifi-bridge-a2dp-input.conf`) and the test Pi (`hwkit/pi-setup/`) set WirePlumber's
+     documented node property `bluez5.media-source-role = "input"` for `bluez_input.*` (PipeWire 1.2.8/1.4.2 `media-source.c`; WirePlumber
+     0.5 `monitor.bluez.rules`). With the default `playback` the node is a Stream/Output/Audio that WirePlumber links to the device's
+     own output - nothing to record, and audio on the Pi's headphone jack. Rejected: correcting only the target name (records the stream
+     in the lab, but WirePlumber keeps playing it locally), an application-owned null sink + monitor (a second routing policy that
+     must out-guess WirePlumber's autoconnect for every new node, and a monitor that would also carry any other audio routed there),
+     linking ports by hand with `pw-link` (node/port IDs change per connection, races with WirePlumber). The rule matches by name prefix
+     as upstream's example does; only media-source (A2DP/BAP) nodes read the property, so hands-free nodes are unaffected.
+143. **Capture target by properties, resolved before every start:** `pcm.find_phone_node()` reads `pw-dump` and takes the node with
+     `api.bluez5.address` = the active phone, `api.bluez5.profile = a2dp-source`, `media.class = Audio/Source`, not internal; several →
+     the highest `object.serial` (newest connection). No target → no capture child (the reason is shown and logged once); a playback-role
+     node is never a target. Replaces the guessed `bluez_input.<MAC_>` (`node_name_for`, wrong: the real name ends in `.2`). `pw-dump`
+     is in Pi OS's `pipewire-bin` and in the image (checked by `audio.capture-tools`). `node.dont-fallback`/`dont-reconnect` stay.
+144. **One capture worker per streaming phone; the child's stderr is a diagnosis, not noise:** the adapter starts capture once for
+     repeated or replayed `pending`/`active`, stops it on `idle`/removal/disconnect/stop, and logs each transport transition once. The
+     capture supervisor drains the child's stderr (bounded 2 KiB), logs an exit or stall with its last line, de-duplicates identical
+     messages (again every 50th), and reports `status()`; the diagnostics bundle carries it as `audio_capture` (MACs pseudonymised).
+     Nothing is written to disk; no audio is recorded.
+145. **Test-Pi setup is decided by the boot target, not by `loginctl`:** `setup_test_pi.sh` installs `libspa-0.2-bluetooth`, the role rule
+     always, and the WirePlumber seat-monitoring override when the Pi is headless (`systemctl get-default` ≠ `graphical.target`, or
+     `--headless`); `--desktop` keeps seat monitoring for a Pi with a local session. `hwkit preflight` checks all of it. The appliance
+     image needs no override: its system-wide WirePlumber profile disables seat monitoring (`mixin.systemwide-session`). The Bluetooth
+     agent capability passed to `register_agent` is now really sent to BlueZ (was hard-coded; same value `NoInputNoOutput`, no change in
+     behaviour). Numeric comparison in the WebUI stays a future, unapproved feature.
