@@ -1,12 +1,42 @@
 {
  "_hwkit_silent_retries": 0,
- "_node_ready_after_s": 0.04,
+ "_node_ready_after_s": 0.05,
  "_stand_in_reloads": 0,
  "_version": "1.4.2",
  "auto_choice": {
   "bit_exact": true,
   "missing_node_bytes": 0,
   "missing_node_mic_frames": 0,
+  "tool": "pw-cat --raw"
+ },
+ "g1_input_role": {
+  "after_vanish_bytes": 0,
+  "after_vanish_reason": "no PipeWire node for AA:BB:CC:DD:EE:08 (a2dp-source) yet",
+  "after_vanish_status": "waiting",
+  "bit_exact": true,
+  "headerless": true,
+  "label": "INTEGRATION real PipeWire + SIMULATED input-role node",
+  "node": "bluez_input.AA_BB_CC_DD_EE_08.2",
+  "payload_frames": 214356,
+  "status": {
+   "address": "AA:BB:CC:DD:EE:08",
+   "last_error": "",
+   "node": "bluez_input.AA_BB_CC_DD_EE_08.2",
+   "reason": "capture source bluez_input.AA_BB_CC_DD_EE_08.2",
+   "starts": 1,
+   "state": "capturing"
+  },
+  "tool": "pw-cat --raw"
+ },
+ "g1_playback_stream": {
+  "bytes": 0,
+  "label": "INTEGRATION real PipeWire + SIMULATED phone stream",
+  "mic_frames": 0,
+  "node": null,
+  "reason": "the phone's audio is a playback stream (bluez_input.AA_BB_CC_DD_EE_07.2, Stream/Output/Audio) that PipeWire plays on this device's own output, not a source the bridge can record: install the WirePlumber rule that sets bluez5.media-source-role = input (hwkit/pi-setup/50-hifi-bridge-a2dp-input.conf; docs/PIPEWIRE_CAPTURE.md G1)",
+  "starts": 0,
+  "status": "waiting",
+  "stream_frames": 0,
   "tool": "pw-cat --raw"
  },
  "no_fallback_parec": {
@@ -104,7 +134,7 @@
   "consecutive_pairs": 219611,
   "dropped_frames": 0,
   "drops": 0,
-  "first_index": 324325,
+  "first_index": 325349,
   "foreign_frames": 0,
   "frames": 219618,
   "garbage_prefix_frames": 6,
@@ -141,7 +171,7 @@
   "consecutive_pairs": 220499,
   "dropped_frames": 0,
   "drops": 0,
-  "first_index": 633573,
+  "first_index": 636645,
   "foreign_frames": 0,
   "frames": 220500,
   "garbage_prefix_frames": 0,

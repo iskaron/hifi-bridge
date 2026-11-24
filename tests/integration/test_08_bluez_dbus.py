@@ -61,6 +61,7 @@ def props_of(fb, path, iface):
 def test_start_registers_agent_and_closes_pairing(rig):
     rig.ad.start()
     assert wait(lambda: rig.fb.agent is not None)
+    assert rig.fb.agent_capability == "NoInputNoOutput"            # the capability the adapter asked for, over the real bus
     assert props_of(rig.fb, ADAPTER, "org.bluez.Adapter1")["Pairable"] is False
     assert props_of(rig.fb, ADAPTER, "org.bluez.Adapter1")["Discoverable"] is False
 

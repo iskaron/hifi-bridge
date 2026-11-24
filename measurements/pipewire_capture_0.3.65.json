@@ -1,12 +1,42 @@
 {
  "_hwkit_silent_retries": 0,
- "_node_ready_after_s": 0.05,
- "_stand_in_reloads": 0,
+ "_node_ready_after_s": 8.11,
+ "_stand_in_reloads": 1,
  "_version": "0.3.65",
  "auto_choice": {
   "bit_exact": true,
   "missing_node_bytes": 0,
   "missing_node_mic_frames": 0,
+  "tool": "parec"
+ },
+ "g1_input_role": {
+  "after_vanish_bytes": 0,
+  "after_vanish_reason": "no PipeWire node for AA:BB:CC:DD:EE:08 (a2dp-source) yet",
+  "after_vanish_status": "waiting",
+  "bit_exact": true,
+  "headerless": true,
+  "label": "INTEGRATION real PipeWire + SIMULATED input-role node",
+  "node": "bluez_input.AA_BB_CC_DD_EE_08.2",
+  "payload_frames": 217854,
+  "status": {
+   "address": "AA:BB:CC:DD:EE:08",
+   "last_error": "",
+   "node": "bluez_input.AA_BB_CC_DD_EE_08.2",
+   "reason": "capture source bluez_input.AA_BB_CC_DD_EE_08.2",
+   "starts": 1,
+   "state": "capturing"
+  },
+  "tool": "parec"
+ },
+ "g1_playback_stream": {
+  "bytes": 0,
+  "label": "INTEGRATION real PipeWire + SIMULATED phone stream",
+  "mic_frames": 0,
+  "node": null,
+  "reason": "the phone's audio is a playback stream (bluez_input.AA_BB_CC_DD_EE_07.2, Stream/Output/Audio) that PipeWire plays on this device's own output, not a source the bridge can record: install the WirePlumber rule that sets bluez5.media-source-role = input (hwkit/pi-setup/50-hifi-bridge-a2dp-input.conf; docs/PIPEWIRE_CAPTURE.md G1)",
+  "starts": 0,
+  "status": "waiting",
+  "stream_frames": 0,
   "tool": "parec"
  },
  "no_fallback_parec": {
@@ -67,7 +97,7 @@
   "consecutive_pairs": 218735,
   "dropped_frames": 0,
   "drops": 0,
-  "first_index": 23553,
+  "first_index": 24753,
   "foreign_frames": 0,
   "frames": 218736,
   "garbage_prefix_frames": 0,
@@ -99,22 +129,22 @@
    "-"
   ],
   "bit_exact": true,
-  "bytes": 878472,
-  "consecutive_pairs": 201167,
+  "bytes": 874944,
+  "consecutive_pairs": 199260,
   "dropped_frames": 0,
   "drops": 0,
-  "first_index": 311809,
+  "first_index": 316593,
   "foreign_frames": 0,
-  "frames": 219618,
+  "frames": 218736,
   "garbage_prefix_frames": 0,
   "header": null,
   "headerless": true,
-  "inserted_silence_frames": 18432,
-  "inserted_silence_runs": 18,
+  "inserted_silence_frames": 19456,
+  "inserted_silence_runs": 19,
   "label": "INTEGRATION real PipeWire tools + SIMULATED source node (module-pipe-source); not BlueZ",
   "leading_silence_frames": 0,
   "offset": 0,
-  "payload_frames": 219618,
+  "payload_frames": 218736,
   "repeats": 0,
   "trailing_silence_frames": 0
  },
@@ -123,7 +153,7 @@
   "chunks_while_node_missing": 0,
   "mic_frames_total": 0,
   "resume_asserted": false,
-  "resumed_pattern_frames": 94374,
+  "resumed_pattern_frames": 96138,
   "starts": 8,
   "tool": "parec"
  },
@@ -138,7 +168,7 @@
    "--raw"
   ],
   "bytes": 194040,
-  "mic_frames": 42366
+  "mic_frames": 43390
  },
  "risk_fallback_pw-cat": {
   "argv": [
@@ -154,7 +184,7 @@
    "s16",
    "-"
   ],
-  "bytes": 522144,
-  "mic_frames": 116200
+  "bytes": 525672,
+  "mic_frames": 114010
  }
 }

@@ -11,9 +11,8 @@ from .pcm import PipeWireCapture
 
 
 def create_adapter(bus: str = "SYSTEM", adapter_path: str = ADAPTER_PATH_DEFAULT, log: Callable[[str], None] = print) -> BluezAdapter:
-    from .pcm import choose_capture, node_name_for, source_present
+    from .pcm import choose_capture, find_phone_node
     name, argv_for_node = choose_capture()
-    log(f"capture tool: {name}")
-    capture = PipeWireCapture(argv_for=lambda addr: argv_for_node(node_name_for(addr)), log=log,
-                              present=lambda addr: source_present(node_name_for(addr)) if name == "parec" else True)
+    log(f"capture tool: {name}; capture target: the phone's Audio/Source node found with pw-dump (docs/PIPEWIRE_CAPTURE.md G1)")
+    capture = PipeWireCapture(resolve=find_phone_node, argv_for_node=argv_for_node, log=lambda m: log(m))
     return BluezAdapter(JeepneyBus(bus=bus, log=log), capture, adapter_path=adapter_path, log=log)
