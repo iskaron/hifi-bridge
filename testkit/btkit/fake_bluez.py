@@ -205,6 +205,7 @@ class FakeBluez:
                 self.remove_object(dev)
             elif iface == "org.bluez.AgentManager1" and member == "RegisterAgent":
                 self.agent = (f[HeaderFields.sender], body[0])
+                self.agent_capability = body[1]
                 self.conn.send_message(new_method_return(msg))
             elif iface == "org.bluez.AgentManager1" and member == "RequestDefaultAgent":
                 self.conn.send_message(new_method_return(msg))

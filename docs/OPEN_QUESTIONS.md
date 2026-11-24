@@ -301,3 +301,22 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
     (b) after a release that left the queue empty, also send a queue-saving command - but `playlist clear` is not URL-addressed and could
     remove an item someone added in the same instant (ownership rule), so not done; (c) report upstream (adding `deleteitem` to the
     queue-saving commands is a one-line Lyrion change) - a publication, needs the owner. Real players/Lyrion installations: hardware gate.
+
+## Added by the G1 PCM-ingress repair (2026-11-24)
+100. **Transport acquisition in the input role (hardware):** with `bluez5.media-source-role = input` nothing consumes the phone's node
+     until the bridge's capture starts on `pending`; PipeWire then acquires the transport on node start (`media-source.c` `do_start`).
+     Whether every phone (Android/iPhone) tolerates that delay, and whether BlueZ ever times a `pending` transport out before it is
+     acquired, can only be seen on hardware (G1-R). If it fails: keep a capture consumer attached for the whole connection instead.
+101. **The image's PipeWire instance for the bridge user:** the image runs PipeWire/WirePlumber system-wide (`pipewire.service`), and
+     the bridge (user `hifi-bridge`) must reach its socket for `pw-dump`/`pw-cat`; the role rule and the 44.1 kHz clock are now in the
+     image. Access rights and the system-wide vs. per-user choice remain OPEN_QUESTIONS #24/#25 until the image boots (G2).
+102. **Authenticated pairing with numeric comparison** (owner idea, G1 day): the WebUI would show the 6-digit code to the owner. Not
+     approved and not built; the agent capability parameter now reaches BlueZ, so a later `DisplayYesNo` agent is a contained change.
+103. ~~**Lab: integration tests lose audio after days of lab uptime**~~ **fixed (harness, 2026-11-24):** four radio/guest-flow tests failed
+     ("audible_fraction 0.78-0.94"), also on the unchanged code of `b648936`. Cause, shown by experiment: `btkit.analyze.load()` parsed
+     the player's whole capture history (281 MB PCM + 43 MB index after three days: 3.07 s holding the GIL), so the synthetic radio served
+     by a thread of the same test process fell behind real time and the player went silent (threads stalled up to 0.44 s, radio silent
+     for 4 s); the tests evaluate `lab.capture()` before `time.time()`, so the window contained that silence. Fix: `load()` reads only the
+     requested window (binary search in the time-ordered index, a ranged read of `pcm.raw`); equal to the full parse
+     (`tests/unit/test_capture_load.py`), milliseconds for a window of a 3-hour history; the four tests then passed 3 x 3 against the
+     same, still growing capture (304 MB). The capture volume itself still grows until `scripts/lab_down.sh`; a size cap was not added.

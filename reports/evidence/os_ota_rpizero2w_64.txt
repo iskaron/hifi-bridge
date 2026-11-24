@@ -1,12 +1,12 @@
-# > **Evidence: final polish P6 rebuild (2026-11-21, develop a7ae13b: P3 wizard network step in the rootfs; incremental build). BUILD/SIMULATED only, nothing booted**
+# > **Evidence: G1 PCM ingress fix (2026-11-24, branch wip/g1-pcm-ingress: WirePlumber a2dp input role + 44.1 kHz config in the image, node discovery in the bridge; incremental build). BUILD/SIMULATED only, nothing booted**
 
 ### make ota (compatible hifi-bridge-rpizero2w, version 0.3.0-dev, development signing key)
       image btbridge-os:dev: present
-os_bundle: /out/hifi-bridge-hifi-bridge-rpizero2w-0.3.0-dev.raucb (75941326 bytes)
+os_bundle: /out/hifi-bridge-hifi-bridge-rpizero2w-0.3.0-dev.raucb (75941327 bytes)
 os_bundle: output directory on this host: /home/olm/bluetooth-audio-bridge/.lab/br-out/rpizero2w_64/ota
 ### rauc info with the image s keyring (1 certificate(s): O=Hi-Fi Bridge development, OU=temporary, not for release, CN=Hi-Fi Bridge DEV update CA a8324dbd)
 PASS accepted by the image keyring (bundle compatible hifi-bridge-rpizero2w)
 PASS bundle compatible = image compatible (hifi-bridge-rpizero2w)
-     version 0.3.0-dev | image sha256 6d22087f15e744afbbff2b3cf581b5ac8d301e225a781b4d0cccf1d15381e0ec
+     version 0.3.0-dev | image sha256 cd3c2d4159e26aaebf79a34742605ac836b2a8377e9a31dc04be7a01f817986d
 PASS a foreign-signed bundle is refused
-bundle size: 75941326 bytes
+bundle size: 75941327 bytes

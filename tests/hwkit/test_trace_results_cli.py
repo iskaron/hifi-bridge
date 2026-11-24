@@ -139,9 +139,18 @@ def test_capture_writes_wav_and_timestamps_with_a_fake_capture(tmp_path):
                     on_pcm(pcm[k:k + 3528]); time.sleep(0.001)
             self.t = threading.Thread(target=run); self.t.start()
         def stop(self): self.t.join()
-    meta = C.record(str(tmp_path), "AA:BB:CC:DD:EE:01", 0.5, capture_factory=FakeCap, label="SIMULATED")
-    assert meta["nodes"] == {"phone": "bluez_input.AA_BB_CC_DD_EE_01"} and meta["label"] == "SIMULATED"
+    from btbridge.adapters.bluez.pcm import find_phone_node
+    fixtures = os.path.join(os.path.dirname(__file__), "..", "fixtures", "pipewire")
+    graph = {n: json.load(open(os.path.join(fixtures, n))) for n in ("g1_input_role.json", "g1_playback_role.json")}
+    meta = C.record(str(tmp_path), "C0:FF:EE:00:00:01", 0.5, capture_factory=FakeCap, label="SIMULATED",
+                    find_node=lambda a: find_phone_node(a, dump=graph["g1_input_role.json"]))
+    assert meta["nodes"] == {"phone": "bluez_input.C0_FF_EE_00_00_01.2"} and meta["label"] == "SIMULATED"
+    with pytest.raises(RuntimeError, match="media-source-role"):          # the G1 state: refuses instead of recording nothing
+        C.record(str(tmp_path / "g1"), "C0:FF:EE:00:00:01", 0.5, capture_factory=FakeCap,
+                 find_node=lambda a: find_phone_node(a, dump=graph["g1_playback_role.json"]))
     assert meta["recordings"]["phone"]["first_sample_wall"] and meta["recordings"]["phone"]["seconds"] == 3.0
+    rec = meta["recordings"]["phone"]
+    assert rec["peak"] > 1000 and rec["peak_dbfs"] < 0 and 0.5 < rec["nonzero_fraction"] <= 1.0   # "real audio arrived" without numpy
     x, rate = A.read_wav(str(tmp_path / "phone.wav"))
     c = A.continuity(A.find_blocks(x, rate))
     assert c["clean"] and c["first"] == 7 and c["last"] == 36

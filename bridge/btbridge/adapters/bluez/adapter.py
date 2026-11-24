@@ -33,6 +33,8 @@ class BluezAdapter:
         self.errors: list[str] = []
         self._lock = threading.RLock()
         self._started = False
+        self._capturing_for: str | None = None             # address the one capture worker runs for (None = no worker)
+        self._transport_state: str | None = None
 
     # ---- AudioSourceAdapter ------------------------------------------------------------------------------
     def attach(self, cb) -> None:
@@ -49,16 +51,14 @@ class BluezAdapter:
 
             @staticmethod
             def on_disconnect(dev):
-                adapter.pcm.stop()
+                adapter._capture_stop()
                 adapter.active_address = None
+                adapter._transport_state = None
                 cb.on_disconnect(dev)
 
             @staticmethod
             def on_transport(state):
-                if state in ("pending", "active") and adapter.active_address:
-                    adapter.pcm.start(adapter.active_address, cb.on_pcm)
-                elif state == "idle":
-                    adapter.pcm.stop()
+                adapter._on_transport_state(state)
                 cb.on_transport(state)
 
             on_avrcp = staticmethod(lambda s: cb.on_avrcp(s))
@@ -79,7 +79,8 @@ class BluezAdapter:
             self._apply_pairable(False)                     # always start closed; the pairing window opens explicitly
 
     def stop(self) -> None:
-        self.pcm.stop()
+        self._capturing_for = None
+        self.pcm.stop()                                     # always (idempotent): no worker survives the adapter
         try:
             self._apply_pairable(False)
         except BusError:
@@ -122,7 +123,32 @@ class BluezAdapter:
     def set_alias(self, name: str) -> None:
         self.bus.set_property(self.adapter_path, IF_ADAPTER, "Alias", "s", name)
 
+    def capture_status(self) -> dict:
+        """Diagnostics of the audio plane (no secrets): transport state and the capture worker's state, if it reports one."""
+        st = getattr(self.pcm, "status", None)
+        return {"transport": self._transport_state, "capturing_for": self._capturing_for, **(st() if callable(st) else {})}
+
     # ---- internals -----------------------------------------------------------------------------------------
+    def _on_transport_state(self, state: str) -> None:
+        """One capture worker per streaming phone: start on pending/active (once, however often BlueZ repeats the state or the
+        model replays it), stop on idle. Every transition is logged once (G1: the event path must be visible on hardware)."""
+        addr = self.active_address
+        if state != self._transport_state:
+            self._transport_state = state
+            self.log(f"transport {state} ({addr or 'no active phone'})")
+        if state in ("pending", "active") and addr:
+            if self._capturing_for != addr:
+                self._capture_stop()
+                self.pcm.start(addr, self.cb.on_pcm)
+                self._capturing_for = addr
+        elif state == "idle":
+            self._capture_stop()
+
+    def _capture_stop(self) -> None:
+        if self._capturing_for is not None:
+            self._capturing_for = None
+            self.pcm.stop()
+
     def _on_event(self, ev) -> None:
         with self._lock:
             if self.model is not None:

@@ -29,6 +29,10 @@ The gates are in order. A gate starts only when the previous one is passed **and
 **Tests** (criteria in docs/HARDWARE_VALIDATION_PLAN.md)
 - [ ] A1–A5 bring-up: adapter, A2DP sink, **capturable phone node**, `node.dont-fallback`, no microphone fallback.
   **Stop if A3/A4 fail.**
+- [ ] **G1-R (2026-11-24, after the first G1 day):** PCM-ingress retest, docs/HARDWARE_TEST_PROCEDURE.md section 5: the phone's node is an
+  Audio/Source with the WirePlumber role rule (not a stream to the headphones), `hwkit capture` shows real amplitude without LMS, the
+  bridge's transport/capture log lines, audible music in each room, pause/resume, reconnect, manual source priority, silent Pi output.
+  Observed on the first day: pairing, metadata and the test tone worked; Bluetooth music was inaudible (docs/PIPEWIRE_CAPTURE.md "G1").
 - [ ] B1, B2, B3, B4, B6, B7 pairing window, single source, reconnect. **Stop if B4 evicts the first phone.**
 - [ ] C1 (Android) and C2 (iPhone) media traces: music vs. notification vs. navigation. This is the main open software risk.
 - [ ] D1, D2: absolute volume per phone.

@@ -47,7 +47,7 @@ class JeepneyBus:
         self.timeout, self.log = timeout, log
         self._q: queue.Queue = queue.Queue()
         self._handler: Callable[[BusEvent], None] | None = None
-        self._agent: tuple[str, AgentHandler] | None = None
+        self._agent: tuple[str, AgentHandler, str] | None = None
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._filters: list = []
@@ -102,13 +102,13 @@ class JeepneyBus:
 
     def register_agent(self, path: str, capability: str, handler: AgentHandler) -> None:
         from jeepney import MatchRule
-        self._agent = (path, handler)
+        self._agent = (path, handler, capability)
         self._filters.append(self.router.filter(MatchRule(type="method_call", path=path), queue=self._q))
         self._register_agent_with_bluez()
 
     def _register_agent_with_bluez(self) -> None:
-        path, _ = self._agent
-        self.call("/org/bluez", IF_AGENT_MANAGER, "RegisterAgent", "os", (path, "NoInputNoOutput"))
+        path, _, capability = self._agent
+        self.call("/org/bluez", IF_AGENT_MANAGER, "RegisterAgent", "os", (path, capability))
         self.call("/org/bluez", IF_AGENT_MANAGER, "RequestDefaultAgent", "o", (path,))
 
     def reregister_agent(self) -> None:

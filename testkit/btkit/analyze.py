@@ -29,28 +29,66 @@ class Capture:
         return len(self.t_end)
 
 
+SEEK_MARGIN_S = 10.0     # rows are written in time order; a coalesced-silence row may carry a slightly earlier time than its predecessor
+
+
+def _row_time(line: bytes) -> float | None:
+    try:
+        return float(json.loads(line)[0])
+    except (ValueError, IndexError, TypeError):
+        return None
+
+
+def _index_start(f, since: float, size: int) -> int:
+    """Byte position from which reading the index finds every row with t >= since: binary search over the file (the tap appends
+    rows in time order), backed off by SEEK_MARGIN_S. Costs O(log size) reads instead of parsing the lab's whole history."""
+    target = since - SEEK_MARGIN_S
+    lo, hi = 0, size
+    while hi - lo > 65536:
+        mid = (lo + hi) // 2
+        f.seek(mid)
+        f.readline()                                  # the rest of a line cut by the seek
+        pos = f.tell()
+        t = _row_time(f.readline())
+        if t is None or t >= target:
+            hi = mid
+        else:
+            lo = pos
+    return lo
+
+
 def load(path: str, since: float = 0.0, until: float = 1e18) -> Capture:
+    """The rows of [since, until] and their stored PCM. Reads only that window (binary search in the time-ordered index, one ranged
+    read of pcm.raw): the cost does not grow with the lab's uptime. Equal to parsing everything (tests/unit/test_capture_load.py)."""
     rows = []
-    with open(os.path.join(path, "index.jsonl")) as f:
+    with open(os.path.join(path, "index.jsonl"), "rb") as f:
+        size = os.fstat(f.fileno()).st_size
+        start = _index_start(f, since, size) if since > 0 else 0
+        f.seek(start)
+        if start:
+            f.readline()                              # start at a line boundary
         for line in f:
             try:
-                rows.append(json.loads(line))
+                row = json.loads(line)
             except ValueError:
-                pass
-    raw = np.fromfile(os.path.join(path, "pcm.raw"), dtype=np.int16)
-    pcm = raw[: len(raw) // 2 * 2].reshape(-1, 2)
+                continue                              # a half-written last line while the tap is writing
+            if row[0] > until + SEEK_MARGIN_S:
+                break
+            rows.append(row)
     a = np.array(rows, dtype=np.float64) if rows else np.zeros((0, 3))
     m = (a[:, 0] >= since) & (a[:, 0] <= until) if len(a) else np.zeros(0, bool)
     a = a[m]
     off = a[:, 2].astype(np.int64)
     nb = a[:, 1].astype(np.int64)
     st = off >= 0
-    if st.any():                      # slice stored PCM to the window and re-base offsets
+    if st.any():                      # read only the stored PCM of the window and re-base offsets
         lo, hi = int(off[st].min()), int((off[st] + nb[st]).max())
-        pcm = pcm[lo // FB : hi // FB]
+        lo -= lo % FB
+        raw = np.fromfile(os.path.join(path, "pcm.raw"), dtype=np.int16, offset=lo, count=(hi - lo) // 2)
+        pcm = raw[: len(raw) // 2 * 2].reshape(-1, 2)[: (hi - lo) // FB]
         off = np.where(st, off - lo, -1)
     else:
-        pcm = pcm[:0]
+        pcm = np.zeros((0, 2), dtype=np.int16)
     return Capture(a[:, 0], nb, off, pcm)
 
 

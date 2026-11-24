@@ -11,7 +11,7 @@ from fakes_bluez import ADAPTER, FakeBus, Recorder, addr, dev_path
 
 from btbridge.adapters.bluez import BluezAdapter, BluezModel, PipeWireCapture
 from btbridge.adapters.bluez.bus import A2DP_SOURCE_UUID, IF_DEVICE, Rejected
-from btbridge.adapters.bluez.pcm import CHUNK_BYTES, node_name_for, record_argv
+from btbridge.adapters.bluez.pcm import CHUNK_BYTES, record_argv
 
 
 def model(bus=None, accept=True):
@@ -237,7 +237,6 @@ def _child(code):
 
 
 def test_node_name_and_argv_shape():
-    assert node_name_for("aa:bb:cc:dd:ee:01") == "bluez_input.AA_BB_CC_DD_EE_01"
     argv = record_argv("node1")
     assert argv[:4] == ["pw-cat", "--record", "--target", "node1"] and argv[-1] == "-" and "44100" in argv and "s16" in argv
     assert "--raw" in argv and "--raw" not in record_argv("node1", raw=False)      # --raw exists only in PipeWire >= 1.x
@@ -248,10 +247,10 @@ def test_node_name_and_argv_shape():
     assert "--property=node.dont-fallback=true" in p and "--property=node.dont-reconnect=true" in p
 
 
-def test_default_capture_command_is_parec_with_no_fallback():
+def test_default_capture_command_is_parec_with_no_fallback_on_the_discovered_node():
     cap = PipeWireCapture()
-    argv = cap.argv_for("AA:BB:CC:DD:EE:01")
-    assert argv[0] == "parec" and "--device=bluez_input.AA_BB_CC_DD_EE_01" in argv
+    argv = cap.argv_for_node("bluez_input.AA_BB_CC_DD_EE_01.2")
+    assert argv[0] == "parec" and "--device=bluez_input.AA_BB_CC_DD_EE_01.2" in argv
 
 
 def test_source_present_parses_pactl_output():

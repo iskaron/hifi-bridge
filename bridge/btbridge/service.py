@@ -603,6 +603,15 @@ class ApplianceService:
         self.runtime.rotate_token(new)
         self.logs("stream token rotated (new sessions use the new URL)")
 
+    def _capture_status(self):
+        get = getattr(self.source, "capture_status", None)
+        if not callable(get):
+            return None
+        try:
+            return get()
+        except Exception as e:                                 # diagnostics must never fail because of the audio plane
+            return {"error": type(e).__name__}
+
     def diagnostics_bundle(self) -> dict:
         """Owner download: everything needed to debug, nothing secret. No stream token or password hash; every MAC address
         (phones, players) is replaced by its salted per-device pseudonym as in the logs; device labels and phone names are left
@@ -621,5 +630,6 @@ class ApplianceService:
             "controller_events": [(round(t, 2), n, str(d)) for t, n, d in list(self.runtime.controller.events)[-100:]],
             "logs": [(round(t, 2), m) for t, m in self.logs.recent(300)], "faults": self.logs.faults(),
             "network": self.network.diagnostics() if self.network is not None else None,     # passwords redacted (netconfig.redact)
+            "audio_capture": self._capture_status(),          # transport state + capture worker (G1); MACs pseudonymised below
             "note": "stream token, password hash and other secrets are never included; MAC addresses are pseudonymised",
         })

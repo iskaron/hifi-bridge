@@ -1,4 +1,7 @@
 # Add to /etc/bluetooth/main.conf under [General] on the TEST Pi (values to validate in plan B1/B3):
 # Class = 0x240414          # Audio/Video, loudspeaker - phones show a speaker icon
-# JustWorksRepairing = always
 # FastConnectable = true
+#
+# Do NOT set "JustWorksRepairing = always": it lets any device silently replace an existing bond (security). G1 (2026-11-24): a phone
+# that had forgotten the Pi failed to re-pair (Authentication Failure 0x05) because the Pi still held the old bond; the fix is to remove
+# the stale bond on the Pi (WebUI "Forget", or `bluetoothctl remove <MAC>`) and pair again inside the pairing window.

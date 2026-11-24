@@ -55,6 +55,18 @@ Raw numbers: `measurements/*.json`; full logs: `reports/evidence/full_run.log`.
     Lyrion's queue-saving command list): after a release the live queue is empty but the file still lists the bridge URL, which comes back
     after a Lyrion restart (OPEN_QUESTIONS #99).
 
+## PipeWire / BlueZ facts from the first hardware day (G1, 2026-11-24; docs/PIPEWIRE_CAPTURE.md "G1")
+1. **REAL-HARDWARE (Pi OS trixie, PipeWire/WirePlumber 1.4.2):** a phone streaming to the Pi appears as `bluez_input.<MAC_>.2`, a
+   **playback stream** linked to the Pi's headphone sink; `pactl list short sources` shows no Bluetooth source.
+2. **Source-read (PipeWire 1.2.8/1.4.2, WirePlumber 0.5.8):** `bluez5.media-source-role = input` turns that node into an `Audio/Source`;
+   WirePlumber sets `node.autoconnect = true` on A2DP source nodes and applies `monitor.bluez.rules` afterwards.
+3. **INTEGRATION (real PipeWire 1.4.2, simulated stream):** `pw-cat --record --target <missing node>` with `node.dont-fallback` exits
+   after ~10 ms with status 1 and `defined target not found`; recording a playback stream by its name works, but its links to the sink
+   stay (local playback continues).
+4. **REAL-HARDWARE setup facts:** `libspa-0.2-bluetooth` is needed for BlueZ's "Audio Sink" UUID and is skipped by
+   `--no-install-recommends`; a headless Pi OS Lite has systemd-logind but no active seat, so WirePlumber's seat monitoring keeps
+   Bluetooth audio off; a phone that forgot the Pi cannot re-pair while the Pi keeps the old bond (Authentication Failure 0x05).
+
 ## Pause strategies (INTEGRATION, 3 cycles each, virtual DAC)
 | strategy | Pause -> last audible output | Resume -> first output | LMS commands |
 |---|---|---|---|

@@ -571,6 +571,31 @@ def check_bridge(r, root):
         r.add(f"bridge.dep-{mod}", bool(glob.glob(os.path.join(root, f"usr/lib/python3*/site-packages/{mod}"))), mod)
 
 
+def _conf_text(root, pattern):
+    return "\n".join(open(p, errors="replace").read() for p in sorted(glob.glob(os.path.join(root, pattern))) if os.path.isfile(p))
+
+
+def check_audio_ingress(r, root):
+    """The phone's A2DP audio must reach the bridge as a recordable source (real-hardware finding G1, docs/PIPEWIRE_CAPTURE.md)."""
+    plugin = glob.glob(os.path.join(root, "usr/lib/spa-0.2/bluez5/libspa-bluez5.so"))
+    r.add("audio.bluez5-spa-plugin", bool(plugin), "PipeWire's BlueZ plugin (A2DP endpoints): " + ("present" if plugin else "MISSING"))
+    tools = {t: os.path.exists(os.path.join(root, "usr/bin", t)) for t in ("pw-cat", "pw-dump")}
+    r.add("audio.capture-tools", all(tools.values()), ", ".join(f"{t}: {'yes' if ok else 'MISSING'}" for t, ok in tools.items())
+          + " (capture + discovery of the phone's node)")
+    wp = _conf_text(root, "etc/wireplumber/wireplumber.conf.d/*.conf")
+    role = re.search(r"monitor\.bluez\.rules\s*=.*?node\.name\s*=\s*\"~bluez_input\.\*\".*?bluez5\.media-source-role\s*=\s*\"input\"",
+                     wp, re.S)
+    r.add("audio.a2dp-input-role", bool(role), "WirePlumber rule bluez5.media-source-role = input for bluez_input.* "
+          + ("present" if role else "MISSING: the phone would play on the device's own output and the bridge would record nothing (G1)"))
+    pw = _conf_text(root, "etc/pipewire/pipewire.conf.d/*.conf")
+    r.add("audio.allowed-rates", bool(re.search(r"allowed-rates\s*=\s*\[[^\]]*44100", pw)),
+          "default.clock.allowed-rates includes 44100 (no 44.1 -> 48 -> 44.1 kHz resampling)")
+    main = _conf_text(root, "usr/share/wireplumber/wireplumber.conf")
+    seat = re.search(r"mixin\.systemwide-session\s*=\s*\{[^}]*monitor\.bluez\.seat-monitoring\s*=\s*disabled", main)
+    r.add("audio.seat-monitoring", True, "system-wide WirePlumber profile disables Bluetooth seat monitoring: "
+          + ("yes" if seat else "not found") + " (whether the image's PipeWire instance is system-wide is OPEN_QUESTIONS #24/#25)", info=True)
+
+
 def check_units(r, root, units):
     r.facts["enabled_units"] = units
     for u in ENABLED_AT_BOOT:
@@ -937,6 +962,7 @@ def main(argv=None):
     check_users(r, a.rootfs)
     check_setuid(r, a.rootfs)
     check_bridge(r, a.rootfs)
+    check_audio_ingress(r, a.rootfs)
     check_units(r, a.rootfs, enabled_units(a.rootfs))
     systemd_verify(r, a.rootfs)
     check_network_and_misc(r, a.rootfs)

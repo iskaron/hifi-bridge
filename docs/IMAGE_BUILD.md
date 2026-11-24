@@ -32,6 +32,12 @@ changed since P2). Image checks 0 FAIL, 128 PASS, 21 INFO each; secret scans 0 f
 evidence now carries an "Evidence: final polish P6 rebuild" line; legal-info and SBOM content were not regenerated (no package changed).
 BUILD only - nothing booted.
 
+**G1 PCM-ingress fix (2026-11-24, branch `wip/g1-pcm-ingress`):** the first real-hardware day showed that the image had no PipeWire
+configuration at all. The overlay now ships `/etc/wireplumber/wireplumber.conf.d/50-hifi-bridge-a2dp-input.conf` (phone audio as an
+Audio/Source, DECISIONS #142) and `/etc/pipewire/pipewire.conf.d/10-hifi-bridge-rates.conf` (44.1 kHz clock), identical to the test-Pi
+files; new image checks `audio.*` (BlueZ SPA plugin, `pw-cat` + `pw-dump`, role rule, clock rates; seat monitoring INFO). All three boards
+rebuilt incrementally: 0 FAIL, 132 PASS, 22 INFO each; OTA checks pass; evidence labelled "G1 PCM ingress fix". BUILD only - nothing booted.
+
 ## 1. Commands
 ```bash
 export HIFI_LAB=$PWD/.lab                       # a git worktree points this at the main checkout's .lab
