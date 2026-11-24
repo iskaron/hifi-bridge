@@ -2,13 +2,16 @@
 wall-clock start times in a sidecar JSON, using the bridge's own ``PipeWireCapture`` (parec, no fallback).  stdlib only."""
 from __future__ import annotations
 
+import array
 import json
+import math
 import os
+import sys
 import threading
 import time
 import wave
 
-from btbridge.adapters.bluez.pcm import CHANNELS, RATE, PipeWireCapture, node_name_for, parec_argv, source_present
+from btbridge.adapters.bluez.pcm import CHANNELS, RATE, PipeWireCapture, find_phone_node, parec_argv, source_present
 
 
 class WavSink:
@@ -19,6 +22,9 @@ class WavSink:
         self.bytes = 0
         self.silent_chunks = 0
         self.chunks = 0
+        self.peak = 0                     # largest |sample| seen: "is real audio arriving?" without numpy (G1 retest)
+        self.nonzero = 0                  # samples != 0
+        self.samples = 0
         self._lock = threading.Lock()
 
     def __call__(self, pcm: bytes) -> None:
@@ -30,21 +36,37 @@ class WavSink:
             self.bytes += len(pcm); self.chunks += 1
             if not pcm.strip(b"\x00"):
                 self.silent_chunks += 1
+            else:
+                a = array.array("h", pcm[:len(pcm) // 2 * 2])
+                if sys.byteorder != "little":
+                    a.byteswap()
+                self.peak = max(self.peak, max(a), -min(a))
+                self.nonzero += sum(1 for v in a if v)
+            self.samples += len(pcm) // 2
 
     def close(self) -> dict:
         with self._lock:
             self.w.close()
             return {"file": os.path.basename(self.path), "first_sample_wall": self.first_wall, "bytes": self.bytes,
-                    "seconds": round(self.bytes / (RATE * CHANNELS * 2), 3), "chunks": self.chunks, "silent_chunks": self.silent_chunks}
+                    "seconds": round(self.bytes / (RATE * CHANNELS * 2), 3), "chunks": self.chunks, "silent_chunks": self.silent_chunks,
+                    "peak": self.peak, "peak_dbfs": round(20 * math.log10(self.peak / 32768), 1) if self.peak else None,
+                    "nonzero_fraction": round(self.nonzero / self.samples, 4) if self.samples else 0.0}
 
 
 def record(out_dir: str, address: str | None, seconds: float, node: str | None = None, mic_node: str | None = None,
-           capture_factory=PipeWireCapture, label: str = "REAL-HARDWARE") -> dict:
-    """Record ``seconds`` from the phone node (``node`` or derived from ``address``) and optionally ``mic_node``."""
+           capture_factory=PipeWireCapture, label: str = "REAL-HARDWARE", find_node=find_phone_node) -> dict:
+    """Record ``seconds`` from the phone node (``node``, or the phone's Audio/Source node discovered for ``address`` with pw-dump, as
+    the bridge does) and optionally ``mic_node``. Refuses (``RuntimeError``) when the phone has no recordable node: with WirePlumber's
+    default role its audio is a playback stream on the Pi's own output (G1 finding, docs/PIPEWIRE_CAPTURE.md)."""
     os.makedirs(out_dir, exist_ok=True)
     targets = {}
-    if node or address:
-        targets["phone"] = node or node_name_for(address)
+    if node:
+        targets["phone"] = node
+    elif address:
+        found, why = find_node(address)
+        if not found:
+            raise RuntimeError(f"cannot record the phone {address}: {why}")
+        targets["phone"] = found
     if mic_node:
         targets["mic"] = mic_node
     sinks, caps = {}, {}

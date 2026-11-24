@@ -25,9 +25,13 @@ scripts/hwkit_bundle.sh          # -> dist/hwkit-bundle-<rev>.tar.gz and dist/hw
 Requirements: Python ≥ 3.9, `python3-jeepney`, BlueZ, PipeWire with WirePlumber and pipewire-pulse (`pactl`, `parec`). Use a stock
 Raspberry Pi OS Lite for validation; this is **not** the appliance image. Set `PYTHONPATH=$PWD/bridge:$PWD/hwkit`.
 
-Configure PipeWire before testing (findings in `docs/PIPEWIRE_CAPTURE.md`):
-* `default.clock.allowed-rates = [ 44100 48000 ]`
-* without systemd-logind: WirePlumber 0.4 needs `with-logind = false`, and 0.5 needs `monitor.bluez.seat-monitoring = disabled`
+Configure PipeWire before testing (findings in `docs/PIPEWIRE_CAPTURE.md`; `pi-setup/setup_test_pi.sh` does all of it):
+* `libspa-0.2-bluetooth` (PipeWire's BlueZ plugin; only a *Recommends*, so `--no-install-recommends` skips it - G1);
+* `default.clock.allowed-rates = [ 44100 48000 ]`;
+* `bluez5.media-source-role = input` for `bluez_input.*` (`pi-setup/50-hifi-bridge-a2dp-input.conf`): without it the phone's audio is a
+  playback stream on the Pi's own output and the bridge records nothing (G1);
+* a headless Pi (no active local session, even WITH systemd-logind): WirePlumber 0.5 needs `monitor.bluez.seat-monitoring = disabled`
+  (0.4: `with-logind = false`). Do not set `JustWorksRepairing = always` (see `pi-setup/main.conf.snippet`).
 
 | Step | Command | Plan IDs |
 |---|---|---|
@@ -38,7 +42,7 @@ Configure PipeWire before testing (findings in `docs/PIPEWIRE_CAPTURE.md`):
 | Record the environment | `python3 -m hwkit env -o env.json` | A1 |
 | Record a D-Bus trace with markers | `python3 -m hwkit trace -o traces/android-spotify.jsonl`, then type markers as you act on the phone (`spotify play`, `expect:media`, `messenger beep`, `expect:no-media`, ...); Ctrl-D ends | A6, B*, C1/C2, D1/D2 |
 | Replay a trace through the bridge logic | `python3 -m hwkit replay traces/android-spotify.jsonl` (exit code 0 = every `expect:` held) | C3 |
-| Capture the phone's audio (and a microphone at the speaker) | `python3 -m hwkit capture -o cap/e2-run1 --address <phone MAC> --seconds 120 [--mic <pipewire source name of a USB mic>]` | A3, A4, E1, E2 |
+| Capture the phone's audio (and a microphone at the speaker) | `python3 -m hwkit capture -o cap/e2-run1 --address <phone MAC> --seconds 120 [--mic <pipewire source name of a USB mic>]` (the phone's node is found like the bridge does; prints peak level and non-zero fraction) | A3, A4, E1, E2 |
 | Enter a result | `python3 -m hwkit results set results.json --id C1 --status PASS --observations "..." --evidence traces/android-spotify.jsonl --device "Pixel 8 / Android 15 / Spotify 9.0"` | all |
 | Check and report | `python3 -m hwkit results check results.json` · `python3 -m hwkit results report results.json > REPORT.md` | all |
 

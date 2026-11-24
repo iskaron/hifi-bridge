@@ -31,23 +31,47 @@ def fake_env(**files):
 
 def test_preflight_flags_the_lab_findings_and_passes_a_good_setup(tmp_path):
     tools = {"bluetoothd", "bluetoothctl", "pipewire", "wireplumber", "pactl", "parec", "pw-dump", "busctl"}
-    runner = lambda argv, timeout=5: {"bluetoothd": "5.72", "wireplumber": "wireplumber\nCompiled with libwireplumber 0.4.13",
-                                       "pactl": "40 bluez_input.X PipeWire s16le 2ch 44100Hz IDLE"}.get(argv[0])
-    bad = checks(runner=runner, reader=fake_env(**{"/proc/device-tree/model": "Raspberry Pi 3 Model B Plus Rev 1.3"}),
-                 which=lambda t: f"/usr/bin/{t}" if t in tools else None, globber=lambda pat, **kw: [], home=str(tmp_path))
+    show_g1_before = "Controller B8:27:EB:00:00:01 (public)\n\tUUID: Generic Access Profile (00001800-0000-1000-8000-00805f9b34fb)"
+    show_good = show_g1_before + "\n\tUUID: Audio Sink                (0000110b-0000-1000-8000-00805f9b34fb)"
+    def runner_for(show):
+        return lambda argv, timeout=5: {"bluetoothd": "5.82", "wireplumber": "wireplumber\nCompiled with libwireplumber 0.5.8",
+                                         "pactl": "40 alsa_output.x.monitor PipeWire s16le 2ch 44100Hz IDLE",
+                                         "systemctl": "multi-user.target", "bluetoothctl": show}.get(argv[0])
+    model = {"/proc/device-tree/model": "Raspberry Pi 3 Model B Plus Rev 1.3"}
+    # the G1 state (2026-11-24): logind present (loginctl exists), headless, no seat override, no role rule, no BlueZ plugin
+    bad = checks(runner=runner_for(show_g1_before), reader=fake_env(**model), which=lambda t: f"/usr/bin/{t}" if t in tools | {"loginctl"} else None,
+                 globber=lambda pat, **kw: [], home=str(tmp_path))
     status = {c["check"]: c["status"] for c in bad}
-    assert status["pipewire:allowed-rates"] == "FAIL" and status["wireplumber:logind"] == "FAIL" and status["board"] == "PASS"
+    assert status["pipewire:allowed-rates"] == "FAIL" and status["board"] == "PASS"
+    assert status["wireplumber:seat-monitoring"] == "FAIL"           # NOT passed just because loginctl exists (old rule)
+    assert status["wireplumber:a2dp-input-role"] == "FAIL" and status["pipewire:bluez5-plugin"] == "FAIL"
+    assert status["bluez:audio-sink-uuid"] == "FAIL"
     text, rc = report(bad)
-    assert rc == 1 and "fix:" in text and "10-hifi-bridge-rates.conf" in text
+    assert rc == 1 and "fix:" in text and "10-hifi-bridge-rates.conf" in text and "libspa-0.2-bluetooth" in text
+    assert "50-hifi-bridge-a2dp-input.conf" in text and "--headless" in text
+    d = os.path.join(ROOT, "hwkit", "pi-setup")
     conf = {"/etc/pipewire/pipewire.conf.d/10.conf": "context.properties = { default.clock.allowed-rates = [ 44100 48000 ] }",
-            "/etc/wireplumber/bluetooth.lua.d/80.lua": 'bluez_monitor.properties["with-logind"] = false',
-            "/proc/device-tree/model": "Raspberry Pi 3 Model B Plus Rev 1.3"}
-    good = checks(runner=runner, reader=fake_env(**conf), which=lambda t: f"/usr/bin/{t}" if t in tools else None,
-                  globber=lambda pat, **kw: [p for p in conf if p.startswith(pat.split("*")[0])], home=str(tmp_path))
-    assert {c["check"]: c["status"] for c in good}["pipewire:allowed-rates"] == "PASS"
-    assert {c["check"]: c["status"] for c in good}["wireplumber:logind"] == "PASS"
+            "/etc/wireplumber/wireplumber.conf.d/80-no-logind.conf": open(os.path.join(d, "wireplumber-no-logind.conf")).read(),
+            "/etc/wireplumber/wireplumber.conf.d/50-hifi-bridge-a2dp-input.conf": open(os.path.join(d, "50-hifi-bridge-a2dp-input.conf")).read(),
+            "/usr/lib/aarch64-linux-gnu/spa-0.2/bluez5/libspa-bluez5.so": "\x7fELF", **model}
+    def globber(pat, **kw):
+        prefix = pat.split("*")[0]
+        return [p for p in conf if p.startswith(prefix) and p.endswith(pat.rsplit("*", 1)[-1])]
+    good = checks(runner=runner_for(show_good), reader=fake_env(**conf), which=lambda t: f"/usr/bin/{t}" if t in tools else None,
+                  globber=globber, home=str(tmp_path))
+    st = {c["check"]: c["status"] for c in good}
+    assert st["pipewire:allowed-rates"] == "PASS" and st["wireplumber:seat-monitoring"] == "PASS"
+    assert st["wireplumber:a2dp-input-role"] == "PASS" and st["pipewire:bluez5-plugin"] == "PASS" and st["bluez:audio-sink-uuid"] == "PASS"
     cap = next(c for c in good if c["check"] == "capture:tool")
     assert cap["status"] == "PASS" and "parec" in cap["detail"]          # fake pw-cat has no --raw in this runner -> parec
+
+
+def test_preflight_rejects_wireplumber_0_4_for_the_input_role(tmp_path):
+    runner = lambda argv, timeout=5: {"wireplumber": "Compiled with libwireplumber 0.4.13", "systemctl": "multi-user.target"}.get(argv[0])
+    conf = {"/etc/wireplumber/main.lua.d/x.lua": 'bluez5.media-source-role = "input"'}
+    r = checks(runner=runner, reader=fake_env(**conf), which=lambda t: None, globber=lambda pat, **kw: list(conf), home=str(tmp_path))
+    role = next(c for c in r if c["check"] == "wireplumber:a2dp-input-role")
+    assert role["status"] == "FAIL" and "0.4" in role["detail"]
 
 
 def test_e2_latency_from_trace_events_and_microphone_blocks():
@@ -99,8 +123,55 @@ def test_pi_setup_script_refuses_without_confirmation_and_off_a_pi():
     assert r.returncode == 3 and "not a Raspberry Pi" in r.stderr                  # the lab container is not a Pi: nothing changed
 
 
+def _dry_run(tmp_path, *args, target="multi-user.target", model="Raspberry Pi 3 Model B Plus Rev 1.3"):
+    root = tmp_path / "root"
+    (root / "proc" / "device-tree").mkdir(parents=True)
+    (root / "proc" / "device-tree" / "model").write_bytes(model.encode() + b"\0")
+    (root / "etc" / "systemd" / "system").mkdir(parents=True)
+    os.symlink(f"/lib/systemd/system/{target}", root / "etc" / "systemd" / "system" / "default.target")
+    script = os.path.join(ROOT, "hwkit", "pi-setup", "setup_test_pi.sh")
+    env = {**os.environ, "HIFI_SETUP_ROOT": str(root)}
+    env.pop("SUDO_USER", None)
+    r = subprocess.run(["sh", script, "--i-am-on-the-test-pi", *args], capture_output=True, text=True, env=env, timeout=30)
+    files = sorted(str(p.relative_to(root)) for p in root.rglob("*") if p.is_file() and "proc" not in p.parts)
+    return r, files
+
+
+def test_pi_setup_installs_the_bluez_plugin_and_the_input_role_and_handles_headless_with_logind(tmp_path):
+    """G1 (2026-11-24): libspa-0.2-bluetooth was missing under --no-install-recommends, and the seat override was installed only when
+    loginctl was missing - but a headless Pi OS Lite HAS logind. DRY RUN: nothing outside the temporary root, no package, no service."""
+    r, files = _dry_run(tmp_path)
+    assert r.returncode == 0, r.stderr
+    pkgs = r.stdout.split("would install:")[1].splitlines()[0].split()
+    assert "libspa-0.2-bluetooth" in pkgs and "pipewire-bin" in pkgs and "wireplumber" in pkgs
+    assert "etc/wireplumber/wireplumber.conf.d/50-hifi-bridge-a2dp-input.conf" in files
+    assert "etc/wireplumber/wireplumber.conf.d/80-no-logind.conf" in files            # headless (multi-user.target)
+    assert "etc/pipewire/pipewire.conf.d/10-hifi-bridge-rates.conf" in files
+    again, files2 = _dry_run(tmp_path / "second")                                       # idempotent: same result on a second run
+    assert again.returncode == 0 and files2 == files
+
+
+def test_pi_setup_keeps_seat_monitoring_on_a_desktop_unless_told_headless(tmp_path):
+    r, files = _dry_run(tmp_path / "a", target="graphical.target")
+    assert r.returncode == 0 and "etc/wireplumber/wireplumber.conf.d/80-no-logind.conf" not in files
+    assert "etc/wireplumber/wireplumber.conf.d/50-hifi-bridge-a2dp-input.conf" in files
+    r, files = _dry_run(tmp_path / "b", "--headless", target="graphical.target")
+    assert "etc/wireplumber/wireplumber.conf.d/80-no-logind.conf" in files
+    r, files = _dry_run(tmp_path / "c", "--desktop")
+    assert "etc/wireplumber/wireplumber.conf.d/80-no-logind.conf" not in files
+    r, _ = _dry_run(tmp_path / "d", model="Some PC")
+    assert r.returncode == 3
+
+
+def test_pi_setup_does_not_recommend_just_works_repairing():
+    snippet = open(os.path.join(ROOT, "hwkit", "pi-setup", "main.conf.snippet")).read()
+    assert not any(ln.strip().lstrip("#").strip().startswith("JustWorksRepairing") for ln in snippet.splitlines())
+
+
 def test_pi_setup_files_contain_the_lab_findings():
     d = os.path.join(ROOT, "hwkit", "pi-setup")
     assert "allowed-rates = [ 44100 48000 ]" in open(os.path.join(d, "10-hifi-bridge-rates.conf")).read()
     assert 'with-logind"] = false' in open(os.path.join(d, "wireplumber-no-logind.lua")).read()
     assert "seat-monitoring = disabled" in open(os.path.join(d, "wireplumber-no-logind.conf")).read()
+    role = open(os.path.join(d, "50-hifi-bridge-a2dp-input.conf")).read()
+    assert 'bluez5.media-source-role = "input"' in role and 'node.name = "~bluez_input.*"' in role

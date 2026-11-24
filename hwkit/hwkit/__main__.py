@@ -31,7 +31,11 @@ def _cmd_trace(a):
 
 def _cmd_capture(a):
     from .capture import record
-    meta = record(a.output, a.address, a.seconds, node=a.node, mic_node=a.mic, label=a.label)
+    try:
+        meta = record(a.output, a.address, a.seconds, node=a.node, mic_node=a.mic, label=a.label)
+    except RuntimeError as e:                       # e.g. the phone's audio is only a playback stream (G1): say why, no traceback
+        print(f"capture: {e}", file=sys.stderr)
+        sys.exit(2)
     print(json.dumps(meta, indent=1))
 
 

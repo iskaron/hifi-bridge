@@ -21,7 +21,7 @@
    "set": "A",
    "title": "With a phone connected and playing, dump PipeWire nodes (`pw-dump`)",
    "detail": "With a phone connected and playing, dump PipeWire nodes (`pw-dump`)",
-   "criterion": "identify the node name/properties for the phone's audio (expected `bluez_input.<MAC_>...`, **unverified**) | `node_name_for()` template or `pw-dump` resolver"
+   "criterion": "identify the node name/properties for the phone's audio (G1 2026-11-24: `bluez_input.<MAC_>.2`; Audio/Source only with the WirePlumber rule `bluez5.media-source-role = input`) | `find_phone_node()` (pw-dump: address + profile a2dp-source + media.class)"
   },
   {
    "id": "A4",

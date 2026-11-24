@@ -29,6 +29,10 @@ def checks(runner=run, reader=read, which=shutil.which, globber=glob.glob, home:
                       ("busctl", "D-Bus traces by hand")):
         add(f"tool:{tool}", "PASS" if which(tool) else ("FAIL" if tool in ("bluetoothd", "pipewire", "wireplumber", "parec", "pactl") else "WARN"),
             which(tool) or "missing", f"install the package that provides {tool} ({why})")
+    # pw-dump is how the bridge finds the phone's node (G1): required, not optional
+    for c in out:
+        if c["check"] == "tool:pw-dump" and c["status"] == "WARN":
+            c["status"], c["fix"] = "FAIL", "install pipewire-bin (pw-dump: the bridge finds the phone's audio node with it)"
     try:
         import jeepney  # noqa: F401
         add("python:jeepney", "PASS", jeepney.__version__)
@@ -46,14 +50,38 @@ def checks(runner=run, reader=read, which=shutil.which, globber=glob.glob, home:
         "44.1 kHz allowed" if "44100" in pw else "default graph 48 kHz only (capture would be resampled, not bit-exact)",
         "copy hwkit/pi-setup/10-hifi-bridge-rates.conf to /etc/pipewire/pipewire.conf.d/")
     wpver = runner(["wireplumber", "--version"]) or ""
-    has_logind = bool(which("loginctl")) and bool(runner(["loginctl", "--no-legend", "list-sessions"]) is not None)
-    wp = _cfg_text(globber("/etc/wireplumber/**/*", ) + globber(f"{home}/.config/wireplumber/**/*"), reader)
-    if has_logind:
-        add("wireplumber:logind", "PASS", "systemd-logind present")
+    wp = _cfg_text(globber("/etc/wireplumber/**/*", recursive=True) + globber(f"{home}/.config/wireplumber/**/*", recursive=True), reader)
+    seat_off = "with-logind\"] = false" in wp or "seat-monitoring = disabled" in wp
+    target = (runner(["systemctl", "get-default"]) or "").strip()
+    headless = target != "graphical.target"
+    # G1 (2026-11-24): logind is present on Pi OS Lite, but WirePlumber's seat monitoring keeps Bluetooth audio off without an ACTIVE
+    # LOCAL session - an SSH-only Pi needs the override although `loginctl` exists.
+    if seat_off:
+        add("wireplumber:seat-monitoring", "PASS", "seat monitoring disabled for Bluetooth (headless)")
+    elif headless:
+        add("wireplumber:seat-monitoring", "FAIL", f"headless ({target or 'default target unknown'}) and seat monitoring on: "
+            "WirePlumber keeps the Bluetooth A2DP endpoints off without an active local session",
+            "sudo sh hwkit/pi-setup/setup_test_pi.sh --i-am-on-the-test-pi --headless (installs 80-no-logind.conf)")
     else:
-        ok = "with-logind\"] = false" in wp or "seat-monitoring = disabled" in wp
-        add("wireplumber:logind", "PASS" if ok else "FAIL", f"no logind; {wpver.splitlines()[-1] if wpver else '?'}",
-            "copy hwkit/pi-setup/wireplumber-no-logind.* (0.4: Lua, 0.5: conf) - WirePlumber 0.4 quits otherwise")
+        add("wireplumber:seat-monitoring", "WARN", "desktop target: Bluetooth audio works only while a local session is active",
+            "use --headless with setup_test_pi.sh if the Pi is used over SSH only")
+    role = re.search(r"bluez5\.media-source-role\s*=\s*\"?input", wp)
+    old_wp = bool(re.search(r"libwireplumber 0\.4", wpver))
+    add("wireplumber:a2dp-input-role", "PASS" if role and not old_wp else "FAIL",
+        "phone audio becomes a recordable Audio/Source" if role and not old_wp else
+        ("WirePlumber 0.4: not supported for G1 (use Pi OS trixie)" if old_wp else
+         "default role 'playback': the phone plays on the Pi's own output and the bridge records nothing (G1)"),
+        "copy hwkit/pi-setup/50-hifi-bridge-a2dp-input.conf to /etc/wireplumber/wireplumber.conf.d/, restart wireplumber, reconnect the phone")
+    plugin = globber("/usr/lib/*/spa-0.2/bluez5/libspa-bluez5.so") + globber("/usr/lib/spa-0.2/bluez5/libspa-bluez5.so")
+    add("pipewire:bluez5-plugin", "PASS" if plugin else "FAIL", plugin[0] if plugin else "libspa-bluez5.so missing",
+        "apt install libspa-0.2-bluetooth (only a Recommends of pipewire: --no-install-recommends skips it)")
+    show = runner(["bluetoothctl", "show"]) or ""
+    if show.startswith(("(exit", "error:")):
+        show = ""
+    add("bluez:audio-sink-uuid", "PASS" if "0000110b" in show.lower() else ("WARN" if not show else "FAIL"),
+        "adapter offers Audio Sink (A2DP)" if "0000110b" in show.lower() else ("bluetoothctl gave no answer" if not show else
+                                                                             "adapter does not offer Audio Sink (0000110b)"),
+        "needs libspa-0.2-bluetooth + WirePlumber running for this user with Bluetooth enabled (seat monitoring), then reconnect")
     nodes = runner(["pactl", "list", "short", "sources"]) or ""
     add("pipewire:running", "PASS" if nodes and "error" not in nodes.lower() else "FAIL", "pactl answers" if nodes else "no answer",
         "start pipewire, wireplumber and pipewire-pulse for the test user")
