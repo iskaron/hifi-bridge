@@ -28,7 +28,7 @@
     "properties": [
       {
         "name": "hifi-bridge:evidence",
-        "value": "final polish P6 rebuild (2026-11-21, develop a7ae13b: P3 wizard network step in the rootfs; incremental build). BUILD/SIMULATED only, nothing booted"
+        "value": "G1 PCM ingress fix (2026-11-24, branch wip/g1-pcm-ingress: WirePlumber a2dp input role + 44.1 kHz config in the image, node discovery in the bridge; incremental build). BUILD/SIMULATED only, nothing booted"
       }
     ]
   },
