@@ -41,7 +41,7 @@ IDs are stable so results can be cross-referenced in handoffs. "Decision" = what
 |---|---|---|---|
 | A1 | Record `bluetoothd` and PipeWire/WirePlumber versions; start bluetoothd with/without `--experimental` | `org.bluez.MediaPlayer1` visible for a connected phone; note whether `--experimental` is required | image config |
 | A2 | Confirm the A2DP **sink** role is enabled in WirePlumber for the phone-as-source case | phone can select the bridge as speaker | image config |
-| A3 | With a phone connected and playing, dump PipeWire nodes (`pw-dump`) | identify the node name/properties for the phone's audio (expected `bluez_input.<MAC_>...`, **unverified**) | `node_name_for()` template or `pw-dump` resolver |
+| A3 | With a phone connected and playing, dump PipeWire nodes (`pw-dump`) | identify the node name/properties for the phone's audio (G1 2026-11-24: `bluez_input.<MAC_>.2`; an Audio/Source only with the role rule `bluez5.media-source-role = input`) | `find_phone_node()` (pw-dump: address + profile a2dp-source + media.class) |
 | A4 | Run the capture command from `adapters/bluez/pcm.py` for that node: does `pw-cat --record ... -` write **headerless** s16 PCM? Compare with `parec_argv` | raw 44.1 kHz s16 stereo bytes, no header | which tool, flags |
 | A5 | Negotiated codec and sample rate per phone (SBC baseline; AAC if exposed) | recorded | resampling need |
 | A6 | `JeepneyBus` against the real system bus: GetManagedObjects, signals, property writes, agent registration (`journalctl -u bluetooth`) | no errors; same events as the fake | D-Bus library choice for the image |

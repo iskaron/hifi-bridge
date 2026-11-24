@@ -190,3 +190,30 @@ def test_concurrent_phone_actions_do_not_deadlock(world):
     ts = [threading.Thread(target=spam, args=(i,)) for i in range(4)]
     [t.start() for t in ts]; [t.join(10) for t in ts]
     assert not errors and not any(t.is_alive() for t in ts)
+
+
+def test_the_demo_phone_node_is_what_the_product_discovers(tmp_path):
+    """The demo's PipeWire node must look like the real BlueZ node in the appliance's input role (G1, 2026-11-24): the product finds
+    its capture target by address + profile + media class (pcm.find_phone_node), not by a guessed name."""
+    import subprocess
+
+    from btbridge.adapters.bluez.pcm import find_phone_node
+    from hifidemo.vbluez import PipeWireNodes
+    calls = []
+
+    def run(args):
+        calls.append(args)
+        return subprocess.CompletedProcess(args, 0, "42\n", "")
+    nodes = PipeWireNodes(str(tmp_path), run=run)
+    mac = "02:de:00:00:00:0a"
+    nodes.load(mac)
+    args = calls[0]
+    name = next(a.split("=", 1)[1] for a in args if a.startswith("source_name="))
+    props = next(a for a in args if a.startswith("source_properties="))
+    assert name == "bluez_input.02_DE_00_00_00_0A.2"
+    assert props.startswith('source_properties="') and props.endswith('"')          # one quoted argument: pactl splits on spaces
+    kv = dict(p.split("=", 1) for p in props[len('source_properties="'):-1].split())
+    pw_dump = [{"type": "PipeWire:Interface:Node", "id": 7, "info": {"props": {"node.name": name, "media.class": "Audio/Source",
+                                                                              "object.serial": 7, **kv}}}]
+    assert find_phone_node(mac, dump=pw_dump) == (name, f"capture source {name}")
+    nodes.unload(mac)                                                            # closes the FIFO writer

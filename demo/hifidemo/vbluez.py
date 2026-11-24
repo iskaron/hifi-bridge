@@ -2,8 +2,9 @@
 
 The bridge product runs unchanged with ``--source bluez`` and talks D-Bus to this process exactly as it would to BlueZ on the Pi. Virtual
 phones (the demo console) act "over the air" through a small HTTP API (port 8099, internal demo network only) and send their decoded
-audio over TCP (port 8098). For each connected phone a PipeWire node ``bluez_input.<MAC>`` is created (module-pipe-source), which the
-product captures with its own ``pw-cat`` command - as the PipeWire BlueZ plugin would provide it on the device.
+audio over TCP (port 8098). For each connected phone a PipeWire node is created (module-pipe-source) that looks like the PipeWire BlueZ
+plugin's node with the input role of the appliance (``bluez_input.<MAC_>.2``, Audio/Source, ``api.bluez5.address``, ``api.bluez5.profile =
+a2dp-source``; docs/PIPEWIRE_CAPTURE.md "G1"); the product finds it by those properties and captures it with its own ``pw-cat`` command.
 
 What is modelled (BlueZ D-Bus API, as documented): Adapter1 Alias/Pairable/Discoverable, Device1 Paired/Trusted/Connected/UUIDs,
 the pairing agent (RequestAuthorization, AuthorizeService), Device1.Disconnect, Adapter1.RemoveDevice, MediaTransport1 State/Volume,
@@ -261,7 +262,8 @@ class VirtualBluetoothd(FakeBluez):
 
 # ---- PipeWire nodes (real implementation) -------------------------------------------------------------------
 class PipeWireNodes:
-    """One ``module-pipe-source`` per connected phone, named like the PipeWire BlueZ plugin's node (``bluez_input.<MAC>``)."""
+    """One ``module-pipe-source`` per connected phone, with the name and properties of the PipeWire BlueZ plugin's A2DP node in the
+    input role (what the product's ``find_phone_node`` looks for: real-hardware finding G1, 2026-11-24)."""
 
     PIPE_BYTES = 16384                                                  # ~93 ms: bounded latency; a full pipe drops (like a radio)
 
@@ -275,9 +277,16 @@ class PipeWireNodes:
         self._lock = threading.Lock()
         os.makedirs(fifo_dir, exist_ok=True)
 
-    def node_name(self, mac: str) -> str:
-        from btbridge.adapters.bluez.pcm import node_name_for            # the product's own naming rule
-        return node_name_for(mac)
+    @staticmethod
+    def node_name(mac: str) -> str:
+        """WirePlumber's name for the A2DP node (``monitors/bluez.lua``: ``bluez_input.<address>.<id>``, id 2 = A2DP source)."""
+        return "bluez_input." + mac.upper().replace(":", "_") + ".2"
+
+    @staticmethod
+    def node_properties(mac: str) -> str:
+        """The BlueZ node properties the product matches on, as one quoted module argument (pactl splits on spaces otherwise)."""
+        from btbridge.adapters.bluez.pcm import PHONE_PROFILE
+        return f'source_properties="api.bluez5.address={mac.upper()} api.bluez5.profile={PHONE_PROFILE} device.api=bluez5"'
 
     def load(self, mac: str) -> None:
         import fcntl
@@ -293,7 +302,7 @@ class PipeWireNodes:
             except OSError:
                 pass
             r = self.run(["pactl", "load-module", "module-pipe-source", f"source_name={self.node_name(mac)}", f"file={fifo}",
-                          "format=s16le", "rate=44100", "channels=2"])
+                          "format=s16le", "rate=44100", "channels=2", self.node_properties(mac)])
             if r.returncode != 0:
                 os.close(fd)
                 raise RuntimeError(f"pactl load-module failed: {r.stderr.strip()}")
