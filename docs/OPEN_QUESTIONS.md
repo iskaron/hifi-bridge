@@ -334,3 +334,9 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
      signature when one sync-group member stops taking data for ~20 s and reconnects (LMS stops reading for the whole group, then
      restarts the stream). Next evidence: the opt-in trace on the Pi (`HIFI_STREAM_TRACE=1`) during an outage, plus whether the Pi and
      each member are on Wi-Fi. Gate G1-S stays **not passed** until several minutes of uninterrupted music are confirmed by the owner.
+     **Update 2026-11-25 (three-room trace, reports/G1S_THREE_ROOM_STALLS.md):** mechanism identified, trigger not. The Pi trace shows
+     Lyrion's sync-group rebuffering (any member's output underrun pauses all rooms; after 30 s Lyrion gives up and re-requests the
+     stream at the frozen elapsed offset), reproduced in the lab by stalling one member's data connection; the bridge delivered live
+     audio throughout. Open: WHICH member underruns and why (three rooms fail at 24-36 s after every start; esparagus-01 + Küche ran 11
+     min). Next evidence: docs/HARDWARE_TEST_PROCEDURE.md section 7 (Lyrion `player.source` INFO names the member; A/B groups). No
+     bridge change is justified by the evidence so far (no blind reconnects, no larger lead without a measured trigger).

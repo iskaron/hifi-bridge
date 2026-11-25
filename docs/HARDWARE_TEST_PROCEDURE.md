@@ -145,3 +145,54 @@ run records WHERE the audio stops. It changes nothing on BlueZ, pairing, codecs 
 The fields that decide it (docs/STREAM_TRACE.md "Reading an outage"): `in: … nz=` (did the bridge's own capture carry audio), `out: rN:…B
 … blk=… STUCK` (could the bridge deliver), `rN end reason=…` and the next `rN+1 start GET 206 range=…` (when and how LMS restarted).
 Rollback: `rm -rf ~/hifi-bridge && mv ~/hifi-bridge.g1r ~/hifi-bridge` (without `HIFI_STREAM_TRACE` the trace is off anyway).
+
+## 7. G1-S round 2: name the member that stalls the group (2026-11-25; background: reports/G1S_THREE_ROOM_STALLS.md)
+
+Round 1 (section 6) showed: the bridge's capture and feeder carried live audio the whole time; Lyrion stopped reading, the group's
+`time` froze, and after ~30 s Lyrion restarted the stream - Lyrion's sync-group **rebuffer give-up** (docs/STREAM_TRACE.md "Why Lyrion
+stops reading"). Round 2 finds **which member** triggers it. Nothing changes on BlueZ, pairing, codecs, PipeWire, Home Assistant or the
+network. Lyrion changes are made by the owner only: a temporary log level (step 2) and the group membership (step 4), both reversed at
+the end. Keep the Yamaha power-off automation disabled as in the previous runs.
+
+0. On the development host: `scp dist/hwkit-bundle-<rev>.tar.gz olm@hifi-test.local:`
+1. On the Pi (Ctrl-C the running bridge first):
+   ```sh
+   mv ~/hifi-bridge ~/hifi-bridge.3a74653 && mkdir ~/hifi-bridge && tar xzf ~/hwkit-bundle-<rev>.tar.gz -C ~/hifi-bridge && cat ~/hifi-bridge/dist/HWKIT_REVISION
+   ```
+2. Lyrion: switch on the log category that names the member (runtime only - Lyrion does not save it; a Lyrion restart also resets it).
+   `LMS` is the Lyrion address the bridge uses, e.g. `http://192.168.1.10:9000`:
+   ```sh
+   LMS=http://<lyrion-host>:9000
+   curl -s -d '{"id":1,"method":"slim.request","params":["",["debug","player.source","?"]]}' $LMS/jsonrpc.js    # note "_value" (default WARN)
+   curl -s -d '{"id":1,"method":"slim.request","params":["",["debug","player.source","INFO"]]}' $LMS/jsonrpc.js
+   ```
+3. Start the bridge with the trace, one log per run:
+   ```sh
+   cd ~/hifi-bridge && export PYTHONPATH="$PWD/bridge:$PWD/hwkit"
+   HIFI_STREAM_TRACE=1 python3 -m btbridge.appliance --data "$HOME/bridge-data" --source bluez --boot-dir /boot/firmware 2>&1 | tee ~/g1s2-run1.log
+   ```
+   Expect the summary lines to end in `| members: Küche:ok …, Arbeitszimmer:ok …, esparagus-01:ok …`.
+4. Runs, one variable at a time; each **10 minutes** of music, or until the third silence. Pause the phone, change the group in Lyrion,
+   check that the bridge's target player (web UI) is a member of the new group, restart the bridge with a new log name, press Play:
+
+   | Run | Group | Discriminates |
+   |---|---|---|
+   | 1 | Küche + Arbeitszimmer + esparagus-01 (unchanged) | Lyrion's log names the underrunning member (step 5) |
+   | 2 | esparagus-01 + Arbeitszimmer | Arbeitszimmer-specific vs. "a third member" |
+   | 3 | Küche + Arbeitszimmer | the same, with the other partner |
+   | 4 (only if 2 and 3 pass) | all three again | count / load effect |
+
+   Note per run: the clock time of each silence and its end, and which rooms were silent.
+5. After each run, fetch Lyrion's log lines (Lyrion's own log contains the stream token - the `sed` removes it):
+   ```sh
+   curl -s "$LMS/server.log?lines=4000" | grep -E "playerOutputUnderrun|_Rebuffer|jumpToTime|new playing state|playerBufferReady|disconnect|RETRY" \
+     | sed -E 's#/s/[^/ ]+/#/s/***/#g' > ~/g1s2-run1-lms.txt
+   ```
+6. At the end: restore the level noted in step 2 (`…["debug","player.source","WARN"]…`) and the original group.
+7. Bring back: `~/g1s2-run*.log`, `~/g1s2-run*-lms.txt`, the noted times, and for Arbeitszimmer: what hardware and OS it runs on, its
+   Squeezelite command line (`-b`, `-a`, `-o`) and, if easy, its own log around the times. Also: Pi on Wi-Fi or Ethernet; each player
+   on Wi-Fi or Ethernet.
+
+Pass/fail per run: **pass** = 10 min audible in every room of the run AND, after the first 10 s, no `STUCK`, no ` WAITING`, no further
+`rN start GET` line and every `members:` entry `ok`. Gate G1-S passes only on a fresh **three-room** run that passes this.
+Rollback: `rm -rf ~/hifi-bridge && mv ~/hifi-bridge.3a74653 ~/hifi-bridge`; Lyrion level as in step 6.
