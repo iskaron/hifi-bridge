@@ -340,3 +340,19 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
      audio throughout. Open: WHICH member underruns and why (three rooms fail at 24-36 s after every start; esparagus-01 + Küche ran 11
      min). Next evidence: docs/HARDWARE_TEST_PROCEDURE.md section 7 (Lyrion `player.source` INFO names the member; A/B groups). No
      bridge change is justified by the evidence so far (no blind reconnects, no larger lead without a measured trigger).
+     **Update 2026-11-25 (round 2, four Pi runs, reports/G1S_ROUND2_ANALYSIS.md):** after Arbeitszimmer's Pi was power-cycled the 25-s stalls
+     disappeared (three rooms: 605 s, one 6 s group dropout, Küche the first underrun, bridge writing at full rate). Working hypothesis
+     H-A for tests 1-3 (Inferred, not measured): Arbeitszimmer accepted audio but did not play it. Still open: why Küche underran in test 4
+     (and first in tests 1, 3), whether the target change at t=341 matters, who the sync master was in tests 1-3. The 2^32 range of tests 2/3 is
+     explained (Lyrion's time clamped at the duration; not a bridge value). Next: docs/HARDWARE_TEST_PROCEDURE.md section 8.
+106. **Lyrion gives up a rebuffer within 0.3 s when members refill at different times** (STATIC, Lyrion 9.1.2 `Player.pm` l.1127-1181; one Pi
+     observation; not lab-reproduced): `bufferStarted(0)` after a member's refill makes the next `_buffering` tick take the 30-s give-up
+     branch immediately. Consequence for a live source: every group rebuffer ends in a stream restart. Falsifier: a lab group with one
+     member of a clearly different buffer size does *not* restart after a stalled member recovers within a few seconds. Not changed.
+     A larger `lead_in_ms` could shorten every rebuffer (the 5-s refill threshold could be met from the ring) at the cost of latency;
+     decide after run 5 (HARDWARE_TEST_PROCEDURE section 8).
+107. **Owner-defined pairing code** (feature B): a fixed code typed on the phone is not possible with SSP (the displaying side generates the
+     passkey); only legacy-PIN pairing with SSP off, which is a global downgrade. See docs/PAIRING_CODE_FEASIBILITY.md; owner-approval
+     in the WebUI recommended; prototype with Pixel + iPhone needed first.
+108. **WebUI audio-stall alert** (feature A): design in docs/STALL_ALERT_DESIGN.md, not implemented; owner decision on scope and MQTT.
+

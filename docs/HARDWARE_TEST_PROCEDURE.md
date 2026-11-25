@@ -196,3 +196,35 @@ the end. Keep the Yamaha power-off automation disabled as in the previous runs.
 Pass/fail per run: **pass** = 10 min audible in every room of the run AND, after the first 10 s, no `STUCK`, no ` WAITING`, no further
 `rN start GET` line and every `members:` entry `ok`. Gate G1-S passes only on a fresh **three-room** run that passes this.
 Rollback: `rm -rf ~/hifi-bridge && mv ~/hifi-bridge.3a74653 ~/hifi-bridge`; Lyrion level as in step 6.
+
+## 8. G1-S round 3: the single next experiment (2026-11-25; background: reports/G1S_ROUND2_ANALYSIS.md)
+
+Round 2 (section 7) ran four times; after the Arbeitszimmer power-cycle three rooms played 605 s with one 6 s group dropout (Küche the
+first underrun, the bridge writing at full rate). This round repeats the three-room case **without any change during the run**.
+Nothing changes on BlueZ, pairing, PipeWire, Home Assistant or the network; the owner changes only the Lyrion log level and
+the group, as in section 7. **The Yamaha power-off automation stays disabled until the owner decides to re-enable it after the
+series.** Use the bundle of the commit that contains this section (it adds `(master)` to `members:`); steps 0-2 as in section 7.
+
+3. Start the bridge unbuffered, so the console is not delayed in 20-s blocks (this is display only, not audio buffering):
+   ```sh
+   cd ~/hifi-bridge && export PYTHONPATH="$PWD/bridge:$PWD/hwkit" PYTHONUNBUFFERED=1
+   HIFI_STREAM_TRACE=1 python3 -u -m btbridge.appliance --data "$HOME/bridge-data" --source bluez --boot-dir /boot/firmware 2>&1 | tee ~/g1s3-run5.log
+   ```
+4. Run 5: all three rooms, **target = the group's master from the very first start** (note in `members:` which one carries `(master)`);
+   no target change, no source switch, no pausing; **15 minutes** or the second silence. Note clock times of each silence and its end, and
+   which rooms were silent. Then, one variable at a time and only as the matrix of the report says (run 6: Küche + esparagus-01; run 7: target
+   = Arbeitszimmer).
+5. Lyrion log, with the buffering lines this time (they show each refill; the `sed` removes the stream token):
+   ```sh
+   curl -s "$LMS/server.log?lines=6000" | grep -E "playerOutputUnderrun|_Rebuffer|jumpToTime|new playing state|playerBufferReady|new master|Buffering\.\.\.|Rebuffering:|RETRY" \
+     | sed -E 's#/s/[^/ ]+/#/s/***/#g' > ~/g1s3-run5-lms.txt
+   ```
+6. Restore the Lyrion level you noted (not the generic default) and the original group; read the level back:
+   `curl -s -d '{"id":1,"method":"slim.request","params":["",["debug","player.source","?"]]}' $LMS/jsonrpc.js`.
+7. Bring back: traces, Lyrion extracts, silence times, and for **Arbeitszimmer** (needed to decide the H-A question): its Squeezelite command line
+   (`-b`, `-o`, `-a`), `dmesg | tail -50` and its Squeezelite log if easy, **without rebooting or reconfiguring it**.
+
+Pass per run: audible in every room for the whole run, after the first 10 s no `STUCK`, no ` WAITING`, no unplanned `rN start GET`,
+all `members:` `ok`. Gate G1-S passes only on a fresh three-room run of at least 10 minutes that meets this.
+Rollback: as section 7.
+
