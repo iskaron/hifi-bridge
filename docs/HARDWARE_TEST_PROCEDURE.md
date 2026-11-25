@@ -118,3 +118,30 @@ sudo rm /etc/wireplumber/wireplumber.conf.d/50-hifi-bridge-a2dp-input.conf
 systemctl --user restart wireplumber pipewire pipewire-pulse
 rm -rf ~/hifi-bridge && mv ~/hifi-bridge.previous ~/hifi-bridge
 ```
+
+## 6. G1-S: audio-path trace during the intermittent silence (2026-11-25; background: docs/STREAM_TRACE.md)
+
+Symptom (G1-R day): the music reaches the group, goes silent for ~10-15 s and returns exactly with a new `GET … 206` log line. This
+run records WHERE the audio stops. It changes nothing on BlueZ, pairing, codecs or PipeWire, and nothing in Lyrion.
+
+0. On the development host: `scp dist/hwkit-bundle-<rev>.tar.gz olm@hifi-test.local:`
+1. On the Pi (stop the running bridge with Ctrl-C first; the PipeWire setup of section 5 stays as it is):
+   ```sh
+   mv ~/hifi-bridge ~/hifi-bridge.g1r && mkdir ~/hifi-bridge && tar xzf ~/hwkit-bundle-<rev>.tar.gz -C ~/hifi-bridge && cat ~/hifi-bridge/dist/HWKIT_REVISION
+   ```
+2. Start the bridge exactly as before, with the trace switched on, and keep a copy of the console:
+   ```sh
+   cd ~/hifi-bridge && export PYTHONPATH="$PWD/bridge:$PWD/hwkit"
+   HIFI_STREAM_TRACE=1 python3 -m btbridge.appliance --data "$HOME/bridge-data" --source bluez --boot-dir /boot/firmware 2>&1 | tee ~/g1-trace.log
+   ```
+   Expect `[trace] audio-path trace ON` and then one `[trace] … in: … | out: … | lms: …` line per second.
+3. Lyrion group at ~20 %, phone at ~30 %; play music for **at least 10 minutes**. Note the clock time (HH:MM:SS) of each silence and
+   of its end. Do not run `hwkit capture` at the same time (one change at a time).
+4. Ctrl-C, then bring back `~/g1-trace.log` (no stream token, no URL, no addresses; MACs are pseudonymised as in every bridge log) and
+   two facts: is the Pi on Wi-Fi or Ethernet, and which of Küche / Arbeitszimmer / esparagus-01 are on Wi-Fi. Optional and read-only:
+   Lyrion web UI → Settings → Information (player list, signal strength), and Lyrion's server log around the noted times
+   ("Unexpected data stream disconnect", "RETRYING").
+
+The fields that decide it (docs/STREAM_TRACE.md "Reading an outage"): `in: … nz=` (did the bridge's own capture carry audio), `out: rN:…B
+… blk=… STUCK` (could the bridge deliver), `rN end reason=…` and the next `rN+1 start GET 206 range=…` (when and how LMS restarted).
+Rollback: `rm -rf ~/hifi-bridge && mv ~/hifi-bridge.g1r ~/hifi-bridge` (without `HIFI_STREAM_TRACE` the trace is off anyway).

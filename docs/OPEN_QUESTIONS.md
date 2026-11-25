@@ -320,3 +320,17 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
      requested window (binary search in the time-ordered index, a ranged read of `pcm.raw`); equal to the full parse
      (`tests/unit/test_capture_load.py`), milliseconds for a window of a 3-hour history; the four tests then passed 3 x 3 against the
      same, still growing capture (304 MB). The capture volume itself still grows until `scripts/lab_down.sh`; a size cap was not added.
+
+## Added by the G1 stream-silence investigation (2026-11-25; docs/STREAM_TRACE.md, reports/G1_STREAM_SILENCE.md)
+104. **LMS treats the endless WAV stream as a finite 6.8-hour file** (INTEGRATION, LMS 9.1.2: `status` reports `duration` 24347.9 s for
+     our URL). Source: the WAV header's 0xFFFFFFFF data size (scan) and our `Content-Range: bytes N-4294967294/4294967295` on every
+     Range request, which LMS takes as the content length and marks the song `isLive(0)` (`Slim::Player::Protocols::HTTP::parseDirectHeaders`
+     / `parseHeaders`). Consequences seen in LMS's code: `_RetryOrNext` re-streams only live items of unknown duration after an
+     unexpected end-of-stream; the UI shows a 6.8 h track. NOT shown to cause the G1 silence (the lab recovery worked with it). Not
+     changed: a `/*` complete-length or no Content-Range alters what LMS and the players do with Range (FINDINGS 2 bit-exactness) and
+     needs its own lab validation and owner approval.
+105. **G1-S: 10-15 s group silence on the real Pi, recovered by a new `GET … 206`** - cause NOT yet identified. The bridge's code
+     serves every request correctly (UNIT/INTEGRATION, `tests/unit/test_stream_continuity.py`, `test_14`); the lab reproduces the exact
+     signature when one sync-group member stops taking data for ~20 s and reconnects (LMS stops reading for the whole group, then
+     restarts the stream). Next evidence: the opt-in trace on the Pi (`HIFI_STREAM_TRACE=1`) during an outage, plus whether the Pi and
+     each member are on Wi-Fi. Gate G1-S stays **not passed** until several minutes of uninterrupted music are confirmed by the owner.

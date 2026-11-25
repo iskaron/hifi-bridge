@@ -32,6 +32,9 @@ The gates are in order. A gate starts only when the previous one is passed **and
 - [ ] **G1-R (2026-11-24, after the first G1 day):** PCM-ingress retest, docs/HARDWARE_TEST_PROCEDURE.md section 5: the phone's node is an
   Audio/Source with the WirePlumber role rule (not a stream to the headphones), `hwkit capture` shows real amplitude without LMS, the
   bridge's transport/capture log lines, audible music in each room, pause/resume, reconnect, manual source priority, silent Pi output.
+- [ ] **G1-S (2026-11-25):** NOT passed. First end-to-end music was heard on the Pi, but the group goes silent for ~10-15 s at a time and
+  recovers with a new `GET … 206`. Trace run: docs/HARDWARE_TEST_PROCEDURE.md section 6; passes only when the owner confirms several
+  minutes of uninterrupted music in every room of the group (OPEN_QUESTIONS #105).
   Observed on the first day: pairing, metadata and the test tone worked; Bluetooth music was inaudible (docs/PIPEWIRE_CAPTURE.md "G1").
 - [ ] B1, B2, B3, B4, B6, B7 pairing window, single source, reconnect. **Stop if B4 evicts the first phone.**
 - [ ] C1 (Android) and C2 (iPhone) media traces: music vs. notification vs. navigation. This is the main open software risk.

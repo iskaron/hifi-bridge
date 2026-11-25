@@ -1,0 +1,578 @@
+{
+  "stop_at_s": 30.0,
+  "stop_for_s": 20.0,
+  "modes_at_end": {
+    "player1": "play",
+    "player2": "play",
+    "player3": "play"
+  },
+  "events": [
+    "[trace] t=0.04 23:29:36 r1 start GET 200 sid=DUIWMbYs peer1 range=- content-range=- wav-header=yes lead=0ms",
+    "[trace] t=0.05 23:29:36 r2 start GET 206 sid=DUIWMbYs peer1 range=bytes=44- content-range=bytes 44-4294967294/4294967295 wav-header=no lead=60ms",
+    "[trace] t=0.06 23:29:36 r1 end reason=peer-reset after=0.02s bytes=10584 sid=DUIWMbYs peer1 write-in-progress=0.00s",
+    "[trace] t=45.99 23:30:22 r2 end reason=peer-reset after=45.93s bytes=5849424 sid=DUIWMbYs peer1 write-in-progress=0.01s",
+    "[trace] t=45.99 23:30:22 r3 start GET 206 sid=DUIWMbYs peer1 range=bytes=4806588- content-range=bytes 4806588-4294967294/4294967295 wav-header=no lead=1000ms",
+    "[trace] t=86.30 23:31:02 r3 end reason=session-ended after=40.31s bytes=7253568 sid=DUIWMbYs peer1"
+  ],
+  "timeline": [
+    {
+      "s": 4,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player3": 0.0
+    },
+    {
+      "s": 5,
+      "player1": 0.01,
+      "player2": 0.03,
+      "player3": 0.02
+    },
+    {
+      "s": 6,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 7,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 8,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 9,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 10,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 11,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 12,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 13,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 14,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 15,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 16,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 17,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 18,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 19,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 20,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 21,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 22,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 23,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 24,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 25,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 26,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 27,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 28,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 29,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 30,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 0.09
+    },
+    {
+      "s": 31,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 0.0
+    },
+    {
+      "s": 32,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 0.0
+    },
+    {
+      "s": 33,
+      "player1": 0.11,
+      "player2": 0.11,
+      "player3": 0.0
+    },
+    {
+      "s": 34,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player3": 0.0
+    },
+    {
+      "s": 35,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player3": 0.0
+    },
+    {
+      "s": 36,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player3": 0.0
+    },
+    {
+      "s": 37,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player3": 0.0
+    },
+    {
+      "s": 38,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player3": 0.0
+    },
+    {
+      "s": 39,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player3": 0.0
+    },
+    {
+      "s": 40,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player3": 0.0
+    },
+    {
+      "s": 41,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player3": 0.0
+    },
+    {
+      "s": 42,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player3": 0.0
+    },
+    {
+      "s": 43,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player3": 0.0
+    },
+    {
+      "s": 44,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player3": 0.0
+    },
+    {
+      "s": 45,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player3": 0.0
+    },
+    {
+      "s": 46,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player3": 0.0
+    },
+    {
+      "s": 47,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player3": 0.0
+    },
+    {
+      "s": 48,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player3": 0.0
+    },
+    {
+      "s": 49,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player3": 0.0
+    },
+    {
+      "s": 50,
+      "player1": 0.01,
+      "player2": 0.01,
+      "player3": 0.07
+    },
+    {
+      "s": 51,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 52,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 53,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 54,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 55,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 56,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 57,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 58,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 59,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 60,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 61,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 62,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 63,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 64,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 65,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 66,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 67,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 68,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 69,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 70,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 71,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 72,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 73,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 74,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 75,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 76,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 77,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 78,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 79,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 80,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 81,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 82,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 83,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 84,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 85,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 86,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 87,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 88,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    },
+    {
+      "s": 89,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player3": 1.0
+    }
+  ],
+  "trace_sample": [
+    "[trace] t=31.01 23:30:07 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=2680ms blk=2659ms STUCK | lms: play time=27.2 duration=24348 ours=yes seen=0.7s ago",
+    "[trace] t=32.01 23:30:08 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=23ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=3680ms blk=3659ms STUCK | lms: play time=27.2 duration=24348 ours=yes seen=0.7s ago",
+    "[trace] t=33.01 23:30:09 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=4680ms blk=4659ms STUCK | lms: play time=27.2 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=34.01 23:30:10 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=22ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=5680ms blk=5659ms STUCK | lms: play time=27.2 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=35.01 23:30:11 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=6680ms blk=6660ms STUCK | lms: play time=27.2 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=36.01 23:30:12 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=7680ms blk=7660ms STUCK | lms: play time=27.2 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=37.01 23:30:13 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=8680ms blk=8660ms STUCK | lms: play time=27.2 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=38.01 23:30:14 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=9680ms blk=9660ms STUCK | lms: play time=27.2 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=39.01 23:30:15 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=10680ms blk=10661ms STUCK | lms: play time=27.2 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=40.01 23:30:16 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=11680ms blk=11661ms STUCK | lms: play time=27.2 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=41.01 23:30:17 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=12680ms blk=12661ms STUCK | lms: play time=27.2 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=42.01 23:30:18 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=13680ms blk=13661ms STUCK | lms: play time=27.2 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=43.01 23:30:19 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=14680ms blk=14662ms STUCK | lms: play time=27.2 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=44.01 23:30:20 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=15680ms blk=15662ms STUCK | lms: play time=27.2 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=45.01 23:30:21 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=16680ms blk=16662ms STUCK | lms: play time=27.2 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=46.01 23:30:22 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:123480B peak=-12.2dBFS nz=1.00 lag=320ms blk=23ms | lms: play time=27.2 duration=24348 ours=yes seen=0.5s ago",
+    "[trace] t=47.01 23:30:23 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:232848B peak=-12.2dBFS nz=1.00 lag=0ms blk=41ms | lms: play time=27.2 duration=24348 ours=yes seen=0.5s ago",
+    "[trace] t=48.01 23:30:24 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=27.2 duration=24348 ours=yes seen=0.5s ago",
+    "[trace] t=49.01 23:30:25 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=22ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=1ms | lms: play time=29.0 duration=24348 ours=yes seen=0.5s ago",
+    "[trace] t=50.01 23:30:26 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=30.1 duration=24348 ours=yes seen=0.5s ago",
+    "[trace] t=51.01 23:30:27 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=31.1 duration=24348 ours=yes seen=0.5s ago",
+    "[trace] t=52.01 23:30:28 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=32.1 duration=24348 ours=yes seen=0.5s ago",
+    "[trace] t=53.01 23:30:29 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=33.1 duration=24348 ours=yes seen=0.5s ago",
+    "[trace] t=54.01 23:30:30 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=34.1 duration=24348 ours=yes seen=0.5s ago",
+    "[trace] t=55.01 23:30:31 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=35.1 duration=24348 ours=yes seen=0.5s ago",
+    "[trace] t=56.01 23:30:32 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=1ms | lms: play time=36.1 duration=24348 ours=yes seen=0.5s ago",
+    "[trace] t=57.01 23:30:33 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=37.1 duration=24348 ours=yes seen=0.5s ago",
+    "[trace] t=58.01 23:30:34 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=1ms | lms: play time=38.1 duration=24348 ours=yes seen=0.4s ago",
+    "[trace] t=59.01 23:30:35 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=39.2 duration=24348 ours=yes seen=0.4s ago",
+    "[trace] t=60.01 23:30:36 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=40.2 duration=24348 ours=yes seen=0.4s ago",
+    "[trace] t=61.02 23:30:37 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=41.2 duration=24348 ours=yes seen=0.4s ago",
+    "[trace] t=62.02 23:30:38 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=42.2 duration=24348 ours=yes seen=0.4s ago"
+  ],
+  "label": "EXPERIMENT INTEGRATION real LMS 9.1.2 sync group + SIMULATED BT; player3 frozen by SIGSTOP; NOT hardware",
+  "env": {
+    "date_utc": "2026-11-24T23:31:04Z",
+    "lms": "9.1.2",
+    "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
+    "kernel": "7.0.0-43-generic",
+    "python": "3.11.2",
+    "note": "all timings are software/virtual-DAC measurements inside Docker; NOT acoustic, NOT hardware"
+  }
+}
