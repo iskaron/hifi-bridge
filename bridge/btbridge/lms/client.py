@@ -47,6 +47,8 @@ class Observation:
     title: str | None = None
     time: float | None = None    # elapsed seconds of the current item (LMS 'time'; diagnostics/trace only)
     duration: float | None = None  # LMS 'duration' of the current item, if LMS believes it has one (trace only)
+    waiting: bool = False        # LMS 'waitingToPlay': mode is play but the group controller is BUFFERING / WAITING_TO_SYNC - e.g.
+                                 # rebuffering after ANY member's output underrun (Slim::Control::Queries status; trace only)
 
     @property
     def playing_something(self) -> bool:
@@ -157,7 +159,28 @@ class LmsClient:
             title=(loop[0].get("title") if loop else None),
             time=_num(r.get("time")),
             duration=_num(r.get("duration")),
+            waiting=bool(r.get("waitingToPlay", 0)),
         )
+
+    def group_status(self, player: str) -> list[dict]:
+        """Read-only diagnostics for the stream trace only: every member of the player's sync group (the player alone when it is
+        not synced), each as {name, connected, signal}. ``signal`` is LMS's ``signalstrength`` (Wi-Fi %, 0 = wired or not
+        reported). One ``status`` request per member; no ids or addresses are returned."""
+        def one(pid):
+            r = self._rpc(pid, "status", "-", 1)
+            return r, {"name": str(r.get("player_name", "?")), "connected": bool(r.get("player_connected", 0)),
+                       "signal": int(_num(r.get("signalstrength")) or 0)}
+        first, me = one(player)
+        if not first:
+            return []
+        ids = [x for x in [str(first.get("sync_master", ""))] + str(first.get("sync_slaves", "")).split(",") if x]
+        out = [me]
+        for pid in dict.fromkeys(ids):
+            if pid != player:
+                r, m = one(pid)
+                if r:
+                    out.append(m)
+        return out
 
     def players(self) -> list[dict]:
         """All players known to LMS (read-only): id, name, model, connected, power."""

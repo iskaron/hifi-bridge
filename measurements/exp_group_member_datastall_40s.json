@@ -1,0 +1,936 @@
+{
+  "stop_at_s": 30.0,
+  "stop_for_s": 40.0,
+  "member": "player4",
+  "other_members": [
+    "player1",
+    "player2"
+  ],
+  "mode": "datastall",
+  "modes_at_end": {
+    "player1": "play",
+    "player2": "play",
+    "player4": "play"
+  },
+  "events": [
+    "[trace] t=0.04 11:40:03 r1 start GET 200 sid=_8tV_2ou peer1 range=- content-range=- wav-header=yes lead=0ms",
+    "[trace] t=0.05 11:40:03 r2 start GET 206 sid=_8tV_2ou peer1 range=bytes=44- content-range=bytes 44-4294967294/4294967295 wav-header=no lead=60ms",
+    "[trace] t=0.06 11:40:03 r1 end reason=peer-reset after=0.02s bytes=10584 sid=_8tV_2ou peer1 write-in-progress=0.00s",
+    "[trace] t=58.88 11:41:02 r2 end reason=peer-reset after=58.83s bytes=5027400 sid=_8tV_2ou peer1 write-in-progress=30.37s",
+    "[trace] t=58.88 11:41:02 r3 start GET 206 sid=_8tV_2ou peer1 range=bytes=4608668- content-range=bytes 4608668-4294967294/4294967295 wav-header=no lead=1000ms",
+    "[trace] t=106.22 11:41:49 r3 end reason=session-ended after=47.34s bytes=8495424 sid=_8tV_2ou peer1"
+  ],
+  "timeline": [
+    {
+      "s": 4,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 0,
+      "waiting": 1
+    },
+    {
+      "s": 5,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 0,
+      "waiting": 1
+    },
+    {
+      "s": 6,
+      "player1": 1.0,
+      "player2": 0.98,
+      "player4": 0.98,
+      "lms_time": 0.916866102218628,
+      "waiting": 0
+    },
+    {
+      "s": 7,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 1.93067303466797,
+      "waiting": 0
+    },
+    {
+      "s": 8,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 2.94606293296814,
+      "waiting": 0
+    },
+    {
+      "s": 9,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 3.95599206161499,
+      "waiting": 0
+    },
+    {
+      "s": 10,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 4.97032218933105,
+      "waiting": 0
+    },
+    {
+      "s": 11,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 5.98541606521606,
+      "waiting": 0
+    },
+    {
+      "s": 12,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 6.99986015701294,
+      "waiting": 0
+    },
+    {
+      "s": 13,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 7.50061493873596,
+      "waiting": 0
+    },
+    {
+      "s": 14,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 8.51534203338623,
+      "waiting": 0
+    },
+    {
+      "s": 15,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 9.53024114227295,
+      "waiting": 0
+    },
+    {
+      "s": 16,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 10.5383111553192,
+      "waiting": 0
+    },
+    {
+      "s": 17,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 11.5517459487915,
+      "waiting": 0
+    },
+    {
+      "s": 18,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 12.5597770271301,
+      "waiting": 0
+    },
+    {
+      "s": 19,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 13.5856429862976,
+      "waiting": 0
+    },
+    {
+      "s": 20,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 14.6050602302551,
+      "waiting": 0
+    },
+    {
+      "s": 21,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 15.6201180114746,
+      "waiting": 0
+    },
+    {
+      "s": 22,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 16.6311641311645,
+      "waiting": 0
+    },
+    {
+      "s": 23,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 17.6449560966492,
+      "waiting": 0
+    },
+    {
+      "s": 24,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 18.6511771011353,
+      "waiting": 0
+    },
+    {
+      "s": 25,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 19.6660298423767,
+      "waiting": 0
+    },
+    {
+      "s": 26,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 20.6850961341858,
+      "waiting": 0
+    },
+    {
+      "s": 27,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 21.6896450786591,
+      "waiting": 0
+    },
+    {
+      "s": 28,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 22.7072632160187,
+      "waiting": 0
+    },
+    {
+      "s": 29,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 23.7217509384155,
+      "waiting": 0
+    },
+    {
+      "s": 30,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 24.7346221103668,
+      "waiting": 0
+    },
+    {
+      "s": 31,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 0.79,
+      "lms_time": 25.7435630149841,
+      "waiting": 0
+    },
+    {
+      "s": 32,
+      "player1": 0.11,
+      "player2": 0.08,
+      "player4": 0.0,
+      "lms_time": 26.115,
+      "waiting": 1
+    },
+    {
+      "s": 33,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.109,
+      "waiting": 1
+    },
+    {
+      "s": 34,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.131,
+      "waiting": 1
+    },
+    {
+      "s": 35,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.104,
+      "waiting": 1
+    },
+    {
+      "s": 36,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.107,
+      "waiting": 1
+    },
+    {
+      "s": 37,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.12,
+      "waiting": 1
+    },
+    {
+      "s": 38,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.124,
+      "waiting": 1
+    },
+    {
+      "s": 39,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.136,
+      "waiting": 1
+    },
+    {
+      "s": 40,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.11,
+      "waiting": 1
+    },
+    {
+      "s": 41,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.113,
+      "waiting": 1
+    },
+    {
+      "s": 42,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.128,
+      "waiting": 1
+    },
+    {
+      "s": 43,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.11,
+      "waiting": 1
+    },
+    {
+      "s": 44,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.104,
+      "waiting": 1
+    },
+    {
+      "s": 45,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.126,
+      "waiting": 1
+    },
+    {
+      "s": 46,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.12,
+      "waiting": 1
+    },
+    {
+      "s": 47,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.142,
+      "waiting": 1
+    },
+    {
+      "s": 48,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.115,
+      "waiting": 1
+    },
+    {
+      "s": 49,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.108,
+      "waiting": 1
+    },
+    {
+      "s": 50,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.131,
+      "waiting": 1
+    },
+    {
+      "s": 51,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.123,
+      "waiting": 1
+    },
+    {
+      "s": 52,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.105,
+      "waiting": 1
+    },
+    {
+      "s": 53,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.118,
+      "waiting": 1
+    },
+    {
+      "s": 54,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.122,
+      "waiting": 1
+    },
+    {
+      "s": 55,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.134,
+      "waiting": 1
+    },
+    {
+      "s": 56,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.138,
+      "waiting": 1
+    },
+    {
+      "s": 57,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.111,
+      "waiting": 1
+    },
+    {
+      "s": 58,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.123,
+      "waiting": 1
+    },
+    {
+      "s": 59,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.127,
+      "waiting": 1
+    },
+    {
+      "s": 60,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.099,
+      "waiting": 1
+    },
+    {
+      "s": 61,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.122,
+      "waiting": 1
+    },
+    {
+      "s": 62,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.117,
+      "waiting": 1
+    },
+    {
+      "s": 63,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.1259863945578,
+      "waiting": 1
+    },
+    {
+      "s": 64,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.1259863945578,
+      "waiting": 1
+    },
+    {
+      "s": 65,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.1259863945578,
+      "waiting": 1
+    },
+    {
+      "s": 66,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.1259863945578,
+      "waiting": 1
+    },
+    {
+      "s": 67,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.1259863945578,
+      "waiting": 1
+    },
+    {
+      "s": 68,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.1259863945578,
+      "waiting": 1
+    },
+    {
+      "s": 69,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "lms_time": 26.1259863945578,
+      "waiting": 1
+    },
+    {
+      "s": 70,
+      "player1": 0.65,
+      "player2": 0.66,
+      "player4": 0.65,
+      "lms_time": 26.1259863945578,
+      "waiting": 0
+    },
+    {
+      "s": 71,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 27.5842904297446,
+      "waiting": 0
+    },
+    {
+      "s": 72,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 28.5984324661826,
+      "waiting": 0
+    },
+    {
+      "s": 73,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 29.6187455937003,
+      "waiting": 0
+    },
+    {
+      "s": 74,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 30.6264074341391,
+      "waiting": 0
+    },
+    {
+      "s": 75,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 31.6406164661978,
+      "waiting": 0
+    },
+    {
+      "s": 76,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 32.6663403793906,
+      "waiting": 0
+    },
+    {
+      "s": 77,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 33.6853983990286,
+      "waiting": 0
+    },
+    {
+      "s": 78,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 34.7040655991172,
+      "waiting": 0
+    },
+    {
+      "s": 79,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 35.7212024838065,
+      "waiting": 0
+    },
+    {
+      "s": 80,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 36.7285404278372,
+      "waiting": 0
+    },
+    {
+      "s": 81,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 37.747775354061,
+      "waiting": 0
+    },
+    {
+      "s": 82,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 38.7606443802451,
+      "waiting": 0
+    },
+    {
+      "s": 83,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 39.7687753769492,
+      "waiting": 0
+    },
+    {
+      "s": 84,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 40.801418309841,
+      "waiting": 0
+    },
+    {
+      "s": 85,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 41.8077713982199,
+      "waiting": 0
+    },
+    {
+      "s": 86,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 42.3173643871878,
+      "waiting": 0
+    },
+    {
+      "s": 87,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 43.3339973274802,
+      "waiting": 0
+    },
+    {
+      "s": 88,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 44.3484023186301,
+      "waiting": 0
+    },
+    {
+      "s": 89,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 45.3562784248923,
+      "waiting": 0
+    },
+    {
+      "s": 90,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 46.3696193539237,
+      "waiting": 0
+    },
+    {
+      "s": 91,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 47.3843992535208,
+      "waiting": 0
+    },
+    {
+      "s": 92,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 48.3933823372458,
+      "waiting": 0
+    },
+    {
+      "s": 93,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 49.4089732224082,
+      "waiting": 0
+    },
+    {
+      "s": 94,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 50.4269902340506,
+      "waiting": 0
+    },
+    {
+      "s": 95,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 51.4294244057273,
+      "waiting": 0
+    },
+    {
+      "s": 96,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 52.4498935524558,
+      "waiting": 0
+    },
+    {
+      "s": 97,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 53.4760181633567,
+      "waiting": 0
+    },
+    {
+      "s": 98,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 54.4857082306479,
+      "waiting": 0
+    },
+    {
+      "s": 99,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 55.510602395687,
+      "waiting": 0
+    },
+    {
+      "s": 100,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 56.5224642178153,
+      "waiting": 0
+    },
+    {
+      "s": 101,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 57.5371743122672,
+      "waiting": 0
+    },
+    {
+      "s": 102,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 58.5544994331931,
+      "waiting": 0
+    },
+    {
+      "s": 103,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 59.5684772926901,
+      "waiting": 0
+    },
+    {
+      "s": 104,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 60.5748835484122,
+      "waiting": 0
+    },
+    {
+      "s": 105,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 61.5904553600882,
+      "waiting": 0
+    },
+    {
+      "s": 106,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 62.6083343483542,
+      "waiting": 0
+    },
+    {
+      "s": 107,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 63.6157912632559,
+      "waiting": 0
+    },
+    {
+      "s": 108,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 64.6306833435629,
+      "waiting": 0
+    },
+    {
+      "s": 109,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "lms_time": 65.6470273720359,
+      "waiting": 0
+    }
+  ],
+  "trace_sample": [
+    "[trace] t=31.01 11:40:34 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=2520ms blk=2505ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.7s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=32.01 11:40:35 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=3520ms blk=3505ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.6s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=33.01 11:40:36 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=23ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=4520ms blk=4505ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.6s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=34.01 11:40:37 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=22ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=5520ms blk=5506ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.6s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=35.01 11:40:38 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=6520ms blk=6506ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.6s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=36.01 11:40:39 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=7520ms blk=7506ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.6s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=37.01 11:40:40 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=8520ms blk=8506ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.6s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=38.01 11:40:41 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=9520ms blk=9507ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.6s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=39.01 11:40:42 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=10520ms blk=10507ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.6s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=40.01 11:40:43 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=11520ms blk=11507ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.6s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=41.01 11:40:44 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=12520ms blk=12507ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.6s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=42.01 11:40:45 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=13520ms blk=13507ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.6s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=43.01 11:40:46 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=14520ms blk=14508ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.6s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=44.01 11:40:47 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=15520ms blk=15508ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.6s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=45.01 11:40:48 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=16520ms blk=16508ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.6s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=46.01 11:40:49 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=17520ms blk=17508ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.5s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=47.01 11:40:50 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=18520ms blk=18509ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.5s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=48.01 11:40:51 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=19520ms blk=19509ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.5s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=49.01 11:40:52 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=20520ms blk=20509ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.5s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=50.01 11:40:53 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=21520ms blk=21509ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.5s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=51.01 11:40:54 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=22520ms blk=22510ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.5s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=52.01 11:40:55 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=23520ms blk=23510ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.5s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=53.01 11:40:56 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=24520ms blk=24510ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.5s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=54.02 11:40:57 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=25520ms blk=25510ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.5s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=55.02 11:40:58 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=26520ms blk=26511ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.5s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=56.02 11:40:59 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=22ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=27520ms blk=27511ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.5s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=57.02 11:41:00 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=28520ms blk=28511ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.5s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=58.02 11:41:01 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:0B peak=- nz=- lag=29520ms blk=29512ms STUCK | lms: play time=26.1 duration=24348 ours=yes seen=0.4s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=59.02 11:41:02 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:201096B peak=-12.2dBFS nz=1.00 lag=0ms blk=34ms | lms: play time=26.1 duration=24348 ours=yes seen=0.4s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=60.02 11:41:03 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=26.1 duration=24348 ours=yes seen=0.4s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=61.02 11:41:04 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=26.1 duration=24348 ours=yes seen=0.4s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=62.02 11:41:05 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=26.1 duration=24348 ours=yes seen=0.4s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=63.02 11:41:06 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=26.1 duration=24348 ours=yes seen=0.4s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=64.02 11:41:07 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=26.1 duration=24348 ours=yes seen=0.4s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=65.02 11:41:08 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=26.1 duration=24348 ours=yes seen=0.4s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=66.02 11:41:09 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=476ms | lms: play time=26.1 duration=24348 ours=yes seen=0.4s ago WAITING | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=67.02 11:41:10 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=26.1 duration=24348 ours=yes seen=0.4s ago | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=68.02 11:41:11 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=27.7 duration=24348 ours=yes seen=0.4s ago | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=69.02 11:41:12 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=28.7 duration=24348 ours=yes seen=0.4s ago | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=70.02 11:41:13 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=29.8 duration=24348 ours=yes seen=0.4s ago | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=71.02 11:41:14 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=30.8 duration=24348 ours=yes seen=0.4s ago | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=72.02 11:41:15 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=31.8 duration=24348 ours=yes seen=0.3s ago | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=73.02 11:41:16 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=32.8 duration=24348 ours=yes seen=0.3s ago | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=74.02 11:41:17 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=33.8 duration=24348 ours=yes seen=0.3s ago | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=75.02 11:41:18 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=34.8 duration=24348 ours=yes seen=0.3s ago | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=76.02 11:41:19 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=35.8 duration=24348 ours=yes seen=0.3s ago | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=77.02 11:41:20 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=36.8 duration=24348 ours=yes seen=0.3s ago | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=78.02 11:41:21 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=37.8 duration=24348 ours=yes seen=0.3s ago | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=79.02 11:41:22 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=38.8 duration=24348 ours=yes seen=0.3s ago | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=80.02 11:41:23 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=39.8 duration=24348 ours=yes seen=0.3s ago | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=81.02 11:41:24 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=22ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=40.9 duration=24348 ours=yes seen=0.3s ago | members: lab-player1:ok, lab-player2:ok, lab-player4:ok",
+    "[trace] t=82.02 11:41:25 in: 51ch 179928B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44982fr real +0fr silence +0fr dropped fill=on | out: r3:176400B peak=-12.2dBFS nz=1.00 lag=20ms blk=0ms | lms: play time=41.9 duration=24348 ours=yes seen=0.3s ago | members: lab-player1:ok, lab-player2:ok, lab-player4:ok"
+  ],
+  "label": "EXPERIMENT INTEGRATION real LMS 9.1.2 sync group + SIMULATED BT; player4 stalled by datastall; NOT hardware",
+  "env": {
+    "date_utc": "2026-11-25T11:41:52Z",
+    "lms": "9.1.2",
+    "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
+    "kernel": "7.0.0-43-generic",
+    "python": "3.11.2",
+    "note": "all timings are software/virtual-DAC measurements inside Docker; NOT acoustic, NOT hardware"
+  }
+}

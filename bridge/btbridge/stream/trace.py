@@ -83,6 +83,7 @@ class _Conn:
 class StreamTrace:
     def __init__(self, log, period_s: float = 1.0, clock=time.monotonic):
         self.log, self.period_s, self.clock = log, period_s, clock
+        self.member_period_s = 2.0
         self.t0 = clock()
         self._lock = threading.Lock()
         self._n = 0
@@ -99,6 +100,8 @@ class StreamTrace:
         self.feeder = None
         self.ring = None
         self.lms_observation = None          # callable -> (monotonic_seconds, Observation, is_our_stream) | None
+        self.lms_poll = None                 # callable -> (monotonic_seconds, "ok" | "lms-unreachable" | "target-disconnected") | None
+        self._members = None                 # (monotonic_seconds, [{name, connected, signal}]) from start_member_poll
 
     def _t(self) -> str:
         """Monotonic seconds since the trace started (for ordering) + local wall time (to match what the listener noted)."""
@@ -200,13 +203,45 @@ class StreamTrace:
         line = f"in: {chunks}ch {nbytes}B {lvl.text()} gap-max={gap * 1000:.0f}ms{idle}{fd}"
         line += " | out: " + ("; ".join(conns) if conns else "no connection")
         obs = self.lms_observation() if callable(self.lms_observation) else None
+        poll = self.lms_poll() if callable(self.lms_poll) else None
+        if obs or poll:
+            line += " | lms:"
         if obs:
             at, o, ours = obs
             tm = getattr(o, "time", None)
             du = getattr(o, "duration", None)
-            line += (f" | lms: {o.mode} time={'-' if tm is None else f'{tm:.1f}'} duration={'-' if du is None else f'{du:.0f}'}"
-                     f" ours={'yes' if ours else 'no'} seen={now - at:.1f}s ago")
+            line += (f" {o.mode} time={'-' if tm is None else f'{tm:.1f}'} duration={'-' if du is None else f'{du:.0f}'}"
+                     f" ours={'yes' if ours else 'no'} seen={now - at:.1f}s ago{' WAITING' if getattr(o, 'waiting', False) else ''}")
+        if poll and poll[1] != "ok":
+            line += f" poll={poll[1]} {now - poll[0]:.1f}s ago"
+        line += self._members_text(now)
         return line
+
+    def _members_text(self, now: float) -> str:
+        m = self._members
+        if not m:
+            return ""
+        at, members = m
+        parts = []
+        for x in members:
+            name = "".join(ch if (ch.isalnum() or ch in "-_.") else "_" for ch in str(x.get("name", "?")))[:20]
+            sig = f" sig={x['signal']}" if x.get("signal") else ""
+            parts.append(f"{name}:{'ok' if x.get('connected') else 'DISC'}{sig}")
+        age = now - at
+        return f" | members: {', '.join(parts) or '-'}{f' ({age:.0f}s old)' if age > 3 * self.member_period_s else ''}"
+
+    def start_member_poll(self, stop: threading.Event, fetch, period_s: float = 2.0) -> None:
+        """Poll ``fetch() -> [{name, connected, signal}]`` (LMS sync-group members, read-only) in its own thread, so a slow or
+        unreachable LMS never delays the summary line. Failures keep the last result (its age is shown)."""
+        self.member_period_s = period_s
+
+        def run():
+            while not stop.wait(period_s):
+                try:
+                    self._members = (self.clock(), list(fetch() or []))
+                except Exception:                      # LmsUnreachable or anything else: keep the last result, show its age
+                    pass
+        threading.Thread(target=run, daemon=True, name="stream-trace-members").start()
 
     def tick(self) -> None:
         line = self.snapshot()

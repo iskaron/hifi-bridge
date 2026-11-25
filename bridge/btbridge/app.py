@@ -66,6 +66,7 @@ class BridgeRuntime:
             self.trace = StreamTrace(self.log)
             self.trace.feeder, self.trace.ring = self.feeder, self.ring
             self.trace.lms_observation = lambda: self.controller.last_observation
+            self.trace.lms_poll = lambda: self.controller.last_poll
             self.stream.trace = self.trace
 
     # -- logging (always redacted) -------------------------------------------
@@ -165,6 +166,8 @@ class BridgeRuntime:
         if self.trace:
             self.log("[trace] audio-path trace ON (HIFI_STREAM_TRACE): one summary line per second, see docs/STREAM_TRACE.md")
             self.trace.start(self._stop)
+            c = self.controller
+            self.trace.start_member_poll(self._stop, lambda: c.lms.group_status(c.cfg.target_player) if c.cfg.target_player else [])
         if self.source:
             class CB:
                 on_connect = staticmethod(self._on_connect)

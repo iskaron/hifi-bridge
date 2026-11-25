@@ -47,8 +47,12 @@ def test_a_sync_group_plays_150_s_from_one_held_connection_and_the_trace_shows_i
         starts_t = [float(re.search(r"t=([\d.]+)", m).group(1)) for m in starts]
         late = [m for m, t in zip(starts, starts_t) if t - starts_t[0] > 15]          # any request after the start-up phase
         blocked = [m for m in summaries if "STUCK" in m]
+        t_of = lambda m: float(re.search(r"t=([\d.]+)", m).group(1))                 # noqa: E731
+        waiting = [m for m in summaries if " WAITING" in m and t_of(m) - t_of(summaries[0]) > 10]   # LMS rebuffering after start-up
+        members = [m for m in summaries if re.search(r"\| members: (lab-player\d:ok(, )?){3}$", m)]
         result = {"seconds": SECONDS, "audible_fraction_from_10s": audible, "stream_requests": starts, "connection_ends": ends,
-                  "late_requests": late, "stuck_summaries": len(blocked), "summary_lines": len(summaries),
+                  "late_requests": late, "stuck_summaries": len(blocked), "waiting_summaries": len(waiting),
+                  "summaries_with_3_members_ok": len(members), "summary_lines": len(summaries),
                   "ring_skips": rt.stream.stats["ring_skips"], "feeder": rt.status()["feeder"],
                   "lms_observation": None if not obs else {"mode": obs[1].mode, "time": obs[1].time, "duration": obs[1].duration,
                                                            "ours": obs[2]},
@@ -59,6 +63,8 @@ def test_a_sync_group_plays_150_s_from_one_held_connection_and_the_trace_shows_i
         assert all(a > 0.99 for a in audible.values()), audible
         assert late == [], late                                                       # no re-request needed for continuity
         assert not blocked and rt.stream.stats["ring_skips"] == 0
+        assert not waiting, waiting[:3]                                               # Lyrion never had to rebuffer the group
+        assert len(members) >= SECONDS - 15, summaries[-1]                            # every member reported connected, by name
         assert len(summaries) >= SECONDS - 5                                         # ~1 line/s, bounded
         assert all(not re.search(r"/s/|token", m) for m in lines)
     finally:

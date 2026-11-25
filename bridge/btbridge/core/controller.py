@@ -129,6 +129,7 @@ class Controller:
         self._recheck = False                          # something asked for a start while one was in flight
         self.io_failures = 0                           # LMS calls that failed as unreachable (tick time budget)
         self.last_observation = None                   # (monotonic, Observation, ours) of the last poll - read by the stream trace only
+        self.last_poll = None                          # (monotonic, "ok" | "lms-unreachable" | "target-disconnected") - trace only
 
     # ------------------------------------------------------------------ helpers
     def _ev(self, name, detail=""):
@@ -168,10 +169,12 @@ class Controller:
             with self.lock:
                 if lms is self.lms:
                     self._set_reachability("unreachable")
+                    self.last_poll = (time.monotonic(), "lms-unreachable")
             return None
         with self.lock:
             if lms is self.lms and target == self.cfg.target_player:
                 self._set_reachability("reachable" if (obs.player_connected and obs.player_known) else "unreachable")
+                self.last_poll = (time.monotonic(), "ok" if (obs.player_connected and obs.player_known) else "target-disconnected")
         return obs if obs.player_connected else None
 
     def _set_reachability(self, r: str):

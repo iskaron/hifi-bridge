@@ -1,0 +1,782 @@
+{
+  "stop_at_s": 30.0,
+  "stop_for_s": 5.0,
+  "member": "player4",
+  "other_members": [
+    "player1",
+    "player2",
+    "player5"
+  ],
+  "mode": "datastall",
+  "modes_at_end": {
+    "player1": "play",
+    "player2": "play",
+    "player4": "play",
+    "player5": "play"
+  },
+  "events": [
+    "[trace] t=0.02 11:30:57 r1 start GET 200 sid=YgWZWJHd peer1 range=- content-range=- wav-header=yes lead=0ms",
+    "[trace] t=0.03 11:30:57 r2 start GET 206 sid=YgWZWJHd peer1 range=bytes=44- content-range=bytes 44-4294967294/4294967295 wav-header=no lead=40ms",
+    "[trace] t=0.04 11:30:57 r1 end reason=peer-reset after=0.02s bytes=7056 sid=YgWZWJHd peer1 write-in-progress=0.00s",
+    "[trace] t=81.32 11:32:19 r2 end reason=session-ended after=81.29s bytes=14313096 sid=YgWZWJHd peer1"
+  ],
+  "timeline": [
+    {
+      "s": 4,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "player5": 0.0,
+      "lms_time": 0,
+      "waiting": 1
+    },
+    {
+      "s": 5,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "player5": 0.0,
+      "lms_time": 0,
+      "waiting": 1
+    },
+    {
+      "s": 6,
+      "player1": 0.99,
+      "player2": 0.99,
+      "player4": 0.98,
+      "player5": 0.99,
+      "lms_time": 0.888449935913086,
+      "waiting": 0
+    },
+    {
+      "s": 7,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 1.90231698226929,
+      "waiting": 0
+    },
+    {
+      "s": 8,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 2.91807509422302,
+      "waiting": 0
+    },
+    {
+      "s": 9,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 3.93825503921509,
+      "waiting": 0
+    },
+    {
+      "s": 10,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 4.95198006057739,
+      "waiting": 0
+    },
+    {
+      "s": 11,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 5.958922996521,
+      "waiting": 0
+    },
+    {
+      "s": 12,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 6.98366004371643,
+      "waiting": 0
+    },
+    {
+      "s": 13,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 8.00726916313171,
+      "waiting": 0
+    },
+    {
+      "s": 14,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 8.5085530166626,
+      "waiting": 0
+    },
+    {
+      "s": 15,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 9.52552503967285,
+      "waiting": 0
+    },
+    {
+      "s": 16,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 10.5410960845947,
+      "waiting": 0
+    },
+    {
+      "s": 17,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 11.5554971885681,
+      "waiting": 0
+    },
+    {
+      "s": 18,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 12.5646789474487,
+      "waiting": 0
+    },
+    {
+      "s": 19,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 13.5786630573273,
+      "waiting": 0
+    },
+    {
+      "s": 20,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 14.5876990184784,
+      "waiting": 0
+    },
+    {
+      "s": 21,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 15.6018050327301,
+      "waiting": 0
+    },
+    {
+      "s": 22,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 16.6226389598846,
+      "waiting": 0
+    },
+    {
+      "s": 23,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 17.6264931316376,
+      "waiting": 0
+    },
+    {
+      "s": 24,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 18.6448651695251,
+      "waiting": 0
+    },
+    {
+      "s": 25,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 19.6600412063599,
+      "waiting": 0
+    },
+    {
+      "s": 26,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 20.6663668766022,
+      "waiting": 0
+    },
+    {
+      "s": 27,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 21.6839290065765,
+      "waiting": 0
+    },
+    {
+      "s": 28,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 22.7007390918732,
+      "waiting": 0
+    },
+    {
+      "s": 29,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 23.7036551589966,
+      "waiting": 0
+    },
+    {
+      "s": 30,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 24.7202769451141,
+      "waiting": 0
+    },
+    {
+      "s": 31,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 0.79,
+      "player5": 1.0,
+      "lms_time": 25.7349959335327,
+      "waiting": 0
+    },
+    {
+      "s": 32,
+      "player1": 0.4,
+      "player2": 0.44,
+      "player4": 0.0,
+      "player5": 0.44,
+      "lms_time": 26.423,
+      "waiting": 1
+    },
+    {
+      "s": 33,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "player5": 0.0,
+      "lms_time": 26.416,
+      "waiting": 1
+    },
+    {
+      "s": 34,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "player5": 0.0,
+      "lms_time": 26.399,
+      "waiting": 1
+    },
+    {
+      "s": 35,
+      "player1": 0.0,
+      "player2": 0.0,
+      "player4": 0.0,
+      "player5": 0.0,
+      "lms_time": 26.412,
+      "waiting": 1
+    },
+    {
+      "s": 36,
+      "player1": 0.64,
+      "player2": 0.6,
+      "player4": 0.66,
+      "player5": 0.58,
+      "lms_time": 26.8274180545807,
+      "waiting": 0
+    },
+    {
+      "s": 37,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 27.8446989879608,
+      "waiting": 0
+    },
+    {
+      "s": 38,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 28.8519440002441,
+      "waiting": 0
+    },
+    {
+      "s": 39,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 29.8647608852386,
+      "waiting": 0
+    },
+    {
+      "s": 40,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 30.8816061191559,
+      "waiting": 0
+    },
+    {
+      "s": 41,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 31.8946850261688,
+      "waiting": 0
+    },
+    {
+      "s": 42,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 32.9024490756989,
+      "waiting": 0
+    },
+    {
+      "s": 43,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 33.9283369369507,
+      "waiting": 0
+    },
+    {
+      "s": 44,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 34.9457931365967,
+      "waiting": 0
+    },
+    {
+      "s": 45,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 35.9586810703278,
+      "waiting": 0
+    },
+    {
+      "s": 46,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 36.9650439338684,
+      "waiting": 0
+    },
+    {
+      "s": 47,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 37.9804531440735,
+      "waiting": 0
+    },
+    {
+      "s": 48,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 38.9932811107635,
+      "waiting": 0
+    },
+    {
+      "s": 49,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 40.0030012187958,
+      "waiting": 0
+    },
+    {
+      "s": 50,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 41.0185720043182,
+      "waiting": 0
+    },
+    {
+      "s": 51,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 42.0281921424866,
+      "waiting": 0
+    },
+    {
+      "s": 52,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 43.0448661117554,
+      "waiting": 0
+    },
+    {
+      "s": 53,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 43.55580519104,
+      "waiting": 0
+    },
+    {
+      "s": 54,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 44.5673892345428,
+      "waiting": 0
+    },
+    {
+      "s": 55,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 45.5779329128265,
+      "waiting": 0
+    },
+    {
+      "s": 56,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 46.5937369651794,
+      "waiting": 0
+    },
+    {
+      "s": 57,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 47.6045820980072,
+      "waiting": 0
+    },
+    {
+      "s": 58,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 48.6316158924103,
+      "waiting": 0
+    },
+    {
+      "s": 59,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 49.6490120620728,
+      "waiting": 0
+    },
+    {
+      "s": 60,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 50.6541639671326,
+      "waiting": 0
+    },
+    {
+      "s": 61,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 51.6712912006378,
+      "waiting": 0
+    },
+    {
+      "s": 62,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 52.6858299446106,
+      "waiting": 0
+    },
+    {
+      "s": 63,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 53.6980089874268,
+      "waiting": 0
+    },
+    {
+      "s": 64,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 54.7053541564941,
+      "waiting": 0
+    },
+    {
+      "s": 65,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 55.7205842418671,
+      "waiting": 0
+    },
+    {
+      "s": 66,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 56.7290710105896,
+      "waiting": 0
+    },
+    {
+      "s": 67,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 57.7421190891266,
+      "waiting": 0
+    },
+    {
+      "s": 68,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 58.7722951469421,
+      "waiting": 0
+    },
+    {
+      "s": 69,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 59.7871781673431,
+      "waiting": 0
+    },
+    {
+      "s": 70,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 60.795646982193,
+      "waiting": 0
+    },
+    {
+      "s": 71,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 61.8085079746246,
+      "waiting": 0
+    },
+    {
+      "s": 72,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 62.8180410385132,
+      "waiting": 0
+    },
+    {
+      "s": 73,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 63.833704164505,
+      "waiting": 0
+    },
+    {
+      "s": 74,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 64.8549510326386,
+      "waiting": 0
+    },
+    {
+      "s": 75,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 65.8606999893188,
+      "waiting": 0
+    },
+    {
+      "s": 76,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 66.8944730472565,
+      "waiting": 0
+    },
+    {
+      "s": 77,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 67.9080950717926,
+      "waiting": 0
+    },
+    {
+      "s": 78,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 68.9206210136414,
+      "waiting": 0
+    },
+    {
+      "s": 79,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 69.9300409526825,
+      "waiting": 0
+    },
+    {
+      "s": 80,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 70.9446129512787,
+      "waiting": 0
+    },
+    {
+      "s": 81,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 71.9532651824951,
+      "waiting": 0
+    },
+    {
+      "s": 82,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 72.974166053772,
+      "waiting": 0
+    },
+    {
+      "s": 83,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 73.9938420543671,
+      "waiting": 0
+    },
+    {
+      "s": 84,
+      "player1": 1.0,
+      "player2": 1.0,
+      "player4": 1.0,
+      "player5": 1.0,
+      "lms_time": 75.0068359603882,
+      "waiting": 0
+    }
+  ],
+  "trace_sample": [
+    "[trace] t=31.01 11:31:28 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:515088B peak=-12.2dBFS nz=1.00 lag=0ms blk=2719ms | lms: play time=26.4 duration=24348 ours=yes seen=0.7s ago",
+    "[trace] t=32.01 11:31:29 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=26.4 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=33.01 11:31:30 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=1ms | lms: play time=26.7 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=34.01 11:31:31 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=22ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=27.7 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=35.01 11:31:32 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=28.7 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=36.01 11:31:33 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=1ms | lms: play time=29.7 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=37.01 11:31:34 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=22ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:176400B peak=-12.3dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=30.7 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=38.01 11:31:35 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=31.7 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=39.01 11:31:36 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=32.7 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=40.01 11:31:37 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=33.8 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=41.01 11:31:38 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=34.8 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=42.01 11:31:39 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=35.8 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=43.01 11:31:40 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=36.8 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=44.01 11:31:41 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=37.8 duration=24348 ours=yes seen=0.6s ago",
+    "[trace] t=45.01 11:31:42 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=20ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=38.8 duration=24348 ours=yes seen=0.5s ago",
+    "[trace] t=46.01 11:31:43 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=39.8 duration=24348 ours=yes seen=0.5s ago",
+    "[trace] t=47.01 11:31:44 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=40.8 duration=24348 ours=yes seen=0.5s ago"
+  ],
+  "label": "EXPERIMENT INTEGRATION real LMS 9.1.2 sync group + SIMULATED BT; player4 stalled by datastall; NOT hardware",
+  "env": {
+    "date_utc": "2026-11-25T11:32:22Z",
+    "lms": "9.1.2",
+    "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
+    "kernel": "7.0.0-43-generic",
+    "python": "3.11.2",
+    "note": "all timings are software/virtual-DAC measurements inside Docker; NOT acoustic, NOT hardware"
+  }
+}
