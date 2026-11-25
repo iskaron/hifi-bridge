@@ -226,7 +226,7 @@ class StreamTrace:
         for x in members:
             name = "".join(ch if (ch.isalnum() or ch in "-_.") else "_" for ch in str(x.get("name", "?")))[:20]
             sig = f" sig={x['signal']}" if x.get("signal") else ""
-            parts.append(f"{name}:{'ok' if x.get('connected') else 'DISC'}{sig}")
+            parts.append(f"{name}:{'ok' if x.get('connected') else 'DISC'}{sig}{'(master)' if x.get('master') else ''}")
         age = now - at
         return f" | members: {', '.join(parts) or '-'}{f' ({age:.0f}s old)' if age > 3 * self.member_period_s else ''}"
 

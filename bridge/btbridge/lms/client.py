@@ -164,20 +164,23 @@ class LmsClient:
 
     def group_status(self, player: str) -> list[dict]:
         """Read-only diagnostics for the stream trace only: every member of the player's sync group (the player alone when it is
-        not synced), each as {name, connected, signal}. ``signal`` is LMS's ``signalstrength`` (Wi-Fi %, 0 = wired or not
-        reported). One ``status`` request per member; no ids or addresses are returned."""
-        def one(pid):
+        not synced), each as {name, connected, signal, master}. ``signal`` is LMS's ``signalstrength`` (Wi-Fi %, 0 = wired or not
+        reported); ``master`` marks the sync master (Lyrion takes the elapsed ``time`` and the stream restart position from it).
+        One ``status`` request per member; no ids or addresses are returned."""
+        def one(pid, master_id=""):
             r = self._rpc(pid, "status", "-", 1)
             return r, {"name": str(r.get("player_name", "?")), "connected": bool(r.get("player_connected", 0)),
-                       "signal": int(_num(r.get("signalstrength")) or 0)}
+                       "signal": int(_num(r.get("signalstrength")) or 0), "master": bool(master_id) and pid == master_id}
         first, me = one(player)
         if not first:
             return []
-        ids = [x for x in [str(first.get("sync_master", ""))] + str(first.get("sync_slaves", "")).split(",") if x]
+        master_id = str(first.get("sync_master", ""))
+        me["master"] = bool(master_id) and player == master_id
+        ids = [x for x in [master_id] + str(first.get("sync_slaves", "")).split(",") if x]
         out = [me]
         for pid in dict.fromkeys(ids):
             if pid != player:
-                r, m = one(pid)
+                r, m = one(pid, master_id)
                 if r:
                     out.append(m)
         return out

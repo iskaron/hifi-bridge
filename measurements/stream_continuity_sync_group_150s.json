@@ -6,12 +6,12 @@
     "player3": 1.0
   },
   "stream_requests": [
-    "[trace] t=0.02 12:10:58 r1 start GET 200 sid=R1hnLnJk peer1 range=- content-range=- wav-header=yes lead=0ms",
-    "[trace] t=0.06 12:10:58 r2 start GET 206 sid=R1hnLnJk peer1 range=bytes=44- content-range=bytes 44-4294967294/4294967295 wav-header=no lead=60ms"
+    "[trace] t=0.04 14:56:31 r1 start GET 200 sid=LLrSS2Db peer1 range=- content-range=- wav-header=yes lead=20ms",
+    "[trace] t=0.04 14:56:31 r2 start GET 206 sid=LLrSS2Db peer1 range=bytes=44- content-range=bytes 44-4294967294/4294967295 wav-header=no lead=60ms"
   ],
   "connection_ends": [
-    "[trace] t=0.08 12:10:58 r1 end reason=peer-reset after=0.07s bytes=14112 sid=R1hnLnJk peer1 write-in-progress=0.00s",
-    "[trace] t=150.26 12:13:28 r2 end reason=session-ended after=150.20s bytes=26474112 sid=R1hnLnJk peer1"
+    "[trace] t=0.06 14:56:31 r1 end reason=peer-reset after=0.02s bytes=10584 sid=LLrSS2Db peer1 write-in-progress=0.00s",
+    "[trace] t=150.24 14:59:01 r2 end reason=session-ended after=150.20s bytes=26470584 sid=LLrSS2Db peer1"
   ],
   "late_requests": [],
   "stuck_summaries": 0,
@@ -22,18 +22,18 @@
   "feeder": {
     "silence_frames": 0,
     "dropped_frames": 0,
-    "pushed_frames": 6618528
+    "pushed_frames": 6617646
   },
   "lms_observation": {
     "mode": "play",
-    "time": 147.825064025879,
+    "time": 147.820613899231,
     "duration": 24347.8871598639,
     "ours": true
   },
-  "example_summary": "[trace] t=76.02 12:12:14 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=21ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=1ms | lms: play time=74.1 duration=24348 ours=yes seen=0.3s ago | members: lab-player1:ok, lab-player2:ok, lab-player3:ok",
+  "example_summary": "[trace] t=76.02 14:57:47 in: 50ch 176400B peak=-12.2dBFS nz=1.00 gap-max=23ms | feeder: +44100fr real +0fr silence +0fr dropped fill=on | out: r2:176400B peak=-12.2dBFS nz=1.00 lag=0ms blk=0ms | lms: play time=74.1 duration=24348 ours=yes seen=0.3s ago | members: lab-player1:ok(master), lab-player2:ok, lab-player3:ok",
   "label": "INTEGRATION real LMS 9.1.2 sync group (3x Squeezelite) + SIMULATED BT; virtual DACs, NOT acoustic",
   "env": {
-    "date_utc": "2026-11-25T12:13:29Z",
+    "date_utc": "2026-11-25T14:59:02Z",
     "lms": "9.1.2",
     "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
     "kernel": "7.0.0-43-generic",

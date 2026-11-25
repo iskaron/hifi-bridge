@@ -158,11 +158,18 @@ def test_a_plain_request_gets_200_and_the_endless_wav_header(live):
     assert contiguous(frames_of(body[44:]))
 
 
-@pytest.mark.parametrize("rng", ["bytes=44-", "bytes=44-4294967338", "bytes=1234567-", "bytes=99999999-4294967294"])
+@pytest.mark.parametrize("rng", ["bytes=44-", "bytes=44-4294967338", "bytes=1234567-", "bytes=99999999-4294967294",
+                                 "bytes=4294967294-", "bytes=4294967295-", "bytes=4294967336-", "bytes=4294967336-4294967294"])
 def test_every_lms_range_request_gets_206_without_header_and_fresh_live_pcm(live, rng):
     """'bytes=44-' = what LMS 9.1.2 sends after parsing the header (lab-observed); 'bytes=44-<end>' = the form LMS builds when it
     knows an audio_size (Protocols/HTTP.pm requestString); a large offset = a persistent-HTTP / seek reconnect. All get the live
-    edge, never old audio."""
+    edge, never old audio.
+
+    ``bytes=4294967336-`` (= 2^32 + 40) is what the G1-S round-2 Pi traces 2/3 showed: Lyrion's elapsed time was clamped to the
+    virtual WAV duration (4294967295 B / 176400 B/s = 24347.9 s), so ``getSeekData`` asked for offset(duration) + 44. It is a
+    CONSEQUENCE of Lyrion's clamped time, not a bridge computation; the bridge must keep serving it (a 416 would end Lyrion's
+    recovery) and keeps echoing the requested start in Content-Range, because Lyrion derives its ``startOffset`` from exactly that
+    (Protocols/HTTP.pm ~l.757-795). A start beyond the virtual end therefore yields a formally reversed Content-Range; pinned here."""
     s, port, f, src, _ = live
     head_at_request = s.ring.head
     c = request(port, rng)

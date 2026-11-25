@@ -49,7 +49,7 @@ def test_a_sync_group_plays_150_s_from_one_held_connection_and_the_trace_shows_i
         blocked = [m for m in summaries if "STUCK" in m]
         t_of = lambda m: float(re.search(r"t=([\d.]+)", m).group(1))                 # noqa: E731
         waiting = [m for m in summaries if " WAITING" in m and t_of(m) - t_of(summaries[0]) > 10]   # LMS rebuffering after start-up
-        members = [m for m in summaries if re.search(r"\| members: (lab-player\d:ok(, )?){3}$", m)]
+        members = [m for m in summaries if re.search(r"\| members: (lab-player\d:ok(\(master\))?(, )?){3}$", m)]
         result = {"seconds": SECONDS, "audible_fraction_from_10s": audible, "stream_requests": starts, "connection_ends": ends,
                   "late_requests": late, "stuck_summaries": len(blocked), "waiting_summaries": len(waiting),
                   "summaries_with_3_members_ok": len(members), "summary_lines": len(summaries),

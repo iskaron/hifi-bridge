@@ -50,14 +50,25 @@ def test_group_status_lists_every_sync_member_without_ids_or_addresses(lms):
     lms.answers[(b, "status")] = {"player_name": "Arbeitszimmer", "player_connected": 0, "signalstrength": 0}
     lms.answers[(c, "status")] = {"player_name": "esparagus-01", "player_connected": 1, "signalstrength": 55}
     got = LmsClient(lms.url).group_status(a)
-    assert got == [{"name": "Küche", "connected": True, "signal": 78}, {"name": "Arbeitszimmer", "connected": False, "signal": 0},
-                   {"name": "esparagus-01", "connected": True, "signal": 55}]
+    assert got == [{"name": "Küche", "connected": True, "signal": 78, "master": True},
+                   {"name": "Arbeitszimmer", "connected": False, "signal": 0, "master": False},
+                   {"name": "esparagus-01", "connected": True, "signal": 55, "master": False}]
     assert [p for p, cmd in lms.seen] == [a, b, c] and all(cmd[0] == "status" for _, cmd in lms.seen)   # read-only, one per member
+
+
+def test_group_status_marks_the_master_when_the_target_is_a_slave(lms):
+    """Tests 2/3 of the G1-S round 2 had the target (Arbeitszimmer) first in the list; which member is the sync MASTER decides whose
+    elapsed time Lyrion reports and which member's buffering gives up first (docs/STREAM_TRACE.md)."""
+    a, b = "02:00:00:00:00:01", "02:00:00:00:00:02"
+    lms.answers[(b, "status")] = {"player_name": "Slave", "player_connected": 1, "sync_master": a, "sync_slaves": b}
+    lms.answers[(a, "status")] = {"player_name": "Master", "player_connected": 1, "sync_master": a, "sync_slaves": b}
+    got = LmsClient(lms.url).group_status(b)
+    assert [(m["name"], m["master"]) for m in got] == [("Slave", False), ("Master", True)]
 
 
 def test_group_status_of_an_unsynced_or_unknown_player(lms):
     lms.answers[(PLAYER, "status")] = {"player_name": "Solo", "player_connected": 1}
-    assert LmsClient(lms.url).group_status(PLAYER) == [{"name": "Solo", "connected": True, "signal": 0}]
+    assert LmsClient(lms.url).group_status(PLAYER) == [{"name": "Solo", "connected": True, "signal": 0, "master": False}]
     assert LmsClient(lms.url).group_status("02:00:00:00:00:99") == []
 
 
@@ -109,7 +120,7 @@ def test_the_member_poll_runs_in_its_own_thread_keeps_the_last_result_on_failure
         calls.append(1)
         if len(calls) > 1:
             raise OSError("lms down")
-        return [{"name": "Küche", "connected": True, "signal": 78}, {"name": "Arbeits zimmer|x", "connected": False, "signal": 0}]
+        return [{"name": "Küche", "connected": True, "signal": 78, "master": True}, {"name": "Arbeits zimmer|x", "connected": False, "signal": 0}]
     stop = threading.Event()
     tr.start_member_poll(stop, fetch, period_s=0.02)
     deadline = time.time() + 5
@@ -117,7 +128,7 @@ def test_the_member_poll_runs_in_its_own_thread_keeps_the_last_result_on_failure
         time.sleep(0.01)
     stop.set()
     line = tr.snapshot()
-    assert "| members: Küche:ok sig=78, Arbeits_zimmer_x:DISC" in line                # names sanitised, no separators injected
+    assert "| members: Küche:ok sig=78(master), Arbeits_zimmer_x:DISC" in line                # names sanitised, no separators injected
     assert "old)" not in line
     clk.t += 10                                                                       # the poll has failed for 10 s
     tr.ingress(b"\x01\x00" * 10)
