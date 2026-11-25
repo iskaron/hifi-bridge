@@ -17,6 +17,7 @@ from .core.ring import PcmRing
 from .lms.client import LmsClient
 from .stream.feeder import LiveFeeder, RATE
 from .stream.server import StreamServer, redact
+from .stream.trace import StreamTrace, enabled_from_env
 
 
 DIAG_TAIL_S = 2.2        # > measured player lead (~1.56 s) so a diagnostic tone is not cut short
@@ -32,6 +33,7 @@ class RuntimeConfig:
     lead_in_ms: int = 1000
     icy_metadata: bool = False
     pairing_s: float = 300.0
+    stream_trace: bool | None = None      # opt-in audio-path trace; None = from the environment (HIFI_STREAM_TRACE=1), default off
 
 
 class BridgeRuntime:
@@ -58,6 +60,13 @@ class BridgeRuntime:
         self.loop_ident: int | None = None               # control-loop thread (health: busy in a bounded LMS call != hung)
         self.on_controller_event = None                  # optional hook (service: crash-recovery journal)
         self.timeline: list[tuple] = BoundedList(2000)   # (wall, event, detail) probes; no tokens
+        trace_on = rcfg.stream_trace if rcfg.stream_trace is not None else enabled_from_env()
+        self.trace: StreamTrace | None = None
+        if trace_on:                                     # docs/STREAM_TRACE.md; off by default: no hook runs at all
+            self.trace = StreamTrace(self.log)
+            self.trace.feeder, self.trace.ring = self.feeder, self.ring
+            self.trace.lms_observation = lambda: self.controller.last_observation
+            self.stream.trace = self.trace
 
     # -- logging (always redacted) -------------------------------------------
     def log(self, msg: str) -> None:
@@ -137,6 +146,8 @@ class BridgeRuntime:
     def _on_pcm(self, pcm: bytes) -> None:
         first = self.fusion.last_pcm is None
         self.fusion.on_pcm()
+        if self.trace:
+            self.trace.ingress(pcm)
         self.feeder.push(pcm)
         if first:
             self._refresh_media()
@@ -151,6 +162,9 @@ class BridgeRuntime:
                          threading.Thread(target=self._loop, daemon=True, name="controller")]
         for t in self._threads:
             t.start()
+        if self.trace:
+            self.log("[trace] audio-path trace ON (HIFI_STREAM_TRACE): one summary line per second, see docs/STREAM_TRACE.md")
+            self.trace.start(self._stop)
         if self.source:
             class CB:
                 on_connect = staticmethod(self._on_connect)

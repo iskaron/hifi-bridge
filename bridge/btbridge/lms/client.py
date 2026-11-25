@@ -28,6 +28,13 @@ class LmsUnreachable(Exception):
     pass
 
 
+def _num(v) -> float | None:
+    try:
+        return None if v is None else float(v)
+    except (TypeError, ValueError):
+        return None
+
+
 @dataclass
 class Observation:
     reachable: bool = True
@@ -38,6 +45,8 @@ class Observation:
     url: str | None = None       # current playlist item URL
     volume: int | None = None
     title: str | None = None
+    time: float | None = None    # elapsed seconds of the current item (LMS 'time'; diagnostics/trace only)
+    duration: float | None = None  # LMS 'duration' of the current item, if LMS believes it has one (trace only)
 
     @property
     def playing_something(self) -> bool:
@@ -146,6 +155,8 @@ class LmsClient:
             url=loop[0].get("url") if loop else None,
             volume=int(r["mixer volume"]) if "mixer volume" in r else None,
             title=(loop[0].get("title") if loop else None),
+            time=_num(r.get("time")),
+            duration=_num(r.get("duration")),
         )
 
     def players(self) -> list[dict]:

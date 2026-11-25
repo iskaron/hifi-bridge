@@ -84,6 +84,7 @@ class StreamServer:
         self.events: list[tuple] = BoundedList(1000)   # (wall, event, detail) timing probes (tokens never recorded)
         self._lock = threading.Lock()
         self._active = 0
+        self.trace = None                    # optional stream.trace.StreamTrace (HIFI_STREAM_TRACE=1); None = no tracing at all
 
     # -- session control ---------------------------------------------------
     def open_session(self, sid: str) -> None:
@@ -165,22 +166,31 @@ class StreamServer:
         rng = h.headers.get("Range", "")
         start_byte = int(rng.split("=")[1].split("-")[0]) if rng.startswith("bytes=") and rng.split("=")[1].split("-")[0].isdigit() else 0
         want_icy = self.icy and fmt == "wav" and h.headers.get("Icy-MetaData") == "1"
-        h.send_response(206 if start_byte else 200)
-        if start_byte:
-            h.send_header("Content-Range", f"bytes {start_byte}-4294967294/4294967295")
+        code = 206 if start_byte else 200
+        content_range = f"bytes {start_byte}-4294967294/4294967295" if start_byte else None
+        h.send_response(code)                # NOTE: BaseHTTPRequestHandler logs the '"GET ..." 206 -' line HERE, at the START
+        if content_range:
+            h.send_header("Content-Range", content_range)
         h.send_header("Content-Type", CONTENT_TYPES[fmt])
         h.send_header("Cache-Control", "no-cache, no-store")
         h.send_header("icy-name", "Hi-Fi Bridge")
         if want_icy:
             h.send_header("icy-metaint", str(METAINT))
         h.end_headers()
+        tr = self.trace
+        with_header = fmt == "flac" or start_byte < WAV_HEADER_LEN
         if head:
+            if tr:
+                tr.conn_start(sid, h.client_address[0], "HEAD", code, rng, content_range, False, None)
             return
         self.stats["connections"] += 1
         self._ev("client_connected", f"range={start_byte}")
         h.connection.settimeout(WRITE_TIMEOUT_S)            # a stalled reader times out instead of pinning this thread
         enc = FlacEncoder() if fmt == "flac" else WavEncoder(with_header=(start_byte < WAV_HEADER_LEN))
         pos = self.feeder.lead_in_start(self.lead_in_ms)
+        rid = tr.conn_start(sid, h.client_address[0], "GET", code, rng, content_range, with_header and fmt == "wav",
+                            self.ring.head - pos) if tr else None
+        reason = "error"
         first = True
         audio_sent = 0
         last_title = None
@@ -192,6 +202,7 @@ class StreamServer:
             while True:
                 with self._lock:
                     if self.session != sid:
+                        reason = "session-ended"
                         break               # session ended: close promptly, never serve other audio on it
                 if time.monotonic() < self._hold_until:
                     time.sleep(0.01)
@@ -209,13 +220,28 @@ class StreamServer:
                     out = self._with_icy(out, audio_sent)
                     audio_sent += len(data)
                 if out:
+                    if tr:
+                        tr.write_begin(rid)
                     h.wfile.write(out)
                     self.stats["bytes_sent"] += len(out)
-        except (BrokenPipeError, ConnectionResetError, TimeoutError, OSError):
-            pass
+                    if tr:
+                        tr.write_end(rid, len(out), data, self.ring.head - pos, skipped, pos)
+        except BrokenPipeError:
+            reason = "peer-closed"
+        except ConnectionResetError:
+            reason = "peer-reset"
+        except TimeoutError:
+            reason = f"write-timeout-{WRITE_TIMEOUT_S:.0f}s"
+        except OSError as e:
+            reason = f"os-error-{e.errno}"
+        except BaseException as e:
+            reason = f"error-{type(e).__name__}"
+            raise
         finally:
             enc.close()
-            self._ev("client_disconnected")
+            self._ev("client_disconnected", reason)
+            if tr:
+                tr.conn_end(rid, reason)
 
     def _with_icy(self, audio: bytes, sent_before: int) -> bytes:
         out = bytearray()

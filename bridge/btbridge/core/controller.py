@@ -128,6 +128,7 @@ class Controller:
         self._starting: _Start | None = None           # the start in flight (at most one)
         self._recheck = False                          # something asked for a start while one was in flight
         self.io_failures = 0                           # LMS calls that failed as unreachable (tick time budget)
+        self.last_observation = None                   # (monotonic, Observation, ours) of the last poll - read by the stream trace only
 
     # ------------------------------------------------------------------ helpers
     def _ev(self, name, detail=""):
@@ -572,6 +573,8 @@ class Controller:
         obs = self._observe_io(lms, target)
         if obs is None:
             return
+        with self.lock:
+            self.last_observation = (time.monotonic(), obs, self._is_ours(obs))
         # deferred releases of stale URLs (release attempted while LMS was down)
         with self.lock:
             if lms is not self.lms:

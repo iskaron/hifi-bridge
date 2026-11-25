@@ -181,10 +181,10 @@ class Lab:
 
 
 def make_bridge(player="player1", *, fmt="wav", pause_strategy="drop_restart", lead_in_ms=1000, override=True, grace=30.0,
-                icy=False, port=8090, sim=None, fill=True, pairing_s=300.0, **ctl):
+                icy=False, port=8090, sim=None, fill=True, pairing_s=300.0, trace=False, **ctl):
     sim = sim or SimulatedA2dpSource()
     rc = RuntimeConfig(lms_url="http://lms:9000", advertise_host=my_ip(), stream_port=port, stream_format=fmt,
-                       lead_in_ms=lead_in_ms, icy_metadata=icy, pairing_s=pairing_s)
+                       lead_in_ms=lead_in_ms, icy_metadata=icy, pairing_s=pairing_s, stream_trace=trace)
     cc = Config(target_player=PLAYERS[player], override_lms=override, pause_grace_s=grace, pause_strategy=pause_strategy, **ctl)
     logs = []
     rt = BridgeRuntime(rc, cc, source=sim, log=logs.append)
