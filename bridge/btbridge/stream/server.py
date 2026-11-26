@@ -221,7 +221,7 @@ class StreamServer:
                     audio_sent += len(data)
                 if out:
                     if tr:
-                        tr.write_begin(rid)
+                        tr.write_begin(rid, pos)
                     h.wfile.write(out)
                     self.stats["bytes_sent"] += len(out)
                     if tr:

@@ -119,6 +119,8 @@ Local reproduction and the test change are in §7.
 * **Verification after the change:** full `test_demo.sh` rc=0 (11 chain tests, score 1.0, `phone_to_dac_s` 2.3). CI for the new commit is reported separately.
 * Gate wording: CI on `48f0d0f` is **green on rerun (17/17)**, with one unexplained red attempt on the same SHA. It is not "never failed".
 
+* **Second CI finding on the follow-up commit `0806540` (unit job, 1 failed / 1158 passed):** `test_trace_shows_a_blocked_write_while_it_is_still_stuck` saw `out: r1:0B peak=- … lag=0ms blk=1750ms STUCK`. The very first audio write was blocked (it did not fit the socket buffers on that runner), so no write had completed, the trace had no "sent up to" position and `lag` stayed 0. It is a **diagnostic gap, not a test-only problem**: a connection stuck on its first write showed `STUCK` with a misleading `lag=0ms`. Fix (trace only, opt-in): `write_begin` records the write's start position as the lag basis until a first write completes (`trace.py`, `server.py`); new deterministic UNIT test `test_lag_grows_while_the_very_first_write_is_stuck` (red before: TypeError for the missing basis; green after). Audio path, Range handling and all product behaviour are unchanged.
+
 ## 8. Housekeeping
 
 * Home Assistant, verified by the operator on 2026-11-26: `automation.kuche_verstarker_aus` ON; `automation.wohnzimmer_yamaha_aus_bei_abwesenheit_und_lyrion_quelle` **ON**. The earlier "disabled" statements in the procedure and the Round-2 report are marked superseded. Nothing here toggles either automation.

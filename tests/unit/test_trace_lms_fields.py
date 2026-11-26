@@ -141,3 +141,18 @@ def test_without_the_trace_the_bridge_never_polls_group_members(monkeypatch):
     monkeypatch.setattr(app.StreamTrace, "start_member_poll", lambda *a, **k: started.append(a))
     monkeypatch.delenv("HIFI_STREAM_TRACE", raising=False)
     assert app.enabled_from_env() is False and started == []
+
+
+def test_lag_grows_while_the_very_first_write_is_stuck():
+    """A connection whose first audio write never completes has no 'last sent' position yet: lag must still grow from where it started
+    (found in CI: `out: r1:0B ... blk=1750ms STUCK lag=0ms` when the first chunk did not fit the socket buffers)."""
+    import types
+    rate = 44100
+    tr, clk, lines = _trace()
+    tr.ring = types.SimpleNamespace(head=5000)
+    rid = tr.conn_start("sid", "127.0.0.1", "GET", 206, None, None, True, 0)
+    tr.write_begin(rid, 5000)                                   # first write starts at ring position 5000 and never returns
+    clk.t += 2.0
+    tr.ring.head = 5000 + 2 * rate
+    line = tr.snapshot()
+    assert "STUCK" in line and "lag=2000ms" in line, line

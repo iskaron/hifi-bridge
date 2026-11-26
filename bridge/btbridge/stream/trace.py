@@ -136,10 +136,13 @@ class StreamTrace:
                    f"content-range={content_range or '-'} wav-header={'yes' if wav_header else 'no'} lead={lag}")
         return rid
 
-    def write_begin(self, rid: str) -> None:
+    def write_begin(self, rid: str, pos: int | None = None) -> None:
+        """``pos``: ring position this write starts at; it is the lag basis until a first write completes."""
         c = self._conns.get(rid)
         if c is not None:
             c.write_started = self.clock()
+            if c.pos is None:
+                c.pos = pos
 
     def write_end(self, rid: str, sent: int, pcm: bytes, lag_frames: int, skipped: int, pos: int | None = None) -> None:
         """``sent``: bytes written to the socket (incl. ICY metadata / FLAC frames); ``pcm``: the audio they carry (levels)."""
