@@ -152,7 +152,7 @@ Round 1 (section 6) showed: the bridge's capture and feeder carried live audio t
 `time` froze, and after ~30 s Lyrion restarted the stream - Lyrion's sync-group **rebuffer give-up** (docs/STREAM_TRACE.md "Why Lyrion
 stops reading"). Round 2 finds **which member** triggers it. Nothing changes on BlueZ, pairing, codecs, PipeWire, Home Assistant or the
 network. Lyrion changes are made by the owner only: a temporary log level (step 2) and the group membership (step 4), both reversed at
-the end. Keep the Yamaha power-off automation disabled as in the previous runs.
+the end. (The Yamaha power-off automation was disabled for these runs; since 2026-11-26 the operator reports it ON again - nothing here toggles it; note its state in the run notes.)
 
 0. On the development host: `scp dist/hwkit-bundle-<rev>.tar.gz olm@hifi-test.local:`
 1. On the Pi (Ctrl-C the running bridge first):
@@ -202,8 +202,8 @@ Rollback: `rm -rf ~/hifi-bridge && mv ~/hifi-bridge.3a74653 ~/hifi-bridge`; Lyri
 Round 2 (section 7) ran four times; after the Arbeitszimmer power-cycle three rooms played 605 s with one 6 s group dropout (Küche the
 first underrun, the bridge writing at full rate). This round repeats the three-room case **without any change during the run**.
 Nothing changes on BlueZ, pairing, PipeWire, Home Assistant or the network; the owner changes only the Lyrion log level and
-the group, as in section 7. **The Yamaha power-off automation stays disabled until the owner decides to re-enable it after the
-series.** Use the bundle of the commit that contains this section (it adds `(master)` to `members:`); steps 0-2 as in section 7.
+the group, as in section 7. **The Yamaha power-off automation is the owner's to switch (operator-verified ON again on 2026-11-26; this
+procedure never toggles it).** Use the bundle of the commit that contains this section (it adds `(master)` to `members:`); steps 0-2 as in section 7.
 
 3. Start the bridge unbuffered, so the console is not delayed in 20-s blocks (this is display only, not audio buffering):
    ```sh
@@ -228,3 +228,17 @@ Pass per run: audible in every room for the whole run, after the first 10 s no `
 all `members:` `ok`. Gate G1-S passes only on a fresh three-room run of at least 10 minutes that meets this.
 Rollback: as section 7.
 
+
+## 9. After runs 6-11: next step, only when the operator chooses (2026-11-26; reports/G1S_ROUND3_RUNS_6_11.md)
+
+Runs 6-11 were two-room validation and none passed the strict rule; the operator asked for **no new test right now**. When one is wanted,
+change **one** variable at a time, never BlueZ, bonds, WLAN, ESP32 buffers or the bridge code.
+
+* **E1 - zero-variable repeat of run 11 with the two missing artefacts.** Same two rooms, Küche = sync master from the start (check the
+  `(master)` marker), steps 3 and 5 of section 8 (`python3 -u`, `HIFI_STREAM_TRACE=1`, Lyrion extract with the token removed by the `sed`).
+  Additionally, from the bridge Pi during the run (ICMP only): `ping -D -i 0.5 192.168.0.167 > ~/g1s3-ping-esp01.txt &` and the same for
+  `192.168.0.180`; stop both afterwards. A normal ping is supporting evidence only, not proof of clean audio delivery.
+  Question answered: does the *startup* stall (STUCK, member `DISC`, restart) repeat, and which member does Lyrion blame.
+* **E2 (only if E1 names a member):** swap that one member, after a 10-minute **solo** run of Arbeitszimmer with the trace on.
+* **E3 (three rooms, master from the start, no target change)** only when E1/E2 explain the two-room events. Pass rule unchanged:
+  >= 10 min audible in all three rooms, after the first 10 s no `STUCK`, no ` WAITING`, no unplanned `rN start GET`, all `members:` `ok`.

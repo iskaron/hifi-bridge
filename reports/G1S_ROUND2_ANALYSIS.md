@@ -181,6 +181,6 @@ Pass per run: 10 (15) min audible in every room, no `STUCK`, no `WAITING` after 
 
 * `player.source` was reset to `ERROR` by the operator (JSON-RPC `result: {}`; acknowledged, not read back). Lyrion keeps no persistent
   log level: a Lyrion restart also clears it.
-* **The Home Assistant automation `automation.wohnzimmer_yamaha_aus_bei_abwesenheit_und_lyrion_quelle` is still disabled for the test.**
-  It was not touched; it is the operator's to re-enable once the test series is over.
+* ~~The Home Assistant automation `automation.wohnzimmer_yamaha_aus_bei_abwesenheit_und_lyrion_quelle` is still disabled for the test.~~
+  **Superseded 2026-11-26:** the operator read the live state after Run 11 - it is **ON** again (as is `automation.kuche_verstarker_aus`). It was never touched from here.
 * Bridge was stopped after test 4; no test is presumed running.

@@ -51,6 +51,28 @@ def room_plays_phone_track(room: str, pid: str, seconds: float = 3.0) -> dict:
     return {"score": round(score, 3), "offset_s": round(k / RATE, 2), "phone_to_dac_s": round(t_dac_last - t_sent, 2)}
 
 
+def wait_group_settled(room: str, stable_s: float = 3.0, timeout: float = 45.0) -> dict:
+    """Wait until Lyrion plays `room` as a sync-group member, is not buffering/waiting, and its play time has advanced for `stable_s`.
+
+    Replaces a fixed 6 s sleep. In CI attempt 1 of 48f0d0f the capture was taken while the joining player was still being aligned
+    (phone_to_dac 1.05 s instead of 2.2-2.3 s, score 0.49); the same commit passed on rerun, so the fixed delay was a timing assumption.
+    """
+    seen: dict = {}
+
+    def settled():
+        st = lms_status(room)
+        ok = st.get("mode") == "play" and not st.get("waitingToPlay") and bool(st.get("sync_master")) and "time" in st
+        if not ok:
+            seen.clear()
+            return False
+        now, t = time.time(), float(st["time"])
+        seen.setdefault("since", now)
+        seen.setdefault("t0", t)
+        return st if now - seen["since"] >= stable_s and t > seen["t0"] + stable_s / 2 else False
+
+    return wait(settled, timeout, step=0.5, what=f"{room} playing in the sync group without buffering")
+
+
 def test_01_guest_pairs_and_connects_inside_the_window():
     vis = phone("a", "scan")["visible"]
     assert vis and vis[0]["name"] == "Hi-Fi Bridge Wohnzimmer"            # the name the owner chose in the wizard
@@ -140,7 +162,7 @@ def test_07_short_notification_does_not_take_over_the_radio_but_music_does():
 def test_08_synchronised_group_plays_in_two_rooms():
     from demo_env import ROOM_MAC, console
     console("/api/lms/sync", {"players": [ROOM_MAC["Wohnzimmer"], ROOM_MAC["Schlafzimmer"]]})
-    time.sleep(6)                                                        # Lyrion re-buffers the group
+    wait_group_settled("Schlafzimmer")                                   # Lyrion re-buffers the group; capture only once it plays again
     m = room_plays_phone_track("Schlafzimmer", "a")
     RESULTS["multiroom_schlafzimmer"] = m
     assert m["score"] > 0.9, m

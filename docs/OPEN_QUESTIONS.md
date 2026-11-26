@@ -345,14 +345,27 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
      H-A for tests 1-3 (Inferred, not measured): Arbeitszimmer accepted audio but did not play it. Still open: why Küche underran in test 4
      (and first in tests 1, 3), whether the target change at t=341 matters, who the sync master was in tests 1-3. The 2^32 range of tests 2/3 is
      explained (Lyrion's time clamped at the duration; not a bridge value). Next: docs/HARDWARE_TEST_PROCEDURE.md section 8.
+     **Update 2026-11-26 (runs 6-11, reports/G1S_ROUND3_RUNS_6_11.md):** H-A is **not** a general explanation - runs 6, 9, 10 and 11 had no
+     Arbeitszimmer and still show `WAITING`/`STUCK`; it stays unproven for tests 1-3 and is not the root cause of anything. Solo rooms
+     (runs 7, 8) are clean; every two-room group so far had at least one event (run 10: underrun + a separate 5-sample `STUCK`; run 11:
+     startup `STUCK`/restart/member `DISC`, then a 5 s `WAITING` at t=433, then 25 m 37 s clean). Two-room runs are *not* G1-S. Open: why a
+     member underruns/stalls (run 10 underrun: Wohnzimmer, Lyrion-confirmed; run 11: no Lyrion log yet). Gate G1-S stays open.
 106. **Lyrion gives up a rebuffer within 0.3 s when members refill at different times** (STATIC, Lyrion 9.1.2 `Player.pm` l.1127-1181; one Pi
      observation; not lab-reproduced): `bufferStarted(0)` after a member's refill makes the next `_buffering` tick take the 30-s give-up
-     branch immediately. Consequence for a live source: every group rebuffer ends in a stream restart. Falsifier: a lab group with one
-     member of a clearly different buffer size does *not* restart after a stalled member recovers within a few seconds. Not changed.
+     branch immediately. Consequence for a live source: a group rebuffer ends in a stream restart **when the members refill at different
+     times**. Falsifier: a lab group with one member of a clearly different buffer size does *not* restart after a stalled member recovers
+     within a few seconds. **Update 2026-11-26:** Run 10's rebuffer (Wohnzimmer underrun 09:04:46.6) had both members ready within 3.4 ms
+     (09:04:50.0872 / .0906) and recovered on the *same* GET - consistent with the condition above, not with "every rebuffer restarts".
+     Not changed.
      A larger `lead_in_ms` could shorten every rebuffer (the 5-s refill threshold could be met from the ring) at the cost of latency;
      decide after run 5 (HARDWARE_TEST_PROCEDURE section 8).
 107. **Owner-defined pairing code** (feature B): a fixed code typed on the phone is not possible with SSP (the displaying side generates the
      passkey); only legacy-PIN pairing with SSP off, which is a global downgrade. See docs/PAIRING_CODE_FEASIBILITY.md; owner-approval
      in the WebUI recommended; prototype with Pixel + iPhone needed first.
 108. **WebUI audio-stall alert** (feature A): design in docs/STALL_ALERT_DESIGN.md, not implemented; owner decision on scope and MQTT.
+109. **Run 10/11: listening report vs. logged group pause** (2026-11-26): Lyrion `waitingToPlay` is a group state (STATIC: `BUFFERING`/
+     `WAITING_TO_SYNC`, entered after an underrun via `_Rebuffer`, which pauses the group). Run 10 logged 3.44 s and run 11 a 5 s pinned-time
+     `WAITING` while the operator reported no audible dropout. Unresolved; the Lyrion log for those minutes (run 11: 14:26:12) decides.
+     Falsifier of the technical reading: no group state change in that log. Until then neither the listening result nor the trace rule is
+     adjusted, and neither run counts as a strict pass.
 
