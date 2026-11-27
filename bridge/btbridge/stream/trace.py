@@ -78,6 +78,11 @@ class _Conn:
         self.write_started: float | None = None     # monotonic start of the write in progress (None = not in a write)
         self.write_max_period = 0.0
         self.first_byte_at: float | None = None
+        self.enc = None                             # live MP3 only: the Mp3Encoder of this connection (codec metrics)
+        self.pcm_period = 0                         # PCM bytes fed to the encoder this period
+        self.enc_s_last = 0.0
+        self.cpu_last: tuple[float, float] | None = None   # (monotonic, encoder cpu seconds) at the last summary
+        self.cpu_pct: float | None = None
 
 
 class StreamTrace:
@@ -124,7 +129,7 @@ class StreamTrace:
 
     # -- (c)/(d) HTTP connections (called from the request threads) ------------------------------------------------
     def conn_start(self, sid: str, peer_ip: str, method: str, status: int, rng: str | None, content_range: str | None,
-                   wav_header: bool, start_lag_frames: int | None) -> str:
+                   wav_header: bool, start_lag_frames: int | None, fmt: str = "wav", icy: bool = False) -> str:
         with self._lock:
             self._n += 1
             rid = f"r{self._n}"
@@ -133,8 +138,15 @@ class StreamTrace:
                 self._conns[rid] = _Conn(rid, sid, peer, self.clock())
         lag = "-" if start_lag_frames is None else f"{start_lag_frames * 1000 // RATE}ms"
         self._emit(f"{rid} start {method} {status} sid={sid} {peer} range={safe_range(rng)} "
-                   f"content-range={content_range or '-'} wav-header={'yes' if wav_header else 'no'} lead={lag}")
+                   f"content-range={content_range or '-'} wav-header={'yes' if wav_header else 'no'} lead={lag} "
+                   f"fmt={fmt} icy={'yes' if icy else 'no'}")
         return rid
+
+    def attach_encoder(self, rid: str, enc) -> None:
+        """Live MP3: report this connection's encoder throughput, queue and CPU in the per-second summary."""
+        c = self._conns.get(rid)
+        if c is not None:
+            c.enc = enc
 
     def write_begin(self, rid: str, pos: int | None = None) -> None:
         """``pos``: ring position this write starts at; it is the lag basis until a first write completes."""
@@ -161,6 +173,7 @@ class StreamTrace:
             c.lag_frames, c.pos = lag_frames, pos
             c.skipped_period += skipped
             c.level.add(pcm, 16)
+            c.pcm_period += len(pcm)
 
     def conn_end(self, rid: str, reason: str) -> None:
         with self._lock:
@@ -169,7 +182,11 @@ class StreamTrace:
             return
         now = self.clock()
         stuck = f" write-in-progress={now - c.write_started:.2f}s" if c.write_started is not None else ""
-        self._emit(f"{rid} end reason={reason} after={now - c.t0:.2f}s bytes={c.bytes_total} sid={c.sid} {c.peer}{stuck}")
+        enc = ""
+        if c.enc is not None:
+            secs = max(now - c.t0, 1e-6)
+            enc = f" mp3: pcm-in={c.enc.pcm_in}B out={c.enc.bytes_out}B avg={c.enc.bytes_out * 8 / secs / 1000:.0f}kbit/s"
+        self._emit(f"{rid} end reason={reason} after={now - c.t0:.2f}s bytes={c.bytes_total} sid={c.sid} {c.peer}{stuck}{enc}")
 
     # -- (b)/(e) periodic summary ----------------------------------------------------------------------------------
     def snapshot(self) -> str | None:
@@ -191,6 +208,16 @@ class StreamTrace:
                 conns.append(f"{c.rid}:{c.bytes_period}B {c.level.text()} lag={c.lag_frames * 1000 // RATE}ms "
                              f"blk={blk * 1000:.0f}ms{' STUCK' if c.write_started is not None and blk > 1.0 else ''}"
                              f"{f' skip={c.skipped_period}fr' if c.skipped_period else ''}")
+                if c.enc is not None:
+                    cpu = c.enc.cpu_seconds()
+                    if cpu is not None and c.cpu_last is not None and now > c.cpu_last[0]:
+                        c.cpu_pct = 100.0 * (cpu - c.cpu_last[1]) / (now - c.cpu_last[0])
+                    c.cpu_last = (now, cpu) if cpu is not None else None
+                    enc_s = c.enc.encode_s
+                    conns[-1] += (f" mp3[{c.bytes_period * 8 / self.period_s / 1000:.0f}kbit/s pcm={c.pcm_period}B "
+                                  f"enc={(enc_s - c.enc_s_last) * 1000:.0f}ms"
+                                  f"{'' if c.cpu_pct is None else f' lame-cpu={c.cpu_pct:.0f}%'}]")
+                    c.enc_s_last, c.pcm_period = enc_s, 0
                 c.bytes_period, c.level, c.write_max_period, c.skipped_period = 0, Level(), 0.0, 0
         fd = ""
         f = self.feeder

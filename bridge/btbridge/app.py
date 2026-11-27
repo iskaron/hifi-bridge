@@ -16,6 +16,7 @@ from .core.pairing import PairingWindow
 from .core.ring import PcmRing
 from .lms.client import LmsClient
 from .stream.feeder import LiveFeeder, RATE
+from .stream.icy import clean_title
 from .stream.server import StreamServer, redact
 from .stream.trace import StreamTrace, enabled_from_env
 
@@ -28,12 +29,21 @@ class RuntimeConfig:
     lms_url: str = "http://lms:9000"
     advertise_host: str = "bridge"        # hostname/IP the LMS server + players use to reach us
     stream_port: int = 8090
-    stream_format: str = "wav"            # wav | flac
+    stream_format: str = "wav"            # wav | flac | mp3 (mp3 = experimental live MPEG-1 Layer III 320 kbit/s CBR from the lame CLI)
     ring_seconds: float = 6.0
     lead_in_ms: int = 1000
-    icy_metadata: bool = False
+    icy_metadata: bool = False            # ICY titles on WAV (default off, DECISIONS #18)
+    icy_mp3: bool = False                 # ICY titles on MP3 (separate switch; default off)
     pairing_s: float = 300.0
     stream_trace: bool | None = None      # opt-in audio-path trace; None = from the environment (HIFI_STREAM_TRACE=1), default off
+
+
+def display_title(title: str, artist: str, album: str = "") -> str:
+    """The one-line "now playing" text for ICY and the WebUI: ``Artist - Title``; just the title or just the artist when only one is
+    known; empty when the phone reports nothing (a deliberate fallback: Lyrion then shows its generic station name, never a stale
+    track). The album has no field in ICY and is not appended (it would only lengthen the display line)."""
+    t, a = clean_title(title or ""), clean_title(artist or "")
+    return f"{a} - {t}" if (a and t) else (t or a)
 
 
 class BridgeRuntime:
@@ -46,7 +56,7 @@ class BridgeRuntime:
         self.token = token or secrets.token_urlsafe(24)
         self._old_tokens: list[str] = []        # still redacted from logs after a rotation
         self.stream = StreamServer(self.ring, self.feeder, self.token, rcfg.stream_format, rcfg.lead_in_ms,
-                                   rcfg.icy_metadata, log=lambda m: self.log(m))
+                                   rcfg.icy_metadata, log=lambda m: self.log(m), icy_mp3=rcfg.icy_mp3)
         self.lms = lms or LmsClient(rcfg.lms_url)
         self.fusion = MediaFusion(self.clock)
         self.pairing = PairingWindow(rcfg.pairing_s, self.clock, on_change=self._pairable_changed)
@@ -83,15 +93,18 @@ class BridgeRuntime:
         self.lms = lms
         self.controller.change_server(lms, target_player)
 
-    def reconfigure_stream(self, fmt: str | None = None, icy: bool | None = None) -> None:
+    def reconfigure_stream(self, fmt: str | None = None, icy: bool | None = None, icy_mp3: bool | None = None) -> None:
         """Format/ICY apply to new sessions; a running session of ours is restarted with the new format."""
         def apply() -> bool:
-            changed = (fmt is not None and fmt != self.stream.fmt) or (icy is not None and icy != self.stream.icy)
+            changed = ((fmt is not None and fmt != self.stream.fmt) or (icy is not None and icy != self.stream.icy)
+                       or (icy_mp3 is not None and icy_mp3 != self.stream.icy_mp3))
             if changed:
                 if fmt is not None:
                     self.stream.fmt = self.rcfg.stream_format = fmt
                 if icy is not None:
                     self.stream.icy = self.rcfg.icy_metadata = icy
+                if icy_mp3 is not None:
+                    self.stream.icy_mp3 = self.rcfg.icy_mp3 = icy_mp3
             return changed
         self.controller.restart_session("stream_reconfigure", apply)
 
@@ -154,7 +167,7 @@ class BridgeRuntime:
             self._refresh_media()
 
     def _on_metadata(self, title: str, artist: str, album: str) -> None:
-        self.controller.on_metadata(f"{artist} - {title}" if artist else title)
+        self.controller.on_metadata(display_title(title, artist, album))
 
     # -- lifecycle ------------------------------------------------------------
     def start(self) -> None:
