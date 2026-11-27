@@ -35,6 +35,9 @@ BR2_PACKAGE_LUA=y
 BR2_PACKAGE_LUA_5_4=y
 BR2_PACKAGE_WIREPLUMBER=y
 BR2_PACKAGE_LIBSNDFILE=y
+# live MP3 320 kbit/s stream mode (DECISIONS #147): the bridge starts the `lame` CLI (LGPL-2.0+; libsndfile is already in the image) as a child process
+# per stream connection. Optional at run time: without the binary the MP3 mode reports it and WAV/FLAC are unaffected.
+BR2_PACKAGE_LAME=y
 # mDNS (DECISIONS #49)
 BR2_PACKAGE_AVAHI=y
 BR2_PACKAGE_AVAHI_DAEMON=y

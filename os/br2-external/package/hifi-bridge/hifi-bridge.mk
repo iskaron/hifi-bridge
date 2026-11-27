@@ -10,7 +10,8 @@ HIFI_BRIDGE_SITE_METHOD = local
 HIFI_BRIDGE_LICENSE = AGPL-3.0-only
 # bridge/LICENSE is an identical copy of the repository LICENSE (checked by scripts/run_static.sh)
 HIFI_BRIDGE_LICENSE_FILES = LICENSE
-HIFI_BRIDGE_DEPENDENCIES = python3 python-jeepney
+# lame: the optional live MP3 stream mode runs the `lame` CLI as a child process (DECISIONS #147); an image always carries it
+HIFI_BRIDGE_DEPENDENCIES = python3 python-jeepney lame
 
 HIFI_BRIDGE_PACKAGING = $(BR2_EXTERNAL_HIFI_BRIDGE_PATH)/../../packaging
 

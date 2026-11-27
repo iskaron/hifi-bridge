@@ -48,7 +48,7 @@ def main(argv=None) -> int:
         print("MP3 encoder: NOT INSTALLED (the 'lame' command was not found).\n  Install it with: sudo apt install lame\n"
               "  WAV and FLAC are not affected; the MP3 option stays unavailable until lame is installed.")
         return 1
-    ver = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=10).stdout.splitlines()[:1]   # nosec B603
+    ver = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=10).stdout.splitlines()[:1]
     print(f"MP3 encoder: {exe}  {ver[0] if ver else '?'}")
     try:
         enc = encoders.Mp3Encoder()

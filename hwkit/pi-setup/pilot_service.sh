@@ -6,6 +6,7 @@
 #   pilot_service.sh check                 read-only prerequisites and current state (exit 1 on a FAIL)
 #   pilot_service.sh install [--start]     install + enable the user unit (and linger); start only with --start
 #   pilot_service.sh start | stop | restart | status | logs [-f]
+#   pilot_service.sh mp3-check [--seconds N]   is the lame MP3 encoder installed and usable? CPU/RAM of a real-time 320 kbit/s encode
 #   pilot_service.sh disable               stop + disable (back to the manual launch; unit and settings stay)
 #   pilot_service.sh uninstall             disable + remove the unit (settings file, data directory, backups stay)
 # options: --app-dir DIR (default: the unpacked bundle this script is in)  --data-dir DIR (default: ~/bridge-data)
@@ -16,13 +17,14 @@ ROOT=${HIFI_PILOT_ROOT:-}
 UNIT=hifi-bridge-pilot.service
 CMD=${1:-}; [ $# -eq 0 ] || shift
 APP_DIR=$(cd "$HERE/../.." && pwd); DATA_DIR=${ROOT}${HOME}/bridge-data
-START=no FOLLOW=no
+START=no FOLLOW=no EXTRA=
 while [ $# -gt 0 ]; do
   case "$1" in
     --app-dir) [ $# -ge 2 ] || { echo "--app-dir needs a value" >&2; exit 2; }; APP_DIR=$2; shift ;;
     --data-dir) [ $# -ge 2 ] || { echo "--data-dir needs a value" >&2; exit 2; }; DATA_DIR=$2; shift ;;
     --start) START=yes ;;
     -f) FOLLOW=yes ;;
+    --seconds) [ $# -ge 2 ] || { echo "--seconds needs a value" >&2; exit 2; }; case "$2" in ''|*[!0-9]*) echo "--seconds needs a whole number" >&2; exit 2 ;; esac; EXTRA="--seconds $2"; shift ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
   shift
@@ -93,6 +95,8 @@ cmd_check() {
   if [ -n "$ROOT" ]; then info "dry run: no live system queries"; return 0; fi
   if python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)' 2>/dev/null; then ok "python3 >= 3.9"; else fail "python3 >= 3.9 missing"; fi
   if python3 -c 'import jeepney' 2>/dev/null; then ok "python3-jeepney"; else fail "python3-jeepney missing (sudo apt install python3-jeepney)"; fi
+  if command -v lame >/dev/null 2>&1; then ok "lame: $(lame --version 2>/dev/null | head -n 1) (MP3 test mode available; 'mp3-check' measures it)"
+  else info "lame is not installed: only the experimental MP3 stream mode needs it ('sudo apt install lame', then 'mp3-check'); WAV and FLAC work without it"; fi
   for t in busctl ip systemctl loginctl; do if command -v "$t" >/dev/null 2>&1; then ok "$t"; else fail "$t missing"; fi; done
   if linger_on; then ok "linger is on: the user manager (and the bridge) start at boot and survive SSH logout"; else warn "linger is off: 'install' enables it (needs sudo once)"; fi
   for u in pipewire wireplumber pipewire-pulse; do
@@ -171,6 +175,14 @@ cmd_start() {
 }
 
 cmd_stop() { preconditions; user_sc stop "$UNIT"; }
+
+# Read-only: encodes synthetic audio for N seconds with the real lame child and prints the result. Starts no service, writes nothing.
+cmd_mp3check() {
+  preconditions
+  [ -z "$ROOT" ] || { say "would run: python3 -m btbridge.stream.mp3check $*"; return 0; }
+  app_ok || die "no bridge code in $APP_DIR"
+  PYTHONPATH="$APP_DIR/bridge" PYTHONDONTWRITEBYTECODE=1 python3 -m btbridge.stream.mp3check "$@"
+}
 cmd_restart() { preconditions; if ! unit_active && manual_running; then die "a manually started bridge is running: stop it first"; fi; user_sc restart "$UNIT"; }
 
 cmd_status() {
@@ -209,16 +221,18 @@ cmd_uninstall() {
   if [ -f "$LINGER_MARK" ]; then say "Linger was enabled by this installer and is still on. Only if nothing else of yours needs it:  sudo loginctl disable-linger $ME"; fi
 }
 
+# shellcheck disable=SC2086  # $EXTRA is "--seconds N": two words on purpose (mp3-check)
 case "$CMD" in
   check) cmd_check ;;
   install) cmd_install ;;
   start) cmd_start ;;
   stop) cmd_stop ;;
+  mp3-check) cmd_mp3check $EXTRA ;;
   restart) cmd_restart ;;
   status) cmd_status ;;
   logs) cmd_logs ;;
   disable) cmd_disable ;;
   uninstall) cmd_uninstall ;;
-  *) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  *) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac
 exit $RC

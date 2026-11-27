@@ -127,7 +127,7 @@ class Mp3Encoder:
             raise EncoderUnavailable("the 'lame' MP3 encoder is not installed")
         self.rate, self.bitrate_kbps = rate, bitrate_kbps
         try:
-            self.proc = subprocess.Popen(           # nosec B603 - fixed argv, no shell, binary found on PATH by shutil.which
+            self.proc = subprocess.Popen(           # fixed argv, no shell; the binary comes from shutil.which
                 [exe, "-r", "-s", f"{rate / 1000:g}", "--bitwidth", "16", "--signed", "--little-endian", "-m", "s",
                  "--cbr", "-b", str(bitrate_kbps), "-q", str(quality), "-t", "--silent", "-", "-"],
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, close_fds=True)

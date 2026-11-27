@@ -2,6 +2,7 @@ config BR2_PACKAGE_HIFI_BRIDGE
 	bool "hifi-bridge"
 	depends on BR2_PACKAGE_PYTHON3
 	select BR2_PACKAGE_PYTHON3_SSL
+	select BR2_PACKAGE_LAME
 	select BR2_PACKAGE_PYTHON_JEEPNEY
 	help
 	  Hi-Fi Bridge appliance service (Bluetooth A2DP sink -> Lyrion).

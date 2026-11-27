@@ -188,6 +188,7 @@ def test_the_unit_is_a_user_unit_that_supervises_without_rebooting_or_giving_up(
 def test_the_pilot_files_ship_in_the_hardware_bundle():
     assert "hwkit" in open(os.path.join(ROOT, "scripts", "hwkit_bundle.sh")).read()               # whole directory
     assert "docs/PILOT.md" in open(os.path.join(ROOT, "scripts", "hwkit_bundle.sh")).read()
+    assert "docs/MP3_AND_METADATA.md" in open(os.path.join(ROOT, "scripts", "hwkit_bundle.sh")).read()
     for f in (SCRIPT, WAIT):
         assert os.access(f, os.X_OK), f
 
@@ -224,3 +225,31 @@ def test_the_wait_helper_waits_for_a_late_bluez(tmp_path):
 def test_the_wait_helper_never_fails_after_its_deadline(tmp_path):
     r = wait_run(tmp_path, stub_bin(tmp_path, bluez_after=10**6, route=False), max_s="2")
     assert r.returncode == 0 and "bluez=no default-route=no after 2s (deadline: starting anyway)" in r.stdout
+
+
+# --- live MP3 test mode (DECISIONS #147): the encoder is optional, detected and measured, never installed behind the owner's back ----------
+
+def test_mp3_check_is_read_only_prints_the_command_and_rejects_a_bad_duration(tmp_path):
+    r = run(tmp_path, "mp3-check", "--seconds", "30")
+    assert r.returncode == 0 and "would run: python3 -m btbridge.stream.mp3check --seconds 30" in r.stdout
+    assert not any("config" in t for t in tree(tmp_path))                          # nothing written, no unit, no settings
+    bad = run(tmp_path, "mp3-check", "--seconds", "30;rm")
+    assert bad.returncode == 2 and "whole number" in bad.stderr
+
+
+def test_the_installer_never_installs_packages_itself():
+    text = open(SCRIPT).read()
+    code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+    assert not re.search(r"^\s*(sudo\s+)?(apt|apt-get|dpkg)\b", code, re.M)                  # only an instruction inside a message, never a command
+
+
+def test_check_explains_the_optional_encoder_without_failing_when_it_is_absent():
+    text = open(SCRIPT).read()
+    assert "sudo apt install lame" in text and "WAV and FLAC work without it" in text
+
+
+def test_the_pilot_unit_needs_no_encoder_setting_and_keeps_icy_and_format_in_the_web_settings():
+    """Format and ICY are owner settings in the data directory (WebUI), not unit/env switches: a rollback is a WebUI click or the
+    unchanged previous bundle, and the unit does not change between WAV and MP3."""
+    unit = open(UNIT).read()
+    assert "stream_format" not in unit and "icy" not in unit.lower() and "lame" not in unit
