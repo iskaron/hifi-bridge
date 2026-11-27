@@ -42,10 +42,11 @@ is `chmod`-ed on `/boot` or any system directory. **No automatic reboot, no unsy
 
 ```sh
 # 0. On the dev machine, after the revision is pushed: scripts/hwkit_bundle.sh, copy dist/hwkit-bundle-<rev>.tar.gz to the Pi.
-# 1. On the Pi. Keep the working install for the rollback; ~/bridge-data is NOT part of it and is not touched.
+# 1. On the Pi. FIRST stop the manual launch (Ctrl-C in its terminal): it owns the ports and must not run while its directory is replaced.
+#    Keep the working install for the rollback; ~/bridge-data is NOT part of it and is not touched.
 cd ~ && mv hifi-bridge hifi-bridge.manual && mkdir hifi-bridge && tar xzf hwkit-bundle-<rev>.tar.gz -C hifi-bridge
 cd ~/hifi-bridge && sh hwkit/pi-setup/pilot_service.sh check           # read-only; fix every FAIL, read every WARN
-# 2. Stop the manual launch (Ctrl-C in its terminal), then:
+# 2. Install and start (the manual launch is stopped by now):
 sh hwkit/pi-setup/pilot_service.sh install --start                      # asks for sudo once, only to enable linger
 sh hwkit/pi-setup/pilot_service.sh status                               # state, restarts, /healthz, last log lines
 ```
