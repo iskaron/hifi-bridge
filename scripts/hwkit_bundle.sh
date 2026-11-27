@@ -22,6 +22,6 @@ HB_FILTER='.' hb_run "hardware-kit bundle" docker run --rm -u "$(id -u):$(id -g)
   for f in dist/hwkit-tracks/*.wav; do ffmpeg -loglevel error -y -i "$f" -c:a aac -b:a 256k "${f%.wav}.m4a"; done
   echo "$REV" > dist/HWKIT_REVISION
   tar --exclude="__pycache__" -czf "dist/hwkit-bundle-$REV.tar.gz" bridge/btbridge hwkit flashtool/hififlash docs/HARDWARE_VALIDATION_PLAN.md \
-      docs/HARDWARE_TEST_PROCEDURE.md docs/HARDWARE_GATE_CHECKLIST.md docs/PROVISIONING.md docs/TRUST_BOOTSTRAP.md dist/HWKIT_REVISION
+      docs/HARDWARE_TEST_PROCEDURE.md docs/HARDWARE_GATE_CHECKLIST.md docs/PILOT.md docs/PROVISIONING.md docs/TRUST_BOOTSTRAP.md dist/HWKIT_REVISION
   ls -la dist dist/hwkit-tracks'
 echo "bundle: dist/hwkit-bundle-$REV.tar.gz (copy it to the Raspberry Pi yourself; see docs/HARDWARE_TEST_PROCEDURE.md)"

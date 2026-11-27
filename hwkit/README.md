@@ -50,6 +50,10 @@ Marker conventions: free text describes what you did. `expect:media` means "from
 play". `expect:no-media` means "this must **not** take over a playing radio", so no continuous media detection for ≥ 2 s. Put the expectation
 marker directly after the action marker.
 
+## 2b. Private pilot service (daily use, provisional - NOT the G1-S gate)
+`pi-setup/pilot_service.sh` installs a systemd **user** unit that starts the same bridge command at boot and restarts it; `check`, `install`,
+`status`, `disable` (back to the manual launch), `uninstall`. Files, rollback and the owner's smoke test: `docs/PILOT.md`.
+
 ## 3. Analyse (development machine or Pi with numpy)
 ```bash
 docker run --rm -v "$PWD":/work -w /work btbridge-hwkit:dev python3 -m hwkit analyze cap/e2-run1

@@ -1,0 +1,48 @@
+# Hi-Fi Bridge - PRIVATE PILOT user service for a stock Raspberry Pi OS Lite (NOT the appliance image; docs/PILOT.md).
+# Installed by pilot_service.sh into ~/.config/systemd/user/. The placeholders @APP_DIR@ / @DATA_DIR@ are filled in at install time.
+#
+# Why a USER unit: on Pi OS Lite PipeWire, WirePlumber and pipewire-pulse run per user, and the bridge records the phone's audio through
+# them. A system unit would have no PipeWire session. The user manager is started at boot by `loginctl enable-linger` (done by the
+# installer) and keeps running after SSH logout. BlueZ is a system service: it is reached over the system D-Bus, as in the manual launch.
+# A user unit cannot order itself against system units (network-online, bluetooth), so the ExecStartPre helper waits for them (bounded).
+#
+# Deliberately NOT here (real-systemd behaviour on this Pi is unverified): ProtectSystem/PrivateDevices/syscall filters/memory limits.
+# They can be added later with evidence; the image unit packaging/systemd/hifi-bridge.service has the full set for the appliance.
+[Unit]
+Description=Hi-Fi Bridge (Bluetooth audio for Lyrion) - private pilot
+Documentation=file://@APP_DIR@/docs/PILOT.md
+After=pipewire.service wireplumber.service pipewire-pulse.service
+Wants=pipewire.service wireplumber.service pipewire-pulse.service
+# Never give up: a daily-use pilot must come back after a crash loop. The restart delay below grows to 60 s, so a persistent fault
+# retries once a minute instead of spinning (the appliance unit stops after 20 failures; this one stays visible in `status`).
+StartLimitIntervalSec=0
+
+[Service]
+Type=notify
+NotifyAccess=main
+# The same command as the manual hwkit launch, minus --boot-dir (the stock /boot/firmware is root-owned; the pilot does not need it) and
+# minus HIFI_STREAM_TRACE (opt-in: put it into pilot.env). -u: unbuffered, so `journalctl` shows lines at once.
+ExecStartPre=@APP_DIR@/hwkit/pi-setup/hifi-bridge-pilot-wait.sh
+ExecStart=/usr/bin/python3 -u -m btbridge.appliance --data @DATA_DIR@ --run-dir %t/hifi-bridge --source bluez
+Environment=PYTHONPATH=@APP_DIR@/bridge:@APP_DIR@/hwkit PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+EnvironmentFile=-%h/.config/hifi-bridge/pilot.env
+WorkingDirectory=@APP_DIR@
+# READY=1 is sent when the WebUI listens; WATCHDOG=1 only while the control loop is healthy (a hung loop -> restart; a degraded LMS or
+# MQTT never restarts the bridge). A restart is a process restart, never a reboot or an unsync (docs/SERVICE_SUPERVISION.md).
+WatchdogSec=60
+TimeoutStartSec=120
+TimeoutStopSec=20
+KillSignal=SIGTERM
+Restart=always
+RestartSec=5
+RestartSteps=4
+RestartMaxDelaySec=60
+# RAM only: the fault history survives a service restart, not a reboot; no audio and no logs are written to the SD card by the unit.
+RuntimeDirectory=hifi-bridge
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=yes
+NoNewPrivileges=yes
+UMask=0077
+
+[Install]
+WantedBy=default.target
