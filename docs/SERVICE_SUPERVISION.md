@@ -52,6 +52,12 @@ The service runs as user `hifi-bridge` with `CAP_NET_BIND_SERVICE` only (for por
 | Unit file | STATIC (`systemd-analyze verify`, `systemd-analyze security`) |
 | Real systemd watchdog kill and restart on a device | **UNTESTED** (phase 2b) |
 
+## Pilot on stock Pi OS Lite (2026-11-27)
+The appliance unit above is a *system* unit with its own user. On Pi OS Lite PipeWire runs per user, so the private pilot uses a **user** unit
+(`hwkit/pi-setup/hifi-bridge-pilot.service`, `Type=notify`, `WatchdogSec=60`, `Restart=always` with back-off to 60 s, no start limit,
+linger for start at boot) and a bounded readiness helper instead of `After=` on system units. Details, files, rollback and the owner's smoke
+test: docs/PILOT.md. Same supervision layers as the table above; the unit's sandboxing is intentionally minimal until verified on the Pi.
+
 ## Recovery entry points (stabilisation package)
 * `python3 -m btbridge.recovery --data <dir> reset-owner-password | factory-reset --yes | boot-request --boot <dir>` - console only.
   On the image the boot FAT is root-owned and writable only through the group of `hifi-bridge-boot.service` (review N-14); the tool drops

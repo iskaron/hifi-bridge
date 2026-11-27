@@ -502,3 +502,11 @@ Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardwar
      image needs no override: its system-wide WirePlumber profile disables seat monitoring (`mixin.systemwide-session`). The Bluetooth
      agent capability passed to `register_agent` is now really sent to BlueZ (was hard-coded; same value `NoInputNoOutput`, no change in
      behaviour). Numeric comparison in the WebUI stays a future, unapproved feature.
+146. **Private daily-use pilot on stock Pi OS Lite, provisional and explicitly NOT G1-S (owner decision 2026-11-27; docs/PILOT.md):** the
+     bridge may be used privately on the test Pi before G1-S passes, as a **systemd user unit** (`hifi-bridge-pilot.service`, installed by
+     `hwkit/pi-setup/pilot_service.sh`, linger so it starts at boot) running the same command as the manual hwkit launch. A user unit, because
+     PipeWire/WirePlumber are per-user on this OS; the appliance's system unit stays the image's. Restart always with growing back-off and no
+     start limit; watchdog as in DECISIONS #39; tracing, MQTT and ICY stay opt-in/off; no `--boot-dir` (non-fatal permission error, nothing is
+     `chmod`-ed); no reboot, unsync or stream restart is ever automated. Install, enable, disable and rollback are idempotent and keep
+     `~/bridge-data`, bonds and Lyrion untouched. A passed smoke test means "private pilot ready"; the version stays `0.3.0-dev`; no tag, no
+     `main` merge, no claim for the Buildroot image. Reversible: `pilot_service.sh disable` returns to the manual launch.

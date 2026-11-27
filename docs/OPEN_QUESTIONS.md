@@ -369,3 +369,11 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
      Falsifier of the technical reading: no group state change in that log. Until then neither the listening result nor the trace rule is
      adjusted, and neither run counts as a strict pass.
 
+110. **Pilot service on the real Pi is unverified** (2026-11-27, docs/PILOT.md): the user unit, linger, the PipeWire user-service order, the
+     bounded wait helper, the watchdog restart and clean stop have been verified only statically/with stubs in the repository. Open until the
+     owner's smoke test (PILOT.md section 5) runs on `hifi-test`: boot auto-start, kitchen solo 10 min, restart, Lyrion source priority.
+     Also open: whether the sandboxing options of the appliance unit can be added to the user unit without harming the audio path.
+111. **Unit flake, not reproduced** (2026-11-27): `tests/unit/test_stream_faults.py::test_a_reader_that_falls_a_whole_ring_behind_is_skipped_forward_and_counted`
+     failed once in one full 1160-test run (`ring_skips == 0` after the 10 s wait) and passed in six isolated runs, in the previous full run and in CI.
+     The trace was off in that test (`s.trace is None`), so the trace fix `48e59f9` cannot be involved. Cause unknown; investigate if it recurs
+     (a held writer that already consumed the data before the 6 s write is the first thing to check), do not retry-mask it.
