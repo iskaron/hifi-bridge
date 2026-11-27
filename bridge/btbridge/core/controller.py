@@ -446,6 +446,13 @@ class Controller:
                     self._ev("stream_address_unavailable")
                 self.blocked_reason = "stream_address_unavailable"
                 return None
+            enc_err = getattr(self.stream, "encoder_error", lambda: None)()
+            if enc_err:                                   # e.g. mp3 chosen but 'lame' missing: say so, never play another format instead
+                self.next_start_attempt = now + self.cfg.restart_backoff_s
+                if self.blocked_reason != "stream_encoder_unavailable":
+                    self._ev("stream_encoder_unavailable", enc_err)
+                self.blocked_reason = "stream_encoder_unavailable"
+                return None
             self.next_start_attempt = now + self.cfg.restart_backoff_s
             self.stream.open_session(sid)
             wake = not obs.power and self.cfg.wake_standby
@@ -561,7 +568,7 @@ class Controller:
         # 4. wanted but nothing running (e.g. LMS was unreachable at Play time)
         with self.lock:
             retry = (self._wanted() and not self.session and self._starting is None and self.ownership != "lost"
-                     and self.blocked_reason in (None, "lyrion_unreachable", "stream_address_unavailable")
+                     and self.blocked_reason in (None, "lyrion_unreachable", "stream_address_unavailable", "stream_encoder_unavailable")
                      and now >= self.next_start_attempt
                      and self.io_failures == failures)
             if retry:

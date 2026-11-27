@@ -1,0 +1,19 @@
+{
+  "seconds_to_lyrion_first_title": 0.12,
+  "seconds_to_lyrion_track_change": 3.07,
+  "lyrion_item": {
+    "title": "Blue in Green",
+    "artist": "Miles Davis",
+    "bitrate": "320kbps CBR",
+    "remote_title": "Bluetooth"
+  },
+  "label": "INTEGRATION real LMS + SIMULATED AVRCP; Squeezebox Classic / ESP32 / Nest displays UNVERIFIED",
+  "env": {
+    "date_utc": "2026-11-27T15:22:00Z",
+    "lms": "9.1.2",
+    "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
+    "kernel": "7.0.0-43-generic",
+    "python": "3.11.2",
+    "note": "all timings are software/virtual-DAC measurements inside Docker; NOT acoustic, NOT hardware"
+  }
+}

@@ -162,7 +162,7 @@ class ApplianceService:
         c = self.store.all()
         rc = RuntimeConfig(lms_url=lms_url(c["lms_host"], c["lms_port"]) if c["lms_host"] else "http://127.0.0.1:9",
                            advertise_host="" if advertise_host == "auto" else advertise_host, stream_port=stream_port, stream_format=c["stream_format"],
-                           icy_metadata=c["icy_metadata"], pairing_s=float(c["pairing_seconds"]))
+                           icy_metadata=c["icy_metadata"], icy_mp3=c["icy_mp3"], pairing_s=float(c["pairing_seconds"]))
         cc = Config(target_player=c["target_player"], audio_allowed=c["audio_allowed"], override_lms=c["override_lms"],
                     pause_strategy=c["pause_strategy"])
         self.runtime = BridgeRuntime(rc, cc, source=source, lms=self._lms_for(c), log=self.logs, token=self.store.secret("stream_token"))
@@ -289,8 +289,8 @@ class ApplianceService:
                 ctl.cfg.pause_strategy = ch["pause_strategy"]
         if "audio_allowed" in ch:
             self._step("audio permission", ctl.set_audio_allowed, ch["audio_allowed"])
-        if "stream_format" in ch or "icy_metadata" in ch:
-            self._step("stream reconfiguration", rt.reconfigure_stream, ch.get("stream_format"), ch.get("icy_metadata"))
+        if {"stream_format", "icy_metadata", "icy_mp3"} & set(ch):
+            self._step("stream reconfiguration", rt.reconfigure_stream, ch.get("stream_format"), ch.get("icy_metadata"), ch.get("icy_mp3"))
         if {"lms_host", "lms_port"} & set(ch) or ("target_player" in ch and (not c["target_player"] or isinstance(rt.lms, UnconfiguredLms))):
             self._step("Lyrion server change", lambda: rt.set_lms(self._lms_for(c), c["target_player"] if "target_player" in ch else None))
         elif "target_player" in ch:
@@ -464,6 +464,8 @@ class ApplianceService:
             degraded.append("lyrion_unreachable")
         if b["blocked_reason"] == "stream_address_unavailable":
             degraded.append("stream_address_unavailable")
+        if b["blocked_reason"] == "stream_encoder_unavailable":
+            degraded.append("stream_encoder_unavailable")
         if self._thermal["state"] in ("warning", "critical"):
             degraded.append("thermal_" + self._thermal["state"])
         if (self.mqtt and not self.mqtt.state().get("connected")) or (self.mqtt is None and self.mqtt_failed):

@@ -1,0 +1,16 @@
+{
+  "lms_bitrate": "320kbps CBR",
+  "wire_kbit_per_s": 319.5,
+  "connections": 2,
+  "audible_fraction": 1.0,
+  "first_audio_after_play_s": 3.34,
+  "label": "INTEGRATION real LMS + Squeezelite decode + SIMULATED BT; virtual DAC, NOT acoustic, NOT Pi 3 CPU",
+  "env": {
+    "date_utc": "2026-11-27T15:21:39Z",
+    "lms": "9.1.2",
+    "squeezelite": "Squeezelite v1.9.9-1414, Copyright 2012-2015 Adrian Smith, 2015-2021 Ralph Irving.",
+    "kernel": "7.0.0-43-generic",
+    "python": "3.11.2",
+    "note": "all timings are software/virtual-DAC measurements inside Docker; NOT acoustic, NOT hardware"
+  }
+}

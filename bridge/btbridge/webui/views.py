@@ -587,8 +587,9 @@ def settings_playback_get(req):
     return section_page(req, "playback", form_card(req, "settings.playback", "/settings/playback",
                         field(req, "override_lms", c["override_lms"], "checkbox", help_key="help.override_lms") +
                         select(req, "pause_strategy", c["pause_strategy"], ("drop_restart", "keepalive_silence"), "help.pause_strategy") +
-                        select(req, "stream_format", c["stream_format"], ("wav", "flac")) +
-                        field(req, "icy_metadata", c["icy_metadata"], "checkbox", help_key="settings.playback.help")))
+                        select(req, "stream_format", c["stream_format"], ("wav", "flac", "mp3"), "help.stream_format") +
+                        field(req, "icy_metadata", c["icy_metadata"], "checkbox", help_key="settings.playback.help") +
+                        field(req, "icy_mp3", c["icy_mp3"], "checkbox", help_key="help.icy_mp3")))
 
 
 def settings_bluetooth_get(req):
@@ -710,7 +711,10 @@ def settings_target(req):
 
 
 def settings_playback(req):
-    return _save(req, ("pause_strategy", "stream_format"), ("override_lms", "icy_metadata"), back="/settings/playback")
+    from ..stream.encoders import mp3_encoder_path
+    if req.form.get("stream_format") == "mp3" and req.ui.svc.store.get("stream_format") != "mp3" and mp3_encoder_path() is None:
+        return _srv().redirect("/settings/playback", req.t("error.encoder_missing"), req.secure, error=True)   # never select what cannot play
+    return _save(req, ("pause_strategy", "stream_format"), ("override_lms", "icy_metadata", "icy_mp3"), back="/settings/playback")
 
 
 def settings_bluetooth(req):

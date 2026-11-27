@@ -136,8 +136,9 @@ SETTINGS: dict[str, Setting] = {s.key: s for s in [
     Setting("audio_allowed", bool, True, group="playback"),
     Setting("override_lms", bool, True, group="playback"),
     Setting("pause_strategy", str, "drop_restart", choices=("drop_restart", "keepalive_silence"), group="playback"),
-    Setting("stream_format", str, "wav", choices=("wav", "flac"), group="playback", restart=True),
-    Setting("icy_metadata", bool, False, group="playback", restart=True),
+    Setting("stream_format", str, "wav", choices=("wav", "flac", "mp3"), group="playback", restart=True),   # mp3 = experimental live 320 kbit/s CBR (DECISIONS #147)
+    Setting("icy_metadata", bool, False, group="playback", restart=True),            # ICY titles on WAV (DECISIONS #18: off)
+    Setting("icy_mp3", bool, False, group="playback", restart=True),                 # ICY titles on MP3 only; a separate switch so WAV never changes with it
     Setting("lms_host", str, "", check=_host, group="lyrion", restart=True),
     Setting("lms_port", int, 9000, min=1, max=65535, group="lyrion", restart=True),
     Setting("target_player", str, "", check=_player, group="lyrion"),

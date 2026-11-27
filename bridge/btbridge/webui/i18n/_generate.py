@@ -23,7 +23,7 @@ S = {"connected":("Connected","Verbunden"),"disconnected":("Not connected","Nich
      "lost":("Taken over by another source","Von anderer Quelle übernommen"),"closed":("Closed","Geschlossen"),"parked":("Paused (grace period)","Pausiert (Karenzzeit)"),
      "streaming":("Streaming","Streamt"),"audio_disabled":("Bridge audio off","Bridge-Wiedergabe aus"),"override_disabled":("Override disabled","Übernahme deaktiviert"),
      "notification_filter":("Checking: notification or music?","Prüft: Hinweiston oder Musik?"),"lyrion_unreachable":("Lyrion unreachable","Lyrion nicht erreichbar"),
-     "stream_address_unavailable":("Waiting for the network","Wartet auf das Netzwerk"),
+     "stream_address_unavailable":("Waiting for the network","Wartet auf das Netzwerk"),"stream_encoder_unavailable":("MP3 encoder missing","MP3-Encoder fehlt"),
      "no_device":("No phone connected","Kein Telefon verbunden"),"not_configured":("Not configured","Nicht eingerichtet"),"not_connected":("Not connected","Nicht verbunden")}
 for s,(en,de) in S.items(): k(f"state.{s}",en,de)
 DIM = {"bluetooth_connection":("Bluetooth","Bluetooth"),"bt_media_activity":("Phone media","Medien am Telefon"),"audio_permission":("Bridge audio","Bridge-Wiedergabe"),
@@ -70,7 +70,7 @@ for key,en,de in [("login.title","Log in","Anmelden"),("login.submit","Log in","
 F = {"setup_code":("Setup code","Einrichtungscode"),"new_password":("New password","Neues Passwort"),"confirm_password":("Repeat password","Passwort wiederholen"),
      "password":("Password","Passwort"),"device_name":("Bluetooth name","Bluetooth-Name"),"pairing_seconds":("Pairing window (seconds)","Kopplungsfenster (Sekunden)"),
      "audio_allowed":("Bridge audio","Bridge-Wiedergabe"),"override_lms":("Phones may take over a playing Lyrion player","Telefone dürfen einen spielenden Lyrion-Player übernehmen"),
-     "pause_strategy":("Pause behaviour","Verhalten bei Pause"),"stream_format":("Stream format","Stream-Format"),"icy_metadata":("Send track titles in the stream (ICY)","Titel im Stream senden (ICY)"),
+     "pause_strategy":("Pause behaviour","Verhalten bei Pause"),"stream_format":("Stream format","Stream-Format"),"icy_metadata":("Send track titles in the stream (ICY)","Titel im Stream senden (ICY)"),"icy_mp3":("Send track titles in MP3 streams (ICY, test)","Titel in MP3-Streams senden (ICY, Test)"),
      "lms_host":("Server address","Server-Adresse"),"lms_port":("Port","Port"),"target_player":("Player","Player"),"target_label":("Player name","Player-Name"),
      "language":("Language","Sprache"),"theme":("Appearance","Darstellung"),"mqtt_enabled":("Enable MQTT","MQTT aktivieren"),"mqtt_host":("Broker address","Broker-Adresse"),
      "mqtt_port":("Broker port","Broker-Port"),"mqtt_username":("User name","Benutzername"),"mqtt_password":("Password","Passwort"),"mqtt_tls":("Use TLS","TLS verwenden"),
@@ -83,7 +83,7 @@ F = {"setup_code":("Setup code","Einrichtungscode"),"new_password":("New passwor
      "mqtt_ca_pem":("Broker CA certificate (PEM, optional)","CA-Zertifikat des Brokers (PEM, optional)"),"setup_complete":("Setup complete","Einrichtung abgeschlossen"),"instance_id":("Instance id","Instanz-ID")}
 for f,(en,de) in F.items(): k(f"field.{f}",en,de)
 C = {"pause_strategy.drop_restart":("Silence at once (recommended)","Sofort Stille (empfohlen)"),"pause_strategy.keepalive_silence":("Keep the stream open","Stream offen halten"),
-     "stream_format.wav":("WAV / PCM (recommended)","WAV / PCM (empfohlen)"),"stream_format.flac":("FLAC","FLAC"),"language.auto":("Browser language","Browsersprache"),
+     "stream_format.wav":("WAV / PCM (recommended)","WAV / PCM (empfohlen)"),"stream_format.flac":("FLAC","FLAC"),"stream_format.mp3":("MP3 320 kbit/s (experimental)","MP3 320 kbit/s (experimentell)"),"language.auto":("Browser language","Browsersprache"),
      "language.de":("Deutsch","Deutsch"),"language.en":("English","English"),"theme.auto":("Like the device","Wie das Gerät"),"theme.light":("Light","Hell"),"theme.dark":("Dark","Dunkel")}
 for c,(en,de) in C.items(): k(f"choice.{c}",en,de)
 for key,en,de in [("settings.lyrion","Lyrion server","Lyrion-Server"),("settings.lyrion.help","Changing the server stops only the bridge’s own playback.","Ein Serverwechsel beendet nur die eigene Wiedergabe der Bridge."),
@@ -117,6 +117,8 @@ for d,(en,de) in {"not_configured":("Setup is not finished.","Die Einrichtung is
     "thermal_warning":("The device is getting warm.","Das Gerät wird warm."),"thermal_critical":("The device is too hot.","Das Gerät ist zu heiß."),"mqtt_disconnected":("MQTT broker not connected.","MQTT-Broker nicht verbunden."),
     "pairing_adapter_error":("The Bluetooth adapter did not accept the last pairing change; the bridge keeps retrying.",
                              "Der Bluetooth-Adapter hat die letzte Kopplungsänderung nicht übernommen; die Bridge versucht es weiter."),
+    "stream_encoder_unavailable":("The MP3 encoder (lame) is not installed, so nothing is played. Switch the stream format back to WAV or install lame.",
+                                  "Der MP3-Encoder (lame) ist nicht installiert, daher wird nichts abgespielt. Stream-Format auf WAV zurückstellen oder lame installieren."),
     "stream_address_unavailable":("No network address for the stream yet: the bridge waits for the network before it starts playback.",
                                   "Noch keine Netzwerkadresse für den Stream: Die Bridge wartet auf das Netzwerk, bevor sie die Wiedergabe startet.")}.items(): k(f"degraded.{d}",en,de)
 # flashes + errors
@@ -150,6 +152,11 @@ for key,en,de in [("brand.device","Device","Gerät"),("brand.tagline","Bluetooth
     ("settings.mqtt.controls_help","Off by default: Home Assistant then only shows status. Each control is enabled separately; restrict access with broker ACLs.","Standardmäßig aus: Home Assistant zeigt dann nur den Status. Jede Steuerung wird einzeln freigegeben; Zugriff über Broker-ACLs beschränken."),
     ("summary.pairing_minutes","pairing window {minutes} min","Kopplungsfenster {minutes} Min."),("summary.read_only","read-only","nur lesend"),
     ("summary.controls","{n} control(s) enabled","{n} Steuerung(en) freigegeben"),("summary.security","Password, stream address","Passwort, Stream-Adresse"),
+    ("help.stream_format","MP3 320 kbit/s is a test mode: the bridge encodes a live 320 kbit/s stream (about 77 % less data than WAV, lossy). WAV stays the recommended default; switching back is instant.",
+     "MP3 320 kbit/s ist ein Testmodus: Die Bridge kodiert einen Live-Stream mit 320 kbit/s (etwa 77 % weniger Daten als WAV, verlustbehaftet). WAV bleibt die empfohlene Vorgabe; das Zurückschalten wirkt sofort."),
+    ("help.icy_mp3","Shows the phone's artist and title on Lyrion and its players while an MP3 stream plays. Test option; WAV is not affected.",
+     "Zeigt Interpret und Titel des Telefons auf Lyrion und den Playern, solange ein MP3-Stream läuft. Testoption; WAV ist nicht betroffen."),
+    ("error.encoder_missing","The MP3 encoder (lame) is not installed on this device.","Der MP3-Encoder (lame) ist auf diesem Gerät nicht installiert."),
     ("help.override_lms","If off, a phone never interrupts other music playing on the player.","Wenn aus, unterbricht ein Telefon nie andere Musik auf dem Player."),
     ("help.pause_strategy","“Silence at once” stops the player within a fraction of a second when the phone pauses.","„Sofort Stille“ stoppt den Player Sekundenbruchteile nach der Pause am Telefon."),
     ("help.device_name","The name guests see in their Bluetooth list and that this device shows in Home Assistant.","Der Name, den Gäste in ihrer Bluetooth-Liste sehen und den das Gerät in Home Assistant zeigt."),

@@ -17,18 +17,19 @@ def main(argv=None) -> int:
     ap.add_argument("--player", required=True, help="LMS player id (MAC) = the one configured target")
     ap.add_argument("--advertise-host", default="bridge")
     ap.add_argument("--port", type=int, default=8090)
-    ap.add_argument("--format", choices=("wav", "flac"), default="wav")
+    ap.add_argument("--format", choices=("wav", "flac", "mp3"), default="wav")
     ap.add_argument("--lead-in-ms", type=int, default=1000)
     ap.add_argument("--pause-strategy", choices=("drop_restart", "keepalive_silence"), default="drop_restart")
     ap.add_argument("--no-override", action="store_true")
-    ap.add_argument("--icy", action="store_true")
+    ap.add_argument("--icy", action="store_true", help="ICY titles on WAV streams")
+    ap.add_argument("--icy-mp3", action="store_true", help="ICY titles on MP3 streams")
     ap.add_argument("--source", help="'bluez' (real BlueZ/PipeWire adapter - hardware-unverified, target device only) or "
                                      "module:Class implementing AudioSourceAdapter (e.g. btkit.sim_a2dp:SimulatedA2dpSource)")
     ap.add_argument("--dbus", default="SYSTEM", help="D-Bus to use for --source bluez (SYSTEM, or an address for tests)")
     ap.add_argument("--status-every", type=float, default=0)
     a = ap.parse_args(argv)
     rc = RuntimeConfig(lms_url=a.lms, advertise_host=a.advertise_host, stream_port=a.port, stream_format=a.format,
-                       lead_in_ms=a.lead_in_ms, icy_metadata=a.icy)
+                       lead_in_ms=a.lead_in_ms, icy_metadata=a.icy, icy_mp3=a.icy_mp3)
     cc = Config(target_player=a.player, override_lms=not a.no_override, pause_strategy=a.pause_strategy)
     src = None
     if a.source == "bluez":
