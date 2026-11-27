@@ -377,3 +377,12 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
      failed once in one full 1160-test run (`ring_skips == 0` after the 10 s wait) and passed in six isolated runs, in the previous full run and in CI.
      The trace was off in that test (`s.trace is None`), so the trace fix `48e59f9` cannot be involved. Cause unknown; investigate if it recurs
      (a held writer that already consumed the data before the 6 s write is the first thing to check), do not retry-mask it.
+112. **Demo `test_08` flakes again after the condition wait** (2026-11-27, CI run 45988414937 on `b8f7282`, `demo` job only; the other 16 jobs
+     green): `room_plays_phone_track("Schlafzimmer")` after the sync join returned `offset_s 10.05, phone_to_dac_s 12.19, score 0.681`
+     (normal: about 2.3 s and 1.0). `wait_group_settled` had passed (play, no `waitingToPlay`, sync master set, time advancing 3 s), so the earlier
+     inference "the capture was taken while the member was still being aligned" (48f0d0f attempt 1: `phone_to_dac 1.05`, score 0.49) is not
+     sufficient: this time the room played audio about 10 s older than usual. Both failures are SIMULATED/INTEGRATION evidence only; the commit
+     touched no runtime code (hwkit files, docs, tests), so it is not a regression from the pilot. Open: whether Lyrion restarts the group stream
+     at an older ring position after a join (a real behaviour shared with Run 10/11 style re-buffering) or the capture window mis-locates a
+     repeating chord loop. Next step: have the test dump the Lyrion `status` (time, sync_master, url) and the bridge ring/GET ranges on failure,
+     then decide. Do not loosen the `score > 0.9` assertion. A rerun needs the owner in the GitHub UI (token has no `actions=write`).
