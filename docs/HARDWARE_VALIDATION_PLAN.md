@@ -87,6 +87,7 @@ IDs are stable so results can be cross-referenced in handoffs. "Decision" = what
 |---|---|---|
 | F1 | Real Squeezelite on separate hardware (different version from 1.9.9 if possible) | live stream plays; sample rate; sync |
 | F2 | **Each real Squeezebox model/firmware:** WAV live stream; FLAC; pause; startup time; wake-from-standby (`power 1`); behaviour with the ICY option **on and off** | per model PASS/FAIL; decide the ICY default (DECISIONS #18 keeps it off until then) and whether a transcoding rule is needed |
+| F2b | **Live MP3 320 kbit/s + ICY titles (DECISIONS #147, docs/PILOT.md section 9; experimental):** the owner's own sync group, WAV vs MP3, 10-15 min each; then titles on the Lyrion web UI, the Classic, both ESP32 and the Nest displays | per codec: stalls (count, length, Lyrion log), first audio after Play, `lame` CPU/RAM from `mp3-check`, `throttled`; per display: what it shows. Decides whether MP3 stays an option; nothing is assumed beforehand |
 | F3 | Sync group with mixed real players, target = master and member | sync offset (rig), regroup never performed |
 | F4 | Ownership races on the owner's real LMS (with consent): switch to a real radio station then late BT events; two bridges on one player; LMS restart; player offline | zero LMS commands after ownership loss; radio never touched |
 | F5 | LMS server version differences (record version) | compatibility of `playlist play <url>` / `playlist deleteitem <url>` |

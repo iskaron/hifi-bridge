@@ -510,3 +510,17 @@ Phase 1 is **Docker-only**; do not probe or demand Bluetooth dongles, Pi hardwar
      `chmod`-ed); no reboot, unsync or stream restart is ever automated. Install, enable, disable and rollback are idempotent and keep
      `~/bridge-data`, bonds and Lyrion untouched. A passed smoke test means "private pilot ready"; the version stays `0.3.0-dev`; no tag, no
      `main` merge, no claim for the Buildroot image. Reversible: `pilot_service.sh disable` returns to the manual launch.
+147. **Experimental live MP3 320 kbit/s CBR stream mode and dynamic now-playing titles (owner request 2026-11-27; docs/MP3_AND_METADATA.md):**
+     `stream_format` gains `mp3`, encoded **on the bridge** by the `lame` CLI (LGPL-2.0+; MPEG-1 Layer III, 44.1 kHz stereo, CBR 320, no Xing
+     tag), one encoder child per HTTP connection, at most 4, started before the status line (missing binary / full limit = clean `503`),
+     bounded queue, killed and reaped on every exit. Served as `.mp3`/`audio/mpeg`, always `200`, no length, no `Content-Range` (a `Range` request gets
+     the live stream). **WAV stays the default, FLAC is unchanged, and the mode is labelled experimental until the owner's hardware A/B**; it is a
+     bitrate hypothesis for the sync-group stalls, **not** a claimed fix, and G1-S stays open. Without `lame` the mode cannot be selected, and a
+     stored `mp3` plays nothing and reports `stream_encoder_unavailable` — never a silent switch to another quality. Titles: AVRCP → `Artist - Title`
+     → in-band ICY, with a **second, separate switch `icy_mp3`** (default off) so that a rollback to WAV never changes what legacy players receive;
+     `icy_metadata` keeps its WAV meaning and DECISIONS #18 (ICY off by default for untested legacy hardware) stands. ICY blocks count the encoded MP3
+     bytes (metaint 8192), carry a title only on change (+ a safety repeat), and clear explicitly (`StreamTitle='';`, because length 0 means
+     "unchanged"). No LMS plugin and no additional Lyrion command: Lyrion's own ICY handling updates its now-playing model (INTEGRATION, real
+     Lyrion 9.1.2). The Buildroot images carry `lame` (`BR2_PACKAGE_LAME`); the pilot's installer never installs packages itself (`sudo apt install lame`
+     is an owner action, `pilot_service.sh mp3-check` measures it). Not verified: Pi 3 B+ CPU/start-up/stall behaviour, Squeezebox Classic, ESP32 and Nest
+     displays. Reversible: WebUI → Playback → WAV, both ICY boxes off.

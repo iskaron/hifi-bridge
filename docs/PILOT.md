@@ -99,12 +99,13 @@ workaround for a stall; the unit never does. Pass S0–S8 = **private pilot read
 | Manual Lyrion source priority | implemented | INTEGRATION (lab LMS); S7 checks it on the Pi | unchanged |
 | Diagnostics: `/healthz`, opt-in stream trace | implemented | UNIT/INTEGRATION; trace REAL-HARDWARE | trace **off** |
 | MQTT + Home Assistant discovery, 14 entities, read-only by default | implemented; **not verified on the owner's live HA** | INTEGRATION (Mosquitto, `test_11_mqtt_mosquitto.py`) | **off** (`mqtt_enabled=false`) |
-| ICY metadata to Lyrion | implemented; **off by default** for legacy Squeezebox compatibility (DECISIONS #18); the kitchen is a Squeezebox Classic | UNIT/INTEGRATION; no legacy-hardware test | **off** |
+| ICY metadata to Lyrion | implemented; **off by default** for legacy Squeezebox compatibility (DECISIONS #18); the kitchen is a Squeezebox Classic. Two separate switches since DECISIONS #147: `icy_metadata` (WAV, as before) and `icy_mp3` (MP3 only) | UNIT/INTEGRATION; no legacy-hardware test | **off** |
+| Live MP3 320 kbit/s CBR stream mode (experimental, bridge-encoded with `lame`) | implemented (DECISIONS #147, docs/MP3_AND_METADATA.md); needs `sudo apt install lame`; **not hardware-verified, not a proven fix** | UNIT/INTEGRATION (real Lyrion 9.1.2) | **WAV** (unchanged) |
 | Dynamic 6-digit SSP numeric comparison via the WebUI | **not implemented** (docs/PAIRING_CODE_FEASIBILITY.md) | analysis only | n/a |
 | Audio-stall alert in the WebUI | design only (docs/STALL_ALERT_DESIGN.md) | — | n/a |
 | Buildroot appliance image, A/B update, flash tool | development images BUILD-VERIFIED in Docker for three boards (os/README.md); **nothing has ever been booted** | not hardware-proven | n/a |
 
-If, **after the pilot is proven and only on the owner's explicit request**, MQTT/HA or ICY is wanted, use a separate reversible checklist
+If, **after the pilot is proven and only on the owner's explicit request**, MQTT/HA or ICY on **WAV** is wanted, use a separate reversible checklist
 (not part of this pilot): *MQTT:* the WebUI's MQTT settings (host, user, password); watch `status`/`logs`; verify the entities appear in HA;
 revert = disable MQTT in the WebUI. **Unverified:** whether the retained discovery messages then disappear from the broker; if entities linger in HA,
 list them with `mosquitto_sub -t 'homeassistant/#' -v -W 5` and clear them on the owner's broker (`mosquitto_pub -r -n -t <topic>`). *ICY:* never on while a Squeezebox Classic is the target; if wanted, test with the living-room ESP32 first
@@ -118,9 +119,67 @@ list them with `mosquitto_sub -t 'homeassistant/#' -v -W 5` and clear them on th
 * The unit's sandboxing is minimal (see section 1); the Pi's real systemd behaviour is unverified until the smoke test.
 * Not a public release: no tag, no `main` merge.
 
+## 8a. (see section 9 for the MP3 / titles trial)
+
 ## 8. After the pilot is stable: the appliance image
 
 Next real-hardware step (gate G2, docs/HARDWARE_GATE_CHECKLIST.md, docs/IMAGE_BUILD.md): build the image on the development machine, write it
 to a **spare** SD card with the flash tool (never the pilot's card), boot a second Pi 3 B+ (or the same Pi from the spare card), and check
 the first-boot flow, A/B update with rollback, a power cut, and the audio path on the *image's* PipeWire. Do this only after S0–S8 pass and
 the pilot has run for a few days; keep the pilot card untouched as the fallback.
+
+
+## 9. MP3 320 kbit/s + song titles: owner trial (REAL-HARDWARE, not done yet; an experiment, not a G1-S campaign)
+
+What this tests: whether a 4.4× smaller continuous stream (320 kbit/s instead of WAV's 1411 kbit/s) behaves better in **your** current sync
+group, and whether artist/title shows on Lyrion and the players. **Not** a proven fix; the lab cannot say. Details and the lab evidence:
+docs/MP3_AND_METADATA.md. Settings live in the WebUI (Settings → Playback) and are stored in `~/bridge-data` — the unit file does not change.
+
+### 9.1 Update (WAV stays the default; nothing changes until you switch the format)
+
+```sh
+# dev machine: scripts/hwkit_bundle.sh  -> dist/hwkit-bundle-<rev>.tar.gz ; copy it to the Pi
+# Pi (as the normal user; ~/bridge-data, bonds, WebUI setup and pilot.env are NOT touched):
+sh ~/hifi-bridge/hwkit/pi-setup/pilot_service.sh stop                       # music for this Pi stops; Lyrion and the other players are untouched
+mv ~/hifi-bridge ~/hifi-bridge.prev-<oldrev>                              # the rollback copy (keep it)
+mkdir ~/hifi-bridge && tar -xzf ~/hwkit-bundle-<rev>.tar.gz -C ~/hifi-bridge   # same layout as the first install (PILOT.md section 3)
+sudo apt install lame                                                      # the ONLY system change; WAV/FLAC need no encoder
+sh ~/hifi-bridge/hwkit/pi-setup/pilot_service.sh check                     # expect OK for lame; fix any FAIL first
+sh ~/hifi-bridge/hwkit/pi-setup/pilot_service.sh mp3-check --seconds 30    # prints encoder CPU (% of one core), RAM, kbit/s: write the numbers down
+sh ~/hifi-bridge/hwkit/pi-setup/pilot_service.sh install --start           # idempotent: same unit, restarts the service on the new code
+curl -s http://127.0.0.1:8080/healthz                                      # still "ok"; the stream format is still WAV
+```
+
+### 9.2 The A/B (same group, same settings, 10–15 minutes per codec; no other matrix)
+
+Use the group you actually listen with; do not change members, master, volumes, or Lyrion's Internet Radio buffer (**stays 3**). Switch
+tracing on once (it is off by default): in `~/.config/hifi-bridge/pilot.env` remove the `#` from `HIFI_STREAM_TRACE=1`, then
+`pilot_service.sh restart`. Do **A** (WAV), then **B** (MP3), same phone, same music:
+
+| Step | A: WAV | B: MP3 |
+|---|---|---|
+| format | WebUI → Playback → *WAV / PCM*, ICY **off** → Save (a running session of the bridge restarts; nobody else's does) | *MP3 320 kbit/s (experimental)*, ICY off → Save |
+| play | 10–15 min, listen, note each audible gap with the clock time | same |
+| Pi, during the run | `curl -s localhost:8080/healthz`; `ps -o pid,pcpu,rss,args -C python3,lame,pipewire,wireplumber`; `vcgencmd get_throttled` (expect `0x0`) | same (+ the `lame` row) |
+| trace | `sh …/pilot_service.sh logs \| grep '\[trace\]' > ~/trace-A.log` (B: `trace-B.log`): `out:` bytes/s (WAV ≈ 176400, MP3 ≈ 40000), `blk`, `STUCK`, `WAITING`, `lame-cpu` | same |
+| Lyrion (host `bart`) | in `server.log`, note the time stamps of `playerOutputUnderrun`, `BUFFERING`, `WAITING_TO_SYNC`, `PLAYING` for those minutes | same |
+
+Compare: count and length of the stalls, first audio after Play (MP3 is expected to start later: about +2 s in the lab), CPU of
+`python3`/`lame`, `throttled`. One run per codec is an indication, not proof; repeat only if it is close.
+
+### 9.3 Titles (separate from the A/B, afterwards)
+
+Format MP3, tick **“Send track titles in MP3 streams (ICY, test)”** → Save. Play from the Pixel and change tracks. Look at: the Lyrion web UI
+(Now Playing), the **Küche** Classic's screen, both ESP32 screens, the Nest displays — and write down *what each shows* (artist - title, only
+"Hi-Fi Bridge", or "Bluetooth"). Expected from the lab: Lyrion shows `Artist - Title` within about 3 s of a change without a gap. Whether the
+Classic, the ESP32 and the Nests show it is exactly what is unknown. A device that stays on “Hi-Fi Bridge” while Lyrion's web UI shows the title
+points at that device's integration, not at the bridge. **Never tick the WAV ICY box for this.**
+
+### 9.4 Restore and rollback
+
+* Back to the old behaviour at once: WebUI → Playback → *WAV / PCM*, untick both ICY boxes → Save (restarts only the bridge's own session).
+* Back to the previous code: `sh ~/hifi-bridge/hwkit/pi-setup/pilot_service.sh stop; rm -rf ~/hifi-bridge; mv ~/hifi-bridge.prev-<oldrev> ~/hifi-bridge; sh ~/hifi-bridge/hwkit/pi-setup/pilot_service.sh install --start`
+  (the older code does not know `mp3`/`icy_mp3`: by the config store's rollback rule it runs with its defaults — WAV, ICY off — and keeps the file's values untouched, so a later update finds them again; to be safe set the format to WAV in the WebUI before going back).
+* Restore your own state after the test: the preferred sync group (set only by you), Internet Radio buffer **3**, `HIFI_STREAM_TRACE` off
+  again (re-comment it, `restart`). `lame` can stay installed; it is inert in WAV mode.
+* If the MP3 mode misbehaves (silence, repeated reconnects): switch to WAV first, then collect `pilot_service.sh logs` and the trace.

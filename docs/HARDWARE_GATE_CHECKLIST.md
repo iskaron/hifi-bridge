@@ -44,6 +44,7 @@ The gates are in order. A gate starts only when the previous one is passed **and
 - [ ] D1, D2: absolute volume per phone.
 - [ ] E1 (30 min capture), E2 (10 × play/pause with the microphone): the first real timing numbers.
 - [ ] F1, F2: each real Squeezebox (compatibility list, ICY decision).
+- [ ] F2b: live MP3 320 kbit/s A/B and ICY titles on the owner's real players/displays (experimental, docs/PILOT.md section 9; not required for G1-S).
 - [ ] G1: guest flow end to end (an ordinary visitor pairs, presses Play, hears music).
 - [ ] H1–H3, H4 if time: `hifi-bridge.local` from four OSes, trusted HTTPS, home-screen shortcut, screen reader.
 - [ ] **New, this package:** `--boot-dir /boot/firmware` with a hand-made provisioning file. On Pi OS `/boot/firmware` belongs to root:

@@ -386,3 +386,20 @@ Still open (need hardware, none executed): Q2 (AVRCP vs notifications), Q4 (volu
      at an older ring position after a join (a real behaviour shared with Run 10/11 style re-buffering) or the capture window mis-locates a
      repeating chord loop. Next step: have the test dump the Lyrion `status` (time, sync_master, url) and the bridge ring/GET ranges on failure,
      then decide. Do not loosen the `score > 0.9` assertion. A rerun needs the owner in the GitHub UI (token has no `actions=write`).
+113. **Does 320 kbit/s MP3 behave better than WAV in the owner's sync group?** (2026-11-27, DECISIONS #147) Unknown. The lab shows only that the stream is
+     genuine MP3 CBR 320 and plays through real Lyrion/Squeezelite; it cannot reproduce the Pi/Wi-Fi/Classic stalls. Decided by the owner's A/B
+     (docs/PILOT.md section 9.2): stall count/length, first-audio delay, CPU, throttling. If MP3 does not help, the stalls are not a bandwidth effect.
+114. **Which displays show the ICY title?** Lyrion's `status` (`current_title`, item title/artist) does (INTEGRATION, Lyrion 9.1.2). The Squeezebox Classic
+     (Küche), the two Squeezelite-ESP32 players and the Nest displays are **unverified**; a Nest may depend entirely on its Lyrion integration (which
+     `status` fields it forwards). Owner step: PILOT.md section 9.3; then a scoped follow-up for any device that stays on "Hi-Fi Bridge".
+115. **Lyrion 9.1.1 (owner) vs 9.1.2 (lab):** the ICY/MP3 behaviour was observed on 9.1.2 only. Expected the same; unconfirmed until section 9.3 is run.
+116. **MP3 starts about 1.8 s later than WAV in the lab** (first audio 3.3 s vs 1.5 s after Play). Hypothesis: Lyrion's start threshold is in bytes, which a
+     4.4× smaller stream fills later. Not investigated further; on the Pi it adds to the already long start. Compare in the A/B.
+117. **Pi 3 B+ cost of `lame -q 5`:** unmeasured (the lab number is an x86 core). `pilot_service.sh mp3-check` gives the real figure; if too high, `MP3_QUALITY`
+     (7–9 are faster, lower quality) is the knob, to be decided with data, not guessed.
+118. **Title shown after a clear:** Lyrion falls back to the play title `Bluetooth`, while a stream that never had a title shows `Hi-Fi Bridge` (the
+     `icy-name`). Cosmetic inconsistency; unify (e.g. play title `Hi-Fi Bridge`) only if the owner dislikes it.
+119. **SBOMs not regenerated for `lame`:** `reports/evidence/os_licenses_*.md` list `lame 3.100 LGPL-2.0+` (from `make show-info`, no build), but the CycloneDX files
+     `os_sbom_*.cdx.json` come from the image-build step (`scripts/os_build.sh sbom`, needs the built tree's `VERSION_ID`) and still describe the previous package set.
+     Regenerate with the next image build. No image was rebuilt or booted for this change; the Buildroot `lame` frontend (the `lame` binary) is inferred from the pinned
+     package (`--enable-dynamic-frontends`, default frontend) and unconfirmed until an image is built.

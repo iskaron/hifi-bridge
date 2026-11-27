@@ -9,6 +9,7 @@
 | BlueZ, PipeWire, WirePlumber | OS services on the device | GPL-2.0+ / MIT / MIT | not bundled by this repository |
 | Avahi (avahi-daemon, D-Bus API) | production mDNS (DECISIONS #49) | LGPL-2.1+ | controlled via jeepney; built-in responder as fallback |
 | `flac` binary (optional) | FLAC stream encoding | GPL-2.0+ (tools) | only with `stream_format=flac` |
+| `lame` binary (optional; LAME 3.100) | live MP3 320 kbit/s CBR stream encoding, run as a child process per stream connection (DECISIONS #147) | LGPL-2.0+ | only with `stream_format=mp3`; Debian `lame`, Buildroot `lame` (in the images); not linked into the bridge |
 | `openssl` CLI | local CA and certificates for the WebUI | Apache-2.0 (OpenSSL 3) | needed for HTTPS in `local_ca`/`custom` mode (OPEN_QUESTIONS #29) |
 
 ## Device image (Buildroot; internal development builds only, nothing published)
